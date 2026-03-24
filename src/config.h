@@ -2,10 +2,26 @@
 
 #include "eyes/eyes.h"
 
-// Default eye: nordicBlue (both displays)
+// ── Emotion-linked eyes ───────────────────────────────────────────────────────
+// Index 0: nordicBlue  (default)
+// Index 1: flame       (ANGRY emotion swap)
+// Index 2: hypnoRed    (CONFUSED emotion swap)
 #include "eyes/240x240/nordicBlue.h"
-// flame: used for ANGRY emotion swap
 #include "eyes/240x240/flame.h"
+#include "eyes/240x240/hypnoRed.h"
+
+// ── Web UI selectable eyes (compiled in, switchable via EYE:n serial command) ─
+// Index 3: hazel
+// Index 4: blueFlame2
+// Index 5: doomRed
+// Index 6: snake
+// Index 7: skull
+#include "eyes/240x240/hazel.h"
+#include "eyes/240x240/blueFlame2.h"
+#include "eyes/240x240/doomRed.h"
+#include "eyes/240x240/snake.h"
+#include "eyes/240x240/skull.h"
+
 #include "eyes/EyeController.h"
 
 #define USE_GC9A01A
@@ -21,18 +37,31 @@
 #define ST7735_SPICLOCK 30'000'000
 #endif
 
-// Index 0: nordicBlue (default)
-// Index 1: flame (ANGRY emotion)
-std::array<std::array<EyeDefinition, 2>, 2> eyeDefinitions{{
-    {nordicBlue::eye, nordicBlue::eye},
-    {flame::eye,      flame::eye},
+// eyeDefinitions index map:
+//   0 = nordicBlue  (default idle)
+//   1 = flame       (ANGRY -- not web-selectable as default)
+//   2 = hypnoRed    (CONFUSED -- not web-selectable as default)
+//   3 = hazel       (web UI)
+//   4 = blueFlame2  (web UI)
+//   5 = doomRed     (web UI)
+//   6 = snake       (web UI)
+//   7 = skull       (web UI)
+std::array<std::array<EyeDefinition, 2>, 8> eyeDefinitions{{
+    {nordicBlue::eye,  nordicBlue::eye},   // 0
+    {flame::eye,       flame::eye},        // 1
+    {hypnoRed::eye,    hypnoRed::eye},     // 2
+    {hazel::eye,       hazel::eye},        // 3
+    {blueFlame2::eye,  blueFlame2::eye},   // 4
+    {doomRed::eye,     doomRed::eye},      // 5
+    {snake::eye,       snake::eye},        // 6
+    {skull::eye,       skull::eye},        // 7
 }};
 
 #ifdef USE_GC9A01A
 GC9A01A_Config eyeInfo[] = {
     // CS DC MOSI SCK RST ROT MIRROR USE_FB ASYNC
-    {0,  2, 26, 27, 3,  0, true,  true, false}, // Left  -- nordicBlue / flame
-    {10, 9, 11, 13, -1, 0, false, true, false}, // Right -- nordicBlue / flame
+    {0,  2, 26, 27, 3,  0, true,  true, false}, // Left
+    {10, 9, 11, 13, -1, 0, false, true, false}, // Right
 };
 #elif defined USE_ST7789
 ST7789_Config eyeInfo[] = {

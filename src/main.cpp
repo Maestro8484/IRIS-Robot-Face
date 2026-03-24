@@ -16,9 +16,22 @@
 // ---------------------------------------------------------------------------
 // Serial (USB) is used to communicate with Pi4 assistant.py.
 // Pi4 -> Teensy:  "EMOTION:HAPPY\n", "EMOTION:NEUTRAL\n", etc.
-//                 "EYES:SLEEP\n"  -- blank both displays (black)
-//                 "EYES:WAKE\n"   -- restore current eye definition
+//                 "EYES:SLEEP\n"      -- blank both displays (black)
+//                 "EYES:WAKE\n"       -- restore current eye definition
+//                 "EYE:n\n"           -- switch default eye to index n (web UI)
 // Teensy -> Pi4:  "FACE:1\n" (face locked), "FACE:0\n" (face lost)
+//
+// EYE INDEX MAP (matches eyeDefinitions in config.h):
+//   0 = nordicBlue  (default)
+//   1 = flame       (ANGRY -- managed by emotion system, not EYE:n)
+//   2 = hypnoRed    (CONFUSED -- managed by emotion system, not EYE:n)
+//   3 = hazel
+//   4 = blueFlame2
+//   5 = doomRed
+//   6 = snake
+//   7 = skull
+//
+// EYE:n selectable range: 0, 3-7 (indices 1 and 2 reserved for emotions)
 //
 // TRACKING LOCKOUT:
 // Face tracking is only active during a voice interaction window.
@@ -35,12 +48,21 @@ static constexpr uint32_t FACE_LOST_TIMEOUT_MS =  5000;
 static constexpr uint32_t FACE_COOLDOWN_MS      = 30000;
 static constexpr uint32_t SERIAL_BUF_SIZE       =    32;
 
-// ANGRY eye swap: flame definition (index 1) held for this duration then auto-reverts
-static constexpr uint32_t ANGRY_EYE_DURATION_MS = 9000;
+// ANGRY eye swap: flame (index 1) held for this duration then auto-reverts
+static constexpr uint32_t ANGRY_EYE_DURATION_MS   = 9000;
+// CONFUSED eye swap: hypnoRed (index 2) held for this duration then auto-reverts
+static constexpr uint32_t CONFUSED_EYE_DURATION_MS = 7000;
 
 // Eye definition indices (matches eyeDefinitions array in config.h)
-static constexpr uint32_t EYE_IDX_DEFAULT = 0; // nordicBlue
-static constexpr uint32_t EYE_IDX_ANGRY   = 1; // flame
+static constexpr uint32_t EYE_IDX_DEFAULT      = 0; // nordicBlue
+static constexpr uint32_t EYE_IDX_ANGRY        = 1; // flame       (emotion only)
+static constexpr uint32_t EYE_IDX_CONFUSED     = 2; // hypnoRed    (emotion only)
+static constexpr uint32_t EYE_IDX_HAZEL        = 3; // web UI
+static constexpr uint32_t EYE_IDX_BLUEFLAME2   = 4; // web UI
+static constexpr uint32_t EYE_IDX_DOOMRED      = 5; // web UI
+static constexpr uint32_t EYE_IDX_SNAKE        = 6; // web UI
+static constexpr uint32_t EYE_IDX_SKULL        = 7; // web UI
+static constexpr uint32_t EYE_IDX_COUNT        = 8; // total entries in eyeDefinitions
 
 // ---------------------------------------------------------------------------
 // EMOTION -> EYE PARAMETER MAPPING
@@ -52,7 +74,7 @@ struct EmotionParams {
   uint32_t maxGazeMs;
 };
 
-enum EmotionID { NEUTRAL=0, HAPPY, CURIOUS, ANGRY, SLEEPY, SURPRISED, SAD, EMOTION_COUNT };
+enum EmotionID { NEUTRAL=0, HAPPY, CURIOUS, ANGRY, SLEEPY, SURPRISED, SAD, CONFUSED, EMOTION_COUNT };
 
 static const EmotionParams emotionTable[EMOTION_COUNT] = {
   { 0.40f, false, 3000 }, // NEUTRAL
@@ -62,12 +84,16 @@ static const EmotionParams emotionTable[EMOTION_COUNT] = {
   { 0.85f, true,  5000 }, // SLEEPY
   { 0.95f, true,   600 }, // SURPRISED
   { 0.25f, true,  4000 }, // SAD
+  { 0.70f, true,  2000 }, // CONFUSED -- wide dazed pupil, frequent blinking, moderate gaze wander
 };
 
 // ---------------------------------------------------------------------------
 // STATE
 // ---------------------------------------------------------------------------
 
+// userDefaultEye tracks the web UI selection -- the eye to revert to after
+// emotion eye swaps end. Starts at nordicBlue, updated by EYE:n command.
+static uint32_t userDefaultEye{EYE_IDX_DEFAULT};
 static uint32_t defIndex{EYE_IDX_DEFAULT};
 
 LightSensor  lightSensor(LIGHT_PIN);
@@ -86,6 +112,10 @@ static uint8_t serialBufLen = 0;
 // Angry eye revert timer
 static bool     angryEyeActive  = false;
 static uint32_t angryEyeStartMs = 0;
+
+// Confused eye revert timer
+static bool     confusedEyeActive  = false;
+static uint32_t confusedEyeStartMs = 0;
 
 // Eyes sleep state: when true, displays are blanked and renderFrame is skipped
 static bool     eyesSleeping = false;
@@ -124,6 +154,7 @@ static EmotionID parseEmotion(const char *name) {
   if (strcmp(name, "SLEEPY")    == 0) return SLEEPY;
   if (strcmp(name, "SURPRISED") == 0) return SURPRISED;
   if (strcmp(name, "SAD")       == 0) return SAD;
+  if (strcmp(name, "CONFUSED")  == 0) return CONFUSED;
   return NEUTRAL;
 }
 
@@ -135,12 +166,19 @@ static void applyEmotion(EmotionID id) {
 
   if (id == ANGRY) {
     setEyeDefinition(EYE_IDX_ANGRY);
-    angryEyeActive  = true;
-    angryEyeStartMs = millis();
+    angryEyeActive    = true;
+    angryEyeStartMs   = millis();
+    confusedEyeActive = false;
+  } else if (id == CONFUSED) {
+    setEyeDefinition(EYE_IDX_CONFUSED);
+    confusedEyeActive  = true;
+    confusedEyeStartMs = millis();
+    angryEyeActive     = false;
   } else {
-    if (angryEyeActive) {
-      setEyeDefinition(EYE_IDX_DEFAULT);
-      angryEyeActive = false;
+    if (angryEyeActive || confusedEyeActive) {
+      setEyeDefinition(userDefaultEye);  // revert to user-selected default
+      angryEyeActive    = false;
+      confusedEyeActive = false;
     }
   }
 
@@ -169,10 +207,27 @@ static void processSerial() {
           Serial.println(id);
           applyEmotion(id);
 
+        } else if (strncmp(serialBuf, "EYE:", 4) == 0) {
+          // Web UI eye switch: EYE:0, EYE:3..EYE:7
+          // Indices 1 (flame) and 2 (hypnoRed) are reserved for emotion system
+          uint32_t idx = (uint32_t)atoi(serialBuf + 4);
+          if (idx < EYE_IDX_COUNT && idx != EYE_IDX_ANGRY && idx != EYE_IDX_CONFUSED) {
+            userDefaultEye = idx;
+            if (!angryEyeActive && !confusedEyeActive) {
+              setEyeDefinition(idx);
+            }
+            Serial.print("[DBG] EYE cmd: switched default to index ");
+            Serial.println(idx);
+          } else {
+            Serial.print("[DBG] EYE cmd: invalid index ");
+            Serial.println(idx);
+          }
+
         } else if (strcmp(serialBuf, "EYES:SLEEP") == 0) {
           if (!eyesSleeping) {
-            eyesSleeping   = true;
-            angryEyeActive = false;
+            eyesSleeping      = true;
+            angryEyeActive    = false;
+            confusedEyeActive = false;
             blankDisplays();
           }
 
@@ -218,7 +273,7 @@ void setup() {
   while (!Serial && millis() < 2000);
   delay(200);
   DumpMemoryInfo();
-  Serial.println("[DBG] Init -- nordicBlue default, flame on ANGRY");
+  Serial.println("[DBG] Init -- nordicBlue default, flame/ANGRY, hypnoRed/CONFUSED, web eyes 3-7");
   Serial.flush();
   Entropy.Initialize();
   randomSeed(Entropy.random());
@@ -260,11 +315,18 @@ void loop() {
     eyes->setAutoMove(true);
   }
 
-  // Angry eye revert: flame -> nordicBlue after ANGRY_EYE_DURATION_MS
+  // Angry eye revert: flame -> userDefaultEye after ANGRY_EYE_DURATION_MS
   if (angryEyeActive && (millis() - angryEyeStartMs) >= ANGRY_EYE_DURATION_MS) {
-    setEyeDefinition(EYE_IDX_DEFAULT);
+    setEyeDefinition(userDefaultEye);
     angryEyeActive = false;
-    Serial.println("[DBG] ANGRY revert -> nordicBlue");
+    Serial.println("[DBG] ANGRY revert -> userDefaultEye");
+  }
+
+  // Confused eye revert: hypnoRed -> userDefaultEye after CONFUSED_EYE_DURATION_MS
+  if (confusedEyeActive && (millis() - confusedEyeStartMs) >= CONFUSED_EYE_DURATION_MS) {
+    setEyeDefinition(userDefaultEye);
+    confusedEyeActive = false;
+    Serial.println("[DBG] CONFUSED revert -> userDefaultEye");
   }
 
   if (hasBlinkButton() && digitalRead(BLINK_PIN) == LOW) eyes->blink();
