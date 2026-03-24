@@ -34,3 +34,6 @@ cmake-*
 
 # PlatformIO
 .pio
+
+# Claude Code worktrees
+.claude/
