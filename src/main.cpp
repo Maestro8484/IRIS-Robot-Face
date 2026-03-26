@@ -7,6 +7,7 @@
 #include <Entropy.h>
 
 #include "config.h"
+#include "mouth.h"
 #include "util/logging.h"
 #include "sensors/LightSensor.h"
 #include "sensors/PersonSensor.h"
@@ -208,6 +209,12 @@ static void processSerial() {
             blankDisplays();
           }
 
+        } else if (strncmp(serialBuf, "MOUTH:", 6) == 0) {
+          uint8_t idx = (uint8_t)atoi(serialBuf + 6);
+          mouthShow(idx);
+          Serial.print("[DBG] MOUTH cmd: idx=");
+          Serial.println(idx);
+
         } else if (strcmp(serialBuf, "EYES:WAKE") == 0) {
           if (eyesSleeping) {
             eyesSleeping = false;
@@ -273,8 +280,10 @@ void setup() {
     }
   }
 
+  mouthInit();
   initEyes(!hasJoystick(), !hasBlinkButton(), !hasLightSensor());
   applyEmotion(NEUTRAL);
+  mouthShow(0); // NEUTRAL on boot
 }
 
 // ---------------------------------------------------------------------------
