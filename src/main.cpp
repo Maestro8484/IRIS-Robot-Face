@@ -33,17 +33,9 @@
 //
 // EYE:n selectable range: 0, 3-7 (indices 1 and 2 reserved for emotions)
 //
-// TRACKING LOCKOUT:
-// Face tracking is only active during a voice interaction window.
-// When jarvis is not actively speaking/listening, the eyes wander
-// randomly (autoMove) and ignore the person sensor. This prevents
-// the robot from staring at people who haven't engaged with it.
-//
-// The Pi4 controls this via emotion commands:
-//   Any non-NEUTRAL emotion => tracking unlocked for TRACKING_WINDOW_MS
-//   NEUTRAL (idle reset)    => tracking locked immediately
+// PERSON SENSOR: stock chrismiller behavior -- always active, eyes always
+// track the largest detected face. autoMove resumes when no face is present.
 
-static constexpr uint32_t TRACKING_WINDOW_MS   = 15000;
 static constexpr uint32_t FACE_LOST_TIMEOUT_MS =  5000;
 static constexpr uint32_t FACE_COOLDOWN_MS      = 30000;
 static constexpr uint32_t SERIAL_BUF_SIZE       =    32;
@@ -55,14 +47,15 @@ static constexpr uint32_t CONFUSED_EYE_DURATION_MS = 7000;
 
 // Eye definition indices (matches eyeDefinitions array in config.h)
 static constexpr uint32_t EYE_IDX_DEFAULT      = 0; // nordicBlue
-static constexpr uint32_t EYE_IDX_ANGRY        = 1; // flame       (emotion only)
-static constexpr uint32_t EYE_IDX_CONFUSED     = 2; // hypnoRed    (emotion only)
+static constexpr uint32_t EYE_IDX_ANGRY        = 1; // flame       (emotion swap + web UI)
+static constexpr uint32_t EYE_IDX_CONFUSED     = 2; // hypnoRed    (emotion swap + web UI)
 static constexpr uint32_t EYE_IDX_HAZEL        = 3; // web UI
-static constexpr uint32_t EYE_IDX_BLUEFLAME2   = 4; // web UI
-static constexpr uint32_t EYE_IDX_DOOMRED      = 5; // web UI
+static constexpr uint32_t EYE_IDX_BLUEFLAME1   = 4; // web UI
+static constexpr uint32_t EYE_IDX_LEOPARD      = 5; // web UI
 static constexpr uint32_t EYE_IDX_SNAKE        = 6; // web UI
-static constexpr uint32_t EYE_IDX_SKULL        = 7; // web UI
-static constexpr uint32_t EYE_IDX_COUNT        = 8; // total entries in eyeDefinitions
+static constexpr uint32_t EYE_IDX_DRAGON       = 7; // web UI
+static constexpr uint32_t EYE_IDX_BIGBLUE      = 8; // web UI
+static constexpr uint32_t EYE_IDX_COUNT        = 9; // total entries in eyeDefinitions
 
 // ---------------------------------------------------------------------------
 // EMOTION -> EYE PARAMETER MAPPING
@@ -84,7 +77,7 @@ static const EmotionParams emotionTable[EMOTION_COUNT] = {
   { 0.85f, true,  5000 }, // SLEEPY
   { 0.95f, true,   600 }, // SURPRISED
   { 0.25f, true,  4000 }, // SAD
-  { 0.70f, true,  2000 }, // CONFUSED -- wide dazed pupil, frequent blinking, moderate gaze wander
+  { 0.70f, true,  2000 }, // CONFUSED
 };
 
 // ---------------------------------------------------------------------------
@@ -99,9 +92,6 @@ static uint32_t defIndex{EYE_IDX_DEFAULT};
 LightSensor  lightSensor(LIGHT_PIN);
 PersonSensor personSensor(Wire);
 bool         personSensorFound = USE_PERSON_SENSOR;
-
-static bool     trackingActive      = false;
-static uint32_t trackingWindowStart = 0;
 
 static bool     faceWasPresent  = false;
 static uint32_t lastFace1SentMs = 0;
@@ -136,9 +126,6 @@ static void setEyeDefinition(uint32_t idx) {
   }
 }
 
-// Blank both displays using each display's own SPI bus via fillBlack().
-// displayLeft and displayRight are stored globally in config.h after initEyes().
-// This is safe for dual-SPI setups -- no raw SPI bus assumptions.
 static void blankDisplays() {
 #ifdef USE_GC9A01A
   if (displayLeft)  displayLeft->fillBlack();
@@ -176,18 +163,10 @@ static void applyEmotion(EmotionID id) {
     angryEyeActive     = false;
   } else {
     if (angryEyeActive || confusedEyeActive) {
-      setEyeDefinition(userDefaultEye);  // revert to user-selected default
+      setEyeDefinition(userDefaultEye);
       angryEyeActive    = false;
       confusedEyeActive = false;
     }
-  }
-
-  if (id == NEUTRAL) {
-    trackingActive = false;
-    eyes->setAutoMove(true);
-  } else {
-    trackingActive      = true;
-    trackingWindowStart = millis();
   }
 }
 
@@ -208,10 +187,8 @@ static void processSerial() {
           applyEmotion(id);
 
         } else if (strncmp(serialBuf, "EYE:", 4) == 0) {
-          // Web UI eye switch: EYE:0, EYE:3..EYE:7
-          // Indices 1 (flame) and 2 (hypnoRed) are reserved for emotion system
           uint32_t idx = (uint32_t)atoi(serialBuf + 4);
-          if (idx < EYE_IDX_COUNT && idx != EYE_IDX_ANGRY && idx != EYE_IDX_CONFUSED) {
+          if (idx < EYE_IDX_COUNT) {
             userDefaultEye = idx;
             if (!angryEyeActive && !confusedEyeActive) {
               setEyeDefinition(idx);
@@ -310,11 +287,6 @@ void loop() {
   // When sleeping, skip all eye logic -- displays stay black
   if (eyesSleeping) return;
 
-  if (trackingActive && (millis() - trackingWindowStart) >= TRACKING_WINDOW_MS) {
-    trackingActive = false;
-    eyes->setAutoMove(true);
-  }
-
   // Angry eye revert: flame -> userDefaultEye after ANGRY_EYE_DURATION_MS
   if (angryEyeActive && (millis() - angryEyeStartMs) >= ANGRY_EYE_DURATION_MS) {
     setEyeDefinition(userDefaultEye);
@@ -343,6 +315,7 @@ void loop() {
     });
   }
 
+  // Stock chrismiller person sensor behavior -- always track, no lockout
   if (hasPersonSensor() && personSensor.read()) {
     int maxSize = 0;
     person_sensor_face_t maxFace{};
@@ -361,20 +334,18 @@ void loop() {
     bool facePresent = (maxSize > 0);
     reportFaceState(facePresent);
 
-    if (trackingActive) {
-      if (facePresent) {
-        eyes->setAutoMove(false);
-        float targetX = -((static_cast<float>(maxFace.box_left) +
-                           static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) /
-                          127.5f - 1.0f);
-        float targetY = (static_cast<float>(maxFace.box_top) +
-                         static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) /
-                        127.5f - 1.0f;
-        eyes->setTargetPosition(targetX, targetY);
-      } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS &&
-                 !eyes->autoMoveEnabled()) {
-        eyes->setAutoMove(true);
-      }
+    if (facePresent) {
+      eyes->setAutoMove(false);
+      float targetX = -((static_cast<float>(maxFace.box_left) +
+                         static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) /
+                        127.5f - 1.0f);
+      float targetY = (static_cast<float>(maxFace.box_top) +
+                       static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) /
+                      127.5f - 1.0f;
+      eyes->setTargetPosition(targetX, targetY);
+    } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS &&
+               !eyes->autoMoveEnabled()) {
+      eyes->setAutoMove(true);
     }
   }
 

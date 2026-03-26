@@ -9300,7 +9300,7 @@ namespace nordicBlue {
 
   const EyeDefinition eye PROGMEM = {
       "nordicBlue", 125, 0, true, 0.5, disp_240_125,
-      { 0, 0, 0.25, 0.55 },
+      { 0, 0, 0.21, 0.47 },
       { 64, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },
       { eyeUpper, eyeLower, 0 },

@@ -12,15 +12,17 @@
 
 // ── Web UI selectable eyes (compiled in, switchable via EYE:n serial command) ─
 // Index 3: hazel
-// Index 4: blueFlame2
-// Index 5: doomRed
+// Index 4: blueFlame1
+// Index 5: leopard
 // Index 6: snake
-// Index 7: skull
+// Index 7: dragon
+// Index 8: bigBlue
 #include "eyes/240x240/hazel.h"
-#include "eyes/240x240/blueFlame2.h"
-#include "eyes/240x240/doomRed.h"
+#include "eyes/240x240/blueFlame1.h"
+#include "eyes/240x240/leopard.h"
 #include "eyes/240x240/snake.h"
-#include "eyes/240x240/skull.h"
+#include "eyes/240x240/dragon.h"
+#include "eyes/240x240/bigBlue.h"
 
 #include "eyes/EyeController.h"
 
@@ -39,22 +41,24 @@
 
 // eyeDefinitions index map:
 //   0 = nordicBlue  (default idle)
-//   1 = flame       (ANGRY -- not web-selectable as default)
-//   2 = hypnoRed    (CONFUSED -- not web-selectable as default)
+//   1 = flame       (ANGRY emotion + web UI)
+//   2 = hypnoRed    (CONFUSED emotion + web UI)
 //   3 = hazel       (web UI)
-//   4 = blueFlame2  (web UI)
-//   5 = doomRed     (web UI)
+//   4 = blueFlame1  (web UI)
+//   5 = leopard     (web UI)
 //   6 = snake       (web UI)
-//   7 = skull       (web UI)
-std::array<std::array<EyeDefinition, 2>, 8> eyeDefinitions{{
+//   7 = dragon      (web UI)
+//   8 = bigBlue     (web UI)
+std::array<std::array<EyeDefinition, 2>, 9> eyeDefinitions{{
     {nordicBlue::eye,  nordicBlue::eye},   // 0
     {flame::eye,       flame::eye},        // 1
     {hypnoRed::eye,    hypnoRed::eye},     // 2
     {hazel::eye,       hazel::eye},        // 3
-    {blueFlame2::eye,  blueFlame2::eye},   // 4
-    {doomRed::eye,     doomRed::eye},      // 5
+    {blueFlame1::eye,  blueFlame1::eye},   // 4
+    {leopard::left,    leopard::right},    // 5
     {snake::eye,       snake::eye},        // 6
-    {skull::eye,       skull::eye},        // 7
+    {dragon::eye,      dragon::eye},       // 7
+    {bigBlue::eye,     bigBlue::eye},      // 8
 }};
 
 #ifdef USE_GC9A01A
