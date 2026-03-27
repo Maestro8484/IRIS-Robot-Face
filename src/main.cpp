@@ -329,9 +329,14 @@ void loop() {
       lockedTargetY  = (static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
       faceLastSeenMs = millis();
       faceLocked     = true;
-    } else if (millis() - faceLastSeenMs > FACE_LOST_TIMEOUT_MS) {
-      faceLocked = false;
     }
+  }
+
+  // Unlock face every frame based on absolute time -- not only inside sensor reads.
+  // This ensures faceLocked clears even if personSensor.read() stops returning true
+  // (e.g. transient I2C failure), preventing eyes from getting stuck at last position.
+  if (faceLocked && (millis() - faceLastSeenMs > FACE_LOST_TIMEOUT_MS)) {
+    faceLocked = false;
   }
 
   // Apply face tracking every frame -- not just on sensor read -- so autoMove
