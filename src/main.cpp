@@ -302,7 +302,7 @@ void loop() {
     int maxSize = 0;
     for (int i = 0; i < personSensor.numFacesFound(); i++) {
       const person_sensor_face_t face = personSensor.faceDetails(i);
-      if (face.box_confidence > 60) {
+      if (face.is_facing && face.box_confidence > 60) {
         int size = (face.box_right - face.box_left) * (face.box_bottom - face.box_top);
         if (size > maxSize) { maxSize = size; _maxFace = face; }
       }
@@ -347,25 +347,19 @@ void loop() {
   }
 
   // Eye tracking (awake only): steer gaze toward detected face.
-  // On frames where read() returns false (between 70ms polls), _facePresent
-  // is false but timeSinceFaceDetectedMs is still small -- we call
-  // setAutoMove(false) to prevent wander re-enabling, but do NOT call
-  // setTargetPosition (that would restart the easing animation every frame).
-  if (hasPersonSensor()) {
-    if (_facePresent) {
-      eyes->setAutoMove(false);
-      float targetX = -((static_cast<float>(_maxFace.box_left) +
-                         static_cast<float>(_maxFace.box_right - _maxFace.box_left) / 2.0f) /
-                        127.5f - 1.0f);
-      float targetY = (static_cast<float>(_maxFace.box_top) +
-                       static_cast<float>(_maxFace.box_bottom - _maxFace.box_top) / 3.0f) /
-                      127.5f - 1.0f;
-      eyes->setTargetPosition(targetX, targetY);
-    } else if (personSensor.timeSinceFaceDetectedMs() <= FACE_LOST_TIMEOUT_MS) {
-      eyes->setAutoMove(false);  // face recently seen -- hold position, let easing finish
-    } else if (!eyes->autoMoveEnabled()) {
-      eyes->setAutoMove(true);   // truly lost for >5s -- resume wander
-    }
+  // Mirrors chrismiller stock -- all tracking decisions inside read() via _facePresent.
+  if (_facePresent) {
+    eyes->setAutoMove(false);
+    float targetX = -((static_cast<float>(_maxFace.box_left) +
+                       static_cast<float>(_maxFace.box_right - _maxFace.box_left) / 2.0f) /
+                      127.5f - 1.0f);
+    float targetY = (static_cast<float>(_maxFace.box_top) +
+                     static_cast<float>(_maxFace.box_bottom - _maxFace.box_top) / 3.0f) /
+                    127.5f - 1.0f;
+    eyes->setTargetPosition(targetX, targetY);
+  } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS &&
+             !eyes->autoMoveEnabled()) {
+    eyes->setAutoMove(true);
   }
 
   eyes->renderFrame();
