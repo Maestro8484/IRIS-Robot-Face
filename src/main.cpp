@@ -296,18 +296,22 @@ void loop() {
 
   // Person sensor always runs -- reports FACE:1/FACE:0 even during sleep.
   // Eye tracking (autoMove / setTargetPosition) only applies when awake.
-  bool _facePresent = false;
-  person_sensor_face_t _maxFace{};
+  // Static: hold last known face state between 200ms sensor reads so eyes
+  // continue tracking on frames where read() returns false (no new data yet).
+  static bool _facePresent = false;
+  static person_sensor_face_t _maxFace{};
   if (hasPersonSensor() && personSensor.read()) {
     int maxSize = 0;
+    person_sensor_face_t newMaxFace{};
     for (int i = 0; i < personSensor.numFacesFound(); i++) {
       const person_sensor_face_t face = personSensor.faceDetails(i);
-      if (face.box_confidence > 60) {
+      if (face.box_confidence > 50) {
         int size = (face.box_right - face.box_left) * (face.box_bottom - face.box_top);
-        if (size > maxSize) { maxSize = size; _maxFace = face; }
+        if (size > maxSize) { maxSize = size; newMaxFace = face; }
       }
     }
     _facePresent = (maxSize > 0);
+    if (_facePresent) _maxFace = newMaxFace;
     reportFaceState(_facePresent);
   }
 
@@ -346,7 +350,9 @@ void loop() {
     });
   }
 
-  // Eye tracking (awake only): steer gaze toward detected face
+  // Eye tracking (awake only): steer gaze toward detected face.
+  // setAutoMove(false) called every frame while face is present so autoMove
+  // can't slip back in on frames where read() returned false.
   if (hasPersonSensor()) {
     if (_facePresent) {
       eyes->setAutoMove(false);
