@@ -42,3 +42,11 @@ cmake-*
 __pycache__/
 *.pyc
 *.pyo
+
+# Snapshots (contain credentials in code blocks)
+SNAPSHOT*.md
+
+# Local config files with credentials
+claude_desktop_config_UPDATED.json
+.env
+config.json
