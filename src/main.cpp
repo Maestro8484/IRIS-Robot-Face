@@ -211,6 +211,12 @@ static void processSerial() {
             eyesSleeping      = true;
             angryEyeActive    = false;
             confusedEyeActive = false;
+            // Disable changed-areas-only so the sleep renderer always sends full
+            // frames. With updateChangedAreasOnly(true), fillScreen(black) on an
+            // already-black framebuffer marks zero dirty areas, causing the SPI
+            // DMA to receive an empty/corrupt region set and lock up the Teensy.
+            if (displayLeft)  displayLeft->getDriver()->updateChangedAreasOnly(false);
+            if (displayRight) displayRight->getDriver()->updateChangedAreasOnly(false);
             blankDisplays();
             mouthSetSleepIntensity();
             sleepRendererInit();
@@ -225,6 +231,9 @@ static void processSerial() {
         } else if (strcmp(serialBuf, "EYES:WAKE") == 0) {
           if (eyesSleeping) {
             eyesSleeping = false;
+            // Restore changed-areas-only for efficient eye engine rendering.
+            if (displayLeft)  displayLeft->getDriver()->updateChangedAreasOnly(true);
+            if (displayRight) displayRight->getDriver()->updateChangedAreasOnly(true);
             mouthRestoreIntensity();
             uint32_t saved = defIndex;
             defIndex = UINT32_MAX;
