@@ -13,14 +13,10 @@
 // ── Web UI selectable eyes (compiled in, switchable via EYE:n serial command) ─
 // Index 3: hazel
 // Index 4: blueFlame1
-// Index 5: leopard
-// Index 6: snake
-// Index 7: dragon
-// Index 8: bigBlue
+// Index 5: dragon
+// Index 6: bigBlue
 #include "eyes/240x240/hazel.h"
 #include "eyes/240x240/blueFlame1.h"
-#include "eyes/240x240/leopard.h"
-#include "eyes/240x240/snake.h"
 #include "eyes/240x240/dragon.h"
 #include "eyes/240x240/bigBlue.h"
 
@@ -45,20 +41,16 @@
 //   2 = hypnoRed    (CONFUSED emotion + web UI)
 //   3 = hazel       (web UI)
 //   4 = blueFlame1  (web UI)
-//   5 = leopard     (web UI)
-//   6 = snake       (web UI)
-//   7 = dragon      (web UI)
-//   8 = bigBlue     (web UI)
-std::array<std::array<EyeDefinition, 2>, 9> eyeDefinitions{{
+//   5 = dragon      (web UI)
+//   6 = bigBlue     (web UI)
+std::array<std::array<EyeDefinition, 2>, 7> eyeDefinitions{{
     {nordicBlue::eye,  nordicBlue::eye},   // 0
     {flame::eye,       flame::eye},        // 1
     {hypnoRed::eye,    hypnoRed::eye},     // 2
     {hazel::eye,       hazel::eye},        // 3
     {blueFlame1::eye,  blueFlame1::eye},   // 4
-    {leopard::left,    leopard::right},    // 5
-    {snake::eye,       snake::eye},        // 6
-    {dragon::eye,      dragon::eye},       // 7
-    {bigBlue::eye,     bigBlue::eye},      // 8
+    {dragon::eye,      dragon::eye},       // 5
+    {bigBlue::eye,     bigBlue::eye},      // 6
 }};
 
 #ifdef USE_GC9A01A

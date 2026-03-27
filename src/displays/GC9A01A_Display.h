@@ -46,6 +46,9 @@ public:
 
   bool isAvailable() const;
 
+  /// Expose raw driver for custom renderers (e.g. sleep starfield).
+  GC9A01A_t3n* getDriver() { return display; }
+
   /// Fill the entire display solid black.
   /// Waits for any in-flight async update to finish before writing,
   /// then does a synchronous fillScreen + updateScreen so both SPI

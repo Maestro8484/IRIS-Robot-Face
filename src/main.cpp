@@ -8,6 +8,7 @@
 
 #include "config.h"
 #include "mouth.h"
+#include "sleep_renderer.h"
 #include "util/logging.h"
 #include "sensors/LightSensor.h"
 #include "sensors/PersonSensor.h"
@@ -24,15 +25,14 @@
 //
 // EYE INDEX MAP (matches eyeDefinitions in config.h):
 //   0 = nordicBlue  (default)
-//   1 = flame       (ANGRY -- managed by emotion system, not EYE:n)
-//   2 = hypnoRed    (CONFUSED -- managed by emotion system, not EYE:n)
+//   1 = flame       (ANGRY -- managed by emotion system + web UI)
+//   2 = hypnoRed    (CONFUSED -- managed by emotion system + web UI)
 //   3 = hazel
-//   4 = blueFlame2
-//   5 = doomRed
-//   6 = snake
-//   7 = skull
+//   4 = blueFlame1
+//   5 = dragon
+//   6 = bigBlue
 //
-// EYE:n selectable range: 0, 3-7 (indices 1 and 2 reserved for emotions)
+// EYE:n selectable range: 0-6
 //
 // PERSON SENSOR: stock chrismiller behavior -- always active, eyes always
 // track the largest detected face. autoMove resumes when no face is present.
@@ -52,11 +52,9 @@ static constexpr uint32_t EYE_IDX_ANGRY        = 1; // flame       (emotion swap
 static constexpr uint32_t EYE_IDX_CONFUSED     = 2; // hypnoRed    (emotion swap + web UI)
 static constexpr uint32_t EYE_IDX_HAZEL        = 3; // web UI
 static constexpr uint32_t EYE_IDX_BLUEFLAME1   = 4; // web UI
-static constexpr uint32_t EYE_IDX_LEOPARD      = 5; // web UI
-static constexpr uint32_t EYE_IDX_SNAKE        = 6; // web UI
-static constexpr uint32_t EYE_IDX_DRAGON       = 7; // web UI
-static constexpr uint32_t EYE_IDX_BIGBLUE      = 8; // web UI
-static constexpr uint32_t EYE_IDX_COUNT        = 9; // total entries in eyeDefinitions
+static constexpr uint32_t EYE_IDX_DRAGON       = 5; // web UI
+static constexpr uint32_t EYE_IDX_BIGBLUE      = 6; // web UI
+static constexpr uint32_t EYE_IDX_COUNT        = 7; // total entries in eyeDefinitions
 
 // ---------------------------------------------------------------------------
 // EMOTION -> EYE PARAMETER MAPPING
@@ -207,6 +205,8 @@ static void processSerial() {
             angryEyeActive    = false;
             confusedEyeActive = false;
             blankDisplays();
+            mouthSetSleepIntensity();
+            sleepRendererInit();
           }
 
         } else if (strncmp(serialBuf, "MOUTH:", 6) == 0) {
@@ -218,6 +218,7 @@ static void processSerial() {
         } else if (strcmp(serialBuf, "EYES:WAKE") == 0) {
           if (eyesSleeping) {
             eyesSleeping = false;
+            mouthRestoreIntensity();
             uint32_t saved = defIndex;
             defIndex = UINT32_MAX;
             setEyeDefinition(saved);
@@ -293,8 +294,29 @@ void setup() {
 void loop() {
   processSerial();
 
-  // When sleeping, skip all eye logic -- displays stay black
-  if (eyesSleeping) return;
+  // Person sensor always runs -- reports FACE:1/FACE:0 even during sleep.
+  // Eye tracking (autoMove / setTargetPosition) only applies when awake.
+  bool _facePresent = false;
+  person_sensor_face_t _maxFace{};
+  if (hasPersonSensor() && personSensor.read()) {
+    int maxSize = 0;
+    for (int i = 0; i < personSensor.numFacesFound(); i++) {
+      const person_sensor_face_t face = personSensor.faceDetails(i);
+      if (face.box_confidence > 60) {
+        int size = (face.box_right - face.box_left) * (face.box_bottom - face.box_top);
+        if (size > maxSize) { maxSize = size; _maxFace = face; }
+      }
+    }
+    _facePresent = (maxSize > 0);
+    reportFaceState(_facePresent);
+  }
+
+  // When sleeping: render starfield + snore mouth, skip eye engine
+  if (eyesSleeping) {
+    renderSleepFrame(displayLeft->getDriver(), displayRight->getDriver());
+    mouthSleepFrame();
+    return;
+  }
 
   // Angry eye revert: flame -> userDefaultEye after ANGRY_EYE_DURATION_MS
   if (angryEyeActive && (millis() - angryEyeStartMs) >= ANGRY_EYE_DURATION_MS) {
@@ -324,32 +346,15 @@ void loop() {
     });
   }
 
-  // Stock chrismiller person sensor behavior -- always track, no lockout
-  if (hasPersonSensor() && personSensor.read()) {
-    int maxSize = 0;
-    person_sensor_face_t maxFace{};
-
-    for (int i = 0; i < personSensor.numFacesFound(); i++) {
-      const person_sensor_face_t face = personSensor.faceDetails(i);
-      if (face.box_confidence > 60) {  // track any detected face regardless of orientation
-        int size = (face.box_right - face.box_left) * (face.box_bottom - face.box_top);
-        if (size > maxSize) {
-          maxSize = size;
-          maxFace = face;
-        }
-      }
-    }
-
-    bool facePresent = (maxSize > 0);
-    reportFaceState(facePresent);
-
-    if (facePresent) {
+  // Eye tracking (awake only): steer gaze toward detected face
+  if (hasPersonSensor()) {
+    if (_facePresent) {
       eyes->setAutoMove(false);
-      float targetX = -((static_cast<float>(maxFace.box_left) +
-                         static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) /
+      float targetX = -((static_cast<float>(_maxFace.box_left) +
+                         static_cast<float>(_maxFace.box_right - _maxFace.box_left) / 2.0f) /
                         127.5f - 1.0f);
-      float targetY = (static_cast<float>(maxFace.box_top) +
-                       static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) /
+      float targetY = (static_cast<float>(_maxFace.box_top) +
+                       static_cast<float>(_maxFace.box_bottom - _maxFace.box_top) / 3.0f) /
                       127.5f - 1.0f;
       eyes->setTargetPosition(targetX, targetY);
     } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS &&
