@@ -513,6 +513,10 @@ public:
     Eye<Disp> &eye = currentEye();
     auto middle = static_cast<float>(eye.definition->polar.mapRadius);
     auto r = (middle * 2.0f - static_cast<float>(screenWidth) * static_cast<float>(M_PI_2)) * 0.75f;
+    // Capture current rendered position as easing start so mid-motion
+    // retargets (e.g. face tracking at 70ms) don't snap back to the old start.
+    state.eyeOldX = eye.x;
+    state.eyeOldY = eye.y;
     state.eyeNewX = middle - xTarget * r;
     state.eyeNewY = middle - yTarget * r;
     state.inMotion = true;
