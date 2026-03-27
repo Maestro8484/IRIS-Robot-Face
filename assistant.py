@@ -604,9 +604,17 @@ def transcribe(audio_bytes):
 # ── LLM output cleaner ────────────────────────────────────────────────────────
 
 def clean_llm_reply(text: str) -> str:
-    """Strip markdown artifacts. Does NOT strip emotion tag -- that's done before this."""
+    """Strip markdown artifacts and LLM metadata leakage. Emotion tag stripped before this."""
+    # Strip <think>...</think> blocks (gemma3 reasoning artifacts)
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    # Strip any remaining [TAG:...] bracketed tokens (stray emotion tags, classification tags, etc.)
+    text = re.sub(r'\[[A-Z][A-Z0-9_]*:[^\]]*\]', '', text)
+    # Strip markdown symbols
     text = re.sub(r'[*_#`]', '', text)
     text = re.sub(r'^[-=]{3,}\s*$', '', text, flags=re.MULTILINE)
+    # Strip trailing metadata lines: "Classification: ...", "Date: ...", "Note: ...", etc.
+    text = re.sub(r'\s*(Classification|Date|Note|Category|Type|Context|Tone)\s*:\s*[^\n]*$', '', text,
+                  flags=re.IGNORECASE | re.MULTILINE)
     text = re.sub(r'\n+', ' ', text)
     openers = [
         r"^okay[,!.]?\s+here[''\u2019s]*\s+(a|is|one)[^.]*[.!]?\s*",
@@ -817,6 +825,9 @@ def ask_ollama(text):
     )
     r.raise_for_status()
     raw = r.json()["message"]["content"]
+
+    # Strip thinking blocks before any other processing
+    raw = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
 
     # Extract and strip emotion tag BEFORE cleaning
     emotion, stripped = extract_emotion_from_reply(raw)
