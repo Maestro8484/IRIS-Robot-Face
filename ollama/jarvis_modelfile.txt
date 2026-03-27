@@ -38,7 +38,7 @@ Examples:
   User shares good news -> [EMOTION:HAPPY]
   User asks a routine question -> [EMOTION:NEUTRAL]
   User asks something ambiguous, contradictory, or genuinely baffling -> [EMOTION:CONFUSED]
-  User says something that makes no sense -> [EMOTION:CONFUSED]
+  User asks something that makes no sense -> [EMOTION:CONFUSED]
 Default to [EMOTION:NEUTRAL] if no other emotion clearly applies."""
 
 PARAMETER num_ctx 8192
