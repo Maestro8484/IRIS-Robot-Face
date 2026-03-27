@@ -95,13 +95,6 @@ bool         personSensorFound = USE_PERSON_SENSOR;
 static bool     faceWasPresent  = false;
 static uint32_t lastFace1SentMs = 0;
 
-// Face tracking state — persists between sensor reads so setAutoMove(false)
-// and setTargetPosition are applied every loop frame, not just on new sensor data.
-static bool     faceLocked      = false;
-static float    lockedTargetX   = 0.0f;
-static float    lockedTargetY   = 0.0f;
-static uint32_t faceLastSeenMs  = 0;
-
 static char    serialBuf[SERIAL_BUF_SIZE];
 static uint8_t serialBufLen = 0;
 
@@ -310,9 +303,7 @@ void setup() {
 void loop() {
   processSerial();
 
-  // Person sensor: update face lock state on each new sensor sample (70ms cadence).
-  // faceLocked + cached target are then applied every frame to prevent jitter from
-  // gaps between sensor reads and is_facing oscillation.
+  // Person sensor: exact stock chrismiller tracking + IRIS reportFaceState.
   if (hasPersonSensor() && personSensor.read()) {
     int maxSize = 0;
     person_sensor_face_t maxFace{};
@@ -324,29 +315,15 @@ void loop() {
       }
     }
     reportFaceState(maxSize > 0);
-    if (maxSize > 0) {
-      lockedTargetX  = -((static_cast<float>(maxFace.box_left) + static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
-      lockedTargetY  = (static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
-      faceLastSeenMs = millis();
-      faceLocked     = true;
-    }
-  }
-
-  // Unlock face every frame based on absolute time -- not only inside sensor reads.
-  // This ensures faceLocked clears even if personSensor.read() stops returning true
-  // (e.g. transient I2C failure), preventing eyes from getting stuck at last position.
-  if (faceLocked && (millis() - faceLastSeenMs > FACE_LOST_TIMEOUT_MS)) {
-    faceLocked = false;
-  }
-
-  // Apply face tracking every frame -- not just on sensor read -- so autoMove
-  // suppression is continuous and the eyes never drift back to center between samples.
-  if (!eyesSleeping) {
-    if (faceLocked) {
-      eyes->setAutoMove(false);
-      eyes->setTargetPosition(lockedTargetX, lockedTargetY);
-    } else if (!eyes->autoMoveEnabled()) {
-      eyes->setAutoMove(true);
+    if (!eyesSleeping) {
+      if (maxSize > 0) {
+        eyes->setAutoMove(false);
+        float targetX = -((static_cast<float>(maxFace.box_left) + static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
+        float targetY = (static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
+        eyes->setTargetPosition(targetX, targetY);
+      } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS && !eyes->autoMoveEnabled()) {
+        eyes->setAutoMove(true);
+      }
     }
   }
 
