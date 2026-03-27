@@ -2,7 +2,7 @@
 
 #include "../eyes.h"
 #include "polarAngle_240.h"
-#include "polarDist_240_125_60_0.h"
+#include "polarDist_240_125_69_0.h"
 #include "disp_240_125.h"
 
 namespace hazel {
@@ -9301,9 +9301,9 @@ namespace hazel {
   const EyeDefinition eye PROGMEM = {
       "hazel", 125, 35138, true, 0.5, disp_240_125,
       { 0, 0, 0.3, 0.7 },
-      { 60, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
+      { 69, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },
       { eyeUpper, eyeLower, 0 },
-      { 240, polarAngle_240, polarDist_240_125_60_0 }
+      { 240, polarAngle_240, polarDist_240_125_69_0 }
   };
 }
