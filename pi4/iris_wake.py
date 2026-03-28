@@ -1,29 +1,20 @@
 #!/usr/bin/env python3
 # iris_wake.py — Triggered by cron at 7:30 AM
-# Clears sleep flag, sends EYES:WAKE + MOUTH:0 to Teensy.
-import serial, time, os
+# Sends EYES:WAKE + MOUTH:0 via UDP to assistant.py (which owns the serial port).
+import socket, time
 
-TEENSY_PORT = '/dev/ttyACM0'
-TEENSY_BAUD = 115200
+CMD_PORT = 10500
 
 def log(msg):
     print(msg, flush=True)
 
 try:
-    ser = serial.Serial(TEENSY_PORT, TEENSY_BAUD, timeout=2)
-    time.sleep(0.5)
-    ser.write(b'EYES:WAKE\n')
-    time.sleep(0.1)
-    ser.write(b'MOUTH:0\n')
-    ser.close()
-    log('[WAKE] Serial commands sent')
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.sendto(b'EYES:WAKE\n', ('127.0.0.1', CMD_PORT))
+        time.sleep(0.1)
+        s.sendto(b'MOUTH:0\n', ('127.0.0.1', CMD_PORT))
+    log('[WAKE] UDP commands sent to assistant.py')
 except Exception as e:
-    log(f'[WAKE] Serial error: {e}')
-
-try:
-    os.remove('/tmp/iris_sleep_mode')
-    log('[WAKE] Sleep flag cleared')
-except FileNotFoundError:
-    log('[WAKE] No sleep flag to clear')
+    log(f'[WAKE] UDP error: {e}')
 
 log('[WAKE] Wake mode activated')
