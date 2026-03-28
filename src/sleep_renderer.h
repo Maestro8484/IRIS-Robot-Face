@@ -112,7 +112,7 @@ static constexpr SrStar SR_STARS_R[25] = {
 // ---------------------------------------------------------------------------
 static bool     srInitialized   = false;
 static uint32_t srLastFrameMs   = 0;
-static constexpr uint32_t SR_FRAME_MS = 66; // ~15fps
+static constexpr uint32_t SR_FRAME_MS = 150; // ~6.7fps — reduced to keep loop() responsive
 
 // Moon drift
 static constexpr int SR_MOON_CX   = 120;
@@ -333,6 +333,11 @@ static inline void renderSleepFrame(GC9A01A_t3n* left, GC9A01A_t3n* right) {
     if (nowMs - srLastFrameMs < SR_FRAME_MS) return;
     srLastFrameMs = nowMs;
     srFrameCount++;
+    // Heartbeat every 10 frames (~1.5s) so serial log confirms rendering is live.
+    if ((srFrameCount % 10) == 0) {
+      Serial.print("[SR] frame=");
+      Serial.println(srFrameCount);
+    }
 
     // ── Left eye ──────────────────────────────────────────────────
     left->fillScreen(SR_BLACK);
