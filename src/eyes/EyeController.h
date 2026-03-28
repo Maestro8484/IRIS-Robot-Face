@@ -513,6 +513,20 @@ public:
     Eye<Disp> &eye = currentEye();
     auto middle = static_cast<float>(eye.definition->polar.mapRadius);
     auto r = (middle * 2.0f - static_cast<float>(screenWidth) * static_cast<float>(M_PI_2)) * 0.75f;
+    // If a motion is already in progress, advance eyeOld to the current
+    // interpolated position so the restart doesn't snap back to the origin.
+    if (state.inMotion) {
+      uint32_t dt = millis() - state.moveStartTimeMs;
+      if (dt < state.moveDurationMs) {
+        float e = static_cast<float>(dt) / static_cast<float>(state.moveDurationMs);
+        e = e * e * (3.0f - 2.0f * e); // smoothstep
+        state.eyeOldX = state.eyeOldX + (state.eyeNewX - state.eyeOldX) * e;
+        state.eyeOldY = state.eyeOldY + (state.eyeNewY - state.eyeOldY) * e;
+      } else {
+        state.eyeOldX = state.eyeNewX;
+        state.eyeOldY = state.eyeNewY;
+      }
+    }
     state.eyeNewX = middle - xTarget * r;
     state.eyeNewY = middle - yTarget * r;
     state.inMotion = true;
