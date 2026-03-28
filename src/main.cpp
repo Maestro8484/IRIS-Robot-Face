@@ -315,6 +315,14 @@ void loop() {
       }
     }
     reportFaceState(maxSize > 0);
+    if (eyesSleeping && maxSize > 0) {
+      static uint32_t lastSleepDbg = 0;
+      uint32_t _now = millis();
+      if (_now - lastSleepDbg > 3000) {
+        Serial.println("[SLEEP] face detected - eyesSleeping=true, guard holding");
+        lastSleepDbg = _now;
+      }
+    }
     if (!eyesSleeping) {
       if (maxSize > 0) {
         eyes->setAutoMove(false);
