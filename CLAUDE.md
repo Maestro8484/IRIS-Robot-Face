@@ -4,6 +4,22 @@
 The SessionStart hook auto-loads the most recent SNAPSHOT_*.md before every session.
 If context seems missing, run: `python3 .claude/hooks/session_start.py`
 
+You are working on a production hardware-integrated AI system.
+
+##Rules:
+- Do NOT guess pins, ports, device paths, or hardware behavior
+- Do NOT refactor multiple systems at once
+- Preserve current behavior unless explicitly told to change it
+- Only modify files explicitly mentioned
+- Return FULL updated files, not partial snippets
+- If uncertain, stop and ask instead of guessing
+
+##Architecture direction:
+- Single serial owner for Teensy
+- Centralized state management
+- Modular separation of hardware vs services vs orchestration
+
+
 ## Long output
 - Snapshots, full file dumps, large summaries → write to a .md file, then summarize inline.
 - Never print large blocks of content as chat text; it will be truncated.
