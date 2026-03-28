@@ -1273,6 +1273,7 @@ def show_idle_for_mode(leds):
 def main():
     leds = APA102(NUM_LEDS)
     setup_button()
+    set_volume(110)  # fixed startup volume
     ctx_thread = threading.Thread(target=_context_watchdog, daemon=True); ctx_thread.start()
     teensy = TeensyBridge(TEENSY_PORT, TEENSY_BAUD)
 
