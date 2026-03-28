@@ -31,35 +31,27 @@ from services.tts import synthesize, spoken_numbers
 from services.llm import extract_emotion_from_reply, clean_llm_reply
 from services.vision import capture_image, is_vision_trigger, ask_vision
 from services.wakeword import wait_for_wakeword_or_button
-
-# ── Runtime state ─────────────────────────────────────────────────────────────
-SYSTEM_PROMPT = ""
-conversation_history = []
-_kids_mode = False
-_last_interaction = [0.0]
-_eyes_sleeping = False
-_person_context = {"name": None, "desc": ""}  # set by background recognition thread
-_last_recognition_time = [0.0]
+from state.state_manager import state
 
 
 def get_model() -> str:
-    return OLLAMA_MODEL_KIDS if _kids_mode else OLLAMA_MODEL_ADULT
+    return OLLAMA_MODEL_KIDS if state.kids_mode else OLLAMA_MODEL_ADULT
 
 
 # ── Conversation logger ───────────────────────────────────────────────────────
 
 def flush_conversation_log(reason: str = "timeout"):
-    if not conversation_history:
+    if not state.conversation_history:
         return
     import datetime
     os.makedirs(os.path.dirname(CONVERSATION_LOG), exist_ok=True)
     record = {
         "ts":       datetime.datetime.now().isoformat(timespec="seconds"),
         "reason":   reason,
-        "mode":     "kids" if _kids_mode else "adult",
+        "mode":     "kids" if state.kids_mode else "adult",
         "model":    get_model(),
-        "turns":    sum(1 for m in conversation_history if m["role"] == "user"),
-        "messages": list(conversation_history),
+        "turns":    sum(1 for m in state.conversation_history if m["role"] == "user"),
+        "messages": list(state.conversation_history),
     }
     try:
         with open(CONVERSATION_LOG, "a", encoding="utf-8") as f:
@@ -76,15 +68,13 @@ def _context_watchdog():
         return
     while True:
         time.sleep(30)
-        if _last_interaction[0] == 0.0:
+        if state.last_interaction == 0.0:
             continue
-        elapsed = time.time() - _last_interaction[0]
-        if elapsed >= CONTEXT_TIMEOUT_SECS and conversation_history:
+        elapsed = time.time() - state.last_interaction
+        if elapsed >= CONTEXT_TIMEOUT_SECS and state.conversation_history:
             flush_conversation_log(reason="timeout")
-            conversation_history.clear()
-            _person_context["name"] = None; _person_context["desc"] = ""
-            _last_recognition_time[0] = 0.0
-            _last_interaction[0] = 0.0
+            state.clear_conversation()
+            state.last_interaction = 0.0
             print(f"[CTX]  Context cleared after {CONTEXT_TIMEOUT_SECS}s of silence", flush=True)
 
 
@@ -141,7 +131,6 @@ def ensure_gandalf_up(leds) -> bool:
 def start_cmd_listener(teensy):
     """UDP listener on CMD_PORT. iris_web.py sends raw commands here."""
     def _listener():
-        global _eyes_sleeping
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind(("127.0.0.1", CMD_PORT))
@@ -154,10 +143,10 @@ def start_cmd_listener(teensy):
                         print(f"[CMD] -> teensy: {cmd}", flush=True)
                         teensy.send_command(cmd)
                         if cmd == "EYES:SLEEP":
-                            _eyes_sleeping = True
+                            state.eyes_sleeping = True
                             open("/tmp/iris_sleep_mode", "w").close()
                         elif cmd == "EYES:WAKE":
-                            _eyes_sleeping = False
+                            state.eyes_sleeping = False
                             try: os.remove("/tmp/iris_sleep_mode")
                             except FileNotFoundError: pass
                 except Exception as e:
@@ -174,20 +163,21 @@ def emit_emotion(teensy, leds, emotion: str):
 # ── Local command handlers ────────────────────────────────────────────────────
 
 def handle_kids_mode_command(text: str):
-    global _kids_mode
     t = text.lower().strip().rstrip(".!?")
     on_triggers  = ("kids mode on", "enable kids mode", "turn on kids mode", "switch to kids mode",
                     "kids mode please", "activate kids mode", "children's mode on", "kid mode on")
     off_triggers = ("kids mode off", "disable kids mode", "turn off kids mode", "switch to adult mode",
                     "adult mode", "deactivate kids mode", "kid mode off", "normal mode")
     if any(tr in t for tr in on_triggers):
-        _kids_mode = True
-        flush_conversation_log(reason="mode_switch_kids_on"); conversation_history.clear(); _person_context["name"] = None; _person_context["desc"] = ""; _last_recognition_time[0] = 0.0
+        state.kids_mode = True
+        flush_conversation_log(reason="mode_switch_kids_on")
+        state.clear_conversation()
         print(f"[MODE] Kids mode ON -- model: {OLLAMA_MODEL_KIDS}", flush=True)
         return "Kids mode activated.", True
     if any(tr in t for tr in off_triggers):
-        _kids_mode = False
-        flush_conversation_log(reason="mode_switch_kids_off"); conversation_history.clear(); _person_context["name"] = None; _person_context["desc"] = ""; _last_recognition_time[0] = 0.0
+        state.kids_mode = False
+        flush_conversation_log(reason="mode_switch_kids_off")
+        state.clear_conversation()
         print(f"[MODE] Kids mode OFF -- model: {OLLAMA_MODEL_ADULT}", flush=True)
         return "Kids mode deactivated.", False
     return None, None
@@ -304,15 +294,14 @@ PERSON_SYSTEM_LINES = {
 }
 
 def _run_person_recognition():
-    """Capture image and identify who is present. Stores result in _person_context."""
-    global _person_context
+    """Capture image and identify who is present. Stores result in state.person_context."""
     if not CAMERA_ENABLED:
         return
-    if conversation_history and (time.time() - _last_recognition_time[0]) <= 300:
+    if state.conversation_history and (time.time() - state.last_recognition_time) <= 300:
         return
     img = capture_image()
     if img is None:
-        _person_context = {"name": None, "desc": ""}
+        state.set_person(None, "")
         return
     try:
         import base64
@@ -328,12 +317,12 @@ def _run_person_recognition():
         name = re.sub(r"[^a-zA-Z]", "", raw).capitalize()
         if name not in {"Leo", "Mae", "Megan", "Maestro"}:
             name = None
-        _person_context = {"name": name, "desc": raw}
-        _last_recognition_time[0] = time.time()
+        state.set_person(name, raw)
+        state.last_recognition_time = time.time()
         print(f"[PERS] Recognized: {name or 'unknown'} (raw='{raw}')", flush=True)
     except Exception as e:
         print(f"[PERS] Recognition failed: {e}", flush=True)
-        _person_context = {"name": None, "desc": ""}
+        state.set_person(None, "")
 
 
 # ── LLM ───────────────────────────────────────────────────────────────────────
@@ -344,8 +333,8 @@ def ask_ollama(text):
     Strips [EMOTION:X] tag from reply before returning -- tag never reaches TTS.
     Falls back to NEUTRAL if tag absent (e.g. kids model).
     """
-    _last_interaction[0] = time.time()
-    conversation_history.append({"role": "user", "content": text})
+    state.last_interaction = time.time()
+    state.conversation_history.append({"role": "user", "content": text})
     import datetime
     now = datetime.datetime.now()
     date_inject = {
@@ -354,13 +343,13 @@ def ask_ollama(text):
     }
     # Inject person-recognition context if available
     person_inject = None
-    _pname = _person_context.get("name")
+    _pname = state.person_context.get("name")
     if _pname and _pname in PERSON_SYSTEM_LINES:
         person_inject = {"role": "system", "content": PERSON_SYSTEM_LINES[_pname]}
     if person_inject:
-        messages_with_date = [date_inject, person_inject] + conversation_history
+        messages_with_date = [date_inject, person_inject] + state.conversation_history
     else:
-        messages_with_date = [date_inject] + conversation_history
+        messages_with_date = [date_inject] + state.conversation_history
     r = requests.post(
         f"http://{GANDALF}:{OLLAMA_PORT}/api/chat",
         json={"model": get_model(), "messages": messages_with_date, "stream": False, "options": {"num_predict": NUM_PREDICT}},
@@ -375,9 +364,9 @@ def ask_ollama(text):
 
     print(f"[EYES] Emotion from LLM: {emotion}", flush=True)
 
-    conversation_history.append({"role": "assistant", "content": reply})
-    if len(conversation_history) > 20:
-        conversation_history.pop(0); conversation_history.pop(0)
+    state.conversation_history.append({"role": "assistant", "content": reply})
+    if len(state.conversation_history) > 20:
+        state.conversation_history.pop(0); state.conversation_history.pop(0)
     return reply, emotion
 
 
@@ -392,12 +381,12 @@ def implies_followup(reply: str) -> bool:
 
 def record_followup(mic, pa, leds, timeout=None):
     if timeout is None:
-        timeout = KIDS_FOLLOWUP_TIMEOUT if _kids_mode else FOLLOWUP_TIMEOUT
+        timeout = KIDS_FOLLOWUP_TIMEOUT if state.kids_mode else FOLLOWUP_TIMEOUT
     leds.show_followup(); play_double_beep(pa)
     frames = []; silence = 0; speech_detected = False
-    sil_secs  = KIDS_SILENCE_SECS   if _kids_mode else SILENCE_SECS
-    sil_rms   = KIDS_SILENCE_RMS    if _kids_mode else SILENCE_RMS
-    rec_secs  = KIDS_RECORD_SECONDS if _kids_mode else RECORD_SECONDS
+    sil_secs  = KIDS_SILENCE_SECS   if state.kids_mode else SILENCE_SECS
+    sil_rms   = KIDS_SILENCE_RMS    if state.kids_mode else SILENCE_RMS
+    rec_secs  = KIDS_RECORD_SECONDS if state.kids_mode else RECORD_SECONDS
     sil_limit = int(SAMPLE_RATE / CHUNK * sil_secs)
     max_chunks = int(SAMPLE_RATE / CHUNK * (timeout + rec_secs))
     timeout_chunks = int(SAMPLE_RATE / CHUNK * timeout); chunks_read = 0
@@ -416,7 +405,7 @@ def record_followup(mic, pa, leds, timeout=None):
 
 
 def show_idle_for_mode(leds):
-    if _kids_mode: leds.show_idle_kids()
+    if state.kids_mode: leds.show_idle_kids()
     else: leds.show_idle()
 
 
@@ -497,7 +486,7 @@ def main():
             _pr_thread = threading.Thread(target=_run_person_recognition, daemon=True)
             _pr_thread.start()
             leds.show_recording(); print("[REC]  Listening...", flush=True)
-            raw = b"".join(_pre_buf) + record_command(mic, ptt_mode=ptt_mode, kids_mode=_kids_mode)
+            raw = b"".join(_pre_buf) + record_command(mic, ptt_mode=ptt_mode, kids_mode=state.kids_mode)
             arr = np.frombuffer(raw, dtype=np.int16).astype(float)
             rms = np.sqrt(np.mean(arr**2))
             print(f"[REC]  {len(raw)/2/SAMPLE_RATE:.1f}s  RMS={rms:.0f}", flush=True)
@@ -523,25 +512,24 @@ def main():
                 show_idle_for_mode(leds); continue
 
             # ── Eyes sleep/wake voice commands ────────────────────────────────
-            global _eyes_sleeping
             _tnorm = text.lower().strip().strip(".!?,;:")
             if any(_tnorm == p or _tnorm.startswith(p) for p in EYES_SLEEP_TRIGGERS):
-                if not _eyes_sleeping:
-                    _eyes_sleeping = True
+                if not state.eyes_sleeping:
+                    state.eyes_sleeping = True
                     teensy.send_command("EYES:SLEEP")
                     print("[EYES] Eyes deactivated by voice", flush=True)
                 show_idle_for_mode(leds); continue
 
             if any(_tnorm == p or _tnorm.startswith(p) for p in EYES_WAKE_TRIGGERS):
-                if _eyes_sleeping:
-                    _eyes_sleeping = False
+                if state.eyes_sleeping:
+                    state.eyes_sleeping = False
                     teensy.send_command("EYES:WAKE")
                     print("[EYES] Eyes activated by voice", flush=True)
                 show_idle_for_mode(leds); continue
 
             # Auto-wake: any non-sleep/wake interaction restores the eyes
-            if _eyes_sleeping:
-                _eyes_sleeping = False
+            if state.eyes_sleeping:
+                state.eyes_sleeping = False
                 teensy.send_command("EYES:WAKE")
                 print("[EYES] Eyes auto-waked by interaction", flush=True)
 
