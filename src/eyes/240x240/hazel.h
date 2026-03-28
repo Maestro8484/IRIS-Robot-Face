@@ -9299,7 +9299,7 @@ namespace hazel {
   };
 
   const EyeDefinition eye PROGMEM = {
-      "hazel", 125, 35138, true, 0.5, disp_240_125,
+      "hazel", 125, 35138, true, 1.0, disp_240_125,
       { 0, 0, 0.3, 0.7 },
       { 69, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },
