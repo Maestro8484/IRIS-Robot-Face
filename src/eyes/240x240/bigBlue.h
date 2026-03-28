@@ -5303,7 +5303,7 @@ namespace bigBlue {
 
   const EyeDefinition eye PROGMEM = {
       "bigBlue", 125, 0, true, 1.0, disp_240_125,
-      { 0, 0, 0.3, 0.7 },
+      { 0, 0, 0.24, 0.50 },
       { 85, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },
       { eyeUpper, eyeLower, 0 },
