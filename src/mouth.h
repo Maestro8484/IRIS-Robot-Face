@@ -201,7 +201,7 @@ inline void mouthShow(uint8_t idx) {
 // ---------------------------------------------------------------------------
 
 inline void mouthSetSleepIntensity() {
-  _writeAll(0x0A, 0x02); // ~13% brightness
+  _writeAll(0x0A, 0x04); // ~28% brightness
 }
 
 inline void mouthRestoreIntensity() {

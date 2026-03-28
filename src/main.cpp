@@ -321,11 +321,6 @@ void loop() {
         float targetX = -((static_cast<float>(maxFace.box_left) + static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
         float targetY = (static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
         eyes->setTargetPosition(targetX, targetY);
-        Serial.print("[TRK] n="); Serial.print(personSensor.numFacesFound());
-        Serial.print(" conf="); Serial.print(maxFace.box_confidence);
-        Serial.print(" cx="); Serial.print((maxFace.box_left+maxFace.box_right)/2);
-        Serial.print(" tx="); Serial.print(targetX, 2);
-        Serial.print(" ty="); Serial.println(targetY, 2);
       } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS && !eyes->autoMoveEnabled()) {
         eyes->setAutoMove(true);
       }

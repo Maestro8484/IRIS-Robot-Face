@@ -1,28 +1,21 @@
 #!/usr/bin/env python3
 # iris_sleep.py — Triggered by cron at 9:00 PM
-# Sets sleep flag, sends EYES:SLEEP + MOUTH:8 to Teensy, plays "Goodnight." TTS.
-import serial, time, subprocess, os
+# Sends EYES:SLEEP + MOUTH:8 via UDP to assistant.py (which owns the serial port).
+import socket, subprocess, time
 
-TEENSY_PORT = '/dev/ttyACM0'
-TEENSY_BAUD = 115200
-LOG = '/var/log/iris_sleep.log'
+CMD_PORT = 10500
 
 def log(msg):
     print(msg, flush=True)
 
 try:
-    ser = serial.Serial(TEENSY_PORT, TEENSY_BAUD, timeout=2)
-    time.sleep(0.5)
-    ser.write(b'EYES:SLEEP\n')
-    time.sleep(0.1)
-    ser.write(b'MOUTH:8\n')
-    ser.close()
-    log('[SLEEP] Serial commands sent')
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.sendto(b'EYES:SLEEP\n', ('127.0.0.1', CMD_PORT))
+        time.sleep(0.1)
+        s.sendto(b'MOUTH:8\n', ('127.0.0.1', CMD_PORT))
+    log('[SLEEP] UDP commands sent to assistant.py')
 except Exception as e:
-    log(f'[SLEEP] Serial error: {e}')
-
-open('/tmp/iris_sleep_mode', 'w').close()
-log('[SLEEP] Sleep flag created')
+    log(f'[SLEEP] UDP error: {e}')
 
 subprocess.run([
     'bash', '-c',
