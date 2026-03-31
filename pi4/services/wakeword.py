@@ -1,0 +1,75 @@
+"""
+services/wakeword.py - Wake word detection via Wyoming OpenWakeWord
+Listens on OWW_PORT for hey_jarvis detections.
+Also handles GPIO button push-to-talk.
+
+Returns "wake" (wakeword fired) or "button" (PTT button pressed).
+"""
+
+import json
+import select
+import socket
+import threading
+
+from core.config import OWW_THRESHOLD, WAKE_WORD, SAMPLE_RATE, CHANNELS, CHUNK
+from hardware.io import button_pressed
+from services.wyoming import wy_send
+
+
+def wait_for_wakeword_or_button(mic, oww_sock) -> str:
+    """
+    Block until wakeword detected above OWW_THRESHOLD or button pressed.
+    Returns "wake" or "button".
+    mic      — open PyAudio input stream (must be running)
+    oww_sock — connected socket to wyoming-openwakeword
+    """
+    detected = threading.Event()
+    trigger = [None]
+
+    def reader():
+        buf = b""
+        while not detected.is_set():
+            try:
+                ready, _, _ = select.select([oww_sock], [], [], 0.05)
+                if not ready:
+                    continue
+                chunk = oww_sock.recv(4096)
+                if not chunk:
+                    break
+                buf += chunk
+                while b"\n" in buf:
+                    line, buf = buf.split(b"\n", 1)
+                    try:
+                        hdr = json.loads(line.decode())
+                        if hdr.get("type") == "detection":
+                            score = hdr.get("data", {}).get("score", 1.0)
+                            print(f"[OWW]  score={score:.3f} (threshold={OWW_THRESHOLD})",
+                                  flush=True)
+                            if score < OWW_THRESHOLD:
+                                continue
+                            trigger[0] = "wake"
+                            detected.set()
+                            return
+                    except json.JSONDecodeError:
+                        pass
+            except Exception:
+                break
+
+    wy_send(oww_sock, "detect", {"names": [WAKE_WORD]})
+    wy_send(oww_sock, "audio-start",
+            {"rate": SAMPLE_RATE, "width": 2, "channels": CHANNELS})
+    t = threading.Thread(target=reader, daemon=True)
+    t.start()
+
+    while not detected.is_set():
+        audio = mic.read(CHUNK, exception_on_overflow=False)
+        wy_send(oww_sock, "audio-chunk",
+                {"rate": SAMPLE_RATE, "width": 2, "channels": CHANNELS},
+                audio)
+        if button_pressed():
+            trigger[0] = "button"
+            detected.set()
+            threading.Event().wait(0.05)  # debounce
+
+    t.join(timeout=1)
+    return trigger[0]

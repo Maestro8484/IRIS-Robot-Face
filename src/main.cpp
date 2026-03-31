@@ -109,6 +109,9 @@ static uint32_t confusedEyeStartMs = 0;
 // Eyes sleep state: when true, displays are blanked and renderFrame is skipped
 static bool     eyesSleeping = false;
 
+// Mouth sleep frame throttle — prevents bit-bang SPI from saturating loop()
+static uint32_t srMouthLastMs = 0;
+
 // ---------------------------------------------------------------------------
 // HELPERS
 // ---------------------------------------------------------------------------
@@ -210,9 +213,12 @@ static void processSerial() {
             // DMA to receive an empty/corrupt region set and lock up the Teensy.
             if (displayLeft)  displayLeft->getDriver()->updateChangedAreasOnly(false);
             if (displayRight) displayRight->getDriver()->updateChangedAreasOnly(false);
+            // blankDisplays() drains any pending eye-engine DMA before the starfield
+            // renderer takes over. Skipping it risks a DMA race on the first fillScreen.
             blankDisplays();
             mouthSetSleepIntensity();
             sleepRendererInit();
+            Serial.println("[DBG] EYES:SLEEP -- starfield starting");
           }
 
         } else if (strncmp(serialBuf, "MOUTH:", 6) == 0) {
@@ -303,8 +309,8 @@ void setup() {
 void loop() {
   processSerial();
 
-  // Person sensor: exact stock chrismiller tracking + IRIS reportFaceState.
-  if (hasPersonSensor() && personSensor.read()) {
+  // Person sensor: skip during sleep to avoid I2C activity during heavy SPI load.
+  if (!eyesSleeping && hasPersonSensor() && personSensor.read()) {
     int maxSize = 0;
     person_sensor_face_t maxFace{};
     for (int i = 0; i < personSensor.numFacesFound(); i++) {
@@ -315,22 +321,27 @@ void loop() {
       }
     }
     reportFaceState(maxSize > 0);
-    if (!eyesSleeping) {
-      if (maxSize > 0) {
-        eyes->setAutoMove(false);
-        float targetX = -((static_cast<float>(maxFace.box_left) + static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
-        float targetY = (static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
-        eyes->setTargetPosition(targetX, targetY);
-      } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS && !eyes->autoMoveEnabled()) {
-        eyes->setAutoMove(true);
-      }
+    if (maxSize > 0) {
+      eyes->setAutoMove(false);
+      float targetX = -((static_cast<float>(maxFace.box_left) + static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
+      float targetY = (static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
+      eyes->setTargetPosition(targetX, targetY);
+    } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS && !eyes->autoMoveEnabled()) {
+      eyes->setAutoMove(true);
     }
   }
 
-  // When sleeping: render starfield + snore mouth, skip eye engine
+  // When sleeping: render starfield + snore mouth, skip eye engine.
+  // Mouth throttled to 50ms so bit-bang SPI doesn't saturate loop().
+  // renderSleepFrame() is self-throttled to SR_FRAME_MS; between renders
+  // this loop spins fast so processSerial() stays responsive.
   if (eyesSleeping) {
     renderSleepFrame(displayLeft->getDriver(), displayRight->getDriver());
-    mouthSleepFrame();
+    uint32_t nowMs2 = millis();
+    if (nowMs2 - srMouthLastMs >= 50) {
+      mouthSleepFrame();
+      srMouthLastMs = nowMs2;
+    }
     return;
   }
 
