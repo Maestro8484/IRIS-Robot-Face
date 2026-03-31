@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
 **Date:** 2026-03-30
-**Session:** 1
+**Session:** 2
 **Branch:** `refactor/modular-assistant`
-**Last commit:** `303ed0f` (docs: add 2026-03-29b snapshot)
+**Last commit:** `64ed171` (docs: snapshot 2026-03-30 — ElevenLabs disabled, config loader rebuilt)
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -53,7 +53,7 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 | `/flash` | `.claude/commands/flash.md` | Local USB flash via PlatformIO |
 | `/flash-remote` | `.claude/commands/flash-remote.md` | Remote flash via Pi4 SSH (software 134-baud bootloader entry works — Teensy in enclosure) |
 | `/deploy` | `.claude/commands/deploy.md` | Persist Pi4 files through overlayfs to SD |
-| `/snapshot` | `.claude/commands/snapshot.md` | Generate end-of-session snapshot — always writes SNAPSHOT_LATEST.md |
+| `/snapshot` | `.claude/commands/snapshot.md` | Generate end-of-session snapshot — writes SNAPSHOT_LATEST.md + dated archive + pushes to iris-snapshot GitHub |
 | `/eye-edit` | `.claude/commands/eye-edit.md` | Eye config edit + genall.py + pupil re-apply workflow |
 
 ### Hooks
@@ -61,6 +61,12 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 |---|---|---|---|
 | SessionStart | `.claude/hooks/session_start.py` | Every session open | Loads SNAPSHOT_LATEST.md by name; falls back to latest dated file if missing |
 | PostToolUse | `.claude/hooks/post_tool_use_build_check.py` | After any Write/Edit to src/ | Runs `pio run` compile check, blocks agent on failure |
+
+### iris-snapshot GitHub repo
+- **Repo:** `https://github.com/Maestro8484/iris-snapshot` (private)
+- **Local:** `C:/Users/SuperMaster/Documents/PlatformIO/iris-snapshot/`
+- **Raw URL:** `https://raw.githubusercontent.com/Maestro8484/iris-snapshot/main/SNAPSHOT_latest.md`
+- **Purpose:** After every `/snapshot`, SNAPSHOT_LATEST.md is copied here and pushed. Allows claude.ai sessions to web_fetch current state without Claude Code.
 
 ### Pi4 Sudoers (all persisted to SD)
 - `/etc/sudoers.d/teensy_loader` — passwordless sudo for teensy_loader_cli
@@ -114,6 +120,7 @@ IRIS-Robot-Face/
   .claude/commands/             -- flash, flash-remote, deploy, snapshot, eye-edit
   .claude/hooks/                -- session_start.py, post_tool_use_build_check.py
   resources/eyes/240x240/       -- config.eye files (NOT synced to .h manual edits)
+  C:/Users/SuperMaster/Documents/PlatformIO/iris-snapshot/  -- separate git repo, GitHub push target
 ```
 
 ---
@@ -318,31 +325,46 @@ md5sum /home/pi/<file> /media/root-ro/home/pi/<file>
 
 ---
 
-## 13. CHANGES THIS SESSION (2026-03-30 session 1)
+## 13. SNAPSHOT TIMELINE
 
-### Pi4 — `/home/pi/iris_config.json` (persisted to SD, md5 verified)
-- Set `ELEVENLABS_ENABLED: false` — was already false, confirmed + re-persisted
-- MD5: `0725727a2999c314251355209e6bfb18` (RAM = SD)
+Dated archives exist in repo root for full context. Key milestones:
 
-### Pi4 — `/home/pi/core/config.py` (persisted to SD, md5 verified)
-- Replaced old `try/except Exception` flat loader with new `_OVERRIDABLE`-set loader
-- New behavior: iterates all keys in iris_config.json, applies only keys in `_OVERRIDABLE`, logs applied keys individually (`[CFG] iris_config.json loaded: ELEVENLABS_ENABLED=False`), logs unknown keys as ignored
-- Separate `FileNotFoundError` / `JSONDecodeError` / `Exception` branches (not one catch-all)
-- LED_* keys removed from overridable set (were in old loader, not in new)
-- MD5: `8011cbd0baa3fd01a41d75ee0f92d0e1` (RAM = SD)
-- Confirmed in journal: `[CFG]  iris_config.json loaded: ELEVENLABS_ENABLED=False`
-
-### Repo — `.claude/commands/snapshot.md` + `.claude/hooks/session_start.py` (already committed)
-- Both files already had SNAPSHOT_LATEST.md logic from Claude Chat — no new commit needed
-- This session creates the first-ever `SNAPSHOT_LATEST.md` (previously only dated variants existed)
-
-### SSH auth discovery
-- Pi4 key-based SSH auth fails — must always use password (`pi` / `ohs`)
-- Saved to memory: `feedback_ssh_pi4_auth.md`
+| Date | File | What happened |
+|---|---|---|
+| 2026-03-16 | SNAPSHOT_2026-03-16.md | Early session |
+| 2026-03-21/22 | SNAPSHOT_2026-03-21/22*.md | Modular refactor phases |
+| 2026-03-24 | SNAPSHOT_2026-03-24*.md | Chat/Code split sessions |
+| 2026-03-27 | SNAPSHOT_2026-03-27*.md | Face tracking fix (EyeController seed) |
+| 2026-03-28 | SNAPSHOT_2026-03-28a–f.md | Sleep system work (6 sessions) |
+| 2026-03-29 | SNAPSHOT_2026-03-29*.md | drawChar fix, sleep ZZZ verified, LED sleep mode |
+| 2026-03-30 S1 | SNAPSHOT_2026-03-30.md | ElevenLabs disabled, config loader rebuilt, SNAPSHOT_LATEST introduced |
+| 2026-03-30 S2 | **SNAPSHOT_LATEST.md** | iris-snapshot GitHub repo wired up, bypassPermissions set, raw URL live |
 
 ---
 
-## 14. PENDING ITEMS
+## 14. CHANGES THIS SESSION (2026-03-30 session 2)
+
+### Claude Code — `.claude/commands/snapshot.md`
+- Added step 7: after writing SNAPSHOT_LATEST.md, copy to `C:/Users/SuperMaster/Documents/PlatformIO/iris-snapshot/SNAPSHOT_latest.md`, git add/commit/push to `https://github.com/Maestro8484/iris-snapshot`
+- Prints raw URL after each push: `https://raw.githubusercontent.com/Maestro8484/iris-snapshot/main/SNAPSHOT_latest.md`
+- Push is non-blocking (failure logged, does not stop snapshot)
+
+### Claude Code — `~/.claude/settings.json`
+- Added `"permissions": { "defaultMode": "bypassPermissions" }` — all tool calls proceed without prompts
+
+### iris-snapshot repo
+- Created local git repo at `C:/Users/SuperMaster/Documents/PlatformIO/iris-snapshot/`
+- Remote set to `https://github.com/Maestro8484/iris-snapshot.git`
+- GitHub private repo created, initial push (README) succeeded
+- Memory reference saved: raw URL for use in claude.ai sessions
+
+### Memory
+- Added `reference_iris_snapshot_url.md` — raw URL for future claude.ai session auto-loading
+- MEMORY.md updated with Reference section
+
+---
+
+## 15. PENDING ITEMS
 
 ### MEDIUM
 
@@ -355,12 +377,12 @@ md5sum /home/pi/<file> /media/root-ro/home/pi/<file>
 
 - **EYE:n voice trigger** — web UI only currently.
 - **Untracked files** — REFACTOR_VISUAL.md, _decode_assistant.py in repo root: commit when convenient.
-- **src/mouth.h + src/sleep_renderer.h** — have uncommitted local changes (present since before this session). Review and commit or discard.
+- **src/mouth.h + src/sleep_renderer.h** — uncommitted local changes present since before this session. Review and commit or discard.
 - **VOL_MAX** — default changed from 110 (old assistant.py) to 127 (core/config.py default). If vol is too loud, add `"VOL_MAX": 110` to iris_config.json.
 
 ---
 
-## 15. FLASH WORKFLOW (Pi4 SSH remote)
+## 16. FLASH WORKFLOW (Pi4 SSH remote)
 
 ```bash
 # 1. Build (patch script auto-applies drawChar fix)
@@ -394,7 +416,7 @@ sudo systemctl start assistant
 
 ---
 
-## 16. PI4 QUICK COMMANDS
+## 17. PI4 QUICK COMMANDS
 
 ```bash
 # Restart assistant
