@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
 **Date:** 2026-03-31
-**Session:** 1
+**Session:** 2
 **Branch:** `refactor/modular-assistant`
-**Last commit:** `b565c74` (docs: snapshot 2026-03-30 S2)
+**Last commit:** `7b5f722` (docs: snapshot 2026-03-31 — Chatterbox TTS deploy, jarvis paralinguistic tags, Pi4 tts.py swapped)
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -40,10 +40,10 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 **Wake from webui:** Working. Cron sleep: 9PM/7:30AM UDP path.
 **Voice pipeline (assistant.py):** Operational. Modular (hardware/, core/, services/, state/).
 **TTS routing:** Chatterbox (primary) → ElevenLabs (disabled via iris_config.json) → Piper (fallback).
-**Chatterbox server:** Installing on GandalfAI — PyTorch cu121 2.4GB download in progress as of session end. Server NOT yet running. Web UI will be at http://192.168.1.3:8004.
+**Chatterbox server:** Running on GandalfAI. Web UI confirmed accessible at http://192.168.1.3:8004.
 **Jarvis modelfile:** Updated with PARALINGUISTIC TAGS section. `ollama create jarvis` completed.
-**ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in `/home/pi/iris_config.json`.
-**Web UI:** EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000.
+**ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in `/home/pi/iris_config.json`. Out of credits (subscription active).
+**Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000.
 **Face tracking:** Working. setTargetPosition seed fix in EyeController.h.
 
 ---
@@ -66,6 +66,7 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 
 ### Pi4 Sudoers (all persisted to SD)
 - `/etc/sudoers.d/iris_service` — passwordless sudo for systemctl stop/start/restart/status assistant
+- Pi4 `pi` user has general passwordless sudo (standard Raspberry Pi default)
 
 ### Software Bootloader Entry (Teensy in enclosure)
 ```bash
@@ -74,7 +75,7 @@ python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep
 
 ---
 
-## 4. CHATTERBOX TTS — NEW THIS SESSION
+## 4. CHATTERBOX TTS
 
 ### GandalfAI Setup
 - **Repo cloned:** `C:\Users\gandalf\Chatterbox-TTS-Server` (devnen/Chatterbox-TTS-Server)
@@ -82,10 +83,11 @@ python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep
 - **Launch script:** `C:\Users\gandalf\Chatterbox-TTS-Server\run_server.bat`
 - **Install log:** `C:\Users\gandalf\chatterbox_server.log`
 - **Model:** Chatterbox Turbo (set in `config.yaml`: `repo_id: chatterbox-turbo`)
-- **Exaggeration:** 0.45 (updated in `config.yaml` from 1.3; also passed per-request)
+- **Exaggeration:** 0.45 (updated in `config.yaml` from 1.3; also passed per-request via /tts endpoint)
 - **Port:** 8004 — Windows Firewall rule added: "Chatterbox TTS 8004"
 - **requirements file used:** `requirements-nvidia.txt` (cu121, correct for RTX 3090 / Ampere)
   - Do NOT use `requirements-nvidia-cu128.txt` — that's for Blackwell RTX 5000 series only
+- **Status:** Server confirmed running. Web UI accessible at http://192.168.1.3:8004.
 
 ### Monitoring / Restarting
 ```
@@ -102,7 +104,7 @@ netstat -an | findstr 8004
 ### Voice Clone — PENDING UPLOAD
 - Reference audio on desktop: `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face\voice_preview_snarky james bond.wav` (24.5s, stereo, 48kHz)
 - Also present as `iris_voice.wav` in project root (untracked, do not commit)
-- **Action required:** Once server is up at http://192.168.1.3:8004 → Reference Audio tab → upload the file, rename to `iris_voice.wav`
+- **Action required:** Go to http://192.168.1.3:8004 → Reference Audio tab → upload, rename to `iris_voice.wav`
 - Pi4 config constant: `CHATTERBOX_VOICE = "iris_voice.wav"` (exact filename, with extension)
 
 ### Pi4 TTS Endpoint Used
@@ -147,7 +149,8 @@ IRIS-Robot-Face/
     hardware/led.py             -- APA102 driver
     iris_config.json            -- runtime overrides: {"ELEVENLABS_ENABLED": false}
     iris_sleep.py / iris_wake.py -- 9PM/7:30AM cron (UDP only)
-    iris_web.py                 -- web UI Flask (port 5000)
+    iris_web.py                 -- web UI Flask (port 5000) + /api/chatterbox_voices route
+    iris_web.html               -- web UI: Chatterbox-first Voice tab
   C:\Users\gandalf\ (GandalfAI):
     Chatterbox-TTS-Server/      -- devnen/Chatterbox-TTS-Server clone
     Chatterbox-TTS-Server/run_server.bat  -- install + start script
@@ -199,7 +202,7 @@ CHATTERBOX_VOICE        = "iris_voice.wav"
 CHATTERBOX_EXAGGERATION = 0.45
 CHATTERBOX_ENABLED      = True
 ```
-All four are in `_OVERRIDABLE` (can be overridden via iris_config.json).
+All four are in `_OVERRIDABLE` (can be overridden via iris_config.json / web UI).
 
 ### `src/main.cpp` — Key constants
 ```cpp
@@ -239,38 +242,43 @@ Fixed to call 7-param Adafruit_GFX version. Auto-applied by `scripts/patch_gc9a0
 
 ---
 
-## 10. CHANGES THIS SESSION (2026-03-31)
+## 10. CHANGES THIS SESSION (2026-03-31 S2)
 
-- **Pi4 `/home/pi/core/config.py`** — Added Chatterbox TTS block: `CHATTERBOX_BASE_URL`, `CHATTERBOX_VOICE`, `CHATTERBOX_EXAGGERATION`, `CHATTERBOX_ENABLED`. Added all four to `_OVERRIDABLE`. Persisted to SD (md5 verified).
-- **Pi4 `/home/pi/services/tts.py`** — Added `_synthesize_chatterbox()` using `/tts` endpoint (clone mode, 30s timeout). Updated `synthesize()` routing: Chatterbox → ElevenLabs → Piper. Persisted to SD (md5 verified).
-- **GandalfAI** — Cloned `devnen/Chatterbox-TTS-Server` to `C:\Users\gandalf\Chatterbox-TTS-Server`
-- **GandalfAI** — Created conda env `chatterbox` (Python 3.12.13)
-- **GandalfAI** — Created `run_server.bat` (pip install requirements-nvidia.txt + chatterbox-v2 + server.py)
-- **GandalfAI** — `config.yaml` `exaggeration: 1.3 → 0.45`
-- **GandalfAI** — Windows Firewall: inbound TCP 8004 rule added ("Chatterbox TTS 8004")
-- **GandalfAI** — `jarvis_modelfile.txt` updated with PARALINGUISTIC TAGS section
-- **GandalfAI** — `ollama create jarvis -f jarvis_modelfile.txt` — completed successfully
-- **Memory** — Added `feedback_tool_efficiency.md`: minimize tool calls, batch reads, consolidate SSH
+- **Pi4 `/home/pi/iris_web.py`** — Added `CHATTERBOX_URL = "http://192.168.1.3:8004"` constant. Added `/api/chatterbox_voices` route (GET → Chatterbox `/get_reference_files`, returns `{files: [...]}` list of uploaded WAV names). Persisted to SD (md5 verified).
+- **Pi4 `/home/pi/iris_web.html`** — Voice tab replaced with 3-card layout:
+  - **Chatterbox TTS (Primary):** `CHATTERBOX_ENABLED` select, `CHATTERBOX_VOICE` dropdown (populated from `/api/chatterbox_voices`), `CHATTERBOX_EXAGGERATION` range slider 0–1 step 0.05 with live value display, link to Chatterbox Web UI at http://192.168.1.3:8004, `saveChatterboxSettings()` button.
+  - **ElevenLabs (Fallback):** voice/model selectors, ELEVENLABS_ENABLED toggle, `saveElevenLabsSettings()` button (was `saveVoice()`).
+  - **Piper TTS (Final Fallback):** static info card only.
+  - Added JS: `loadChatterboxVoices()` — fetches voice list from `/api/chatterbox_voices`, syncs exaggeration display when Voice tab opens.
+  - Added JS: `saveChatterboxSettings()` — saves CHATTERBOX_ENABLED, CHATTERBOX_VOICE, CHATTERBOX_EXAGGERATION to `/api/config`.
+  - Updated `tab()`: voice tab now calls both `loadVoices()` and `loadChatterboxVoices()`.
+  - Persisted to SD (md5 verified).
+
+### Previous session changes (2026-03-31 S1) — carried forward
+- Pi4 `core/config.py` — Chatterbox TTS block + `_OVERRIDABLE` additions. Persisted.
+- Pi4 `services/tts.py` — `_synthesize_chatterbox()` + routing Chatterbox → EL → Piper. Persisted.
+- GandalfAI — Chatterbox-TTS-Server cloned, conda env created, `run_server.bat`, firewall rule, config.yaml exaggeration 0.45.
+- GandalfAI — `jarvis_modelfile.txt` paralinguistic tags, `ollama create jarvis` completed.
 
 ---
 
 ## 11. CURRENT KNOWN ISSUES / TODO
 
 ### HIGH
-- **Chatterbox server not yet running** — PyTorch 2.4GB download was in progress at session end. Check `type C:\Users\gandalf\chatterbox_server.log` on Gandalf. When `Uvicorn running on http://0.0.0.0:8004` appears, server is up.
-- **Voice clip not uploaded** — `iris_voice.wav` must be uploaded to http://192.168.1.3:8004 → Reference Audio tab before Chatterbox can clone the IRIS voice. Until uploaded, `/tts` clone requests will 404.
-- **End-to-end not tested** — Full pipeline (wake → STT → LLM with tags → Chatterbox → ReSpeaker) not verified. Test by checking Pi4 logs for `[CB] OK ... PCM` after a voice interaction.
+- **Voice clip not uploaded** — `iris_voice.wav` must be uploaded to http://192.168.1.3:8004 → Reference Audio tab before Chatterbox can clone the IRIS voice. Until uploaded, `/tts` clone requests will fail (404 or error). File is at `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face\iris_voice.wav` on desktop.
+- **End-to-end not tested** — Full pipeline (wake → STT → LLM with tags → Chatterbox → ReSpeaker) not verified. Test by triggering wake word and watching Pi4 logs for `[CB] OK ... PCM`. If `[CB] Failed:` appears, check that server is up and voice file is uploaded.
 
 ### MEDIUM
-- **Exaggeration tuning** — 0.45 is a starting point for dry British wit. May need adjustment. Tune via web UI at http://192.168.1.3:8004 before hardcoding. Range: 0.0 (flat) → 1.0 (dramatic).
-- **Paralinguistic tag rendering** — Tags `[chuckle]` etc. added to jarvis modelfile. Verify Chatterbox Turbo actually renders them as vocal sounds (not text artifacts) after first test.
-- **src/mouth.h and src/sleep_renderer.h** — Modified but uncommitted from a prior session. Review before next firmware flash.
+- **Exaggeration tuning** — 0.45 is a starting point for dry British wit. May need adjustment after first real voice test. Tune via IRIS Web UI Voice tab (exaggeration slider) or directly at http://192.168.1.3:8004. Range: 0.0 (flat) → 1.0 (dramatic).
+- **Paralinguistic tag rendering** — Tags `[chuckle]` etc. added to jarvis modelfile. Verify Chatterbox Turbo actually renders them as vocal sounds (not text artifacts) after first live test. If they appear as text in the voice output, Turbo may need specific prompting format.
+- **src/mouth.h and src/sleep_renderer.h** — Modified but uncommitted from a prior session. Review before next firmware flash to confirm changes are intentional.
 
 ### LOW
 - **`iris_voice.wav`** in project root — untracked binary, do not commit. Add to `.gitignore`.
 - **`_decode_assistant.py` and `REFACTOR_VISUAL.md`** — untracked files in project root, left over from prior session. Review/clean up.
 - **Chatterbox server auto-start on Gandalf boot** — not yet configured. For now, manual restart via `wmic process call create "cmd /c C:\Users\gandalf\Chatterbox-TTS-Server\run_server.bat"` or double-clicking `run_server.bat`.
 - **Piper TTS fallback** — if Chatterbox is down, falls through to Piper. Audio quality mismatch (different voice). Acceptable for now.
+- **Branch merge** — `refactor/modular-assistant` is 8+ commits ahead of origin. Merge to main when stable.
 
 ---
 
