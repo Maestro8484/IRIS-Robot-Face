@@ -112,7 +112,7 @@ static constexpr SrStar SR_STARS_R[25] = {
 // ---------------------------------------------------------------------------
 static bool     srInitialized   = false;
 static uint32_t srLastFrameMs   = 0;
-static constexpr uint32_t SR_FRAME_MS = 66; // ~15fps
+static constexpr uint32_t SR_FRAME_MS = 150; // ~6.7fps — reduced to keep loop() responsive
 
 // Moon drift
 static constexpr int SR_MOON_CX   = 120;

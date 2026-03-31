@@ -109,6 +109,9 @@ static uint32_t confusedEyeStartMs = 0;
 // Eyes sleep state: when true, displays are blanked and renderFrame is skipped
 static bool     eyesSleeping = false;
 
+// Mouth sleep frame throttle — prevents bit-bang SPI from saturating loop()
+static uint32_t srMouthLastMs = 0;
+
 // ---------------------------------------------------------------------------
 // HELPERS
 // ---------------------------------------------------------------------------
@@ -204,9 +207,17 @@ static void processSerial() {
             eyesSleeping      = true;
             angryEyeActive    = false;
             confusedEyeActive = false;
+            // Keep updateChangedAreasOnly=true (dirty-rect mode, same as eye engine).
+            // fillScreen() inside blankDisplays/fillBlack calls updateChangedRange(full screen),
+            // so updateScreen() Path B sends the full frame — no hang, same as eye engine.
+            // Path A (updateChangedAreasOnly=false) hangs on Teensy 4.0 LPSPI due to a
+            // different SPI transaction sequence in the library's full-frame write path.
+            // blankDisplays() drains any pending eye-engine SPI before the starfield
+            // renderer takes over.
             blankDisplays();
             mouthSetSleepIntensity();
             sleepRendererInit();
+            Serial.println("[DBG] EYES:SLEEP -- starfield starting");
           }
 
         } else if (strncmp(serialBuf, "MOUTH:", 6) == 0) {
@@ -218,6 +229,9 @@ static void processSerial() {
         } else if (strcmp(serialBuf, "EYES:WAKE") == 0) {
           if (eyesSleeping) {
             eyesSleeping = false;
+            // Restore changed-areas-only for efficient eye engine rendering.
+            if (displayLeft)  displayLeft->getDriver()->updateChangedAreasOnly(true);
+            if (displayRight) displayRight->getDriver()->updateChangedAreasOnly(true);
             mouthRestoreIntensity();
             uint32_t saved = defIndex;
             defIndex = UINT32_MAX;
@@ -294,27 +308,39 @@ void setup() {
 void loop() {
   processSerial();
 
-  // Person sensor always runs -- reports FACE:1/FACE:0 even during sleep.
-  // Eye tracking (autoMove / setTargetPosition) only applies when awake.
-  bool _facePresent = false;
-  person_sensor_face_t _maxFace{};
-  if (hasPersonSensor() && personSensor.read()) {
+  // Person sensor: skip during sleep to avoid I2C activity during heavy SPI load.
+  if (!eyesSleeping && hasPersonSensor() && personSensor.read()) {
     int maxSize = 0;
+    person_sensor_face_t maxFace{};
     for (int i = 0; i < personSensor.numFacesFound(); i++) {
       const person_sensor_face_t face = personSensor.faceDetails(i);
-      if (face.box_confidence > 60) {
+      if (face.is_facing && face.box_confidence > 60) {
         int size = (face.box_right - face.box_left) * (face.box_bottom - face.box_top);
-        if (size > maxSize) { maxSize = size; _maxFace = face; }
+        if (size > maxSize) { maxSize = size; maxFace = face; }
       }
     }
-    _facePresent = (maxSize > 0);
-    reportFaceState(_facePresent);
+    reportFaceState(maxSize > 0);
+    if (maxSize > 0) {
+      eyes->setAutoMove(false);
+      float targetX = -((static_cast<float>(maxFace.box_left) + static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
+      float targetY = (static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
+      eyes->setTargetPosition(targetX, targetY);
+    } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS && !eyes->autoMoveEnabled()) {
+      eyes->setAutoMove(true);
+    }
   }
 
-  // When sleeping: render starfield + snore mouth, skip eye engine
+  // When sleeping: render starfield + snore mouth, skip eye engine.
+  // Mouth throttled to 50ms so bit-bang SPI doesn't saturate loop().
+  // renderSleepFrame() is self-throttled to SR_FRAME_MS; between renders
+  // this loop spins fast so processSerial() stays responsive.
   if (eyesSleeping) {
     renderSleepFrame(displayLeft->getDriver(), displayRight->getDriver());
-    mouthSleepFrame();
+    uint32_t nowMs2 = millis();
+    if (nowMs2 - srMouthLastMs >= 50) {
+      mouthSleepFrame();
+      srMouthLastMs = nowMs2;
+    }
     return;
   }
 
@@ -344,23 +370,6 @@ void loop() {
     lightSensor.readDamped([](float value) {
       eyes->setPupil(value);
     });
-  }
-
-  // Eye tracking (awake only): steer gaze toward detected face
-  if (hasPersonSensor()) {
-    if (_facePresent) {
-      eyes->setAutoMove(false);
-      float targetX = -((static_cast<float>(_maxFace.box_left) +
-                         static_cast<float>(_maxFace.box_right - _maxFace.box_left) / 2.0f) /
-                        127.5f - 1.0f);
-      float targetY = (static_cast<float>(_maxFace.box_top) +
-                       static_cast<float>(_maxFace.box_bottom - _maxFace.box_top) / 3.0f) /
-                      127.5f - 1.0f;
-      eyes->setTargetPosition(targetX, targetY);
-    } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS &&
-               !eyes->autoMoveEnabled()) {
-      eyes->setAutoMove(true);
-    }
   }
 
   eyes->renderFrame();
