@@ -1302,6 +1302,7 @@ def show_idle_for_mode(leds):
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
+    global _eyes_sleeping
     leds = APA102(NUM_LEDS)
     setup_button()
     set_volume(110)  # fixed startup volume
@@ -1393,7 +1394,6 @@ def main():
                 show_idle_for_mode(leds); continue
 
             # ── Eyes sleep/wake voice commands ────────────────────────────────
-            global _eyes_sleeping
             _tnorm = text.lower().strip().strip(".!?,;:")
             if any(_tnorm == p or _tnorm.startswith(p) for p in EYES_SLEEP_TRIGGERS):
                 if not _eyes_sleeping:
