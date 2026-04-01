@@ -201,7 +201,7 @@ inline void mouthShow(uint8_t idx) {
 // ---------------------------------------------------------------------------
 
 inline void mouthSetSleepIntensity() {
-  _writeAll(0x0A, 0x01); // very dim (3/32 duty cycle) for sleep
+  _writeAll(0x0A, 0x00); // minimum (1/32 duty cycle) for sleep
 }
 
 inline void mouthRestoreIntensity() {

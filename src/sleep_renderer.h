@@ -285,7 +285,7 @@ static bool srDrawOneZzz(GC9A01A_t3n* d, int startX, int startY,
 
     uint16_t col = (fade > 0.5f) ? SR_ZZZ : 0x0001;
     if (cx >= 0 && cx < SR_W - sz*6 && cy >= 0 && cy < SR_H - sz*8) {
-        d->drawChar(cx, cy, 'Z', col, SR_BLACK, sz);
+        d->drawChar(cx, cy, 'Z', col, SR_BLACK, sz, sz);
     }
     return true;
 }
