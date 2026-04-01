@@ -29,7 +29,7 @@ OLLAMA_MODEL_KIDS  = "jarvis-kids"
 WAKE_WORD      = "hey_jarvis"
 PIPER_VOICE    = "en_US-ryan-high"
 # ── ElevenLabs TTS ────────────────────────────────────────────────────────────
-ELEVENLABS_API_KEY  = "sk_752184d377335347d38c185ba56a1bebe9deba4da50ce082"
+ELEVENLABS_API_KEY  = os.environ.get("ELEVENLABS_API_KEY", "")  # set in /etc/environment or .env
 ELEVENLABS_VOICE_ID = "90eMKEeSf5nhJZMJeeVZ"
 ELEVENLABS_MODEL    = "eleven_turbo_v2_5"
 ELEVENLABS_ENABLED  = True
