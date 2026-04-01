@@ -333,6 +333,11 @@ static inline void renderSleepFrame(GC9A01A_t3n* left, GC9A01A_t3n* right) {
     if (nowMs - srLastFrameMs < SR_FRAME_MS) return;
     srLastFrameMs = nowMs;
     srFrameCount++;
+    // Heartbeat every 10 frames (~1.5s) so serial log confirms rendering is live.
+    if ((srFrameCount % 10) == 0) {
+      Serial.print("[SR] frame=");
+      Serial.println(srFrameCount);
+    }
 
     // ── Left eye ──────────────────────────────────────────────────
     left->fillScreen(SR_BLACK);

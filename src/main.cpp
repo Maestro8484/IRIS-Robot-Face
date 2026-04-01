@@ -207,13 +207,14 @@ static void processSerial() {
             eyesSleeping      = true;
             angryEyeActive    = false;
             confusedEyeActive = false;
-            // Keep updateChangedAreasOnly=true (dirty-rect mode, same as eye engine).
-            // fillScreen() inside blankDisplays/fillBlack calls updateChangedRange(full screen),
-            // so updateScreen() Path B sends the full frame — no hang, same as eye engine.
-            // Path A (updateChangedAreasOnly=false) hangs on Teensy 4.0 LPSPI due to a
-            // different SPI transaction sequence in the library's full-frame write path.
-            // blankDisplays() drains any pending eye-engine SPI before the starfield
-            // renderer takes over.
+            // Disable changed-areas-only so the sleep renderer always sends full
+            // frames. With updateChangedAreasOnly(true), fillScreen(black) on an
+            // already-black framebuffer marks zero dirty areas, causing the SPI
+            // DMA to receive an empty/corrupt region set and lock up the Teensy.
+            if (displayLeft)  displayLeft->getDriver()->updateChangedAreasOnly(false);
+            if (displayRight) displayRight->getDriver()->updateChangedAreasOnly(false);
+            // blankDisplays() drains any pending eye-engine DMA before the starfield
+            // renderer takes over. Skipping it risks a DMA race on the first fillScreen.
             blankDisplays();
             mouthSetSleepIntensity();
             sleepRendererInit();
