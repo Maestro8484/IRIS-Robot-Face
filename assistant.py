@@ -24,6 +24,7 @@ WHISPER_PORT   = 10300
 PIPER_PORT     = 10200
 OLLAMA_PORT    = 11434
 OWW_PORT       = 10400
+CMD_PORT       = 10500
 OLLAMA_MODEL_ADULT = "jarvis"
 OLLAMA_MODEL_KIDS  = "jarvis-kids"
 WAKE_WORD      = "hey_jarvis"
@@ -194,6 +195,36 @@ def _context_watchdog():
             _last_recognition_time[0] = 0.0
             _last_interaction[0] = 0.0
             print(f"[CTX]  Context cleared after {CONTEXT_TIMEOUT_SECS}s of silence", flush=True)
+
+
+# ── CMD listener (UDP) ────────────────────────────────────────────────────────
+
+def start_cmd_listener(teensy):
+    """UDP listener on CMD_PORT. iris_sleep.py / iris_web.py send commands here."""
+    def _listener():
+        global _eyes_sleeping
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(("127.0.0.1", CMD_PORT))
+            print(f"[CMD]  Listening on UDP port {CMD_PORT}", flush=True)
+            while True:
+                try:
+                    data, _ = s.recvfrom(256)
+                    cmd = data.decode(errors="ignore").strip()
+                    if not cmd:
+                        continue
+                    print(f"[CMD]  -> teensy: {cmd}", flush=True)
+                    teensy.send_command(cmd)
+                    if cmd == "EYES:SLEEP":
+                        _eyes_sleeping = True
+                        open("/tmp/iris_sleep_mode", "w").close()
+                    elif cmd == "EYES:WAKE":
+                        _eyes_sleeping = False
+                        try: os.remove("/tmp/iris_sleep_mode")
+                        except FileNotFoundError: pass
+                except Exception as e:
+                    print(f"[CMD]  Listener error: {e}", flush=True)
+    threading.Thread(target=_listener, daemon=True).start()
 
 
 # ── WoL + GandalfAI readiness ─────────────────────────────────────────────────
@@ -1276,6 +1307,7 @@ def main():
     set_volume(110)  # fixed startup volume
     ctx_thread = threading.Thread(target=_context_watchdog, daemon=True); ctx_thread.start()
     teensy = TeensyBridge(TEENSY_PORT, TEENSY_BAUD)
+    start_cmd_listener(teensy)
 
     print("[INFO] Starting wyoming-openwakeword...", flush=True)
     leds.show_thinking()
@@ -1310,6 +1342,16 @@ def main():
 
             if ptt_mode: print("\n[PTT]  Button pressed", flush=True); leds.show_ptt()
             else: print("\n[WAKE] Wake word detected", flush=True); leds.show_wake()
+
+            # If sleeping: wake quietly, skip full interaction
+            if _eyes_sleeping:
+                _eyes_sleeping = False
+                teensy.send_command("EYES:WAKE")
+                teensy.send_command("MOUTH:0")
+                try: os.remove("/tmp/iris_sleep_mode")
+                except FileNotFoundError: pass
+                print("[SLEEP] Wakeword during sleep -- waking IRIS", flush=True)
+                show_idle_for_mode(leds); continue
 
             if not ensure_gandalf_up(leds):
                 leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
