@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
-**Date:** 2026-03-31
-**Session:** 2
+**Date:** 2026-04-02
+**Session:** 1
 **Branch:** `refactor/modular-assistant`
-**Last commit:** `7b5f722` (docs: snapshot 2026-03-31 — Chatterbox TTS deploy, jarvis paralinguistic tags, Pi4 tts.py swapped)
+**Last commit:** `01e02c1` (fix: strip TTS markers, intensify sleep starfield, confirm sleep LED/mouth)
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -33,11 +33,11 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 
 ## 2. PROJECT STATUS
 
-**Firmware:** Flashed 2026-03-29. Sleep fully working. drawChar recursion fixed. 7-eye system. Face tracking working.
+**Firmware:** Flashed 2026-03-29. Sleep fully working. drawChar recursion fixed. 7-eye system. Face tracking working. **PENDING FLASH: mouth.h sleep intensity → 0x01, PersonSensor LED disabled, sleep_renderer.h starfield intensity boost.**
 **Sleep display:** Starfield + ZZZ animation on both TFTs confirmed working.
-**Sleep LEDs:** APA102 switches to dim indigo breathe on EYES:SLEEP. Restores idle on EYES:WAKE.
-**Mouth during sleep:** Snore animation, intensity 0x01. Working.
-**Wake from webui:** Working. Cron sleep: 9PM/7:30AM UDP path.
+**Sleep LEDs:** APA102 dim indigo breathe on EYES:SLEEP. peak=26 (~10% of 255), global_bright=0xFF, floor=3. Restores idle on EYES:WAKE.
+**Mouth during sleep:** Snore animation, intensity 0x01 (~10%). Working.
+**Wake from webui:** Working. Cron sleep: 9PM/7:30AM UDP path. False wakeword during cron window now ignored (button-only override).
 **Voice pipeline (assistant.py):** Operational. Modular (hardware/, core/, services/, state/).
 **TTS routing:** Chatterbox (primary) → ElevenLabs (disabled via iris_config.json) → Piper (fallback).
 **Chatterbox server:** Running on GandalfAI. Web UI confirmed accessible at http://192.168.1.3:8004.
@@ -242,22 +242,24 @@ Fixed to call 7-param Adafruit_GFX version. Auto-applied by `scripts/patch_gc9a0
 
 ---
 
-## 10. CHANGES THIS SESSION (2026-03-31 S2)
+## 10. CHANGES THIS SESSION (2026-04-02 S1)
 
-- **Pi4 `/home/pi/iris_web.py`** — Added `CHATTERBOX_URL = "http://192.168.1.3:8004"` constant. Added `/api/chatterbox_voices` route (GET → Chatterbox `/get_reference_files`, returns `{files: [...]}` list of uploaded WAV names). Persisted to SD (md5 verified).
-- **Pi4 `/home/pi/iris_web.html`** — Voice tab replaced with 3-card layout:
-  - **Chatterbox TTS (Primary):** `CHATTERBOX_ENABLED` select, `CHATTERBOX_VOICE` dropdown (populated from `/api/chatterbox_voices`), `CHATTERBOX_EXAGGERATION` range slider 0–1 step 0.05 with live value display, link to Chatterbox Web UI at http://192.168.1.3:8004, `saveChatterboxSettings()` button.
-  - **ElevenLabs (Fallback):** voice/model selectors, ELEVENLABS_ENABLED toggle, `saveElevenLabsSettings()` button (was `saveVoice()`).
-  - **Piper TTS (Final Fallback):** static info card only.
-  - Added JS: `loadChatterboxVoices()` — fetches voice list from `/api/chatterbox_voices`, syncs exaggeration display when Voice tab opens.
-  - Added JS: `saveChatterboxSettings()` — saves CHATTERBOX_ENABLED, CHATTERBOX_VOICE, CHATTERBOX_EXAGGERATION to `/api/config`.
-  - Updated `tab()`: voice tab now calls both `loadVoices()` and `loadChatterboxVoices()`.
-  - Persisted to SD (md5 verified).
+- **Pi4 `/home/pi/services/tts.py`** — Synced repo (`pi4/services/tts.py`) with live Pi4 Chatterbox version (was stale ElevenLabs-only copy). Added markdown/speech-marker strip block in `synthesize()` before TTS: strips `*`, `_italic_`/`__bold__`, `#` headers, `[link](url)`, `` `code` ``, `[chuckle]`/`[laugh]`/`[sigh]`/`[gasp]` tags, collapses whitespace, strips non-ASCII. Persisted to SD (md5 verified). Assistant restarted, `[INFO] Ready.` confirmed.
+- **`src/sleep_renderer.h`** — 4 starfield intensity changes: brightness floor 0.15→0.05; Layer 0 big stars r=2→r=3 (both displays); `srBrightness()` return squared for sharper pulse; color scaling ×1.4 with clamped overflow. **Requires firmware flash.**
+- **Fix 3 confirmed (no change):** `LED_SLEEP_PEAK=26`, `LED_SLEEP_FLOOR=3` in live Pi4 `core/config.py`; `led.py show_sleep()` uses `LED_SLEEP_PEAK`/`LED_SLEEP_FLOOR` from config; `mouthSetSleepIntensity()` sets register `0x0A` to `0x01` (~10%). All correct.
 
-### Previous session changes (2026-03-31 S1) — carried forward
-- Pi4 `core/config.py` — Chatterbox TTS block + `_OVERRIDABLE` additions. Persisted.
-- Pi4 `services/tts.py` — `_synthesize_chatterbox()` + routing Chatterbox → EL → Piper. Persisted.
-- GandalfAI — Chatterbox-TTS-Server cloned, conda env created, `run_server.bat`, firewall rule, config.yaml exaggeration 0.45.
+### Previous session changes (2026-04-01) — carried forward
+- Pi4 `assistant.py` — Cron sleep window guard (wakeword ignored during 21:00–07:30 if `_eyes_sleeping`). Persisted.
+- Pi4 `core/config.py` — Sleep LED constants: `LED_SLEEP_PEAK=26`, `LED_SLEEP_FLOOR=3`, `LED_SLEEP_BRIGHT=0xFF`. Persisted.
+- `src/mouth.h` — `mouthSetSleepIntensity()` 0x04→0x01. **Requires firmware flash.**
+- `src/main.cpp` — `personSensor.enableLED(false)`. **Requires firmware flash.**
+
+### Previous session changes (2026-03-31) — carried forward
+- Pi4 `iris_web.py` — `/api/chatterbox_voices` route. Persisted.
+- Pi4 `iris_web.html` — 3-card Voice tab (Chatterbox/ElevenLabs/Piper). Persisted.
+- Pi4 `core/config.py` — Chatterbox TTS block + `_OVERRIDABLE`. Persisted.
+- Pi4 `services/tts.py` — `_synthesize_chatterbox()` + routing. Persisted.
+- GandalfAI — Chatterbox-TTS-Server, conda env, `run_server.bat`, firewall, exaggeration 0.45.
 - GandalfAI — `jarvis_modelfile.txt` paralinguistic tags, `ollama create jarvis` completed.
 
 ---
@@ -271,7 +273,7 @@ Fixed to call 7-param Adafruit_GFX version. Auto-applied by `scripts/patch_gc9a0
 ### MEDIUM
 - **Exaggeration tuning** — 0.45 is a starting point for dry British wit. May need adjustment after first real voice test. Tune via IRIS Web UI Voice tab (exaggeration slider) or directly at http://192.168.1.3:8004. Range: 0.0 (flat) → 1.0 (dramatic).
 - **Paralinguistic tag rendering** — Tags `[chuckle]` etc. added to jarvis modelfile. Verify Chatterbox Turbo actually renders them as vocal sounds (not text artifacts) after first live test. If they appear as text in the voice output, Turbo may need specific prompting format.
-- **src/mouth.h and src/sleep_renderer.h** — Modified but uncommitted from a prior session. Review before next firmware flash to confirm changes are intentional.
+- **Firmware flash required** — `src/mouth.h` (sleep intensity 0x01) and `src/main.cpp` (PersonSensor LED off) are edited but not yet flashed. Run `/flash` or `/flash-remote` to apply.
 
 ### LOW
 - **`iris_voice.wav`** in project root — untracked binary, do not commit. Add to `.gitignore`.
