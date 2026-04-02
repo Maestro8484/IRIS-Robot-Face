@@ -123,6 +123,11 @@ Server returns 24kHz WAV → miniaudio resamples to 22050 Hz s16le PCM for the p
 ### Jarvis Modelfile (Paralinguistic Tags)
 Added `PARALINGUISTIC TAGS` section between EMOTIONAL EXPRESSION and HARD RULES in `C:\Users\gandalf\jarvis_modelfile.txt`. Tags: `[chuckle]`, `[sigh]`, `[laugh]`, `[gasp]`. Use 0–2 per response, never in technical/factual answers. `ollama create jarvis` ran successfully.
 
+### Jarvis / Jarvis-Kids — Base Model & Keep-Alive (2026-04-02 S2)
+- Both `jarvis` and `jarvis-kids` modelfiles rebuilt **FROM `gemma3:27b-it-qat`** (previously different base).
+- `jarvis-kids` modelfile: **`num_predict 120`** added (caps reply length for kids mode).
+- **`OLLAMA_KEEP_ALIVE=20m`** environment variable set on GandalfAI — models stay warm for 20 minutes after last use instead of default 5m.
+
 ---
 
 ## 5. REPO STRUCTURE
@@ -154,7 +159,8 @@ IRIS-Robot-Face/
   C:\Users\gandalf\ (GandalfAI):
     Chatterbox-TTS-Server/      -- devnen/Chatterbox-TTS-Server clone
     Chatterbox-TTS-Server/run_server.bat  -- install + start script
-    jarvis_modelfile.txt        -- jarvis Ollama modelfile (with paralinguistic tags)
+    jarvis_modelfile.txt        -- jarvis Ollama modelfile (base: gemma3:27b-it-qat, paralinguistic tags)
+    jarvis_kids_modelfile.txt   -- jarvis-kids Ollama modelfile (base: gemma3:27b-it-qat, num_predict 120)
     chatterbox_server.log       -- install + server log
 ```
 
@@ -245,6 +251,7 @@ Fixed to call 7-param Adafruit_GFX version. Auto-applied by `scripts/patch_gc9a0
 ## 10. CHANGES THIS SESSION (2026-04-02 S2)
 
 - **`assistant.py` (root)** — `git rm`'d. 1587-line monolith removed. Canonical version is `pi4/assistant.py` (modular, `from core.config import *`). Committed `df9f1d7`, pushed to main.
+- **jarvis + jarvis-kids modelfiles** — Both rebuilt FROM `gemma3:27b-it-qat`. `jarvis-kids` gained `num_predict 120`. `OLLAMA_KEEP_ALIVE=20m` set on GandalfAI (system-level env var, keeps models warm 20 min).
 - **Pi4 `/home/pi/services/tts.py`** — Synced repo (`pi4/services/tts.py`) with live Pi4 Chatterbox version (was stale ElevenLabs-only copy). Added markdown/speech-marker strip block in `synthesize()` before TTS: strips `*`, `_italic_`/`__bold__`, `#` headers, `[link](url)`, `` `code` ``, `[chuckle]`/`[laugh]`/`[sigh]`/`[gasp]` tags, collapses whitespace, strips non-ASCII. Persisted to SD (md5 verified). Assistant restarted, `[INFO] Ready.` confirmed.
 - **`src/sleep_renderer.h`** — 4 starfield intensity changes: brightness floor 0.15→0.05; Layer 0 big stars r=2→r=3 (both displays); `srBrightness()` return squared for sharper pulse; color scaling ×1.4 with clamped overflow. **Requires firmware flash.**
 - **Fix 3 confirmed (no change):** `LED_SLEEP_PEAK=26`, `LED_SLEEP_FLOOR=3` in live Pi4 `core/config.py`; `led.py show_sleep()` uses `LED_SLEEP_PEAK`/`LED_SLEEP_FLOOR` from config; `mouthSetSleepIntensity()` sets register `0x0A` to `0x01` (~10%). All correct.
