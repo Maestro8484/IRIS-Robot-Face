@@ -47,12 +47,12 @@ struct SrStar {
 
 static constexpr SrStar SR_STARS_L[25] = {
     // Layer 0 — 6 stars
-    { 32,  18, 2, 2200,    0, SR_WARM_WHITE },
-    { 195, 40, 2, 2800,  600, SR_BLUE_WHITE },
-    { 70, 200, 2, 3000, 1200, SR_WARM_WHITE },
-    {210, 165, 2, 3400, 1800, SR_ICE_BLUE   },
-    { 50,  90, 2, 2600,  400, SR_BLUE_WHITE },
-    {170,  25, 2, 2900, 1000, SR_ICE_BLUE   },
+    { 32,  18, 3, 2200,    0, SR_WARM_WHITE },
+    { 195, 40, 3, 2800,  600, SR_BLUE_WHITE },
+    { 70, 200, 3, 3000, 1200, SR_WARM_WHITE },
+    {210, 165, 3, 3400, 1800, SR_ICE_BLUE   },
+    { 50,  90, 3, 2600,  400, SR_BLUE_WHITE },
+    {170,  25, 3, 2900, 1000, SR_ICE_BLUE   },
     // Layer 1 — 9 stars
     {100,  55, 1, 3400,  200, SR_WARM_WHITE },
     {148, 190, 1, 3800,  900, SR_BLUE_WHITE },
@@ -78,12 +78,12 @@ static constexpr SrStar SR_STARS_L[25] = {
 
 static constexpr SrStar SR_STARS_R[25] = {
     // Layer 0 — 6 stars
-    { 45,  30, 2, 2300,  300, SR_WARM_WHITE },
-    {180,  55, 2, 2700,  900, SR_BLUE_WHITE },
-    { 85, 210, 2, 3100,  600, SR_ICE_BLUE   },
-    {220, 140, 2, 3300, 1500, SR_WARM_WHITE },
-    { 25,  85, 2, 2500,  200, SR_BLUE_WHITE },
-    {160,  18, 2, 2950, 1100, SR_ICE_BLUE   },
+    { 45,  30, 3, 2300,  300, SR_WARM_WHITE },
+    {180,  55, 3, 2700,  900, SR_BLUE_WHITE },
+    { 85, 210, 3, 3100,  600, SR_ICE_BLUE   },
+    {220, 140, 3, 3300, 1500, SR_WARM_WHITE },
+    { 25,  85, 3, 2500,  200, SR_BLUE_WHITE },
+    {160,  18, 3, 2950, 1100, SR_ICE_BLUE   },
     // Layer 1 — 9 stars
     {110,  65, 1, 3500,  400, SR_WARM_WHITE },
     {165, 185, 1, 3700,  800, SR_BLUE_WHITE },
@@ -159,20 +159,21 @@ static constexpr int SR_ZZZ_ORIGIN_Y = SR_MOON_CY_L - SR_MOON_R - 10;
 
 static inline float srBrightness(uint32_t nowMs, uint16_t period, uint16_t phase) {
     float t = (float)((nowMs + phase) % period) / (float)period;
-    return 0.5f + 0.5f * sinf(t * 6.2832f);
+    float s = 0.5f + 0.5f * sinf(t * 6.2832f);
+    return s * s;  // square for sharper on/off pulse
 }
 
 static void srDrawStar(GC9A01A_t3n* d, const SrStar& s, uint32_t nowMs) {
     float b = srBrightness(nowMs, s.period, s.phase);
-    if (b < 0.15f) return; // star below threshold: off
+    if (b < 0.05f) return; // star below threshold: off
     // Dim color by extracting components and scaling
     uint16_t c = s.color;
     uint8_t r5 = ((c >> 11) & 0x1F);
     uint8_t g6 = ((c >> 5)  & 0x3F);
     uint8_t b5 = (c & 0x1F);
-    r5 = (uint8_t)(r5 * b);
-    g6 = (uint8_t)(g6 * b);
-    b5 = (uint8_t)(b5 * b);
+    r5 = (uint8_t)(min(r5 * b * 1.4f, 31.0f));
+    g6 = (uint8_t)(min(g6 * b * 1.4f, 63.0f));
+    b5 = (uint8_t)(min(b5 * b * 1.4f, 31.0f));
     if (r5 == 0 && g6 == 0 && b5 == 0) return;
     uint16_t col = ((uint16_t)r5 << 11) | ((uint16_t)g6 << 5) | b5;
     if (s.r <= 1) {

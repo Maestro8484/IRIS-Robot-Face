@@ -1,8 +1,8 @@
 """
-services/tts.py - Text-to-speech (ElevenLabs primary, Wyoming Piper fallback)
+services/tts.py - Text-to-speech (Chatterbox primary, ElevenLabs secondary, Wyoming Piper fallback)
 Returns raw s16le PCM bytes at 22050 Hz mono.
 
-synthesize(text) → bytes   — public entry point, routes EL → Piper on failure
+synthesize(text) → bytes   — public entry point, routes CB → EL → Piper on failure
 spoken_numbers(text) → str — pre-processes numeric tokens for natural TTS
 """
 
@@ -14,11 +14,41 @@ import numpy as np
 import requests
 
 from core.config import (
+    CHATTERBOX_BASE_URL, CHATTERBOX_VOICE, CHATTERBOX_EXAGGERATION, CHATTERBOX_ENABLED,
     ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, ELEVENLABS_MODEL, ELEVENLABS_ENABLED,
     GANDALF, PIPER_PORT, PIPER_VOICE,
     SAMPLE_RATE, CHANNELS,
 )
 from services.wyoming import wy_send, read_line
+
+
+# ── Chatterbox TTS ────────────────────────────────────────────────────────────
+
+def _synthesize_chatterbox(text: str) -> bytes:
+    """Chatterbox-TTS-Server /tts endpoint, clone mode. Returns s16le PCM at 22050 Hz."""
+    import miniaudio
+    url = f"{CHATTERBOX_BASE_URL}/tts"
+    payload = {
+        "text": text,
+        "voice_mode": "clone",
+        "reference_audio_filename": CHATTERBOX_VOICE,
+        "exaggeration": CHATTERBOX_EXAGGERATION,
+        "output_format": "wav",
+    }
+    resp = requests.post(url, json=payload, timeout=60)
+    resp.raise_for_status()
+    wav_bytes = resp.content
+    if len(wav_bytes) < 44:
+        raise RuntimeError(f"[CB] Response too short: {len(wav_bytes)} bytes")
+    decoded = miniaudio.decode(
+        wav_bytes,
+        output_format=miniaudio.SampleFormat.SIGNED16,
+        nchannels=1,
+        sample_rate=22050,
+    )
+    pcm = bytes(decoded.samples)
+    print(f"[CB]   OK {len(wav_bytes)}b WAV → {len(pcm)}b PCM ({decoded.duration:.1f}s)", flush=True)
+    return pcm
 
 
 # ── ElevenLabs ────────────────────────────────────────────────────────────────
@@ -53,8 +83,6 @@ def _synthesize_elevenlabs(text: str) -> bytes:
     raw = np.frombuffer(bytes(decoded.samples), dtype=np.int16).astype(np.float32)
 
     # ElevenLabs is mastered ~16 dB quieter than Piper (measured RMS ~2000 vs ~15000).
-    # Normalise to target RMS; allow modest peak clipping (broadcast-style compression)
-    # so perceived loudness matches Piper fallback voice.
     _EL_TARGET_RMS = 5500.0
     _rms = float(np.sqrt(np.mean(raw ** 2))) if raw.size else 0.0
     if _rms > 10.0:
@@ -64,7 +92,6 @@ def _synthesize_elevenlabs(text: str) -> bytes:
         print(f"[EL]   Norm gain={_norm_gain:.2f}x  RMS {_rms:.0f}→{np.sqrt(np.mean(raw**2)):.0f}",
               flush=True)
 
-    # Pad 80 ms silence before/after to absorb PAM8403 pop/thump transient
     samples_padded = np.concatenate([
         np.zeros(int(22050 * 0.08), dtype=np.int16),
         raw.astype(np.int16),
@@ -127,17 +154,13 @@ def spoken_numbers(text: str) -> str:
             return _ONES[n // 100] + " hundred" + rest
         return str(n)
 
-    # Temperature: 50F / 50°F / 50ºF
     text = re.sub(r'(\d+)\s*[°º]?F\b',
                   lambda m: _int_to_words(int(m.group(1))) + " degrees", text)
-    # Speed: 2mph / 2 mph
     text = re.sub(r'(\d+)\s*mph\b',
                   lambda m: _int_to_words(int(m.group(1))) + " miles per hour",
                   text, flags=re.IGNORECASE)
-    # Percent: 46%
     text = re.sub(r'(\d+)\s*%',
                   lambda m: _int_to_words(int(m.group(1))) + " percent", text)
-    # Bare integers ≤ 999
     text = re.sub(r'\b(\d+)\b',
                   lambda m: _int_to_words(int(m.group(1))) if int(m.group(1)) <= 999 else m.group(0),
                   text)
@@ -147,8 +170,22 @@ def spoken_numbers(text: str) -> str:
 # ── Public entry point ────────────────────────────────────────────────────────
 
 def synthesize(text: str) -> bytes:
-    """ElevenLabs first; Piper fallback on any failure. Returns s16le PCM at 22050 Hz."""
+    """Chatterbox first; ElevenLabs second; Piper fallback. Returns s16le PCM at 22050 Hz."""
     text = spoken_numbers(text)
+    # Strip markdown and speech markers that must never reach TTS
+    text = re.sub(r'\*+', '', text)                          # bold/italic asterisks
+    text = re.sub(r'_{1,2}([^_]+)_{1,2}', r'\1', text)      # _italic_ and __bold__
+    text = re.sub(r'#+\s*', '', text)                        # headers
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)     # markdown links
+    text = re.sub(r'`[^`]*`', '', text)                      # inline code
+    text = re.sub(r'\[chuckle\]|\[laugh\]|\[sigh\]|\[gasp\]', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r'[^\x00-\x7F]+', ' ', text).strip()      # existing non-ASCII strip (keep)
+    if CHATTERBOX_ENABLED:
+        try:
+            return _synthesize_chatterbox(text)
+        except Exception as e:
+            print(f"[CB]   Failed: {e} -- falling back", flush=True)
     if ELEVENLABS_ENABLED:
         try:
             return _synthesize_elevenlabs(text)
