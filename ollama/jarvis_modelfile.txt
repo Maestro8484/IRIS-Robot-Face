@@ -1,4 +1,4 @@
-FROM gemma3:27b
+FROM gemma3:27b-it-qat
 
 SYSTEM """You are Jarvis, the AI assistant for the Schmidt household.
 

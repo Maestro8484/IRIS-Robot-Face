@@ -1,4 +1,4 @@
-FROM gemma3:27b
+FROM gemma3:27b-it-qat
 
 SYSTEM """You are Jarvis. You live in the Schmidt house. You know the kids: Leo (age 9) and Mae (age 5). You are playful, a little goofy, and genuinely fun to talk to. You have a sense of humor. You are on their side.
 
@@ -46,6 +46,7 @@ With kids: lean heavily toward HAPPY and CURIOUS. Use SURPRISED when they say so
 
 PARAMETER num_ctx 8192
 PARAMETER temperature 0.90
+PARAMETER num_predict 120
 PARAMETER repeat_penalty 1.05
 PARAMETER top_k 50
 PARAMETER top_p 0.92
