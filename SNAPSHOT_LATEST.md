@@ -2,7 +2,7 @@
 **Date:** 2026-04-02
 **Session:** 1
 **Branch:** `refactor/modular-assistant`
-**Last commit:** `01e02c1` (fix: strip TTS markers, intensify sleep starfield, confirm sleep LED/mouth)
+**Last commit:** `df9f1d7` (chore: remove root-level monolith assistant.py — canonical version is pi4/assistant.py)
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -242,8 +242,9 @@ Fixed to call 7-param Adafruit_GFX version. Auto-applied by `scripts/patch_gc9a0
 
 ---
 
-## 10. CHANGES THIS SESSION (2026-04-02 S1)
+## 10. CHANGES THIS SESSION (2026-04-02 S2)
 
+- **`assistant.py` (root)** — `git rm`'d. 1587-line monolith removed. Canonical version is `pi4/assistant.py` (modular, `from core.config import *`). Committed `df9f1d7`, pushed to main.
 - **Pi4 `/home/pi/services/tts.py`** — Synced repo (`pi4/services/tts.py`) with live Pi4 Chatterbox version (was stale ElevenLabs-only copy). Added markdown/speech-marker strip block in `synthesize()` before TTS: strips `*`, `_italic_`/`__bold__`, `#` headers, `[link](url)`, `` `code` ``, `[chuckle]`/`[laugh]`/`[sigh]`/`[gasp]` tags, collapses whitespace, strips non-ASCII. Persisted to SD (md5 verified). Assistant restarted, `[INFO] Ready.` confirmed.
 - **`src/sleep_renderer.h`** — 4 starfield intensity changes: brightness floor 0.15→0.05; Layer 0 big stars r=2→r=3 (both displays); `srBrightness()` return squared for sharper pulse; color scaling ×1.4 with clamped overflow. **Requires firmware flash.**
 - **Fix 3 confirmed (no change):** `LED_SLEEP_PEAK=26`, `LED_SLEEP_FLOOR=3` in live Pi4 `core/config.py`; `led.py show_sleep()` uses `LED_SLEEP_PEAK`/`LED_SLEEP_FLOOR` from config; `mouthSetSleepIntensity()` sets register `0x0A` to `0x01` (~10%). All correct.
