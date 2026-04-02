@@ -1,53 +1,139 @@
 # IRIS Robot Face — Claude Code Rules
 
 ## Session start
-The SessionStart hook auto-loads the most recent SNAPSHOT_*.md before every session.
+The SessionStart hook auto-loads SNAPSHOT_LATEST.md before every session.
 If context seems missing, run: `python3 .claude/hooks/session_start.py`
 
-You are working on a production hardware-integrated AI system.
+You are working on a production hardware-integrated AI system. Mistakes here break
+physical hardware and require SSH recovery. Read before acting.
 
-##Rules:
+---
+
+## CRITICAL: Pi4 source location
+
+ALL Pi4 Python files are edited in `pi4/` in this repo.
+`pi4/` mirrors the Pi4 filesystem at `/home/pi/` exactly.
+
+| Repo path | Pi4 path |
+|---|---|
+| `pi4/assistant.py` | `/home/pi/assistant.py` |
+| `pi4/core/config.py` | `/home/pi/core/config.py` |
+| `pi4/services/tts.py` | `/home/pi/services/tts.py` |
+| `pi4/services/stt.py` | `/home/pi/services/stt.py` |
+| `pi4/services/wyoming.py` | `/home/pi/services/wyoming.py` |
+| `pi4/services/wakeword.py` | `/home/pi/services/wakeword.py` |
+| `pi4/services/llm.py` | `/home/pi/services/llm.py` |
+| `pi4/services/vision.py` | `/home/pi/services/vision.py` |
+| `pi4/hardware/audio_io.py` | `/home/pi/hardware/audio_io.py` |
+| `pi4/hardware/led.py` | `/home/pi/hardware/led.py` |
+| `pi4/hardware/teensy_bridge.py` | `/home/pi/hardware/teensy_bridge.py` |
+| `pi4/hardware/io.py` | `/home/pi/hardware/io.py` |
+| `pi4/state/state_manager.py` | `/home/pi/state/state_manager.py` |
+| `pi4/iris_sleep.py` | `/home/pi/iris_sleep.py` |
+| `pi4/iris_wake.py` | `/home/pi/iris_wake.py` |
+
+**NEVER read from or write to a root-level `assistant.py`. It does not exist.**
+**NEVER deploy any Pi4 file that was not explicitly read from `pi4/` this session.**
+**NEVER deploy from memory, a snippet, or a reconstructed version.**
+
+---
+
+## Rules
 - Do NOT guess pins, ports, device paths, or hardware behavior
 - Do NOT refactor multiple systems at once
 - Preserve current behavior unless explicitly told to change it
-- Only modify files explicitly mentioned
+- Only modify files explicitly mentioned in the task
 - Return FULL updated files, not partial snippets
 - If uncertain, stop and ask instead of guessing
 
-##Architecture direction:
-- Single serial owner for Teensy
-- Centralized state management
-- Modular separation of hardware vs services vs orchestration
+---
 
+## Architecture
 
-## Long output
-- Snapshots, full file dumps, large summaries → write to a .md file, then summarize inline.
-- Never print large blocks of content as chat text; it will be truncated.
+`pi4/assistant.py` is a THIN orchestrator only (~340 lines).
+All logic lives in modules. Do not inline anything that belongs in a module.
+
+- `pi4/core/config.py` — all constants + iris_config.json override loader
+- `pi4/services/stt.py` — Wyoming Whisper STT (`data_length` payload parser — do not rewrite inline)
+- `pi4/services/tts.py` — Chatterbox → ElevenLabs → Piper routing
+- `pi4/services/wakeword.py` — OWW + GPIO button handler
+- `pi4/services/llm.py` — emotion tag extraction, reply cleaning
+- `pi4/services/vision.py` — camera capture + vision query
+- `pi4/hardware/audio_io.py` — PCM playback, record, beep, interrupt detection
+- `pi4/hardware/led.py` — APA102 driver
+- `pi4/hardware/teensy_bridge.py` — single serial owner of `/dev/ttyACM0`
+- `pi4/state/state_manager.py` — runtime state singleton (`state.kids_mode`, `state.eyes_sleeping`, etc.)
+
+Serial owner rule: only TeensyBridge owns `/dev/ttyACM0`. Everything else uses UDP → `127.0.0.1:10500`.
+
+---
+
+## Deploy workflow
+
+**Always follow this order. Never skip steps.**
+
+1. Read the file from `pi4/` in the repo — confirm it is correct before touching Pi4
+2. Write to `/home/pi/<path>` on Pi4 via SSH
+3. Persist to SD:
+```bash
+   sudo mount -o remount,rw /media/root-ro
+   sudo cp /home/pi/<file> /media/root-ro/home/pi/<file>
+   sudo mount -o remount,ro /media/root-ro
+   md5sum /home/pi/<file> /media/root-ro/home/pi/<file>
+```
+4. Verify md5 matches — if not, repeat step 3
+5. `sudo systemctl restart assistant`
+6. `journalctl -u assistant -n 30 --no-pager` — confirm `[INFO] Ready.` before closing
+
+Or use the `/deploy` command which enforces this sequence.
+
+---
+
+## Pi4 persistence (overlayfs)
+- SD is read-only. All SSH writes go to RAM and are wiped on reboot.
+- ALWAYS persist after every SSH file write.
+- `sudo cp` is required — files on `/media/root-ro` are root-owned.
+- Do NOT persist `/tmp/iris_sleep_mode` — intentionally volatile.
+
+---
 
 ## Firmware rules
 - Do NOT modify `TeensyEyes.ino` — upstream engine, off limits.
-- After any src/ change: run `/flash` (local USB) or `/flash-remote` (Pi4 SSH, PROG button required).
+- After any `src/` change: run `/flash` (local USB) or `/flash-remote` (Pi4 SSH).
+- Software bootloader entry (Teensy in enclosure, no PROG button access):
+```bash
+  python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"
+```
 
 ## Eye editing workflow
 1. Edit `resources/eyes/240x240/<eye>/config.eye`
-2. Run `python resources/eyes/240x240/genall.py` to regenerate the `.h`
-3. **Re-apply -15% pupil values** to nordicBlue.h, hazel.h, bigBlue.h after any genall.py run
-4. PlatformIO Upload
+2. Run `python resources/eyes/240x240/genall.py` to regenerate `.h` files
+3. Re-apply pupil values manually to nordicBlue.h, hazel.h, bigBlue.h after every genall.py run
+   (genall.py resets them — manual values are not in config.eye)
+4. PlatformIO upload
 
-## Pi4 persistence (overlayfs)
-- SD is read-only. Always persist after SSH edits — use `/deploy`.
-- Never leave assistant.py edits in RAM only.
+---
 
 ## Serial protocol
 - Pi4 → Teensy: `EMOTION:x`, `EYES:SLEEP`, `EYES:WAKE`, `EYE:n` (0–6), `MOUTH:n`
 - Teensy → Pi4: `FACE:1`, `FACE:0`
-- Only `assistant.py` TeensyBridge owns `/dev/ttyACM0`. All others use UDP → 127.0.0.1:10500.
 
-## Key files
+---
+
+## Key firmware files
 - `src/main.cpp` — serial parsing, emotion, tracking, sleep logic
-- `src/eyes/EyeController.h` — eye movement/blink/pupil (DO NOT break setTargetPosition seed fix)
-- `/home/pi/assistant.py` — voice pipeline (~1600 lines), TeensyBridge, CMD listener
-- Full architecture, pending items, current state: see most recent SNAPSHOT_*.md (auto-loaded)
+- `src/eyes/EyeController.h` — eye movement/blink/pupil (do NOT break setTargetPosition seed fix)
+- `src/mouth.h` — MAX7219 32x8 expressions + sleep intensity
+- `src/sleep_renderer.h` — deep space starfield renderer
+
+---
+
+## Long output
+- Snapshots, full file dumps, large summaries → write to a `.md` file, then summarize inline.
+- Never print large content blocks as chat — truncation loses data.
+
+---
 
 ## End of session
-Run `/snapshot` to capture state. The next SessionStart hook picks it up automatically.
+Run `/snapshot` before closing. The next SessionStart hook picks it up automatically.
+Always end with: `git add -A && git commit && git push origin HEAD`
