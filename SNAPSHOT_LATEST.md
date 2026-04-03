@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
 **Date:** 2026-04-02
-**Session:** 1
-**Branch:** `refactor/modular-assistant`
-**Last commit:** `df9f1d7` (chore: remove root-level monolith assistant.py — canonical version is pi4/assistant.py)
+**Session:** 3
+**Branch:** `main`
+**Last commit:** `2e60677` (Rebuild jarvis/jarvis-kids on gemma3:27b-it-qat, add num_predict to kids)
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -33,9 +33,9 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 
 ## 2. PROJECT STATUS
 
-**Firmware:** Flashed 2026-03-29. Sleep fully working. drawChar recursion fixed. 7-eye system. Face tracking working. **PENDING FLASH: mouth.h sleep intensity → 0x01, PersonSensor LED disabled, sleep_renderer.h starfield intensity boost.**
+**Firmware:** Flashed 2026-03-29. Sleep fully working. drawChar recursion fixed. 7-eye system. Face tracking working. **PENDING FLASH (this session): APA102 already at 10% in led.py (Pi4 deploy needed); mouth.h normal intensity→0x01, PersonSensor LED disabled, sleep_renderer.h starfield boost — require USB firmware flash.**
 **Sleep display:** Starfield + ZZZ animation on both TFTs confirmed working.
-**Sleep LEDs:** APA102 dim indigo breathe on EYES:SLEEP. peak=26 (~10% of 255), global_bright=0xFF, floor=3. Restores idle on EYES:WAKE.
+**Sleep LEDs:** APA102 dim indigo breathe on EYES:SLEEP. peak=26 (~10% of 255), global_bright=0xFF, floor=3. Restores idle on EYES:WAKE. (config.py constants, not led.py literals)
 **Mouth during sleep:** Snore animation, intensity 0x01 (~10%). Working.
 **Wake from webui:** Working. Cron sleep: 9PM/7:30AM UDP path. False wakeword during cron window now ignored (button-only override).
 **Voice pipeline (assistant.py):** Operational. Modular (hardware/, core/, services/, state/).
@@ -151,7 +151,7 @@ IRIS-Robot-Face/
     core/config.py              -- all config constants + iris_config.json override loader
     services/tts.py             -- TTS: Chatterbox primary → ElevenLabs → Piper fallback
     hardware/teensy_bridge.py   -- single serial owner of /dev/ttyACM0
-    hardware/led.py             -- APA102 driver
+    hardware/led.py             -- APA102 driver (10% brightness — PENDING DEPLOY)
     iris_config.json            -- runtime overrides: {"ELEVENLABS_ENABLED": false}
     iris_sleep.py / iris_wake.py -- 9PM/7:30AM cron (UDP only)
     iris_web.py                 -- web UI Flask (port 5000) + /api/chatterbox_voices route
@@ -239,68 +239,85 @@ MOUTH:x        -- set mouth expression
 EYES:SLEEP: eyesSleeping=true, blankDisplays(), mouthSetSleepIntensity(0x01),
             sleepRendererInit(), leds.show_sleep()
 loop() while sleeping: processSerial(), renderSleepFrame(), mouthSleepFrame(), return
-EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(0x05), setEyeDefinition(saved),
+EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(0x01), setEyeDefinition(saved),
             applyEmotion(NEUTRAL), show_idle_for_mode(leds)
 ```
+**Note:** After S3 changes, both sleep and wake matrix intensity are 0x01. Only bitmap content differs.
 
 **drawChar fix:** `srDrawZzz()` calls 6-param drawChar. GC9A01A_t3n wrapper was recursive.
 Fixed to call 7-param Adafruit_GFX version. Auto-applied by `scripts/patch_gc9a01a.py`.
 
 ---
 
-## 10. CHANGES THIS SESSION (2026-04-02 S2)
+## 10. CHANGES THIS SESSION (2026-04-02 S3)
 
-- **`assistant.py` (root)** — `git rm`'d. 1587-line monolith removed. Canonical version is `pi4/assistant.py` (modular, `from core.config import *`). Committed `df9f1d7`, pushed to main.
-- **jarvis + jarvis-kids modelfiles** — Both rebuilt FROM `gemma3:27b-it-qat`. `jarvis-kids` gained `num_predict 120`. `OLLAMA_KEEP_ALIVE=20m` set on GandalfAI (system-level env var, keeps models warm 20 min).
-- **Pi4 `/home/pi/services/tts.py`** — Synced repo (`pi4/services/tts.py`) with live Pi4 Chatterbox version (was stale ElevenLabs-only copy). Added markdown/speech-marker strip block in `synthesize()` before TTS: strips `*`, `_italic_`/`__bold__`, `#` headers, `[link](url)`, `` `code` ``, `[chuckle]`/`[laugh]`/`[sigh]`/`[gasp]` tags, collapses whitespace, strips non-ASCII. Persisted to SD (md5 verified). Assistant restarted, `[INFO] Ready.` confirmed.
-- **`src/sleep_renderer.h`** — 4 starfield intensity changes: brightness floor 0.15→0.05; Layer 0 big stars r=2→r=3 (both displays); `srBrightness()` return squared for sharper pulse; color scaling ×1.4 with clamped overflow. **Requires firmware flash.**
-- **Fix 3 confirmed (no change):** `LED_SLEEP_PEAK=26`, `LED_SLEEP_FLOOR=3` in live Pi4 `core/config.py`; `led.py show_sleep()` uses `LED_SLEEP_PEAK`/`LED_SLEEP_FLOOR` from config; `mouthSetSleepIntensity()` sets register `0x0A` to `0x01` (~10%). All correct.
+- **`pi4/hardware/led.py`** — All APA102 brightness values reduced to ~10% of original:
+  - `show_idle`: peak 65→7, floor 3→1
+  - `show_idle_kids`: peak 62→6, floor 3→1
+  - `show_wake`: (80,80,80)→(8,8,8)
+  - `show_recording`: (120,0,0)→(12,0,0)
+  - `show_thinking`: (0,0,100)→(0,0,10)
+  - `show_speaking`: (0,80,0)→(0,8,0)
+  - `show_error`: (120,0,0)→(12,0,0)
+  - `show_followup`: range max 60→9
+  - `show_ptt`: (80,60,0)→(8,6,0)
+  - `show_kids_mode_on/off`: 100→10 on all channels
+  - `_EMOTION_LED` table: all r/g/b values scaled to ~10% of original
+  - `show_emotion` surprise flash: (120,120,120)→(12,12,12); cyan steps range(3,81,3)→range(1,9,1)
+  - **PENDING DEPLOY to Pi4** — `led.py` written in repo, not yet pushed to `/home/pi/hardware/led.py`
+
+- **`src/mouth.h`** — Normal matrix intensity reduced to 10%:
+  - `mouthInit()`: `0x0A, 0x05` → `0x0A, 0x01` (comment updated)
+  - `mouthRestoreIntensity()`: `0x05` → `0x01`
+  - `mouthSetSleepIntensity()` unchanged (already `0x01`)
+  - **PENDING FIRMWARE FLASH** — manual USB flash required
+
+- **`src/main.cpp`** — PersonSensor green status LED disabled:
+  - Added `personSensor.enableLED(false)` after `personSensor.enableID(false)` in `setup()` (~line 291)
+  - Uses `Reg::DebugMode` register in PersonSensor API
+  - **PENDING FIRMWARE FLASH** — manual USB flash required
+
+### Previous session changes (2026-04-02 S2) — carried forward
+- **`assistant.py` (root)** — `git rm`'d. Canonical version is `pi4/assistant.py`.
+- **jarvis + jarvis-kids modelfiles** — Both rebuilt FROM `gemma3:27b-it-qat`. `jarvis-kids` gained `num_predict 120`. `OLLAMA_KEEP_ALIVE=20m` set on GandalfAI.
+- **Pi4 `services/tts.py`** — Synced. Markdown/speech-marker strip block in `synthesize()`.
+- **`src/sleep_renderer.h`** — Starfield intensity boost (4 changes). **Requires firmware flash.**
 
 ### Previous session changes (2026-04-01) — carried forward
-- Pi4 `assistant.py` — Cron sleep window guard (wakeword ignored during 21:00–07:30 if `_eyes_sleeping`). Persisted.
-- Pi4 `core/config.py` — Sleep LED constants: `LED_SLEEP_PEAK=26`, `LED_SLEEP_FLOOR=3`, `LED_SLEEP_BRIGHT=0xFF`. Persisted.
-- `src/mouth.h` — `mouthSetSleepIntensity()` 0x04→0x01. **Requires firmware flash.**
-- `src/main.cpp` — `personSensor.enableLED(false)`. **Requires firmware flash.**
-
-### Previous session changes (2026-03-31) — carried forward
-- Pi4 `iris_web.py` — `/api/chatterbox_voices` route. Persisted.
-- Pi4 `iris_web.html` — 3-card Voice tab (Chatterbox/ElevenLabs/Piper). Persisted.
-- Pi4 `core/config.py` — Chatterbox TTS block + `_OVERRIDABLE`. Persisted.
-- Pi4 `services/tts.py` — `_synthesize_chatterbox()` + routing. Persisted.
-- GandalfAI — Chatterbox-TTS-Server, conda env, `run_server.bat`, firewall, exaggeration 0.45.
-- GandalfAI — `jarvis_modelfile.txt` paralinguistic tags, `ollama create jarvis` completed.
+- Pi4 `assistant.py` — Cron sleep window guard. Persisted.
+- Pi4 `core/config.py` — `LED_SLEEP_PEAK=26`, `LED_SLEEP_FLOOR=3`, `LED_SLEEP_BRIGHT=0xFF`. Persisted.
 
 ---
 
 ## 11. CURRENT KNOWN ISSUES / TODO
 
 ### HIGH
-- **Voice clip not uploaded** — `iris_voice.wav` must be uploaded to http://192.168.1.3:8004 → Reference Audio tab before Chatterbox can clone the IRIS voice. Until uploaded, `/tts` clone requests will fail (404 or error). File is at `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face\iris_voice.wav` on desktop.
-- **End-to-end not tested** — Full pipeline (wake → STT → LLM with tags → Chatterbox → ReSpeaker) not verified. Test by triggering wake word and watching Pi4 logs for `[CB] OK ... PCM`. If `[CB] Failed:` appears, check that server is up and voice file is uploaded.
+- **`led.py` deploy to Pi4** — `pi4/hardware/led.py` has 10% APA102 values but NOT yet deployed to `/home/pi/hardware/led.py`. Must `/deploy` or manually SCP+persist before changes take effect. Until deployed, live APA102 remains at original brightness.
+- **Firmware flash required** — `src/mouth.h` (normal intensity 0x01) and `src/main.cpp` (PersonSensor LED off) and `src/sleep_renderer.h` (starfield boost from S2) are edited but not yet flashed. Flash via PlatformIO USB before verifying changes.
+- **Voice clip not uploaded** — `iris_voice.wav` must be uploaded to http://192.168.1.3:8004 → Reference Audio tab before Chatterbox can clone the IRIS voice. File is at `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face\iris_voice.wav` on desktop.
+- **End-to-end not tested** — Full pipeline (wake → STT → LLM with tags → Chatterbox → ReSpeaker) not verified.
 
 ### MEDIUM
-- **Exaggeration tuning** — 0.45 is a starting point for dry British wit. May need adjustment after first real voice test. Tune via IRIS Web UI Voice tab (exaggeration slider) or directly at http://192.168.1.3:8004. Range: 0.0 (flat) → 1.0 (dramatic).
-- **Paralinguistic tag rendering** — Tags `[chuckle]` etc. added to jarvis modelfile. Verify Chatterbox Turbo actually renders them as vocal sounds (not text artifacts) after first live test. If they appear as text in the voice output, Turbo may need specific prompting format.
-- **Firmware flash required** — `src/mouth.h` (sleep intensity 0x01) and `src/main.cpp` (PersonSensor LED off) are edited but not yet flashed. Run `/flash` or `/flash-remote` to apply.
+- **Matrix brightness awake == sleep** — After S3, both mouthRestoreIntensity and mouthSetSleepIntensity use 0x01. No brightness difference between sleep and awake mouth. If the awake expressions look too dim, raise mouthRestoreIntensity to 0x02 or 0x03.
+- **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
+- **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders `[chuckle]` etc. as sounds, not text.
 
 ### LOW
 - **`iris_voice.wav`** in project root — untracked binary, do not commit. Add to `.gitignore`.
-- **`_decode_assistant.py` and `REFACTOR_VISUAL.md`** — untracked files in project root, left over from prior session. Review/clean up.
-- **Chatterbox server auto-start on Gandalf boot** — not yet configured. For now, manual restart via `wmic process call create "cmd /c C:\Users\gandalf\Chatterbox-TTS-Server\run_server.bat"` or double-clicking `run_server.bat`.
-- **Piper TTS fallback** — if Chatterbox is down, falls through to Piper. Audio quality mismatch (different voice). Acceptable for now.
-- **Branch merge** — `refactor/modular-assistant` is 8+ commits ahead of origin. Merge to main when stable.
+- **`_decode_assistant.py` and `REFACTOR_VISUAL.md`** — untracked files in project root. Review/clean up.
+- **Chatterbox server auto-start on Gandalf boot** — not yet configured.
+- **Piper TTS fallback** — audio quality mismatch. Acceptable for now.
 
 ---
 
 ## 12. FLASH / DEPLOY COMMANDS
 
 ```bash
-# Pi4 deploy (persist files to SD):
+# Pi4 deploy led.py (persist to SD):
 sudo mount -o remount,rw /media/root-ro
-cp /home/pi/core/config.py /media/root-ro/home/pi/core/config.py
-cp /home/pi/services/tts.py /media/root-ro/home/pi/services/tts.py
+sudo cp /home/pi/hardware/led.py /media/root-ro/home/pi/hardware/led.py
 sudo mount -o remount,ro /media/root-ro
-md5sum /home/pi/core/config.py /media/root-ro/home/pi/core/config.py
+md5sum /home/pi/hardware/led.py /media/root-ro/home/pi/hardware/led.py
 
 # Pi4 restart assistant:
 sudo systemctl restart assistant

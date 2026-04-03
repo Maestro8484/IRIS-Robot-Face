@@ -290,6 +290,7 @@ void setup() {
     if (personSensorFound) {
       Serial.println("[DBG] Person Sensor detected");
       personSensor.enableID(false);
+      personSensor.enableLED(false);
       personSensor.setMode(PersonSensor::Mode::Continuous);
     } else {
       Serial.println("[DBG] No Person Sensor found");

@@ -64,7 +64,7 @@ class APA102:
 
     def show_idle(self):
         def anim():
-            steps = 80; period = 5.0; floor = 3; peak = 65
+            steps = 80; period = 5.0; floor = 1; peak = 7
             while not self._stop_anim.is_set():
                 for i in range(steps):
                     if self._stop_anim.is_set():
@@ -78,7 +78,7 @@ class APA102:
 
     def show_idle_kids(self):
         def anim():
-            steps = 80; period = 4.0; floor = 3; peak = 62
+            steps = 80; period = 4.0; floor = 1; peak = 6
             while not self._stop_anim.is_set():
                 for i in range(steps):
                     if self._stop_anim.is_set():
@@ -95,7 +95,7 @@ class APA102:
             for _ in range(3):
                 if self._stop_anim.is_set():
                     return
-                self._write([(100, 100, 0)] * self.n); time.sleep(0.15)
+                self._write([(10, 10, 0)] * self.n); time.sleep(0.15)
                 self._write([(0, 0, 0)] * self.n);     time.sleep(0.10)
         self._run_anim(anim)
 
@@ -104,60 +104,60 @@ class APA102:
             for _ in range(3):
                 if self._stop_anim.is_set():
                     return
-                self._write([(0, 100, 100)] * self.n); time.sleep(0.15)
+                self._write([(0, 10, 10)] * self.n); time.sleep(0.15)
                 self._write([(0, 0, 0)] * self.n);     time.sleep(0.10)
         self._run_anim(anim)
 
     def show_wake(self):
-        self.stop_anim(); self.set_all(80, 80, 80)
+        self.stop_anim(); self.set_all(8, 8, 8)
 
     def show_recording(self):
-        self.stop_anim(); self.set_all(120, 0, 0)
+        self.stop_anim(); self.set_all(12, 0, 0)
 
     def show_thinking(self):
         def anim():
             i = 0
             while not self._stop_anim.is_set():
                 px = [(0, 0, 0)] * self.n
-                px[i % self.n] = (0, 0, 100)
+                px[i % self.n] = (0, 0, 10)
                 self._write(px); time.sleep(0.12); i += 1
         self._run_anim(anim)
 
     def show_speaking(self):
-        self.stop_anim(); self.set_all(0, 80, 0)
+        self.stop_anim(); self.set_all(0, 8, 0)
 
     def show_error(self):
         def anim():
             for _ in range(6):
                 if self._stop_anim.is_set():
                     return
-                self._write([(120, 0, 0)] * self.n); time.sleep(0.1)
-                self._write([(0, 0, 0)] * self.n);   time.sleep(0.1)
+                self._write([(12, 0, 0)] * self.n); time.sleep(0.1)
+                self._write([(0, 0, 0)] * self.n);  time.sleep(0.1)
         self._run_anim(anim)
 
     def show_followup(self):
         def anim():
             while not self._stop_anim.is_set():
-                for v in list(range(0, 60, 3)) + list(range(60, 0, -3)):
+                for v in list(range(0, 9, 3)) + list(range(9, 0, -3)):
                     if self._stop_anim.is_set():
                         return
                     self._write([(v, 0, v)] * self.n); time.sleep(0.04)
         self._run_anim(anim)
 
     def show_ptt(self):
-        self.stop_anim(); self.set_all(80, 60, 0)
+        self.stop_anim(); self.set_all(8, 6, 0)
 
     # ── Emotion-linked LED breathing ──────────────────────────────────────────
 
     _EMOTION_LED = {
-        "NEUTRAL":   (0,   80,  80,  4.0, False),  # soft cyan, 4s
-        "HAPPY":     (100, 80,  0,   3.0, False),  # warm yellow, 3s
-        "CURIOUS":   (0,   100, 100, 3.5, False),  # bright cyan, 3.5s
-        "ANGRY":     (100, 0,   0,   2.0, False),  # red, 2s fast
-        "SLEEPY":    (40,  0,   60,  6.0, False),  # dim purple, 6s slow
-        "SURPRISED": (120, 120, 120, 0.3, True),   # white flash → cyan
-        "SAD":       (0,   0,   60,  6.0, False),  # dim blue, 6s
-        "CONFUSED":  (80,  0,   80,  2.5, False),  # pulsing magenta, 2.5s
+        "NEUTRAL":   (0,  8,  8, 4.0, False),  # soft cyan, 4s
+        "HAPPY":     (10, 8,  0, 3.0, False),  # warm yellow, 3s
+        "CURIOUS":   (0,  10,10, 3.5, False),  # bright cyan, 3.5s
+        "ANGRY":     (10,  0, 0, 2.0, False),  # red, 2s fast
+        "SLEEPY":    (4,   0, 6, 6.0, False),  # dim purple, 6s slow
+        "SURPRISED": (12, 12,12, 0.3, True),   # white flash → cyan
+        "SAD":       (0,   0, 6, 6.0, False),  # dim blue, 6s
+        "CONFUSED":  (8,   0, 8, 2.5, False),  # pulsing magenta, 2.5s
     }
 
     def show_emotion(self, emotion: str):
@@ -168,10 +168,10 @@ class APA102:
             def anim():
                 for _ in range(4):
                     if self._stop_anim.is_set(): return
-                    self._write([(120, 120, 120)] * self.n); time.sleep(0.10)
+                    self._write([(12, 12, 12)] * self.n); time.sleep(0.10)
                     if self._stop_anim.is_set(): return
-                    self._write([(0, 0, 0)] * self.n);       time.sleep(0.08)
-                steps = list(range(3, 81, 3))
+                    self._write([(0, 0, 0)] * self.n);    time.sleep(0.08)
+                steps = list(range(1, 9, 1))
                 while not self._stop_anim.is_set():
                     for v in steps:
                         if self._stop_anim.is_set(): return
