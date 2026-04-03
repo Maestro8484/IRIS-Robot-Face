@@ -32,7 +32,7 @@ CHATTERBOX_ENABLED      = True
 ELEVENLABS_API_KEY  = "sk_752184d377335347d38c185ba56a1bebe9deba4da50ce082"
 ELEVENLABS_VOICE_ID = "90eMKEeSf5nhJZMJeeVZ"
 ELEVENLABS_MODEL    = "eleven_turbo_v2_5"
-ELEVENLABS_ENABLED  = True
+ELEVENLABS_ENABLED  = False
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
 SAMPLE_RATE    = 16000

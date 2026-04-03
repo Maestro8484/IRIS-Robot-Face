@@ -128,7 +128,7 @@ def ensure_gandalf_up(leds) -> bool:
 
 # ── CMD listener + Emotion helper ────────────────────────────────────────────
 
-def start_cmd_listener(teensy):
+def start_cmd_listener(teensy, leds):
     """UDP listener on CMD_PORT. iris_web.py sends raw commands here."""
     def _listener():
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -145,10 +145,12 @@ def start_cmd_listener(teensy):
                         if cmd == "EYES:SLEEP":
                             state.eyes_sleeping = True
                             open("/tmp/iris_sleep_mode", "w").close()
+                            leds.show_sleep()
                         elif cmd == "EYES:WAKE":
                             state.eyes_sleeping = False
                             try: os.remove("/tmp/iris_sleep_mode")
                             except FileNotFoundError: pass
+                            show_idle_for_mode(leds)
                 except Exception as e:
                     print(f"[CMD] Listener error: {e}", flush=True)
     threading.Thread(target=_listener, daemon=True).start()
@@ -417,7 +419,7 @@ def main():
     set_volume(110)  # fixed startup volume
     ctx_thread = threading.Thread(target=_context_watchdog, daemon=True); ctx_thread.start()
     teensy = TeensyBridge(TEENSY_PORT, TEENSY_BAUD)
-    start_cmd_listener(teensy)
+    start_cmd_listener(teensy, leds)
 
     print("[INFO] Starting wyoming-openwakeword...", flush=True)
     leds.show_thinking()
@@ -458,6 +460,7 @@ def main():
             if os.path.exists('/tmp/iris_sleep_mode'):
                 print('[SLEEP] Wakeword during sleep -- waking IRIS', flush=True)
                 os.remove('/tmp/iris_sleep_mode')
+                state.eyes_sleeping = False
                 teensy.send_command('EYES:WAKE')
                 teensy.send_command('MOUTH:0')
                 if not ensure_gandalf_up(leds):

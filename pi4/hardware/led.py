@@ -11,6 +11,10 @@ import time
 
 import spidev
 
+from core.config import (
+    LED_SLEEP_PEAK, LED_SLEEP_FLOOR, LED_SLEEP_PERIOD, LED_SLEEP_BRIGHT,
+)
+
 
 class APA102:
     def __init__(self, n: int = 3):
@@ -25,10 +29,10 @@ class APA102:
 
     # ── Low-level write ───────────────────────────────────────────────────────
 
-    def _write(self, pixels):
+    def _write(self, pixels, brightness=0xFF):
         buf = [0x00] * 4
         for r, g, b in pixels:
-            buf += [0xFF, b, g, r]
+            buf += [brightness, b, g, r]
         buf += [0xFF] * 4
         with self._lock:
             self.spi.xfer2(buf)
@@ -196,6 +200,21 @@ class APA102:
                         self._write([(int(r * v), int(g * v), int(b * v))] * self.n)
                         time.sleep(half / steps)
             self._run_anim(anim)
+
+    def show_sleep(self):
+        """Very dim indigo breathe for sleep mode. Params from core.config LED_SLEEP_* constants."""
+        def anim():
+            steps = 80; period = LED_SLEEP_PERIOD; floor = LED_SLEEP_FLOOR; peak = LED_SLEEP_PEAK
+            while not self._stop_anim.is_set():
+                for i in range(steps):
+                    if self._stop_anim.is_set():
+                        return
+                    t = i / steps
+                    s = (math.sin(2 * math.pi * t - math.pi / 2) + 1) / 2
+                    v = floor + (peak - floor) * s
+                    self._write([(int(v * 0.5), 0, int(v))] * self.n, brightness=LED_SLEEP_BRIGHT)
+                    time.sleep(period / steps)
+        self._run_anim(anim)
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
 
