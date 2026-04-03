@@ -22,6 +22,12 @@ OLLAMA_MODEL_KIDS  = "jarvis-kids"
 WAKE_WORD      = "hey_jarvis"
 PIPER_VOICE    = "en_US-ryan-high"
 
+# ── Chatterbox TTS ────────────────────────────────────────────────────────────
+CHATTERBOX_BASE_URL     = "http://192.168.1.3:8004"
+CHATTERBOX_VOICE        = "iris_voice.wav"
+CHATTERBOX_EXAGGERATION = 0.45
+CHATTERBOX_ENABLED      = True
+
 # ── ElevenLabs TTS ────────────────────────────────────────────────────────────
 ELEVENLABS_API_KEY  = "sk_752184d377335347d38c185ba56a1bebe9deba4da50ce082"
 ELEVENLABS_VOICE_ID = "90eMKEeSf5nhJZMJeeVZ"
@@ -47,8 +53,19 @@ NUM_LEDS       = 3
 TEENSY_PORT    = "/dev/ttyACM0"
 TEENSY_BAUD    = 115200
 
+# ── APA102 LED animations ─────────────────────────────────────────────────────
+LED_IDLE_PEAK      = 65     # cyan breathe normal max (0-255)
+LED_IDLE_FLOOR     = 3
+LED_IDLE_PERIOD    = 5.0    # seconds per full cycle
+LED_KIDS_PEAK      = 62     # yellow breathe kids mode max
+LED_KIDS_PERIOD    = 4.0
+LED_SLEEP_PEAK     = 26     # indigo breathe sleep max (~10% of 255)
+LED_SLEEP_FLOOR    = 3
+LED_SLEEP_PERIOD   = 8.0
+LED_SLEEP_BRIGHT   = 0xFF   # APA102 global brightness byte (31/31, color value controls level)
+
 # ── Volume ────────────────────────────────────────────────────────────────────
-VOL_CONTROL    = "Headphone"
+VOL_CONTROL    = "Speaker"
 VOL_MIN        = 60
 VOL_MAX        = 127
 VOL_STEP       = 10
@@ -59,7 +76,7 @@ KIDS_FOLLOWUP_TIMEOUT = 15
 FOLLOWUP_SHORT_LEN    = 60
 FOLLOWUP_MAX_TURNS    = 3
 CONTEXT_TIMEOUT_SECS  = 300
-NUM_PREDICT           = 350
+NUM_PREDICT           = 150
 CONVERSATION_LOG      = "/home/pi/logs/conversations.jsonl"
 
 # ── Camera / Vision ───────────────────────────────────────────────────────────
@@ -125,27 +142,38 @@ MOUTH_MAP = {
 EMOTION_TAG_RE = re.compile(r'^\[EMOTION:([A-Z]+)\]\s*', re.IGNORECASE)
 
 # ── iris_config.json loader (web UI overrides) ────────────────────────────────
+_OVERRIDABLE = {
+    "RECORD_SECONDS", "SILENCE_SECS", "SILENCE_RMS",
+    "KIDS_RECORD_SECONDS", "KIDS_SILENCE_SECS", "KIDS_SILENCE_RMS",
+    "OWW_THRESHOLD", "FOLLOWUP_TIMEOUT", "KIDS_FOLLOWUP_TIMEOUT",
+    "FOLLOWUP_MAX_TURNS", "CONTEXT_TIMEOUT_SECS", "NUM_PREDICT",
+    "ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL", "ELEVENLABS_ENABLED",
+    "CHATTERBOX_VOICE", "CHATTERBOX_EXAGGERATION", "CHATTERBOX_ENABLED",
+    "VOL_MAX", "OLLAMA_MODEL_ADULT", "OLLAMA_MODEL_KIDS",
+    "LED_IDLE_PEAK", "LED_IDLE_FLOOR", "LED_IDLE_PERIOD",
+    "LED_KIDS_PEAK", "LED_KIDS_PERIOD",
+    "LED_SLEEP_PEAK", "LED_SLEEP_FLOOR", "LED_SLEEP_PERIOD",
+}
+
+_CONFIG_PATH = "/home/pi/iris_config.json"
+
 try:
-    with open("/home/pi/iris_config.json") as _f:
+    with open(_CONFIG_PATH) as _f:
         _cfg = _json.load(_f)
-    RECORD_SECONDS        = _cfg.get("RECORD_SECONDS",        RECORD_SECONDS)
-    SILENCE_SECS          = _cfg.get("SILENCE_SECS",          SILENCE_SECS)
-    SILENCE_RMS           = _cfg.get("SILENCE_RMS",           SILENCE_RMS)
-    KIDS_RECORD_SECONDS   = _cfg.get("KIDS_RECORD_SECONDS",   KIDS_RECORD_SECONDS)
-    KIDS_SILENCE_SECS     = _cfg.get("KIDS_SILENCE_SECS",     KIDS_SILENCE_SECS)
-    KIDS_SILENCE_RMS      = _cfg.get("KIDS_SILENCE_RMS",      KIDS_SILENCE_RMS)
-    OWW_THRESHOLD         = _cfg.get("OWW_THRESHOLD",         OWW_THRESHOLD)
-    FOLLOWUP_TIMEOUT      = _cfg.get("FOLLOWUP_TIMEOUT",      FOLLOWUP_TIMEOUT)
-    KIDS_FOLLOWUP_TIMEOUT = _cfg.get("KIDS_FOLLOWUP_TIMEOUT", KIDS_FOLLOWUP_TIMEOUT)
-    FOLLOWUP_MAX_TURNS    = _cfg.get("FOLLOWUP_MAX_TURNS",    FOLLOWUP_MAX_TURNS)
-    CONTEXT_TIMEOUT_SECS  = _cfg.get("CONTEXT_TIMEOUT_SECS",  CONTEXT_TIMEOUT_SECS)
-    NUM_PREDICT           = _cfg.get("NUM_PREDICT",           NUM_PREDICT)
-    ELEVENLABS_VOICE_ID   = _cfg.get("ELEVENLABS_VOICE_ID",   ELEVENLABS_VOICE_ID)
-    ELEVENLABS_MODEL      = _cfg.get("ELEVENLABS_MODEL",      ELEVENLABS_MODEL)
-    ELEVENLABS_ENABLED    = _cfg.get("ELEVENLABS_ENABLED",    ELEVENLABS_ENABLED)
-    VOL_MAX               = _cfg.get("VOL_MAX",               VOL_MAX)
-    OLLAMA_MODEL_ADULT    = _cfg.get("OLLAMA_MODEL_ADULT",    OLLAMA_MODEL_ADULT)
-    OLLAMA_MODEL_KIDS     = _cfg.get("OLLAMA_MODEL_KIDS",     OLLAMA_MODEL_KIDS)
-    print("[CFG]  iris_config.json loaded", flush=True)
+    _applied = []
+    _ignored = []
+    for _k, _v in _cfg.items():
+        if _k in _OVERRIDABLE:
+            globals()[_k] = _v
+            _applied.append(f"{_k}={_v!r}")
+        else:
+            _ignored.append(_k)
+    print(f"[CFG]  iris_config.json loaded: {', '.join(_applied) if _applied else 'no overrides'}", flush=True)
+    if _ignored:
+        print(f"[CFG]  iris_config.json ignored unknown keys: {_ignored}", flush=True)
+except FileNotFoundError:
+    print(f"[CFG]  iris_config.json not found, using defaults", flush=True)
+except _json.JSONDecodeError as _e:
+    print(f"[CFG]  iris_config.json parse error: {_e} — using defaults", flush=True)
 except Exception as _e:
-    print(f"[CFG]  iris_config.json not found or invalid, using defaults: {_e}", flush=True)
+    print(f"[CFG]  iris_config.json load failed: {_e} — using defaults", flush=True)

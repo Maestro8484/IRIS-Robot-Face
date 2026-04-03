@@ -259,14 +259,17 @@ def play_pcm(pcm_bytes: bytes, pa, rate: int = 22050):
     _int_stop.set()
     _int_thread.join(timeout=1.0)
 
-    if interrupted.is_set():
+    was_interrupted = interrupted.is_set()
+    if was_interrupted:
         print("[STOP] Playback interrupted", flush=True)
     _stop_playback.clear()
+    return was_interrupted
 
 
 def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, restore_mouth_idx: int = 0,
-                      rate: int = 22050):
-    """play_pcm with mouth animation. Cycles open/close bitmaps at 120 ms/frame."""
+                      rate: int = 22050) -> bool:
+    """play_pcm with mouth animation. Cycles open/close bitmaps at 120 ms/frame.
+    Returns True if playback was interrupted mid-stream."""
     _SPEAK_FRAMES = [0, 1, 5, 1]   # neutral → happy → surprised → happy
     stop_evt = threading.Event()
 
@@ -279,9 +282,10 @@ def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, restore_mouth_idx: int = 0,
 
     t = threading.Thread(target=_animate, daemon=True)
     t.start()
-    play_pcm(pcm_bytes, pa, rate)
+    was_interrupted = play_pcm(pcm_bytes, pa, rate)
     stop_evt.set()
     t.join(timeout=1.0)
+    return was_interrupted
 
 
 # ── Beeps ─────────────────────────────────────────────────────────────────────

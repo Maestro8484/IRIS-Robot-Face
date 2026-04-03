@@ -618,12 +618,13 @@ def main():
                 print(f"[ERR]  TTS: {e}", flush=True)
                 leds.show_error(); time.sleep(1); show_idle_for_mode(leds); continue
 
-            leds.show_speaking(); mic.stop_stream(); play_pcm_speaking(pcm_data, pa, teensy)
+            leds.show_speaking(); mic.stop_stream()
+            _interrupted = play_pcm_speaking(pcm_data, pa, teensy)
             if button_pressed(): time.sleep(0.4)
 
             # Follow-up loop
             _followup_turns = 0
-            while implies_followup(reply) and _followup_turns < FOLLOWUP_MAX_TURNS:
+            while implies_followup(reply) and _followup_turns < FOLLOWUP_MAX_TURNS and not _interrupted:
                 print(f"[FLWP] Follow-up turn {_followup_turns+1}/{FOLLOWUP_MAX_TURNS}...", flush=True)
                 _followup_turns += 1
                 followup_audio = record_followup(mic, pa, leds)
@@ -658,8 +659,11 @@ def main():
                 print("[TTS]  Synthesizing...", flush=True)
                 try: pcm_data = synthesize(reply)
                 except Exception as e: print(f"[ERR]  TTS follow-up: {e}", flush=True); break
-                leds.show_speaking(); mic.stop_stream(); play_pcm_speaking(pcm_data, pa, teensy)
+                leds.show_speaking(); mic.stop_stream()
+                _interrupted = play_pcm_speaking(pcm_data, pa, teensy)
                 if button_pressed(): time.sleep(0.4)
+                if _interrupted:
+                    print("[STOP] Playback interrupted mid-follow-up", flush=True); break
 
             mic.start_stream()
             emit_emotion(teensy, leds, "NEUTRAL")
