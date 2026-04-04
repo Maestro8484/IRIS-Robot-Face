@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 # iris_wake.py — Triggered by cron at 7:30 AM
 # Sends EYES:WAKE + MOUTH:0 via UDP to assistant.py (which owns the serial port).
-import socket, time
+import socket, time, sys, os
 
-CMD_PORT = 10500
+# Ensure log directory exists, then redirect stdout+stderr for cron visibility
+os.makedirs('/home/pi/logs', exist_ok=True)
+sys.stdout = open('/home/pi/logs/iris_wake.log', 'a', buffering=1)
+sys.stderr = sys.stdout
+
+sys.path.insert(0, '/home/pi')
+from core.config import CMD_PORT
 
 def log(msg):
     print(msg, flush=True)
