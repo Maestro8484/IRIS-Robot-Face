@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
-**Date:** 2026-04-03
-**Session:** 2
+**Date:** 2026-04-08
+**Session:** 4
 **Branch:** `main`
-**Last commit:** `887d1fe` (fix: cron sleep/wake hardening, logging, iris_wake CMD_PORT import)
+**Last commit:** `3ceff67` (feat: ILI9341 backlight PWM on pin 14)
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -33,7 +33,7 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 
 ## 2. PROJECT STATUS
 
-**Firmware:** Flashed 2026-03-29. Sleep fully working. drawChar recursion fixed. 7-eye system. Face tracking working. **PENDING FLASH (next session): mouth.h normal intensity→0x01, PersonSensor LED disabled, sleep_renderer.h starfield boost — require USB firmware flash.**
+**Firmware:** Flashed 2026-04-03. mouth.h normal intensity 0x01, PersonSensor green LED disabled, sleep_renderer.h starfield boost — all confirmed flashed.
 **Sleep display:** Starfield + ZZZ animation on both TFTs confirmed working.
 **Sleep LEDs:** APA102 dim indigo breathe on EYES:SLEEP. peak=26 (~10% of 255), global_bright=0xFF, floor=3. LED_SLEEP_* constants in config.py. show_sleep() wired into CMD listener. Restores idle on EYES:WAKE. Deployed S1.
 **Mouth during sleep:** Snore animation, intensity 0x01 (~10%). Working.
@@ -103,11 +103,11 @@ wmic process call create "cmd /c C:\Users\gandalf\Chatterbox-TTS-Server\run_serv
 netstat -an | findstr 8004
 ```
 
-### Voice Clone — PENDING UPLOAD
-- Reference audio on desktop: `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face\voice_preview_snarky james bond.wav` (24.5s, stereo, 48kHz)
-- Also present as `iris_voice.wav` in project root (untracked, do not commit)
-- **Action required:** Go to http://192.168.1.3:8004 → Reference Audio tab → upload, rename to `iris_voice.wav`
+### Voice Clone — UPLOADED
+- `iris_voice.wav` uploaded to http://192.168.1.3:8004 → Reference Audio tab. Confirmed filename: `iris_voice.wav`.
+- Source file: `voice_preview_snarky james bond.wav` (24.5s, stereo, 48kHz) on desktop PC.
 - Pi4 config constant: `CHATTERBOX_VOICE = "iris_voice.wav"` (exact filename, with extension)
+- End-to-end voice clone not yet verified live.
 
 ### Pi4 TTS Endpoint Used
 ```
@@ -146,6 +146,7 @@ IRIS-Robot-Face/
     eyes/240x240/               -- nordicBlue/flame/hypnoRed/hazel/blueFlame1/dragon/bigBlue .h
     sensors/PersonSensor.h/.cpp
     mouth.h                     -- MAX7219 32x8 + mouthSleepFrame() + intensity helpers
+    mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver; BL on pin 14, PWM via analogWrite
   scripts/
     patch_gc9a01a.py            -- PlatformIO pre-build; re-applies drawChar fix
   pi4/ (mirrors /home/pi/ on Pi4, all persisted to SD):
@@ -234,6 +235,16 @@ ANGRY_EYE_DURATION_MS = 9000 | CONFUSED_EYE_DURATION_MS = 7000
 EYE_IDX_DEFAULT=0, ANGRY=1, CONFUSED=2, COUNT=7
 ```
 
+### ILI9341 TFT mouth pin map (mouth_tft.cpp)
+```
+Pin  4 = RST
+Pin  5 = MOSI (bit-bang SPI)
+Pin  6 = SCK  (bit-bang SPI)
+Pin  7 = CS
+Pin  8 = DC
+Pin 14 = BL   (PWM: 220 boot/wake, 40 sleep, level*17 for MOUTH:n intensity)
+```
+
 ### Cron entries (Pi4 user crontab — as of S2)
 ```
 0 21 * * * ALSA_CARD=seeed2micvoicec /usr/bin/python3 /home/pi/iris_sleep.py >> /home/pi/logs/iris_sleep.log 2>&1
@@ -289,65 +300,42 @@ Journal confirmed at 21:00:01: `[CMD] -> teensy: EYES:SLEEP`, `[EYES] >> EYES:SL
 
 ---
 
-## 10. CHANGES THIS SESSION (2026-04-03 S2)
+## 10. COMPLETED THIS SESSION (2026-04-03 S1–S3)
 
-### FIX 1 — `pi4/iris_sleep.py` cron hardening
-- Added `import os` + `os.makedirs('/home/pi/logs', exist_ok=True)` at top
-- Added in-script stdout/stderr redirect to `/home/pi/logs/iris_sleep.log` (buffering=1)
-- Wrapped `subprocess.run` Piper call in `try/except` with `timeout=15` — non-fatal, logs error
-- **Piper not installed** on Pi4 (`/usr/local/bin/piper` missing, `/home/pi/piper/` missing) — TTS silently fails, UDP commands still fire first so sleep activates correctly
-- Deployed + persisted to SD — md5 verified
-
-### FIX 2 — `pi4/iris_wake.py` hardening
-- Added `import sys, os` + `os.makedirs('/home/pi/logs', exist_ok=True)`
-- Added in-script stdout/stderr redirect to `/home/pi/logs/iris_wake.log`
-- Added `sys.path.insert(0, '/home/pi')` + `from core.config import CMD_PORT`
-- Removed hardcoded `CMD_PORT = 10500`
-- Deployed + persisted to SD — md5 verified
-
-### FIX 3 — Cron entries updated
-- Removed `/etc/cron.d/iris` (was firing iris_sleep.py twice — duplicate of user crontab, logged to /var/log/ with permission denied)
-- Updated user crontab: added `ALSA_CARD=seeed2micvoicec` env to both entries
-- Fixed iris_wake cron entry to log to `/home/pi/logs/iris_wake.log` (was logging to iris_sleep.log)
-- Crontab file persisted to SD — md5 verified
-
-### Previous session changes (2026-04-03 S1) — carried forward
-- FIX 1: led.py — show_sleep() added. Deployed.
-- FIX 2: assistant.py — CMD listener leds wired. Deployed.
-- FIX 3: assistant.py — wakeword state reset. Deployed.
-- FIX 4: core/config.py — ELEVENLABS default False. Deployed.
-- FIX 5: iris_config.json — NUM_PREDICT=120. Deployed.
-- FIX 6: iris_sleep.py — canonical version (CMD_PORT import). Deployed (now superseded by S2 FIX 1).
-
-### Previous session changes (2026-04-02 S3) — STILL PENDING DEPLOY
-- **`src/mouth.h`** — Normal matrix intensity 0x01 (was 0x05). **PENDING FIRMWARE FLASH**
-- **`src/main.cpp`** — PersonSensor green LED disabled. **PENDING FIRMWARE FLASH**
-- **`src/sleep_renderer.h`** — Starfield intensity boost. **PENDING FIRMWARE FLASH**
+| Item | Status |
+|---|---|
+| led.py show_sleep() added + wired into CMD listener | Done S1 |
+| assistant.py CMD listener leds wired (EYES:SLEEP/WAKE) | Done S1 |
+| assistant.py wakeword-during-sleep state.eyes_sleeping reset | Done S1 |
+| core/config.py ELEVENLABS_ENABLED default → False | Done S1 |
+| iris_config.json NUM_PREDICT=120 added | Done S1 |
+| iris_sleep.py canonical (CMD_PORT import, logging, Piper try/except) | Done S1+S2 |
+| iris_wake.py hardened (CMD_PORT import, logging) | Done S2 |
+| Cron hardened (ALSA_CARD env, correct log paths, /etc/cron.d/iris removed) | Done S2 |
+| Firmware flashed: mouth.h 0x01, PersonSensor LED off, starfield boost | Done S2 |
+| iris_voice.wav uploaded to Chatterbox | Done S2 |
+| ILI9341 backlight PWM — pin 14, 220 boot/wake, 40 sleep, level*17 intensity | Done S4 |
 
 ---
 
 ## 11. CURRENT KNOWN ISSUES / TODO
 
 ### HIGH
-- **Firmware flash required** — `src/mouth.h` (normal intensity 0x01), `src/main.cpp` (PersonSensor LED off), `src/sleep_renderer.h` (starfield boost) are edited but not yet flashed. Flash via PlatformIO USB (`/flash` command) before verifying changes take effect.
-- **Voice clip not uploaded** — `iris_voice.wav` must be uploaded to http://192.168.1.3:8004 → Reference Audio tab before Chatterbox can clone the IRIS voice. File at `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face\iris_voice.wav`.
-- **End-to-end not tested** — Full pipeline (wake → STT → LLM with tags → Chatterbox → ReSpeaker) not verified with voice clone.
-- **Reciprocal listening broken — `implies_followup()` detection gap.** When IRIS asks a question mid-reply (e.g. during a game), the follow-up mic loop does not open. Root cause: `implies_followup(reply)` only matches if the reply *ends* with `?` or a known deferral phrase. If the LLM appends a trailing sentence after the question (common with num_predict truncation), the check fails and IRIS returns to idle instead of waiting. Fix options: (1) broaden `implies_followup()` to match `?` anywhere in the last 80 chars of the reply, not just at the terminal character. (2) Add modelfile instruction: "If your response contains a question, it must be the final sentence." Option 2 is lower risk — try first.
-- **Piper not installed on Pi4** — `/usr/local/bin/piper` missing, `/home/pi/piper/` missing. iris_sleep.py "Goodnight." audio never plays. iris_wake.py has no TTS. Install piper or configure Chatterbox fallback for sleep/wake announcements.
+- **End-to-end not tested** — iris_voice.wav uploaded. Run live wakeword test, confirm Chatterbox renders cloned voice through speakers.
+- **Reciprocal listening broken — `implies_followup()` detection gap.** IRIS asks a question then appends a trailing sentence; `implies_followup()` returns False because reply doesn't end with `?`; mic never opens. Fix: (1) add modelfile hard rule "If your response contains a question, it must be the final sentence" — try first, lower risk. (2) If insufficient, also broaden `implies_followup()` to match `?` anywhere in reply[-80:].
+- **Piper not installed as standalone binary** — `/usr/local/bin/piper` and `/home/pi/piper/` missing on Pi4. iris_sleep.py "Goodnight" silently fails (non-blocking, sleep still activates). Wakeword-during-sleep "Good morning" in assistant.py also uses bash piper subprocess — likely also failing silently. Fix: route both through Wyoming Piper on GandalfAI port 10200 (already used by services/tts.py) rather than installing local binary.
 
 ### MEDIUM
-- **Smoke test sleep LED** — `EYES:SLEEP` via web UI should trigger indigo breathe (`leds.show_sleep()`). Not yet manually verified. Test by: web UI Sleep button → confirm LEDs go dim indigo. Web UI Wake button → confirm idle cyan resumes.
-- **Matrix brightness awake == sleep** — After S3, both mouthRestoreIntensity and mouthSetSleepIntensity use 0x01 (pending firmware flash). No brightness difference between sleep and awake mouth. Raise mouthRestoreIntensity to 0x02 or 0x03 if awake expressions look too dim.
+- **Smoke test sleep LED** — Verify web UI Sleep button triggers indigo breathe. Wake button restores idle cyan.
+- **Matrix brightness awake == sleep** — mouthRestoreIntensity and mouthSetSleepIntensity both 0x01 (now flashed). If awake expressions look too dim after live testing, raise mouthRestoreIntensity to 0x02 or 0x03.
 - **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
-- **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders `[chuckle]` etc. as sounds, not text.
-- **Old log file cleanup** — `/home/pi/iris_sleep.log` (root level) is now stale. Can be deleted after confirming `/home/pi/logs/iris_sleep.log` is working.
+- **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders `[chuckle]` etc. as sounds, not literal text.
 
 ### LOW
-- **`iris_voice.wav`** in project root — untracked binary, do not commit. Add to `.gitignore`.
-- **`_decode_assistant.py` and `REFACTOR_VISUAL.md`** — untracked files in project root. Review/clean up.
-- **`IRIS_AUDIT_2026-04-03.md`** — untracked file in project root. Review/commit or delete.
-- **Chatterbox server auto-start on Gandalf boot** — not yet configured.
-- **Piper TTS fallback** — audio quality mismatch. Acceptable for now (also not installed).
+- **Untracked files in project root** — `iris_voice.wav`, `_decode_assistant.py`, `REFACTOR_VISUAL.md`, `IRIS_AUDIT_2026-04-03.md`. Add wav to `.gitignore`, review/delete or commit the others.
+- **Old log file** — `/home/pi/iris_sleep.log` (root level, pre-S2) is stale. Delete after confirming `/home/pi/logs/iris_sleep.log` is active.
+- **Chatterbox auto-start on Gandalf boot** — not configured.
+- **OWW_THRESHOLD** — live Pi4 = 0.9 (iris_config.json), config.py default = 0.85. Confirm intended value and sync whichever is wrong.
 
 ---
 
