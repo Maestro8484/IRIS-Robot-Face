@@ -2,7 +2,7 @@
 **Date:** 2026-04-08
 **Session:** 6
 **Branch:** `main`
-**Last commit:** `f05632a` (docs: snapshot S4 — ILI9341 BL pin 14 PWM wired, pin map added)
+**Last commit:** `732b067` (feat: switch mouth TFT to Arduino_GFX SWSPI; snapshot S6)
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -47,7 +47,7 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 **Face tracking:** Working. setTargetPosition seed fix in EyeController.h.
 **NUM_PREDICT:** 120 in iris_config.json (overrides config.py default of 150).
 **Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths, duplicate /etc/cron.d/iris removed.
-**ILI9341 TFT mouth:** mouth_tft.cpp rewrote to Arduino_GFX + Arduino_SWSPI. **NOT YET FLASHED.** Backlight working, screen blank. Next action: flash and test.
+**ILI9341 TFT mouth:** WORKING. Arduino_GFX + Arduino_SWSPI confirmed. NEUTRAL cyan slightly upward-curved expression visible on boot. Flashed and verified 2026-04-08.
 
 ---
 
@@ -118,36 +118,20 @@ python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep
 
 ---
 
-## 5. NEXT SESSION — IMMEDIATE ACTION REQUIRED
+## 5. MOUTH TFT STATUS — CONFIRMED WORKING
 
-### Flash and test Arduino_GFX mouth TFT (HIGH — blocks mouth functionality)
+**Library:** `moononournation/GFX Library for Arduino@^1.4.9` via `Arduino_SWSPI` + `Arduino_ILI9341`
+**Confirmed:** NEUTRAL cyan upward-curved expression visible on boot. Flashed 2026-04-08.
 
-**What was done this session:**
-- Handoff proposed `nullptr` soft-SPI constructor for Adafruit_ILI9341 — does not exist in this lib version, compile error.
-- Investigated: Adafruit_ILI9341 5-pin constructor `(CS, DC, MOSI, SCK, RST)` IS already software SPI (bit-bang). Root cause of blank screen is unknown but not the constructor.
-- **Resolution: switched to Arduino_GFX library** (`moononournation/GFX Library for Arduino`) with `Arduino_SWSPI` bus — rock-solid bit-bang on arbitrary Teensy pins.
-
-**Current state of src/mouth_tft.cpp:**
+**src/mouth_tft.cpp constructor:**
 ```cpp
 #include <Arduino_GFX_Library.h>
 static Arduino_DataBus *_bus = new Arduino_SWSPI(
     MOUTH_TFT_DC, MOUTH_TFT_CS, MOUTH_TFT_SCK, MOUTH_TFT_MOSI, -1);
 static Arduino_ILI9341 *_tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 1 /*rotation*/);
-// init: _tft->begin(); _tft->setRotation(1);
 ```
 
-**Current state of platformio.ini lib_deps:**
-```
-moononournation/GFX Library for Arduino@^1.4.9   ← added
-adafruit/Adafruit ILI9341@^1.5.10               ← still present (unused, harmless)
-```
-
-**Next action:**
-1. Run `/flash` — build should succeed, flash to Teensy.
-2. Confirm NEUTRAL cyan expression visible on boot.
-3. If upside-down: change `setRotation(1)` → `setRotation(3)` in `mouthTFTInit()`.
-4. If still blank: check wiring continuity on pins 5/6/7/8/4. Also try `_tft->begin(GFX_SKIP_OUTPUT_BEGIN)` if init hangs.
-5. Adafruit_ILI9341 lib can be removed from platformio.ini once Arduino_GFX is confirmed working.
+**Pending cleanup:** `adafruit/Adafruit ILI9341@^1.5.10` still in platformio.ini — unused, can be removed.
 
 ---
 
@@ -323,7 +307,7 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 ## 12. CURRENT KNOWN ISSUES / TODO
 
 ### HIGH
-- **Mouth TFT blank — Arduino_GFX written, NOT YET FLASHED.** src/mouth_tft.cpp now uses Arduino_SWSPI + Arduino_ILI9341. Flash via `/flash`, verify NEUTRAL expression on boot. If blank: check wiring continuity first. See Section 5 for full details.
+- **Mouth TFT expressions not yet smoke-tested beyond NEUTRAL** — confirm all 8 expressions (HAPPY, CURIOUS, ANGRY, SLEEPY, SURPRISED, SAD, CONFUSED) render correctly via `MOUTH:n` commands from Pi4.
 - **End-to-end voice not tested** — iris_voice.wav uploaded. Run live wakeword test, confirm Chatterbox renders cloned voice.
 - **implies_followup() gap** — IRIS doesn't reopen mic when LLM appends trailing sentence after `?`. Fix: modelfile hard rule first, then broaden reply[-80:] check.
 - **Piper not installed as standalone binary** — iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail. Route both through Wyoming Piper on GandalfAI port 10200.
