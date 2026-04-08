@@ -227,6 +227,12 @@ static void processSerial() {
           Serial.print("[DBG] MOUTH cmd: idx=");
           Serial.println(idx);
 
+        } else if (strncmp(serialBuf, "MOUTH_INTENSITY:", 16) == 0) {
+          uint8_t lvl = (uint8_t)constrain(atoi(serialBuf + 16), 0, 15);
+          mouthSetIntensity(lvl);
+          Serial.print("[DBG] MOUTH_INTENSITY: ");
+          Serial.println(lvl);
+
         } else if (strcmp(serialBuf, "EYES:WAKE") == 0) {
           if (eyesSleeping) {
             eyesSleeping = false;

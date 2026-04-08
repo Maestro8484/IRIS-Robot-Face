@@ -178,7 +178,7 @@ inline void mouthInit() {
 
   _writeAll(0x0F, 0x00); // display-test OFF
   _writeAll(0x09, 0x00); // BCD decode OFF
-  _writeAll(0x0A, 0x01); // intensity 1/15 (~7%) -- matches mouthRestoreIntensity
+  _writeAll(0x0A, 0x08); // intensity 8/15 (~50%)
   _writeAll(0x0B, 0x07); // scan all 8 rows
   _writeAll(0x0C, 0x01); // shutdown OFF
 
@@ -205,7 +205,11 @@ inline void mouthSetSleepIntensity() {
 }
 
 inline void mouthRestoreIntensity() {
-  _writeAll(0x0A, 0x01); // normal brightness (~7%)
+  _writeAll(0x0A, 0x08); // normal brightness (8/15, ~50%)
+}
+
+inline void mouthSetIntensity(uint8_t level) {
+  _writeAll(0x0A, level & 0x0F);
 }
 
 inline void mouthSleepFrame() {

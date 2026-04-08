@@ -127,6 +127,10 @@ WOL_POLL_INTERVAL = 5
 # ── Wake word ─────────────────────────────────────────────────────────────────
 OWW_THRESHOLD  = 0.85
 
+# ── Mouth MAX7219 intensity ───────────────────────────────────────────────────
+MOUTH_INTENSITY_AWAKE = 8   # MAX7219 register 0x0A, range 0-15
+MOUTH_INTENSITY_SLEEP = 1
+
 # ── Emotion ───────────────────────────────────────────────────────────────────
 VALID_EMOTIONS = {"NEUTRAL", "HAPPY", "CURIOUS", "ANGRY", "SLEEPY", "SURPRISED", "SAD", "CONFUSED"}
 MOUTH_MAP = {
@@ -153,6 +157,7 @@ _OVERRIDABLE = {
     "LED_IDLE_PEAK", "LED_IDLE_FLOOR", "LED_IDLE_PERIOD",
     "LED_KIDS_PEAK", "LED_KIDS_PERIOD",
     "LED_SLEEP_PEAK", "LED_SLEEP_FLOOR", "LED_SLEEP_PERIOD",
+    "MOUTH_INTENSITY_AWAKE", "MOUTH_INTENSITY_SLEEP",
 }
 
 _CONFIG_PATH = "/home/pi/iris_config.json"

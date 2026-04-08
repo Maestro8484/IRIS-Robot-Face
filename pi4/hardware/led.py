@@ -68,7 +68,8 @@ class APA102:
 
     def show_idle(self):
         def anim():
-            steps = 80; period = 5.0; floor = 1; peak = 7
+            from core.config import LED_IDLE_PEAK, LED_IDLE_FLOOR, LED_IDLE_PERIOD
+            steps = 80; period = LED_IDLE_PERIOD; floor = LED_IDLE_FLOOR; peak = LED_IDLE_PEAK
             while not self._stop_anim.is_set():
                 for i in range(steps):
                     if self._stop_anim.is_set():
@@ -82,7 +83,8 @@ class APA102:
 
     def show_idle_kids(self):
         def anim():
-            steps = 80; period = 4.0; floor = 1; peak = 6
+            from core.config import LED_KIDS_PEAK, LED_KIDS_PERIOD
+            steps = 80; period = LED_KIDS_PERIOD; floor = 1; peak = LED_KIDS_PEAK
             while not self._stop_anim.is_set():
                 for i in range(steps):
                     if self._stop_anim.is_set():

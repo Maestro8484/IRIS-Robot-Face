@@ -146,11 +146,15 @@ def start_cmd_listener(teensy, leds):
                             state.eyes_sleeping = True
                             open("/tmp/iris_sleep_mode", "w").close()
                             leds.show_sleep()
+                            lvl = globals().get("MOUTH_INTENSITY_SLEEP", 1)
+                            teensy.send_command(f"MOUTH_INTENSITY:{lvl}")
                         elif cmd == "EYES:WAKE":
                             state.eyes_sleeping = False
                             try: os.remove("/tmp/iris_sleep_mode")
                             except FileNotFoundError: pass
                             show_idle_for_mode(leds)
+                            lvl = globals().get("MOUTH_INTENSITY_AWAKE", 8)
+                            teensy.send_command(f"MOUTH_INTENSITY:{lvl}")
                 except Exception as e:
                     print(f"[CMD] Listener error: {e}", flush=True)
     threading.Thread(target=_listener, daemon=True).start()
@@ -520,6 +524,8 @@ def main():
                 if not state.eyes_sleeping:
                     state.eyes_sleeping = True
                     teensy.send_command("EYES:SLEEP")
+                    lvl = globals().get("MOUTH_INTENSITY_SLEEP", 1)
+                    teensy.send_command(f"MOUTH_INTENSITY:{lvl}")
                     print("[EYES] Eyes deactivated by voice", flush=True)
                 show_idle_for_mode(leds); continue
 
@@ -527,6 +533,8 @@ def main():
                 if state.eyes_sleeping:
                     state.eyes_sleeping = False
                     teensy.send_command("EYES:WAKE")
+                    lvl = globals().get("MOUTH_INTENSITY_AWAKE", 8)
+                    teensy.send_command(f"MOUTH_INTENSITY:{lvl}")
                     print("[EYES] Eyes activated by voice", flush=True)
                 show_idle_for_mode(leds); continue
 
@@ -534,6 +542,8 @@ def main():
             if state.eyes_sleeping:
                 state.eyes_sleeping = False
                 teensy.send_command("EYES:WAKE")
+                lvl = globals().get("MOUTH_INTENSITY_AWAKE", 8)
+                teensy.send_command(f"MOUTH_INTENSITY:{lvl}")
                 print("[EYES] Eyes auto-waked by interaction", flush=True)
 
             kids_reply, new_mode = handle_kids_mode_command(text)
