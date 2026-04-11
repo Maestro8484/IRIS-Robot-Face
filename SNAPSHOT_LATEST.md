@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
-**Date:** 2026-04-08
-**Session:** 6
+**Date:** 2026-04-10
+**Session:** 7
 **Branch:** `main`
-**Last commit:** `732b067` (feat: switch mouth TFT to Arduino_GFX SWSPI; snapshot S6)
+**Last commit:** `f7b6921` (docs: snapshot S6 update — mouth TFT Arduino_GFX confirmed working)
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -33,7 +33,8 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 
 ## 2. PROJECT STATUS
 
-**Firmware:** Flashed 2026-04-03. PersonSensor green LED disabled, sleep_renderer.h starfield boost — confirmed flashed.
+**Firmware:** Flashed 2026-04-10 (S7). Person Sensor tracking — aggressive lock-on, no politeness.
+**Person Sensor tracking:** CONFIRMED WORKING. `[PS] face 0 conf=99 facing=1` visible in journal. Removed `is_facing` gate, threshold 60→25, poll 70→50ms.
 **Sleep display:** Starfield + ZZZ animation on both TFTs confirmed working.
 **Sleep LEDs:** APA102 dim indigo breathe on EYES:SLEEP. peak=26 (~10% of 255), global_bright=0xFF, floor=3. LED_SLEEP_* constants in config.py. show_sleep() wired into CMD listener. Restores idle on EYES:WAKE. Deployed S1.
 **Mouth during sleep:** Snore animation (mouth_tft.cpp mouthSleepFrame no-op — TFT stays blank during sleep). BL dims to 40/255 via analogWrite.
@@ -44,10 +45,11 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 **Jarvis modelfile:** Updated with PARALINGUISTIC TAGS section. `ollama create jarvis` completed.
 **ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in `/home/pi/iris_config.json` AND default False in config.py.
 **Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000.
-**Face tracking:** Working. setTargetPosition seed fix in EyeController.h.
+**Face tracking:** WORKING + AGGRESSIVE. setTargetPosition seed fix in EyeController.h. is_facing gate removed. conf threshold 25. Poll 50ms.
 **NUM_PREDICT:** 120 in iris_config.json (overrides config.py default of 150).
 **Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths, duplicate /etc/cron.d/iris removed.
 **ILI9341 TFT mouth:** WORKING. Arduino_GFX + Arduino_SWSPI confirmed. NEUTRAL cyan slightly upward-curved expression visible on boot. Flashed and verified 2026-04-08.
+**flash-remote skill:** UPDATED — software bootloader entry confirmed working (no PROG button needed).
 
 ---
 
@@ -57,7 +59,7 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 | Command | File | Purpose |
 |---|---|---|
 | `/flash` | `.claude/commands/flash.md` | Local USB flash via PlatformIO |
-| `/flash-remote` | `.claude/commands/flash-remote.md` | Remote flash via Pi4 SSH |
+| `/flash-remote` | `.claude/commands/flash-remote.md` | Remote flash via Pi4 SSH (software bootloader — no PROG button needed) |
 | `/deploy` | `.claude/commands/deploy.md` | Persist Pi4 files through overlayfs to SD |
 | `/snapshot` | `.claude/commands/snapshot.md` | Generate end-of-session snapshot |
 | `/eye-edit` | `.claude/commands/eye-edit.md` | Eye config edit + genall.py + pupil re-apply workflow |
@@ -71,10 +73,11 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 - `/etc/sudoers.d/iris_service` — passwordless sudo for systemctl stop/start/restart/status assistant
 - Pi4 `pi` user has general passwordless sudo (standard Raspberry Pi default)
 
-### Software Bootloader Entry (Teensy in enclosure)
+### Software Bootloader Entry (Teensy in enclosure — CONFIRMED WORKING)
 ```bash
 python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"
 ```
+No PROG button required. Re-enumerates as HalfKay (`16c0:0478`) reliably.
 
 ---
 
@@ -167,9 +170,9 @@ IRIS-Robot-Face/
     config.h                    -- eye definitions array (7 eyes), display pins
     sleep_renderer.h            -- deep space starfield (SR_FRAME_MS=150)
     displays/GC9A01A_Display.h  -- display driver + fillBlack + getDriver()
-    eyes/EyeController.h        -- eye movement/blink/pupil
+    eyes/EyeController.h        -- eye movement/blink/pupil (do NOT break setTargetPosition seed fix)
     eyes/240x240/               -- nordicBlue/flame/hypnoRed/hazel/blueFlame1/dragon/bigBlue .h
-    sensors/PersonSensor.h/.cpp
+    sensors/PersonSensor.h/.cpp -- I2C face detection (SAMPLE_TIME_MS=50, conf threshold=25)
     mouth.h                     -- MAX7219 stub (superseded by mouth_tft — not included)
     mouth_tft.cpp               -- ILI9341 TFT mouth driver (Arduino_GFX SWSPI)
     mouth_tft.h                 -- public API: mouthTFTInit, mouthTFTShow, intensity helpers
@@ -257,6 +260,19 @@ ANGRY_EYE_DURATION_MS = 9000 | CONFUSED_EYE_DURATION_MS = 7000
 EYE_IDX_DEFAULT=0, ANGRY=1, CONFUSED=2, COUNT=7
 ```
 
+### src/sensors/PersonSensor.h — Tracking constants (S7)
+```cpp
+SAMPLE_TIME_MS = 50   // was 70 — tightened for faster gaze updates
+```
+
+### src/main.cpp — Person Sensor tracking loop (S7)
+```cpp
+// is_facing check REMOVED — track any face regardless of orientation
+// confidence threshold: 25 (was 60)
+// debug: [PS] face N conf=X facing=Y printed every read
+if (face.box_confidence > 25) { ... }
+```
+
 ### mouth_tft.cpp — Pin map and backlight
 ```
 Pin  4 = RST
@@ -304,7 +320,21 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 12. CURRENT KNOWN ISSUES / TODO
+## 12. CHANGES THIS SESSION (S7 — 2026-04-10)
+
+### Person Sensor tracking — aggressive lock-on
+- **`src/sensors/PersonSensor.h:65`** — `SAMPLE_TIME_MS` 70 → **50ms** (tighter poll)
+- **`src/main.cpp:325`** — removed `face.is_facing &&` gate (was politeness logic added in prior session)
+- **`src/main.cpp:325`** — confidence threshold `> 60` → **`> 25`**
+- **`src/main.cpp`** — added `[PS] face N conf=X facing=Y` debug print per face per read cycle
+- Flashed via software bootloader (Pi4 ssh) — no PROG button needed. Verified in journal: `[PS] face 0 conf=99 facing=1` visible.
+
+### flash-remote skill updated
+- **`.claude/commands/flash-remote.md`** — replaced "Physical PROG button required" with confirmed software bootloader entry. Step 5 updated to use python3 serial trick. `16c0:0478` confirmed.
+
+---
+
+## 13. CURRENT KNOWN ISSUES / TODO
 
 ### HIGH
 - **Mouth TFT expressions not yet smoke-tested beyond NEUTRAL** — confirm all 8 expressions (HAPPY, CURIOUS, ANGRY, SLEEPY, SURPRISED, SAD, CONFUSED) render correctly via `MOUTH:n` commands from Pi4.
@@ -319,6 +349,7 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 - **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
 - **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders [chuckle] etc. as sounds, not literal text.
 - **Remove Adafruit ILI9341 from platformio.ini** — unused after Arduino_GFX confirmed working; remove to keep build clean.
+- **Tracking tuning** — conf threshold=25 is aggressive; may track partial/side faces. Tune up if false-lock becomes an issue. `facing=` is still printed so easy to correlate.
 
 ### LOW
 - **Untracked files in project root** — iris_voice.wav, _decode_assistant.py, REFACTOR_VISUAL.md, IRIS_AUDIT_2026-04-03.md. Add wav to .gitignore, review/delete or commit others.
@@ -328,7 +359,7 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 13. FLASH / DEPLOY COMMANDS
+## 14. FLASH / DEPLOY COMMANDS
 
 ```bash
 # Pi4 persist a file to SD:
@@ -341,6 +372,14 @@ md5sum /home/pi/<file> /media/root-ro/home/pi/<file>
 sudo systemctl restart assistant
 journalctl -u assistant -n 30 --no-pager
 
-# Teensy bootloader (no PROG button needed):
+# Teensy software bootloader (no PROG button — CONFIRMED WORKING):
 python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"
+
+# Remote flash full sequence (from desktop):
+# 1. pio run  (builds .pio/build/eyes/firmware.hex)
+# 2. python3 paramiko sftp.put firmware.hex pi@192.168.1.200:/tmp/iris_firmware.hex
+# 3. ssh pi@192.168.1.200 "sudo systemctl stop assistant"
+# 4. ssh pi@192.168.1.200 "python3 -c \"import serial,time;s=serial.Serial('/dev/ttyACM0',134);time.sleep(0.5);s.close()\""
+# 5. ssh pi@192.168.1.200 "sudo teensy_loader_cli --mcu=TEENSY40 -w -v /tmp/iris_firmware.hex"
+# 6. ssh pi@192.168.1.200 "sudo systemctl start assistant"
 ```

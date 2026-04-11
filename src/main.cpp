@@ -7,7 +7,7 @@
 #include <Entropy.h>
 
 #include "config.h"
-#include "mouth.h"
+#include "mouth_tft.h"
 #include "sleep_renderer.h"
 #include "util/logging.h"
 #include "sensors/LightSensor.h"
@@ -223,7 +223,7 @@ static void processSerial() {
 
         } else if (strncmp(serialBuf, "MOUTH:", 6) == 0) {
           uint8_t idx = (uint8_t)atoi(serialBuf + 6);
-          mouthShow(idx);
+          mouthTFTShow(idx);
           Serial.print("[DBG] MOUTH cmd: idx=");
           Serial.println(idx);
 
@@ -303,10 +303,10 @@ void setup() {
     }
   }
 
-  mouthInit();
+  mouthTFTInit();
   initEyes(!hasJoystick(), !hasBlinkButton(), !hasLightSensor());
   applyEmotion(NEUTRAL);
-  mouthShow(0); // NEUTRAL on boot
+  mouthTFTShow(0); // NEUTRAL on boot
 }
 
 // ---------------------------------------------------------------------------
@@ -322,7 +322,13 @@ void loop() {
     person_sensor_face_t maxFace{};
     for (int i = 0; i < personSensor.numFacesFound(); i++) {
       const person_sensor_face_t face = personSensor.faceDetails(i);
-      if (face.is_facing && face.box_confidence > 60) {
+      Serial.print("[PS] face ");
+      Serial.print(i);
+      Serial.print(" conf=");
+      Serial.print(face.box_confidence);
+      Serial.print(" facing=");
+      Serial.println(face.is_facing);
+      if (face.box_confidence > 25) {
         int size = (face.box_right - face.box_left) * (face.box_bottom - face.box_top);
         if (size > maxSize) { maxSize = size; maxFace = face; }
       }
