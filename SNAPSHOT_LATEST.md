@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
-**Date:** 2026-04-10
-**Session:** 7
-**Branch:** `main`
-**Last commit:** `f7b6921` (docs: snapshot S6 update — mouth TFT Arduino_GFX confirmed working)
+**Date:** 2026-04-11
+**Session:** 9
+**Branch:** `feat/teensy41-spi2-mouth` (pending merge to main after physical T4.1 swap + flash confirmation)
+**Last commit:** (feat: migrate to Teensy 4.1, mouth TFT to hardware SPI2 pins 35/36/37)
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -21,7 +21,7 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 | Pi4 (IRIS / Jarvis) | 192.168.1.200 | pi / ohs | Voice pipeline, LEDs, camera, Teensy serial |
 | GandalfAI | 192.168.1.3 | gandalf / 5309 | Ollama LLM, Whisper STT, Piper TTS, Chatterbox TTS, RTX 3090 |
 | Desktop PC | 192.168.1.103 | SuperMaster | PlatformIO firmware, VS Code, Claude Desktop |
-| Teensy 4.0 | USB → /dev/ttyACM0 on Pi4 | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
+| Teensy 4.1 | USB → Desktop PC | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
 | Synology NAS | 192.168.1.102 | Master / Gateway!7007 | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
 **Claude Desktop MCP filesystem scope:** `C:\Users\SuperMaster`
@@ -33,23 +33,21 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 
 ## 2. PROJECT STATUS
 
-**Firmware:** Flashed 2026-04-10 (S7). Person Sensor tracking — aggressive lock-on, no politeness.
-**Person Sensor tracking:** CONFIRMED WORKING. `[PS] face 0 conf=99 facing=1` visible in journal. Removed `is_facing` gate, threshold 60→25, poll 70→50ms.
+**Firmware:** Build clean 2026-04-11 (S9). NOT YET FLASHED — pending physical T4.1 swap. T4.0 last confirmed working state: eca1627.
+**Person Sensor tracking:** CONFIRMED WORKING. Stock chrismiller code. Sensor physically mounted right-side-up. `is_facing && conf > 60`, 70ms poll, 120ms animation, stock coordinate formula. Eye tracks face laterally and vertically.
 **Sleep display:** Starfield + ZZZ animation on both TFTs confirmed working.
-**Sleep LEDs:** APA102 dim indigo breathe on EYES:SLEEP. peak=26 (~10% of 255), global_bright=0xFF, floor=3. LED_SLEEP_* constants in config.py. show_sleep() wired into CMD listener. Restores idle on EYES:WAKE. Deployed S1.
-**Mouth during sleep:** Snore animation (mouth_tft.cpp mouthSleepFrame no-op — TFT stays blank during sleep). BL dims to 40/255 via analogWrite.
-**Wake from webui:** Working. Cron sleep: 9PM/7:30AM UDP path. False wakeword during cron window now ignored (button-only override).
+**Sleep LEDs:** APA102 dim indigo breathe on EYES:SLEEP. peak=26, global_bright=0xFF, floor=3.
+**Mouth during sleep:** Snore animation. TFT stays blank. BL dims to 40/255.
+**Wake from webui:** Working. Cron sleep 9PM/7:30AM UDP path. False wakeword during cron window ignored (button-only override).
 **Voice pipeline (assistant.py):** Operational. Modular (hardware/, core/, services/, state/).
-**TTS routing:** Chatterbox (primary) → ElevenLabs (disabled via iris_config.json) → Piper (fallback).
-**Chatterbox server:** Running on GandalfAI. Web UI confirmed accessible at http://192.168.1.3:8004.
-**Jarvis modelfile:** Updated with PARALINGUISTIC TAGS section. `ollama create jarvis` completed.
-**ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in `/home/pi/iris_config.json` AND default False in config.py.
+**TTS routing:** Chatterbox (primary) → ElevenLabs (disabled) → Piper (fallback).
+**Chatterbox server:** Running on GandalfAI at http://192.168.1.3:8004.
+**ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in iris_config.json and config.py.
 **Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000.
-**Face tracking:** WORKING + AGGRESSIVE. setTargetPosition seed fix in EyeController.h. is_facing gate removed. conf threshold 25. Poll 50ms.
-**NUM_PREDICT:** 120 in iris_config.json (overrides config.py default of 150).
-**Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths, duplicate /etc/cron.d/iris removed.
-**ILI9341 TFT mouth:** WORKING. Arduino_GFX + Arduino_SWSPI confirmed. NEUTRAL cyan slightly upward-curved expression visible on boot. Flashed and verified 2026-04-08.
-**flash-remote skill:** UPDATED — software bootloader entry confirmed working (no PROG button needed).
+**NUM_PREDICT:** 120 in iris_config.json.
+**Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths.
+**ILI9341 TFT mouth:** Migrated to ILI9341_t3 hardware SPI2. CS=36, DC=8, RST=4, MOSI=35, SCK=37. Build confirmed clean. Physical verification pending T4.1 swap.
+**Flash workflow:** MANUAL ONLY — user clicks PlatformIO upload button, Teensy USB → Desktop PC. Claude runs `pio run` only.
 
 ---
 
@@ -59,7 +57,7 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 | Command | File | Purpose |
 |---|---|---|
 | `/flash` | `.claude/commands/flash.md` | Local USB flash via PlatformIO |
-| `/flash-remote` | `.claude/commands/flash-remote.md` | Remote flash via Pi4 SSH (software bootloader — no PROG button needed) |
+| `/flash-remote` | `.claude/commands/flash-remote.md` | Remote flash via Pi4 SSH (software bootloader confirmed) |
 | `/deploy` | `.claude/commands/deploy.md` | Persist Pi4 files through overlayfs to SD |
 | `/snapshot` | `.claude/commands/snapshot.md` | Generate end-of-session snapshot |
 | `/eye-edit` | `.claude/commands/eye-edit.md` | Eye config edit + genall.py + pupil re-apply workflow |
@@ -69,95 +67,76 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 - **Local:** `C:/Users/SuperMaster/Documents/PlatformIO/iris-snapshot/`
 - **Raw URL:** `https://raw.githubusercontent.com/Maestro8484/iris-snapshot/main/SNAPSHOT_latest.md`
 
-### Pi4 Sudoers (all persisted to SD)
+### Pi4 Sudoers (persisted to SD)
 - `/etc/sudoers.d/iris_service` — passwordless sudo for systemctl stop/start/restart/status assistant
-- Pi4 `pi` user has general passwordless sudo (standard Raspberry Pi default)
 
-### Software Bootloader Entry (Teensy in enclosure — CONFIRMED WORKING)
+### Software Bootloader Entry (Teensy — confirmed working, no PROG button needed)
 ```bash
 python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"
 ```
-No PROG button required. Re-enumerates as HalfKay (`16c0:0478`) reliably.
 
 ---
 
-## 4. TEENSY 4.0 COMPLETE PIN ASSIGNMENT
+## 4. TEENSY 4.1 COMPLETE PIN ASSIGNMENT
 
 ### Eye displays (GC9A01A, config.h)
-| Pin | Signal | Device | Wire Color |
-|---|---|---|---|
-| 0 | CS | Left eye (SPI1) | Yellow |
-| 2 | DC | Left eye (SPI1) | Blue |
-| 3 | RST | Left eye (SPI1) | Brown |
-| 9 | DC | Right eye (SPI0) | — |
-| 10 | CS | Right eye (SPI0) | — |
-| 11 | MOSI | Right eye (SPI0 hardware) | — |
-| 13 | SCK | Right eye (SPI0 hardware) | — |
-| 26 | MOSI | Left eye (SPI1 hardware) | — |
-| 27 | SCK | Left eye (SPI1 hardware) | — |
+| Pin | Signal | Device |
+|---|---|---|
+| 0 | CS | Left eye (SPI1) |
+| 2 | DC | Left eye (SPI1) |
+| 3 | RST | Left eye (SPI1) |
+| 9 | DC | Right eye (SPI0) |
+| 10 | CS | Right eye (SPI0) |
+| 11 | MOSI | Right eye (SPI0 hardware) |
+| 13 | SCK | Right eye (SPI0 hardware) |
+| 26 | MOSI | Left eye (SPI1 hardware) |
+| 27 | SCK | Left eye (SPI1 hardware) |
 
-### Person Sensor (I2C)
-| Pin | Signal | Device | Wire Color |
-|---|---|---|---|
-| 18 | SDA | Person Sensor | — |
-| 19 | SCL | Person Sensor | — |
+### Person Sensor (I2C) — mounted RIGHT-SIDE-UP
+| Pin | Signal |
+|---|---|
+| 18 | SDA |
+| 19 | SCL |
 
-### ILI9341 TFT Mouth (mouth_tft.cpp, bit-bang SPI)
-| Pin | Signal | Device | Wire Color |
-|---|---|---|---|
-| 4 | RST | Mouth TFT | Green |
-| 5 | MOSI / DIN | Mouth TFT | Blue* |
-| 6 | SCK / CLK | Mouth TFT | Purple |
-| 7 | CS | Mouth TFT | Gray |
-| 8 | DC | Mouth TFT | Yellow* |
-| 14 | BL (backlight) | Mouth TFT LED | White |
-| 3.3V | VCC | Mouth TFT | Red |
-| GND | GND | Mouth TFT | Black |
+### ILI9341 TFT Mouth (hardware SPI2 — T4.1)
+| Pin | Signal |
+|---|---|
+| 35 | MOSI (SPI2) |
+| 37 | SCK  (SPI2) |
+| 36 | CS   (SPI2) |
+| 8  | DC |
+| 4  | RST |
+| 14 | BL (PWM: 220 boot/wake, 40 sleep) |
 
-> **Wire color conflict to resolve:** Pin 2 (Left eye DC) and Pin 5 (Mouth MOSI) are both noted as Blue. Pin 0 (Left eye CS) and Pin 8 (Mouth DC) are both noted as Yellow. Confirm actual wire colors on bench and update snapshot accordingly.
+> Old bit-bang pins 5, 6, 7 now FREE.
+> **Wire color conflict (unresolved):** Pin 2 and Pin 5 both noted Blue; Pin 0 and Pin 8 both noted Yellow. Confirm bench colors.
 
-### Free pins (confirmed unallocated)
-15, 16, 17, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33
+### Free pins (T4.1)
+5, 6, 7 (freed from mouth), 15, 16, 17, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33
+Plus T4.1 extra: 38–41 (bottom header), 42–55 (extended pins)
 
 ---
 
-## 5. MOUTH TFT STATUS — CONFIRMED WORKING
+## 5. MOUTH TFT STATUS — BUILD CLEAN, FLASH PENDING
 
-**Library:** `moononournation/GFX Library for Arduino@^1.4.9` via `Arduino_SWSPI` + `Arduino_ILI9341`
-**Confirmed:** NEUTRAL cyan upward-curved expression visible on boot. Flashed 2026-04-08.
+**Library:** `paulstoffregen/ILI9341_t3` (hardware SPI2, Teensy 4.1)
 
-**src/mouth_tft.cpp constructor:**
 ```cpp
-#include <Arduino_GFX_Library.h>
-static Arduino_DataBus *_bus = new Arduino_SWSPI(
-    MOUTH_TFT_DC, MOUTH_TFT_CS, MOUTH_TFT_SCK, MOUTH_TFT_MOSI, -1);
-static Arduino_ILI9341 *_tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 1 /*rotation*/);
+// CS=36, DC=8, RST=4, MOSI=35 (SPI2), SCK=37 (SPI2)
+static ILI9341_t3 _tft(MOUTH_TFT_CS, MOUTH_TFT_DC, MOUTH_TFT_RST,
+                        MOUTH_TFT_MOSI, MOUTH_TFT_SCK);
 ```
 
-**Pending cleanup:** `adafruit/Adafruit ILI9341@^1.5.10` still in platformio.ini — unused, can be removed.
+> Old bit-bang: pins 5/6/7 (MOSI/SCK/CS). Now free.
 
 ---
 
 ## 6. CHATTERBOX TTS
 
-### GandalfAI Setup
-- **Repo cloned:** `C:\Users\gandalf\Chatterbox-TTS-Server` (devnen/Chatterbox-TTS-Server)
-- **Conda env:** `chatterbox` (Python 3.12) at `C:\Users\gandalf\miniconda3\envs\chatterbox\`
-- **Launch script:** `C:\Users\gandalf\Chatterbox-TTS-Server\run_server.bat`
-- **Model:** Chatterbox Turbo (`repo_id: chatterbox-turbo` in config.yaml)
-- **Exaggeration:** 0.45
-- **Port:** 8004
-
-### Voice Clone
-- `iris_voice.wav` uploaded to Chatterbox Web UI. Confirmed filename: `iris_voice.wav`.
-- Pi4 config: `CHATTERBOX_VOICE = "iris_voice.wav"`
-
-### Pi4 TTS Endpoint
-```
-POST http://192.168.1.3:8004/tts
-{ "text": "...", "voice_mode": "clone", "reference_audio_filename": "iris_voice.wav",
-  "exaggeration": 0.45, "output_format": "wav" }
-```
+- **Server:** GandalfAI `C:\Users\gandalf\Chatterbox-TTS-Server`, conda env `chatterbox`, port 8004
+- **Model:** Chatterbox Turbo, exaggeration 0.45
+- **Voice:** `iris_voice.wav` uploaded, confirmed filename
+- **Endpoint:** `POST http://192.168.1.3:8004/tts` — `voice_mode: clone`, `reference_audio_filename: iris_voice.wav`
 
 ---
 
@@ -169,19 +148,12 @@ IRIS-Robot-Face/
     main.cpp                    -- serial parsing, emotion/tracking/sleep logic
     config.h                    -- eye definitions array (7 eyes), display pins
     sleep_renderer.h            -- deep space starfield (SR_FRAME_MS=150)
-    displays/GC9A01A_Display.h  -- display driver + fillBlack + getDriver()
-    eyes/EyeController.h        -- eye movement/blink/pupil (do NOT break setTargetPosition seed fix)
+    displays/GC9A01A_Display.h  -- display driver
+    eyes/EyeController.h        -- eye movement/blink/pupil (setTargetPosition seed fix intact)
     eyes/240x240/               -- nordicBlue/flame/hypnoRed/hazel/blueFlame1/dragon/bigBlue .h
-    sensors/PersonSensor.h/.cpp -- I2C face detection (SAMPLE_TIME_MS=50, conf threshold=25)
-    mouth.h                     -- MAX7219 stub (superseded by mouth_tft — not included)
-    mouth_tft.cpp               -- ILI9341 TFT mouth driver (Arduino_GFX SWSPI)
-    mouth_tft.h                 -- public API: mouthTFTInit, mouthTFTShow, intensity helpers
-  scripts/
-    patch_gc9a01a.py            -- PlatformIO pre-build; re-applies drawChar fix
-  pi4/ (mirrors /home/pi/ on Pi4):
-    assistant.py / core/ / services/ / hardware/ / state/
-    iris_config.json            -- runtime overrides
-    iris_sleep.py / iris_wake.py / iris_web.py / iris_web.html
+    sensors/PersonSensor.h/.cpp -- I2C face detection (SAMPLE_TIME_MS=70, conf>60, is_facing)
+    mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (Arduino_GFX SWSPI)
+  pi4/                          -- mirrors /home/pi/ on Pi4
 ```
 
 ---
@@ -191,11 +163,10 @@ IRIS-Robot-Face/
 ```ini
 [env:eyes]
 platform = https://github.com/platformio/platform-teensy.git
-board = teensy40
+board = teensy41
 framework = arduino
 monitor_speed = 115200
 build_flags = -std=gnu++17 -O2 -D TEENSY_OPT_SMALLEST_CODE
-extra_scripts = pre:scripts/patch_gc9a01a.py
 lib_deps =
   https://github.com/PaulStoffregen/Wire
   https://github.com/PaulStoffregen/ST7735_t3
@@ -204,6 +175,7 @@ lib_deps =
   adafruit/Adafruit GFX Library@^1.11.3
   adafruit/Adafruit ILI9341@^1.5.10
   moononournation/GFX Library for Arduino@^1.4.9
+  paulstoffregen/ILI9341_t3
 ```
 
 ---
@@ -260,28 +232,18 @@ ANGRY_EYE_DURATION_MS = 9000 | CONFUSED_EYE_DURATION_MS = 7000
 EYE_IDX_DEFAULT=0, ANGRY=1, CONFUSED=2, COUNT=7
 ```
 
-### src/sensors/PersonSensor.h — Tracking constants (S7)
+### Person Sensor tracking (CONFIRMED WORKING — do not change)
 ```cpp
-SAMPLE_TIME_MS = 50   // was 70 — tightened for faster gaze updates
-```
+// PersonSensor.h
+SAMPLE_TIME_MS = 70
 
-### src/main.cpp — Person Sensor tracking loop (S7)
-```cpp
-// is_facing check REMOVED — track any face regardless of orientation
-// confidence threshold: 25 (was 60)
-// debug: [PS] face N conf=X facing=Y printed every read
-if (face.box_confidence > 25) { ... }
-```
-
-### mouth_tft.cpp — Pin map and backlight
-```
-Pin  4 = RST
-Pin  5 = MOSI (bit-bang SPI)  [Blue*]
-Pin  6 = SCK  (bit-bang SPI)  [Purple]
-Pin  7 = CS                   [Gray]
-Pin  8 = DC                   [Yellow*]
-Pin 14 = BL   (PWM: 220 boot/wake, 40 sleep, level*17 for MOUTH_INTENSITY cmd)
-* Wire color conflict — see Section 4 note
+// main.cpp loop — stock chrismiller
+if (face.is_facing && face.box_confidence > 60) { ... }
+float targetX = -((box_left + width/2) / 127.5 - 1.0)
+float targetY =  ((box_top + height/3) / 127.5 - 1.0)
+eyes->setTargetPosition(targetX, targetY);  // default 120ms duration
+// autoMove re-enables after FACE_LOST_TIMEOUT_MS via timeSinceFaceDetectedMs()
+// Sensor physically mounted RIGHT-SIDE-UP — stock formula is correct
 ```
 
 ### Cron entries (Pi4 user crontab)
@@ -299,12 +261,12 @@ Pin 14 = BL   (PWM: 220 boot/wake, 40 sleep, level*17 for MOUTH_INTENSITY cmd)
 ```
 EMOTION:NEUTRAL/HAPPY/CURIOUS/ANGRY/SLEEPY/SURPRISED/SAD/CONFUSED
 EYES:SLEEP / EYES:WAKE
-EYE:n          -- switch default eye (0–6)
-MOUTH:x        -- set mouth expression (0–8)
+EYE:n              -- switch default eye (0–6)
+MOUTH:x            -- set mouth expression (0–8)
 MOUTH_INTENSITY:n  -- set backlight level (0–15)
 ```
 **Teensy → Pi4:** `FACE:1` / `FACE:0`
-**Rule:** Only `assistant.py` TeensyBridge owns `/dev/ttyACM0`. Everything else uses UDP → `127.0.0.1:10500`.
+**Rule:** Only TeensyBridge owns `/dev/ttyACM0`. Everything else uses UDP → `127.0.0.1:10500`.
 
 ---
 
@@ -320,17 +282,15 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 12. CHANGES THIS SESSION (S7 — 2026-04-10)
+## 12. CHANGES THIS SESSION (S9 — 2026-04-11)
 
-### Person Sensor tracking — aggressive lock-on
-- **`src/sensors/PersonSensor.h:65`** — `SAMPLE_TIME_MS` 70 → **50ms** (tighter poll)
-- **`src/main.cpp:325`** — removed `face.is_facing &&` gate (was politeness logic added in prior session)
-- **`src/main.cpp:325`** — confidence threshold `> 60` → **`> 25`**
-- **`src/main.cpp`** — added `[PS] face N conf=X facing=Y` debug print per face per read cycle
-- Flashed via software bootloader (Pi4 ssh) — no PROG button needed. Verified in journal: `[PS] face 0 conf=99 facing=1` visible.
-
-### flash-remote skill updated
-- **`.claude/commands/flash-remote.md`** — replaced "Physical PROG button required" with confirmed software bootloader entry. Step 5 updated to use python3 serial trick. `16c0:0478` confirmed.
+- **Teensy 4.0 → Teensy 4.1 migration** — `platformio.ini` board changed to `teensy41`
+- **Mouth TFT migrated from bit-bang to hardware SPI2** — replaced Arduino_GFX + Arduino_SWSPI with ILI9341_t3
+- New mouth pins: MOSI=35, SCK=37, CS=36 (all SPI2); DC=8, RST=4, BL=14 unchanged
+- Old bit-bang pins 5, 6, 7 now free
+- `paulstoffregen/ILI9341_t3` added to lib_deps
+- **Build confirmed clean** (`pio run` SUCCESS, 10s). Flash pending physical T4.1 swap.
+- Work on branch `feat/teensy41-spi2-mouth` — do NOT merge to main until flash confirmed.
 
 ---
 
@@ -344,16 +304,14 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ### MEDIUM
 - **Smoke test sleep LED** — Verify web UI Sleep button triggers indigo breathe. Wake restores idle cyan.
-- **Matrix brightness** — mouthRestoreIntensity and mouthSetSleepIntensity both 0x01 (now ILI9341 BL 220/40). Verify awake expressions not too dim after live test.
 - **Wire color conflict** — Pin 2 and Pin 5 both Blue; Pin 0 and Pin 8 both Yellow. Confirm bench colors, update snapshot.
 - **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
 - **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders [chuckle] etc. as sounds, not literal text.
-- **Remove Adafruit ILI9341 from platformio.ini** — unused after Arduino_GFX confirmed working; remove to keep build clean.
-- **Tracking tuning** — conf threshold=25 is aggressive; may track partial/side faces. Tune up if false-lock becomes an issue. `facing=` is still printed so easy to correlate.
+- **Remove Adafruit ILI9341 from platformio.ini** — unused after Arduino_GFX confirmed working.
 
 ### LOW
 - **Untracked files in project root** — iris_voice.wav, _decode_assistant.py, REFACTOR_VISUAL.md, IRIS_AUDIT_2026-04-03.md. Add wav to .gitignore, review/delete or commit others.
-- **Old log file** — /home/pi/iris_sleep.log (root level, pre-S2) stale. Delete after confirming /home/pi/logs/iris_sleep.log active.
+- **Old log file** — /home/pi/iris_sleep.log (root level, pre-S2) stale.
 - **Chatterbox auto-start on Gandalf boot** — not configured.
 - **OWW_THRESHOLD** — Pi4 live = 0.9, config.py default = 0.85. Confirm intended value.
 
@@ -372,14 +330,6 @@ md5sum /home/pi/<file> /media/root-ro/home/pi/<file>
 sudo systemctl restart assistant
 journalctl -u assistant -n 30 --no-pager
 
-# Teensy software bootloader (no PROG button — CONFIRMED WORKING):
-python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"
-
-# Remote flash full sequence (from desktop):
-# 1. pio run  (builds .pio/build/eyes/firmware.hex)
-# 2. python3 paramiko sftp.put firmware.hex pi@192.168.1.200:/tmp/iris_firmware.hex
-# 3. ssh pi@192.168.1.200 "sudo systemctl stop assistant"
-# 4. ssh pi@192.168.1.200 "python3 -c \"import serial,time;s=serial.Serial('/dev/ttyACM0',134);time.sleep(0.5);s.close()\""
-# 5. ssh pi@192.168.1.200 "sudo teensy_loader_cli --mcu=TEENSY40 -w -v /tmp/iris_firmware.hex"
-# 6. ssh pi@192.168.1.200 "sudo systemctl start assistant"
+# FLASH: Claude runs `pio run` only. User clicks PlatformIO upload. Teensy USB → Desktop PC.
+# NEVER remote flash, NEVER transfer hex, NEVER run teensy_loader_cli.
 ```
