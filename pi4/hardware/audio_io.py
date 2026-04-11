@@ -218,7 +218,7 @@ def _playback_interrupt_listener(pa_ref, stop_event, interrupted_event):
 
 # ── PCM playback ──────────────────────────────────────────────────────────────
 
-def play_pcm(pcm_bytes: bytes, pa, rate: int = 22050):
+def play_pcm(pcm_bytes: bytes, pa, rate: int = 48000):
     """Play mono s16le PCM through the wm8960 headphone output (stereo-expanded)."""
     _stop_playback.clear()
     raw = np.frombuffer(pcm_bytes, dtype=np.int16).astype(np.float32)
@@ -267,7 +267,7 @@ def play_pcm(pcm_bytes: bytes, pa, rate: int = 22050):
 
 
 def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, restore_mouth_idx: int = 0,
-                      rate: int = 22050) -> bool:
+                      rate: int = 48000) -> bool:
     """play_pcm with mouth animation. Cycles open/close bitmaps at 120 ms/frame.
     Returns True if playback was interrupted mid-stream."""
     _SPEAK_FRAMES = [0, 1, 5, 1]   # neutral → happy → surprised → happy
@@ -291,7 +291,7 @@ def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, restore_mouth_idx: int = 0,
 # ── Beeps ─────────────────────────────────────────────────────────────────────
 
 def play_beep(pa):
-    rate = 44100
+    rate = 48000
     t = np.linspace(0, 0.2, int(rate * 0.2), False)
     tone = (np.sin(2 * np.pi * 880 * t) * 6000).astype(np.int16)
     stereo = np.column_stack([tone, tone]).flatten()
@@ -302,7 +302,7 @@ def play_beep(pa):
 
 
 def play_double_beep(pa):
-    rate = 44100
+    rate = 48000
     t = np.linspace(0, 0.12, int(rate * 0.12), False)
     tone = (np.sin(2 * np.pi * 660 * t) * 4000).astype(np.int16)
     gap = np.zeros(int(rate * 0.08), dtype=np.int16)

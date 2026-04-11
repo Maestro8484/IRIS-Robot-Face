@@ -1,6 +1,6 @@
 """
 services/tts.py - Text-to-speech (Chatterbox primary, ElevenLabs secondary, Wyoming Piper fallback)
-Returns raw s16le PCM bytes at 22050 Hz mono.
+Returns raw s16le PCM bytes at 48000 Hz mono.
 
 synthesize(text) → bytes   — public entry point, routes CB → EL → Piper on failure
 spoken_numbers(text) → str — pre-processes numeric tokens for natural TTS
@@ -24,8 +24,26 @@ from services.wyoming import wy_send, read_line
 
 # ── Chatterbox TTS ────────────────────────────────────────────────────────────
 
+def _cb_treble_boost(data: np.ndarray, sr: int) -> np.ndarray:
+    """
+    FFT-based high-shelf boost to compensate for Chatterbox Turbo's clone low-pass characteristic.
+    Chatterbox clone output has ~95% energy below 2kHz; normal speech should peak around 2-4kHz.
+    Applies a smooth +10dB shelf rising from ~1kHz to ~6kHz.
+    """
+    n = len(data)
+    if n < 64:
+        return data
+    F = np.fft.rfft(data.astype(np.float64))
+    freqs = np.fft.rfftfreq(n, 1.0 / sr)
+    # tanh shelf: 0dB at low freqs, +10dB at high freqs, centred at 3kHz, width 2kHz
+    gain_db = 10.0 * 0.5 * (1.0 + np.tanh((freqs - 3000.0) / 2000.0))
+    gain_linear = 10.0 ** (gain_db / 20.0)
+    boosted = np.fft.irfft(F * gain_linear, n)
+    return np.clip(boosted, -32768.0, 32767.0)
+
+
 def _synthesize_chatterbox(text: str) -> bytes:
-    """Chatterbox-TTS-Server /tts endpoint, clone mode. Returns s16le PCM at 22050 Hz."""
+    """Chatterbox-TTS-Server /tts endpoint, clone mode. Returns s16le PCM at 48000 Hz."""
     import miniaudio
     url = f"{CHATTERBOX_BASE_URL}/tts"
     payload = {
@@ -44,17 +62,19 @@ def _synthesize_chatterbox(text: str) -> bytes:
         wav_bytes,
         output_format=miniaudio.SampleFormat.SIGNED16,
         nchannels=1,
-        sample_rate=22050,
+        sample_rate=48000,
     )
-    pcm = bytes(decoded.samples)
-    print(f"[CB]   OK {len(wav_bytes)}b WAV → {len(pcm)}b PCM ({decoded.duration:.1f}s)", flush=True)
+    raw = np.frombuffer(bytes(decoded.samples), dtype=np.int16).astype(np.float32)
+    boosted = _cb_treble_boost(raw, 48000).astype(np.int16)
+    pcm = boosted.tobytes()
+    print(f"[CB]   OK {len(wav_bytes)}b WAV → {len(pcm)}b PCM ({decoded.duration:.1f}s) [treble+10dB]", flush=True)
     return pcm
 
 
 # ── ElevenLabs ────────────────────────────────────────────────────────────────
 
 def _synthesize_elevenlabs(text: str) -> bytes:
-    """ElevenLabs TTS → raw s16le PCM at 22050 Hz. Returns MP3-decoded samples."""
+    """ElevenLabs TTS → raw s16le PCM at 48000 Hz. Returns MP3-decoded samples."""
     import miniaudio
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}/stream"
     headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
@@ -78,7 +98,7 @@ def _synthesize_elevenlabs(text: str) -> bytes:
         mp3,
         output_format=miniaudio.SampleFormat.SIGNED16,
         nchannels=1,
-        sample_rate=22050,
+        sample_rate=48000,
     )
     raw = np.frombuffer(bytes(decoded.samples), dtype=np.int16).astype(np.float32)
 
@@ -93,9 +113,9 @@ def _synthesize_elevenlabs(text: str) -> bytes:
               flush=True)
 
     samples_padded = np.concatenate([
-        np.zeros(int(22050 * 0.08), dtype=np.int16),
+        np.zeros(int(48000 * 0.08), dtype=np.int16),
         raw.astype(np.int16),
-        np.zeros(int(22050 * 0.08), dtype=np.int16),
+        np.zeros(int(48000 * 0.08), dtype=np.int16),
     ])
     pcm = samples_padded.tobytes()
     print(f"[EL]   OK {len(mp3)}b MP3 → {len(pcm)}b PCM ({decoded.duration:.1f}s)", flush=True)
@@ -124,7 +144,12 @@ def _synthesize_piper(text: str) -> bytes:
             if etype == "audio-chunk" and pcm:
                 audio_chunks.append(pcm)
             elif etype == "audio-stop":
-                return b"".join(audio_chunks)
+                import miniaudio
+                raw = b"".join(audio_chunks)
+                return bytes(miniaudio.convert_frames(
+                    miniaudio.SampleFormat.SIGNED16, 1, 22050, raw,
+                    miniaudio.SampleFormat.SIGNED16, 1, 48000,
+                ))
             elif etype == "error":
                 raise RuntimeError(f"Piper error: {hdr}")
 
@@ -170,7 +195,7 @@ def spoken_numbers(text: str) -> str:
 # ── Public entry point ────────────────────────────────────────────────────────
 
 def synthesize(text: str) -> bytes:
-    """Chatterbox first; ElevenLabs second; Piper fallback. Returns s16le PCM at 22050 Hz."""
+    """Chatterbox first; ElevenLabs second; Piper fallback. Returns s16le PCM at 48000 Hz."""
     text = spoken_numbers(text)
     # Strip markdown and speech markers that must never reach TTS
     text = re.sub(r'\*+', '', text)                          # bold/italic asterisks

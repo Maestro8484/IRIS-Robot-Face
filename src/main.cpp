@@ -92,8 +92,9 @@ LightSensor  lightSensor(LIGHT_PIN);
 PersonSensor personSensor(Wire);
 bool         personSensorFound = USE_PERSON_SENSOR;
 
-static bool     faceWasPresent  = false;
-static uint32_t lastFace1SentMs = 0;
+static bool     faceWasPresent      = false;
+static uint32_t lastFace1SentMs     = 0;
+static uint32_t lastQualifiedFaceMs = 0; // resets only when conf-filtered face found
 
 static char    serialBuf[SERIAL_BUF_SIZE];
 static uint8_t serialBufLen = 0;
@@ -326,6 +327,14 @@ void loop() {
       Serial.print(i);
       Serial.print(" conf=");
       Serial.print(face.box_confidence);
+      Serial.print(" L=");
+      Serial.print(face.box_left);
+      Serial.print(" R=");
+      Serial.print(face.box_right);
+      Serial.print(" T=");
+      Serial.print(face.box_top);
+      Serial.print(" B=");
+      Serial.print(face.box_bottom);
       Serial.print(" facing=");
       Serial.println(face.is_facing);
       if (face.box_confidence > 25) {
@@ -335,11 +344,18 @@ void loop() {
     }
     reportFaceState(maxSize > 0);
     if (maxSize > 0) {
+      lastQualifiedFaceMs = millis();
       eyes->setAutoMove(false);
-      float targetX = -((static_cast<float>(maxFace.box_left) + static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
-      float targetY = (static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
-      eyes->setTargetPosition(targetX, targetY);
-    } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS && !eyes->autoMoveEnabled()) {
+      // Sensor mounted upside-down (180°): X mirror flips twice (cancel) → remove leading -
+      // Y axis inverted → negate
+      float targetX = ((static_cast<float>(maxFace.box_left) + static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
+      float targetY = -((static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f);
+      Serial.print("[PS] -> tX=");
+      Serial.print(targetX);
+      Serial.print(" tY=");
+      Serial.println(targetY);
+      eyes->setTargetPosition(targetX, targetY, 40);
+    } else if ((millis() - lastQualifiedFaceMs) > FACE_LOST_TIMEOUT_MS && !eyes->autoMoveEnabled()) {
       eyes->setAutoMove(true);
     }
   }
