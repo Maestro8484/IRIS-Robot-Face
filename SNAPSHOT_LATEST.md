@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
 **Date:** 2026-04-12
-**Session:** 14
-**Branch:** `feat/teensy41-spi2-mouth` (pending merge to main after physical T4.1 swap + flash confirmation)
-**Last commit:** (feat: migrate to Teensy 4.1, mouth TFT to hardware SPI2 pins 35/36/37)
+**Session:** 15
+**Branch:** `main` (refactor/modular-assistant merged into main — now on main)
+**Last commit:** cb58fe0 — chore: S14 pre-migration snapshot update — GandalfAI Claude Desktop, centralization planned
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -21,13 +21,13 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 | Pi4 (IRIS / Jarvis) | 192.168.1.200 | pi / ohs | Voice pipeline, LEDs, camera, Teensy serial |
 | GandalfAI | 192.168.1.3 | gandalf / 5309 | Ollama LLM, Whisper STT, Piper TTS, Chatterbox TTS, RTX 3090 |
 | Desktop PC | 192.168.1.103 | SuperMaster | PlatformIO firmware, VS Code, Claude Desktop |
-| GandalfAI (Claude Desktop) | 192.168.1.3 | gandalf / 5309 | Claude Desktop + MCP installed (S14). Planned centralization hub for IRIS dev. |
+| GandalfAI (Claude Desktop) | 192.168.1.3 | gandalf / 5309 | Claude Desktop + MCP installed (S14). Local filesystem MCP — direct access to C:\Users\gandalf\ and C:\docker\ (no SMB/SSH needed). |
 | Teensy 4.1 | USB → Desktop PC | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
 | Synology NAS | 192.168.1.102 | Master / Gateway!7007 | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
-**Claude Desktop MCP filesystem scope:** `C:\Users\SuperMaster` (Desktop PC — current). GandalfAI Claude Desktop scope TBD during centralization.
+**Claude Desktop MCP filesystem scope:** `C:\Users\SuperMaster` (Desktop PC). GandalfAI Claude Desktop MCP scope: `C:\Users\gandalf\` and `C:\docker\` (direct access, no SMB/SSH needed — confirmed S15).
 **SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (NAS, port 2233)
-**Centralization plan:** Move primary Claude Code + MCP dev environment to GandalfAI (RTX 3090, always-on). Migration in progress as of S14.
+**Centralization plan:** Move primary Claude Code + MCP dev environment to GandalfAI (RTX 3090, always-on). C:\IRIS\ centralization plan approved but NOT YET EXECUTED — all GandalfAI files still at current locations.
 **SSH auth:** Pi4 uses **password auth only** — key auth fails. Always connect with `username: pi`, `password: ohs`.
 **GandalfAI:** Windows machine. No `df`, `head`, `grep` — use PowerShell / findstr / dir equivalents.
 
@@ -142,6 +142,8 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 - **Model:** Chatterbox Turbo, exaggeration 0.45
 - **Voice:** `iris_voice.wav` uploaded, confirmed filename
 - **Endpoint:** `POST http://192.168.1.3:8004/tts` — `voice_mode: clone`, `reference_audio_filename: iris_voice.wav`
+- **Confirmed working** post sleep/wake (S15). Root cause of prior failure: was running via `docker run` with `deploy.resources` GPU path instead of `runtime: nvidia` — fixed in consolidated compose.
+- **PENDING:** `config.yaml` `last_chunk_size` change from 120 → 300 not yet applied.
 
 ---
 
@@ -331,6 +333,20 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 - Fixed snapshot rotation discrepancy: Section 5 corrected to `rotation=3` (matches actual code).
 - `MOUTH_TFT_HANDOFF.md` committed (stale — documents S11 attempt history, not current state).
 
+**S15 (2026-04-12):**
+- `refactor/modular-assistant` branch merged to `main`. Repo now on `main`.
+- GandalfAI Claude Desktop confirmed installed with local filesystem MCP (direct access `C:\Users\gandalf\`, `C:\docker\` — no SMB/SSH needed).
+- GandalfAI Docker Compose consolidated: `docker-compose.wyoming.yml` + `docker-compose.voice.yml` → `C:\docker\docker-compose.yml` (name: gandalf).
+  - Includes: wyoming-whisper, wyoming-piper, chatterbox, open-webui, watchtower.
+  - All GPU services use `runtime: nvidia`. open-webui uses named external volume.
+- Chatterbox confirmed working post sleep/wake. Root cause: was `docker run` with `deploy.resources` GPU path instead of `runtime: nvidia` — fixed in new compose.
+- **PENDING items (not yet done):**
+  1. `C:\IRIS\` directory centralization — GandalfAI files still at: `C:\docker\`, `C:\Users\gandalf\Chatterbox-TTS-Server\`, `C:\Users\gandalf\jarvis_modelfile.txt`
+  2. jarvis modelfile edits not yet applied — two queued changes:
+     - RESPONSE STYLE: "Keep all responses under 2 sentences and under 30 words unless the question genuinely requires detail. When in doubt, say less."
+     - HARD RULES append: "Never volunteer the current date, time, or location in a response unless the user explicitly asked for it."
+  3. Chatterbox `config.yaml` `last_chunk_size`: 120 → 300 not yet applied
+
 ---
 
 ## 13. CURRENT KNOWN ISSUES / TODO
@@ -345,6 +361,13 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 - **Smoke test sleep LED** — Verify web UI Sleep button triggers indigo breathe. Wake restores idle cyan.
 - **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
 - **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders [chuckle] etc. as sounds, not literal text.
+
+### MEDIUM — GandalfAI / Infrastructure
+- **C:\IRIS\ centralization (APPROVED, NOT DONE)** — Move all GandalfAI IRIS-related files to `C:\IRIS\`. Current locations: `C:\docker\docker-compose.yml`, `C:\Users\gandalf\Chatterbox-TTS-Server\`, `C:\Users\gandalf\jarvis_modelfile.txt`.
+- **jarvis modelfile edits (QUEUED, NOT APPLIED):**
+  1. RESPONSE STYLE rule: responses under 2 sentences / 30 words unless detail required.
+  2. HARD RULE: never volunteer date/time/location unprompted.
+- **Chatterbox config.yaml last_chunk_size (QUEUED):** 120 → 300.
 
 ### LOW
 - **Untracked files in project root** — iris_voice.wav, _decode_assistant.py, REFACTOR_VISUAL.md, IRIS_AUDIT_2026-04-03.md. Add wav to .gitignore, review/delete or commit others.
