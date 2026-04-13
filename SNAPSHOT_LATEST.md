@@ -1,6 +1,6 @@
 # IRIS Robot Face — Handoff Snapshot
-**Date:** 2026-04-11
-**Session:** 9
+**Date:** 2026-04-12
+**Session:** 14
 **Branch:** `feat/teensy41-spi2-mouth` (pending merge to main after physical T4.1 swap + flash confirmation)
 **Last commit:** (feat: migrate to Teensy 4.1, mouth TFT to hardware SPI2 pins 35/36/37)
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
@@ -21,11 +21,13 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 | Pi4 (IRIS / Jarvis) | 192.168.1.200 | pi / ohs | Voice pipeline, LEDs, camera, Teensy serial |
 | GandalfAI | 192.168.1.3 | gandalf / 5309 | Ollama LLM, Whisper STT, Piper TTS, Chatterbox TTS, RTX 3090 |
 | Desktop PC | 192.168.1.103 | SuperMaster | PlatformIO firmware, VS Code, Claude Desktop |
+| GandalfAI (Claude Desktop) | 192.168.1.3 | gandalf / 5309 | Claude Desktop + MCP installed (S14). Planned centralization hub for IRIS dev. |
 | Teensy 4.1 | USB → Desktop PC | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
 | Synology NAS | 192.168.1.102 | Master / Gateway!7007 | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
-**Claude Desktop MCP filesystem scope:** `C:\Users\SuperMaster`
+**Claude Desktop MCP filesystem scope:** `C:\Users\SuperMaster` (Desktop PC — current). GandalfAI Claude Desktop scope TBD during centralization.
 **SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (NAS, port 2233)
+**Centralization plan:** Move primary Claude Code + MCP dev environment to GandalfAI (RTX 3090, always-on). Migration in progress as of S14.
 **SSH auth:** Pi4 uses **password auth only** — key auth fails. Always connect with `username: pi`, `password: ohs`.
 **GandalfAI:** Windows machine. No `df`, `head`, `grep` — use PowerShell / findstr / dir equivalents.
 
@@ -46,7 +48,7 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 **Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000.
 **NUM_PREDICT:** 120 in iris_config.json.
 **Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths.
-**ILI9341 TFT mouth:** Migrated to ILI9341_t3 hardware SPI2. CS=36, DC=8, RST=4, MOSI=35, SCK=37. Build confirmed clean. Physical verification pending T4.1 swap.
+**ILI9341 TFT mouth:** Library switched to KurtE/ILI9341_t3n (auto-detects SPI bus from pin numbers). CS=36, DC=8, RST=4, MOSI=35, SCK=37 → SPI2. Build confirmed clean. Physical verification pending T4.1 swap.
 **Flash workflow:** MANUAL ONLY — user clicks PlatformIO upload button, Teensy USB → Desktop PC. Claude runs `pio run` only.
 
 ---
@@ -80,54 +82,57 @@ python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep
 ## 4. TEENSY 4.1 COMPLETE PIN ASSIGNMENT
 
 ### Eye displays (GC9A01A, config.h)
-| Pin | Signal | Device |
-|---|---|---|
-| 0 | CS | Left eye (SPI1) |
-| 2 | DC | Left eye (SPI1) |
-| 3 | RST | Left eye (SPI1) |
-| 9 | DC | Right eye (SPI0) |
-| 10 | CS | Right eye (SPI0) |
-| 11 | MOSI | Right eye (SPI0 hardware) |
-| 13 | SCK | Right eye (SPI0 hardware) |
-| 26 | MOSI | Left eye (SPI1 hardware) |
-| 27 | SCK | Left eye (SPI1 hardware) |
+| GPIO | Signal | Wire | Device | Bus |
+|---|---|---|---|---|
+| 0 | CS | Yellow | Left eye | SPI1 |
+| 2 | DC | Blue | Left eye | SPI1 |
+| 3 | RST | Brown | Left eye | SPI1 |
+| 26 | MOSI | Green | Left eye | SPI1 hw |
+| 27 | SCK | Orange | Left eye | SPI1 hw |
+| 10 | CS | Yellow | Right eye | SPI0 |
+| 9 | DC | Blue | Right eye | SPI0 |
+| — | RST | — | Right eye | -1 (no pin) |
+| 11 | MOSI | Green | Right eye | SPI0 hw |
+| 13 | SCK | Orange | Right eye | SPI0 hw |
 
 ### Person Sensor (I2C) — mounted RIGHT-SIDE-UP
-| Pin | Signal |
-|---|---|
-| 18 | SDA |
-| 19 | SCL |
+| GPIO | Signal | Wire |
+|---|---|---|
+| 18 | SDA | Blue |
+| 19 | SCL | Yellow |
 
 ### ILI9341 TFT Mouth (hardware SPI2 — T4.1)
-| Pin | Signal |
-|---|---|
-| 35 | MOSI (SPI2) |
-| 37 | SCK  (SPI2) |
-| 36 | CS   (SPI2) |
-| 8  | DC |
-| 4  | RST |
-| 14 | BL (PWM: 220 boot/wake, 40 sleep) |
+| GPIO | Signal | Wire | Bus |
+|---|---|---|---|
+| 35 | MOSI | Gray | SPI2 hw |
+| 37 | SCK | Green | SPI2 hw |
+| 36 | CS | Blue | SPI2 |
+| 8 | DC | Purple | — |
+| 4 | RST | Brown | — |
+| 14 | BL | Orange | PWM: 220 boot/wake, 40 sleep |
 
-> Old bit-bang pins 5, 6, 7 now FREE.
-> **Wire color conflict (unresolved):** Pin 2 and Pin 5 both noted Blue; Pin 0 and Pin 8 both noted Yellow. Confirm bench colors.
+> Free pins: 5, 6, 7, 15–17, 20–25, 28–33, 38–55 (T4.1 extended)
+> MAX7219 matrix uses 5/6/7 (DATA/CLK/CS) — see mouth.h.
 
 ### Free pins (T4.1)
-5, 6, 7 (freed from mouth), 15, 16, 17, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33
+5, 6, 7 (MAX7219), 15, 16, 17, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33
 Plus T4.1 extra: 38–41 (bottom header), 42–55 (extended pins)
 
 ---
 
 ## 5. MOUTH TFT STATUS — BUILD CLEAN, FLASH PENDING
 
-**Library:** `paulstoffregen/ILI9341_t3` (hardware SPI2, Teensy 4.1)
+**Library:** `moononournation/GFX Library for Arduino @ ^1.4.9` — Arduino_GFX SWSPI (bit-bang).
+Same library as confirmed-working T4.0 commit 732b069 on main. Pins moved from 5/6/7 → 35/37/36.
 
 ```cpp
-// CS=36, DC=8, RST=4, MOSI=35 (SPI2), SCK=37 (SPI2)
-static ILI9341_t3 _tft(MOUTH_TFT_CS, MOUTH_TFT_DC, MOUTH_TFT_RST,
-                        MOUTH_TFT_MOSI, MOUTH_TFT_SCK);
+// Bit-bang SPI: MOSI=35, SCK=37, CS=36, DC=8, RST=4, BL=14
+_bus = new Arduino_SWSPI(MOUTH_TFT_DC, MOUTH_TFT_CS,
+                          MOUTH_TFT_SCK, MOUTH_TFT_MOSI, -1);
+_tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape flipped)
 ```
 
-> Old bit-bang: pins 5/6/7 (MOSI/SCK/CS). Now free.
+> No DMA, no hardware SPI — zero conflict with GC9A01A_t3n on SPI0/SPI1.
 
 ---
 
@@ -152,7 +157,7 @@ IRIS-Robot-Face/
     eyes/EyeController.h        -- eye movement/blink/pupil (setTargetPosition seed fix intact)
     eyes/240x240/               -- nordicBlue/flame/hypnoRed/hazel/blueFlame1/dragon/bigBlue .h
     sensors/PersonSensor.h/.cpp -- I2C face detection (SAMPLE_TIME_MS=70, conf>60, is_facing)
-    mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (Arduino_GFX SWSPI)
+    mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (ILI9341_t3 hardware SPI2)
   pi4/                          -- mirrors /home/pi/ on Pi4
 ```
 
@@ -171,11 +176,7 @@ lib_deps =
   https://github.com/PaulStoffregen/Wire
   https://github.com/PaulStoffregen/ST7735_t3
   https://github.com/mjs513/GC9A01A_t3n
-  adafruit/Adafruit BusIO @ ^1.14.1
-  adafruit/Adafruit GFX Library@^1.11.3
-  adafruit/Adafruit ILI9341@^1.5.10
-  moononournation/GFX Library for Arduino@^1.4.9
-  paulstoffregen/ILI9341_t3
+  moononournation/GFX Library for Arduino @ ^1.4.9
 ```
 
 ---
@@ -282,15 +283,53 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 12. CHANGES THIS SESSION (S9 — 2026-04-11)
+## 12. CHANGES THIS SESSION (S14 — 2026-04-12)
 
-- **Teensy 4.0 → Teensy 4.1 migration** — `platformio.ini` board changed to `teensy41`
-- **Mouth TFT migrated from bit-bang to hardware SPI2** — replaced Arduino_GFX + Arduino_SWSPI with ILI9341_t3
+**S9 (2026-04-11):**
+- Teensy 4.0 → Teensy 4.1 migration — `platformio.ini` board changed to `teensy41`
+- Mouth TFT migrated from bit-bang to hardware SPI2 — replaced Arduino_GFX + Arduino_SWSPI with ILI9341_t3
 - New mouth pins: MOSI=35, SCK=37, CS=36 (all SPI2); DC=8, RST=4, BL=14 unchanged
-- Old bit-bang pins 5, 6, 7 now free
-- `paulstoffregen/ILI9341_t3` added to lib_deps
-- **Build confirmed clean** (`pio run` SUCCESS, 10s). Flash pending physical T4.1 swap.
+- Old bit-bang TFT pins freed; MAX7219 matrix retains 5/6/7 (DATA/CLK/CS)
+- `paulstoffregen/ILI9341_t3` added to lib_deps; build confirmed clean
+
+**S10 (2026-04-12):**
+- Removed stale libs from `platformio.ini`: Adafruit BusIO, Adafruit GFX Library, Adafruit ILI9341, moononournation/GFX Library for Arduino
+- Updated Section 4 pin table with confirmed wire colors and Right eye RST=-1
+- Resolved wire color conflict note (confirmed: pin 2=Blue/left-eye-DC, pin 5=MAX7219-DATA; pin 0=Yellow/left-eye-CS, pin 8=Purple/mouth-DC)
+- Build clean post lib_deps cleanup. Flash still pending physical T4.1 swap.
 - Work on branch `feat/teensy41-spi2-mouth` — do NOT merge to main until flash confirmed.
+
+**S11 (2026-04-12):**
+- `platformio.ini`: replaced `adafruit/Adafruit BusIO`, `adafruit/Adafruit GFX Library`, `adafruit/Adafruit ILI9341` with `paulstoffregen/ILI9341_t3`
+- `src/mouth_tft.cpp`: include changed to `<ILI9341_t3.h>`, instance type changed to `ILI9341_t3`, constructor changed to `ILI9341_t3 _tft(CS, DC, RST, MOSI, SCK)`
+- Build confirmed clean: `[SUCCESS] Took 6.57 seconds`
+
+**S12 (2026-04-12):**
+- Root cause: `paulstoffregen/ILI9341_t3` silently ignores MOSI/SCK pin args on T4.x — always drives SPI0 (pins 11/13), never SPI2. Display backlight worked but controller never initialized.
+- Fix: replaced with `KurtE/ILI9341_t3n` which auto-detects SPI bus from pin numbers passed to constructor.
+- `platformio.ini`: `paulstoffregen/ILI9341_t3` → `https://github.com/KurtE/ILI9341_t3n`
+- `src/mouth_tft.cpp`: `#include <ILI9341_t3n.h>`, instance type `ILI9341_t3n`. Constructor signature identical.
+- Build confirmed clean: `[SUCCESS] Took 6.58 seconds` — `ILI9341_t3n @ sha.c2376f9` linked.
+- T4.1 SPI bus allocation now clean: SPI0=right eye, SPI1=left eye, SPI2=mouth. No rewiring needed.
+- RESULT: Bootloop on flash — static global ILI9341_t3n ctor runs before setup(), hard faults on SPI2 peripheral init.
+
+**S13 (2026-04-12):**
+- Root cause: static global object constructor for ILI9341_t3n executes before setup() on T4.x, hard faulting during SPI2 init. All displays dead + bootloop.
+- Fix: heap-allocate `_tft` in `mouthTFTInit()` (same pattern as eye displays via `new` in `initEyes()`).
+- `src/mouth_tft.cpp`: `static ILI9341_t3n *_tft = nullptr;` — `new ILI9341_t3n(...)` called at top of `mouthTFTInit()`. All `_tft.` → `_tft->`. Null guards added to all public API functions.
+- Build confirmed clean: `[SUCCESS] Took 6.58 seconds`.
+- RESULT: Bootloop on flash — ILI9341_t3n DMA static state conflicts with GC9A01A_t3n at startup.
+- Fix (S14): Reverted to Arduino_GFX SWSPI (same library as confirmed-working T4.0 commit 732b069 on main).
+  - `platformio.ini`: `KurtE/ILI9341_t3n` → `moononournation/GFX Library for Arduino @ ^1.4.9`
+  - `src/mouth_tft.cpp`: include → `<Arduino_GFX_Library.h>`, heap-allocate `_bus` (Arduino_SWSPI) + `_tft` (Arduino_ILI9341) in `mouthTFTInit()`. Pins unchanged: MOSI=35, SCK=37, CS=36, DC=8, RST=4, BL=14.
+  - Bit-bang on T4.1 pins 35/37/36 — no DMA, no hardware SPI conflict.
+  - Build confirmed clean: `[SUCCESS] Took 7.89 seconds` — GFX Library for Arduino @ 1.6.5 linked.
+
+**S14 (2026-04-12):**
+- Pre-migration checklist session. No firmware changes.
+- Claude Desktop installed on GandalfAI (192.168.1.3). Planned centralization of IRIS dev environment to GandalfAI.
+- Fixed snapshot rotation discrepancy: Section 5 corrected to `rotation=3` (matches actual code).
+- `MOUTH_TFT_HANDOFF.md` committed (stale — documents S11 attempt history, not current state).
 
 ---
 
@@ -304,10 +343,8 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ### MEDIUM
 - **Smoke test sleep LED** — Verify web UI Sleep button triggers indigo breathe. Wake restores idle cyan.
-- **Wire color conflict** — Pin 2 and Pin 5 both Blue; Pin 0 and Pin 8 both Yellow. Confirm bench colors, update snapshot.
 - **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
 - **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders [chuckle] etc. as sounds, not literal text.
-- **Remove Adafruit ILI9341 from platformio.ini** — unused after Arduino_GFX confirmed working.
 
 ### LOW
 - **Untracked files in project root** — iris_voice.wav, _decode_assistant.py, REFACTOR_VISUAL.md, IRIS_AUDIT_2026-04-03.md. Add wav to .gitignore, review/delete or commit others.
