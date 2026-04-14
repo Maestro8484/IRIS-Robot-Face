@@ -9,6 +9,58 @@ physical hardware and require SSH recovery. Read before acting.
 
 ---
 
+## Branch
+main
+
+## Git discipline
+Session start: git pull origin main
+Session end: git add -A && git commit && git push origin main (push requires user confirmation)
+
+---
+
+## Pre-flight (mandatory at every session start -- output this before touching anything)
+
+> Branch: [current branch]
+> Last commit: [hash + message]
+> Working tree: [clean / dirty -- if dirty STOP and tell user]
+> Task this session: [one sentence]
+> Files to be modified: [explicit list]
+> Files NOT touched: [everything else relevant]
+> Risk: [what could break]
+> Rollback: [how to undo]
+
+Do not proceed until user confirms. If working tree is dirty, do not proceed until user commits or explicitly clears it.
+
+---
+
+## Hard rules -- no exceptions
+- ONE task per session. No opportunistic fixes. No "while I'm in here" changes.
+- No refactoring unless the session task IS refactoring -- state it explicitly upfront.
+- No file writes without showing the plan first and getting user confirmation.
+- git push requires explicit user confirmation before running.
+- Never touch these files without explicit user instruction:
+  - iris_config.json
+  - alsa-init.sh
+  - Any file not directly named in the confirmed task scope
+
+---
+
+## Machine rules
+SuperMaster: firmware builds and PlatformIO only. Claude runs pio run only. User clicks upload. Never remote flash.
+GandalfAI: pi4/ and snapshot work only. Never touch src/ firmware files. No pio commands. No firmware builds.
+GandalfAI filesystem MCP: C:\Users\gandalf\ only. Use Bash tool for C:\IRIS\ and C:\docker\.
+GandalfAI: PowerShell only. No grep/df/head. Heredocs unreliable -- use sftp_write for multi-line files.
+
+---
+
+## Snapshot discipline
+SNAPSHOT_LATEST.md is the single authoritative file.
+No dated variants. No lettered variants.
+Update once at session close only via /snapshot.
+Never update mid-session.
+
+---
+
 ## CRITICAL: Pi4 source location
 
 ALL Pi4 Python files are edited in `pi4/` in this repo.
@@ -54,8 +106,8 @@ ALL Pi4 Python files are edited in `pi4/` in this repo.
 All logic lives in modules. Do not inline anything that belongs in a module.
 
 - `pi4/core/config.py` — all constants + iris_config.json override loader
-- `pi4/services/stt.py` — Wyoming Whisper STT (`data_length` payload parser — do not rewrite inline)
-- `pi4/services/tts.py` — Chatterbox → ElevenLabs → Piper routing
+- `pi4/services/stt.py` — Wyoming Whisper STT (`data_length` payload parser -- do not rewrite inline)
+- `pi4/services/tts.py` — Chatterbox -> ElevenLabs -> Piper routing
 - `pi4/services/wakeword.py` — OWW + GPIO button handler
 - `pi4/services/llm.py` — emotion tag extraction, reply cleaning
 - `pi4/services/vision.py` — camera capture + vision query
@@ -64,7 +116,7 @@ All logic lives in modules. Do not inline anything that belongs in a module.
 - `pi4/hardware/teensy_bridge.py` — single serial owner of `/dev/ttyACM0`
 - `pi4/state/state_manager.py` — runtime state singleton (`state.kids_mode`, `state.eyes_sleeping`, etc.)
 
-Serial owner rule: only TeensyBridge owns `/dev/ttyACM0`. Everything else uses UDP → `127.0.0.1:10500`.
+Serial owner rule: only TeensyBridge owns `/dev/ttyACM0`. Everything else uses UDP -> `127.0.0.1:10500`.
 
 ---
 
@@ -72,18 +124,18 @@ Serial owner rule: only TeensyBridge owns `/dev/ttyACM0`. Everything else uses U
 
 **Always follow this order. Never skip steps.**
 
-1. Read the file from `pi4/` in the repo — confirm it is correct before touching Pi4
+1. Read the file from `pi4/` in the repo -- confirm it is correct before touching Pi4
 2. Write to `/home/pi/<path>` on Pi4 via SSH
 3. Persist to SD:
 ```bash
-   sudo mount -o remount,rw /media/root-ro
-   sudo cp /home/pi/<file> /media/root-ro/home/pi/<file>
-   sudo mount -o remount,ro /media/root-ro
-   md5sum /home/pi/<file> /media/root-ro/home/pi/<file>
+sudo mount -o remount,rw /media/root-ro
+sudo cp /home/pi/<file> /media/root-ro/home/pi/<file>
+sudo mount -o remount,ro /media/root-ro
+md5sum /home/pi/<file> /media/root-ro/home/pi/<file>
 ```
-4. Verify md5 matches — if not, repeat step 3
+4. Verify md5 matches -- if not, repeat step 3
 5. `sudo systemctl restart assistant`
-6. `journalctl -u assistant -n 30 --no-pager` — confirm `[INFO] Ready.` before closing
+6. `journalctl -u assistant -n 30 --no-pager` -- confirm `[INFO] Ready.` before closing
 
 Or use the `/deploy` command which enforces this sequence.
 
@@ -92,48 +144,53 @@ Or use the `/deploy` command which enforces this sequence.
 ## Pi4 persistence (overlayfs)
 - SD is read-only. All SSH writes go to RAM and are wiped on reboot.
 - ALWAYS persist after every SSH file write.
-- `sudo cp` is required — files on `/media/root-ro` are root-owned.
-- Do NOT persist `/tmp/iris_sleep_mode` — intentionally volatile.
+- `sudo cp` is required -- files on `/media/root-ro` are root-owned.
+- Do NOT persist `/tmp/iris_sleep_mode` -- intentionally volatile.
 
 ---
 
 ## Firmware rules
-- Do NOT modify `TeensyEyes.ino` — upstream engine, off limits.
+- Do NOT modify `TeensyEyes.ino` -- upstream engine, off limits.
 - After any `src/` change: run `/flash` (local USB) or `/flash-remote` (Pi4 SSH).
 - Software bootloader entry (Teensy in enclosure, no PROG button access):
 ```bash
-  python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"
+python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"
 ```
+
+---
 
 ## Eye editing workflow
 1. Edit `resources/eyes/240x240/<eye>/config.eye`
 2. Run `python resources/eyes/240x240/genall.py` to regenerate `.h` files
 3. Re-apply pupil values manually to nordicBlue.h, hazel.h, bigBlue.h after every genall.py run
-   (genall.py resets them — manual values are not in config.eye)
+   (genall.py resets them -- manual values are not in config.eye)
 4. PlatformIO upload
 
 ---
 
 ## Serial protocol
-- Pi4 → Teensy: `EMOTION:x`, `EYES:SLEEP`, `EYES:WAKE`, `EYE:n` (0–6), `MOUTH:n`
-- Teensy → Pi4: `FACE:1`, `FACE:0`
+- Pi4 -> Teensy: `EMOTION:x`, `EYES:SLEEP`, `EYES:WAKE`, `EYE:n` (0-6), `MOUTH:n`
+- Teensy -> Pi4: `FACE:1`, `FACE:0`
 
 ---
 
 ## Key firmware files
 - `src/main.cpp` — serial parsing, emotion, tracking, sleep logic
 - `src/eyes/EyeController.h` — eye movement/blink/pupil (do NOT break setTargetPosition seed fix)
-- `src/mouth.h` — MAX7219 32x8 expressions + sleep intensity
+- `src/mouth_tft.cpp` / `src/mouth_tft.h` — ILI9341 TFT mouth driver (Arduino_GFX SWSPI bit-bang, T4.1 pins MOSI=35, SCK=37, CS=36, DC=8, RST=4, BL=14)
 - `src/sleep_renderer.h` — deep space starfield renderer
 
 ---
 
 ## Long output
-- Snapshots, full file dumps, large summaries → write to a `.md` file, then summarize inline.
-- Never print large content blocks as chat — truncation loses data.
+- Snapshots, full file dumps, large summaries -> write to a `.md` file, then summarize inline.
+- Never print large content blocks as chat -- truncation loses data.
 
 ---
 
-## End of session
-Run `/snapshot` before closing. The next SessionStart hook picks it up automatically.
-Always end with: `git add -A && git commit && git push origin HEAD`
+## Session end -- mandatory
+1. State explicitly: what was changed, what was NOT changed, any new risks introduced.
+2. git add -A && git commit
+3. Confirm with user before git push
+4. Run /snapshot
+5. Final line every session: `git add -A && git commit && git push origin main`
