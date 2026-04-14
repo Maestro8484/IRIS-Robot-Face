@@ -194,8 +194,21 @@ def spoken_numbers(text: str) -> str:
 
 # ── Public entry point ────────────────────────────────────────────────────────
 
+# Phrases that bypass Chatterbox and go directly to Piper (system state announcements)
+_PIPER_DIRECT_PHRASES = {
+    "good night",
+    "goodnight",
+    "good morning",
+    "going to sleep",
+    "waking up",
+    "i am going to sleep now",
+    "i'm going to sleep now",
+}
+
 def synthesize(text: str) -> bytes:
-    """Chatterbox first; ElevenLabs second; Piper fallback. Returns s16le PCM at 48000 Hz."""
+    """Chatterbox first; ElevenLabs second; Piper fallback. Returns s16le PCM at 48000 Hz.
+    Sleep/wake phrases route directly to Piper regardless of CHATTERBOX_ENABLED.
+    """
     text = spoken_numbers(text)
     # Strip markdown and speech markers that must never reach TTS
     text = re.sub(r'\*+', '', text)                          # bold/italic asterisks
@@ -206,6 +219,16 @@ def synthesize(text: str) -> bytes:
     text = re.sub(r'\[chuckle\]|\[laugh\]|\[sigh\]|\[gasp\]', '', text, flags=re.IGNORECASE)
     text = re.sub(r'\s+', ' ', text).strip()
     text = re.sub(r'[^\x00-\x7F]+', ' ', text).strip()      # existing non-ASCII strip (keep)
+
+    # Route sleep/wake system phrases directly to Piper - bypass Chatterbox
+    _text_check = text.lower().strip().rstrip('.')
+    if any(_text_check == p or _text_check.startswith(p) for p in _PIPER_DIRECT_PHRASES):
+        print(f"[TTS]  Piper direct route (system phrase): '{text}'", flush=True)
+        try:
+            return _synthesize_piper(text)
+        except Exception as e:
+            print(f"[PIPER] Direct route failed: {e}", flush=True)
+
     if CHATTERBOX_ENABLED:
         try:
             return _synthesize_chatterbox(text)

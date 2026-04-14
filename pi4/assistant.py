@@ -345,7 +345,7 @@ def ask_ollama(text):
     now = datetime.datetime.now()
     date_inject = {
         "role": "system",
-        "content": f"Current date and time: {now.strftime('%A, %B %d %Y, %I:%M %p')} Mountain Time. Location: Kaysville, Utah 84037."
+        "content": f"Current date and time: {now.strftime('%A, %B %d %Y, %I:%M %p')} Mountain Time."
     }
     # Inject person-recognition context if available
     person_inject = None
@@ -420,7 +420,9 @@ def show_idle_for_mode(leds):
 def main():
     leds = APA102(NUM_LEDS)
     setup_button()
-    set_volume(110)  # fixed startup volume
+    from core.config import SPEAKER_VOLUME as _startup_vol
+    set_volume(_startup_vol)
+    print(f"[VOL]  Startup volume: {_startup_vol}/127 ({round(_startup_vol/127*100)}%)", flush=True)
     ctx_thread = threading.Thread(target=_context_watchdog, daemon=True); ctx_thread.start()
     teensy = TeensyBridge(TEENSY_PORT, TEENSY_BAUD)
     start_cmd_listener(teensy, leds)
@@ -678,7 +680,10 @@ def main():
                 if _interrupted:
                     print("[STOP] Playback interrupted mid-follow-up", flush=True); break
 
-            mic.start_stream()
+            try:
+                mic.start_stream()
+            except OSError:
+                pass
             emit_emotion(teensy, leds, "NEUTRAL")
             show_idle_for_mode(leds)
             print("[INFO] Ready.", flush=True)

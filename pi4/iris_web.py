@@ -181,8 +181,7 @@ def api_chat():
     try:
         import datetime as _dt
         _now = _dt.datetime.now()
-        _sys = (f"Current date and time: {_now.strftime('%A, %B %d %Y, %I:%M %p')} "
-                f"Mountain Time. Location: Kaysville, Utah 84037.")
+        _sys = f"Current date and time: {_now.strftime('%A, %B %d %Y, %I:%M %p')} Mountain Time."
         r = requests.post(f"http://{GANDALF}:{OLLAMA_PORT}/api/chat",
             json={"model": model,
                   "messages": [{"role":"system","content":_sys},{"role":"user","content":text}],
@@ -213,7 +212,17 @@ def api_persist_config():
         if result.returncode != 0:
             return jsonify(ok=False, error=result.stderr.strip() or "mount/cp failed"), 500
         verified = _sd_synced()
-        return jsonify(ok=verified, verified=verified)
+        # Copy ALSA state to SD layer
+        alsa_src = "/var/lib/alsa/asound.state"
+        alsa_dst = "/media/root-ro/var/lib/alsa/asound.state"
+        alsa_result = subprocess.run(
+            ["sudo", "bash", "-c",
+             f"mount -o remount,rw /media/root-ro && "
+             f"cp {alsa_src} {alsa_dst} && "
+             f"mount -o remount,ro /media/root-ro"],
+            capture_output=True, text=True, timeout=20)
+        alsa_ok = alsa_result.returncode == 0
+        return jsonify(ok=verified, verified=verified, alsa_persisted=alsa_ok)
     except Exception as e:
         return jsonify(ok=False, error=str(e)), 500
 
@@ -228,6 +237,9 @@ def api_volume():
         level = max(0, min(127, int(request.get_json(force=True).get("level", 110))))
         subprocess.run(["amixer","-c",card,"sset","Speaker",str(level)],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["alsactl", "store"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        cfg = read_cfg(); cfg["SPEAKER_VOLUME"] = level
+        with open(CONFIG_FILE, "w") as f: json.dump(cfg, f, indent=2)
         return jsonify(ok=True, level=level, pct=round(level/127*100))
     out = subprocess.check_output(["amixer","-c",card,"sget","Speaker"], text=True)
     for line in out.splitlines():
