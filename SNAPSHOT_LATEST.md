@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
-**Date:** 2026-04-12
-**Session:** 15
-**Branch:** `main` (refactor/modular-assistant merged into main — now on main)
-**Last commit:** cb58fe0 — chore: S14 pre-migration snapshot update — GandalfAI Claude Desktop, centralization planned
+**Date:** 2026-04-14
+**Session:** 16
+**Branch:** `main`
+**Last commit:** 34f9456 — docs: update snapshot - main branch consolidated, GandalfAI Claude Desktop, docker compose centralized, pending items logged
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -21,19 +21,53 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 | Pi4 (IRIS / Jarvis) | 192.168.1.200 | pi / ohs | Voice pipeline, LEDs, camera, Teensy serial |
 | GandalfAI | 192.168.1.3 | gandalf / 5309 | Ollama LLM, Whisper STT, Piper TTS, Chatterbox TTS, RTX 3090 |
 | Desktop PC | 192.168.1.103 | SuperMaster | PlatformIO firmware, VS Code, Claude Desktop |
-| GandalfAI (Claude Desktop) | 192.168.1.3 | gandalf / 5309 | Claude Desktop + MCP installed (S14). Local filesystem MCP — direct access to C:\Users\gandalf\ and C:\docker\ (no SMB/SSH needed). |
+| GandalfAI (Claude Desktop) | 192.168.1.3 | gandalf / 5309 | Claude Desktop + MCP installed (S14). Local filesystem MCP scope: `C:\Users\gandalf\` ONLY — `C:\docker\` and `C:\IRIS\` are NOT in MCP scope. Use Bash tool for all C:\docker\ and C:\IRIS\ operations. |
 | Teensy 4.1 | USB → Desktop PC | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
 | Synology NAS | 192.168.1.102 | Master / Gateway!7007 | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
-**Claude Desktop MCP filesystem scope:** `C:\Users\SuperMaster` (Desktop PC). GandalfAI Claude Desktop MCP scope: `C:\Users\gandalf\` and `C:\docker\` (direct access, no SMB/SSH needed — confirmed S15).
 **SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (NAS, port 2233)
-**Centralization plan:** Move primary Claude Code + MCP dev environment to GandalfAI (RTX 3090, always-on). C:\IRIS\ centralization plan approved but NOT YET EXECUTED — all GandalfAI files still at current locations.
 **SSH auth:** Pi4 uses **password auth only** — key auth fails. Always connect with `username: pi`, `password: ohs`.
 **GandalfAI:** Windows machine. No `df`, `head`, `grep` — use PowerShell / findstr / dir equivalents.
+**GandalfAI MCP scope correction (S16):** filesystem MCP only covers `C:\Users\gandalf\`. All `C:\IRIS\`, `C:\docker\` file reads/writes must go through the Bash tool.
 
 ---
 
-## 2. PROJECT STATUS
+## 2. GANDALFAI FILE LAYOUT (as of S16 — CENTRALIZATION COMPLETE)
+
+All IRIS-related files on GandalfAI now live under `C:\IRIS\`:
+
+```
+C:\IRIS\
+  docker\
+    docker-compose.yml        -- CANONICAL compose file (was C:\docker\docker-compose.yml)
+    whisper\                  -- whisper model cache (migrated from C:\docker\whisper\)
+    piper\                    -- piper data (migrated from C:\docker\piper\)
+  chatterbox\
+    config.yaml               -- Chatterbox config (last_chunk_size: 300)
+    reference_audio\
+      iris_voice.wav          -- CONFIRMED PRESENT
+    voices\                   -- predefined voices
+    model_cache\              -- empty (model downloads on first start)
+    logs\
+    outputs\
+  ollama\
+    jarvis_modelfile.txt      -- UPDATED (S16 edits applied, model rebuilt)
+    jarvis-kids_modelfile.txt -- UPDATED (S16 edits applied, model rebuilt)
+  backup\
+    docker-compose.yml.bak    -- original pre-migration backup
+```
+
+**Old locations (DO NOT USE for new work — originals left intact for stability):**
+- `C:\docker\docker-compose.yml.pre-iris.bak` — archived
+- `C:\docker\whisper\`, `C:\docker\piper\` — originals still present, safe to delete next session
+- `C:\Users\gandalf\Chatterbox-TTS-Server\` — original still present, safe to delete next session
+- `C:\Users\gandalf\jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt` — originals still present
+
+**HF cache:** `C:\Users\gandalf\.cache\huggingface` — intentionally NOT moved, stays in user profile.
+
+---
+
+## 3. PROJECT STATUS
 
 **Firmware:** Build clean 2026-04-11 (S9). NOT YET FLASHED — pending physical T4.1 swap. T4.0 last confirmed working state: eca1627.
 **Person Sensor tracking:** CONFIRMED WORKING. Stock chrismiller code. Sensor physically mounted right-side-up. `is_facing && conf > 60`, 70ms poll, 120ms animation, stock coordinate formula. Eye tracks face laterally and vertically.
@@ -43,17 +77,18 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 **Wake from webui:** Working. Cron sleep 9PM/7:30AM UDP path. False wakeword during cron window ignored (button-only override).
 **Voice pipeline (assistant.py):** Operational. Modular (hardware/, core/, services/, state/).
 **TTS routing:** Chatterbox (primary) → ElevenLabs (disabled) → Piper (fallback).
-**Chatterbox server:** Running on GandalfAI at http://192.168.1.3:8004.
+**Chatterbox server:** Running on GandalfAI at http://192.168.1.3:8004. Now serving from `C:\IRIS\docker\docker-compose.yml`.
 **ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in iris_config.json and config.py.
 **Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000.
 **NUM_PREDICT:** 120 in iris_config.json.
 **Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths.
 **ILI9341 TFT mouth:** Library switched to KurtE/ILI9341_t3n (auto-detects SPI bus from pin numbers). CS=36, DC=8, RST=4, MOSI=35, SCK=37 → SPI2. Build confirmed clean. Physical verification pending T4.1 swap.
 **Flash workflow:** MANUAL ONLY — user clicks PlatformIO upload button, Teensy USB → Desktop PC. Claude runs `pio run` only.
+**Ollama models:** `jarvis` and `jarvis-kids` both rebuilt fresh as of S16 with updated modelfiles.
 
 ---
 
-## 3. CLAUDE CODE INFRASTRUCTURE
+## 4. CLAUDE CODE INFRASTRUCTURE
 
 ### Slash Commands
 | Command | File | Purpose |
@@ -79,7 +114,7 @@ python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep
 
 ---
 
-## 4. TEENSY 4.1 COMPLETE PIN ASSIGNMENT
+## 5. TEENSY 4.1 COMPLETE PIN ASSIGNMENT
 
 ### Eye displays (GC9A01A, config.h)
 | GPIO | Signal | Wire | Device | Bus |
@@ -114,13 +149,9 @@ python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep
 > Free pins: 5, 6, 7, 15–17, 20–25, 28–33, 38–55 (T4.1 extended)
 > MAX7219 matrix uses 5/6/7 (DATA/CLK/CS) — see mouth.h.
 
-### Free pins (T4.1)
-5, 6, 7 (MAX7219), 15, 16, 17, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33
-Plus T4.1 extra: 38–41 (bottom header), 42–55 (extended pins)
-
 ---
 
-## 5. MOUTH TFT STATUS — BUILD CLEAN, FLASH PENDING
+## 6. MOUTH TFT STATUS — BUILD CLEAN, FLASH PENDING
 
 **Library:** `moononournation/GFX Library for Arduino @ ^1.4.9` — Arduino_GFX SWSPI (bit-bang).
 Same library as confirmed-working T4.0 commit 732b069 on main. Pins moved from 5/6/7 → 35/37/36.
@@ -136,18 +167,40 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 
 ---
 
-## 6. CHATTERBOX TTS
+## 7. CHATTERBOX TTS
 
-- **Server:** GandalfAI `C:\Users\gandalf\Chatterbox-TTS-Server`, conda env `chatterbox`, port 8004
+- **Server:** GandalfAI — now containerized at `C:\IRIS\docker\docker-compose.yml`, port 8004
+- **Config:** `C:\IRIS\chatterbox\config.yaml` — `last_chunk_size: 300` (updated S16)
 - **Model:** Chatterbox Turbo, exaggeration 0.45
-- **Voice:** `iris_voice.wav` uploaded, confirmed filename
+- **Voice:** `iris_voice.wav` — CONFIRMED PRESENT at `C:\IRIS\chatterbox\reference_audio\iris_voice.wav`
 - **Endpoint:** `POST http://192.168.1.3:8004/tts` — `voice_mode: clone`, `reference_audio_filename: iris_voice.wav`
-- **Confirmed working** post sleep/wake (S15). Root cause of prior failure: was running via `docker run` with `deploy.resources` GPU path instead of `runtime: nvidia` — fixed in consolidated compose.
-- **PENDING:** `config.yaml` `last_chunk_size` change from 120 → 300 not yet applied.
+- **Confirmed working** post sleep/wake (S15). HTTP 200 confirmed S16.
+- **Healthcheck note:** Docker healthcheck reports `unhealthy` when GPU is busy inferring (curl times out during generation). This is a false negative — container is operational. HTTP 200 on direct poll confirms health.
 
 ---
 
-## 7. REPO STRUCTURE
+## 8. OLLAMA MODELS (as of S16)
+
+### jarvis (adult Jarvis persona)
+- **File:** `C:\IRIS\ollama\jarvis_modelfile.txt`
+- **Base:** `gemma3:27b-it-qat`
+- **Key params:** `num_predict 120`, `temperature 0.7`, `num_ctx 8192`
+- **S16 changes applied:**
+  - RESPONSE STYLE: "Keep all responses under **2 sentences and under 30 words** unless the question genuinely requires more detail. When in doubt, say less."
+  - HARD RULES appended: "Never volunteer the current date, time, or location in a response unless the user explicitly asked for it."
+
+### jarvis-kids (Leo & Mae persona)
+- **File:** `C:\IRIS\ollama\jarvis-kids_modelfile.txt`
+- **Base:** `gemma3:27b-it-qat`
+- **Key params:** `num_predict 120`, `temperature 0.90`, `num_ctx 8192`
+- **S16 changes applied:**
+  - SAFETY section appended: "Never volunteer the current date, time, or location in a response unless the user explicitly asked for it."
+
+Both models rebuilt with `ollama create` — confirmed `success`, new layer hashes written.
+
+---
+
+## 9. REPO STRUCTURE
 
 ```
 IRIS-Robot-Face/
@@ -159,13 +212,13 @@ IRIS-Robot-Face/
     eyes/EyeController.h        -- eye movement/blink/pupil (setTargetPosition seed fix intact)
     eyes/240x240/               -- nordicBlue/flame/hypnoRed/hazel/blueFlame1/dragon/bigBlue .h
     sensors/PersonSensor.h/.cpp -- I2C face detection (SAMPLE_TIME_MS=70, conf>60, is_facing)
-    mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (ILI9341_t3 hardware SPI2)
+    mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (Arduino_GFX SWSPI bit-bang)
   pi4/                          -- mirrors /home/pi/ on Pi4
 ```
 
 ---
 
-## 8. PLATFORM
+## 10. PLATFORM
 
 ```ini
 [env:eyes]
@@ -183,7 +236,7 @@ lib_deps =
 
 ---
 
-## 9. KEY FILE STATE
+## 11. KEY FILE STATE
 
 ### Eye index map
 ```
@@ -258,7 +311,7 @@ eyes->setTargetPosition(targetX, targetY);  // default 120ms duration
 
 ---
 
-## 10. SERIAL PROTOCOL
+## 12. SERIAL PROTOCOL
 
 **Pi4 → Teensy:**
 ```
@@ -273,7 +326,7 @@ MOUTH_INTENSITY:n  -- set backlight level (0–15)
 
 ---
 
-## 11. SLEEP STATE MACHINE
+## 13. SLEEP STATE MACHINE
 
 ```
 EYES:SLEEP: eyesSleeping=true, blankDisplays(), mouthSetSleepIntensity(),
@@ -285,99 +338,59 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 12. CHANGES THIS SESSION (S14 — 2026-04-12)
+## 14. CHANGES THIS SESSION (S16 — 2026-04-14)
 
-**S9 (2026-04-11):**
-- Teensy 4.0 → Teensy 4.1 migration — `platformio.ini` board changed to `teensy41`
-- Mouth TFT migrated from bit-bang to hardware SPI2 — replaced Arduino_GFX + Arduino_SWSPI with ILI9341_t3
-- New mouth pins: MOSI=35, SCK=37, CS=36 (all SPI2); DC=8, RST=4, BL=14 unchanged
-- Old bit-bang TFT pins freed; MAX7219 matrix retains 5/6/7 (DATA/CLK/CS)
-- `paulstoffregen/ILI9341_t3` added to lib_deps; build confirmed clean
+**GandalfAI C:\IRIS\ Centralization — COMPLETE**
+- Created directory tree: `C:\IRIS\docker\`, `C:\IRIS\chatterbox\{reference_audio,voices,model_cache,logs,outputs}`, `C:\IRIS\ollama\`, `C:\IRIS\backup\`
+- Robocopy (non-destructive, sources intact): `C:\docker\whisper` → `C:\IRIS\docker\whisper` (17 files, 3.0 GB), `C:\docker\piper` → `C:\IRIS\docker\piper` (29 files, 928 MB)
+- Robocopy Chatterbox dirs: `reference_audio` (3 files, 5.9 MB), `voices` (28 files, 19.5 MB), `logs` (1 file), `model_cache` (empty), `outputs` (empty)
+- Flat file copies: `config.yaml`, `jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt`, `docker-compose.yml.bak`
+- Wrote new `C:\IRIS\docker\docker-compose.yml` with all volume paths updated to `C:\IRIS\*` (HF cache left in user profile)
+- Stopped old containers from `C:\docker\docker-compose.yml`, brought up from `C:\IRIS\docker\docker-compose.yml`
+- Archived: `C:\docker\docker-compose.yml` → `C:\docker\docker-compose.yml.pre-iris.bak`
+- All 5 containers verified: wyoming-whisper Up, wyoming-piper Up, open-webui healthy, watchtower healthy, chatterbox HTTP 200 (healthcheck `unhealthy` is false negative — GPU busy during curl timeout)
 
-**S10 (2026-04-12):**
-- Removed stale libs from `platformio.ini`: Adafruit BusIO, Adafruit GFX Library, Adafruit ILI9341, moononournation/GFX Library for Arduino
-- Updated Section 4 pin table with confirmed wire colors and Right eye RST=-1
-- Resolved wire color conflict note (confirmed: pin 2=Blue/left-eye-DC, pin 5=MAX7219-DATA; pin 0=Yellow/left-eye-CS, pin 8=Purple/mouth-DC)
-- Build clean post lib_deps cleanup. Flash still pending physical T4.1 swap.
-- Work on branch `feat/teensy41-spi2-mouth` — do NOT merge to main until flash confirmed.
+**Chatterbox config.yaml:**
+- `last_chunk_size`: 120 → **300** at `C:\IRIS\chatterbox\config.yaml`
 
-**S11 (2026-04-12):**
-- `platformio.ini`: replaced `adafruit/Adafruit BusIO`, `adafruit/Adafruit GFX Library`, `adafruit/Adafruit ILI9341` with `paulstoffregen/ILI9341_t3`
-- `src/mouth_tft.cpp`: include changed to `<ILI9341_t3.h>`, instance type changed to `ILI9341_t3`, constructor changed to `ILI9341_t3 _tft(CS, DC, RST, MOSI, SCK)`
-- Build confirmed clean: `[SUCCESS] Took 6.57 seconds`
+**Modelfile edits + ollama rebuild:**
+- `C:\IRIS\ollama\jarvis_modelfile.txt`: RESPONSE STYLE sentence limit tightened (2 sentences / 30 words); HARD RULES appended date/time/location rule
+- `C:\IRIS\ollama\jarvis-kids_modelfile.txt`: SAFETY section appended date/time/location rule
+- `ollama create jarvis` — success (new layer sha: be12af6...)
+- `ollama create jarvis-kids` — success (new layer sha: e94160f...)
 
-**S12 (2026-04-12):**
-- Root cause: `paulstoffregen/ILI9341_t3` silently ignores MOSI/SCK pin args on T4.x — always drives SPI0 (pins 11/13), never SPI2. Display backlight worked but controller never initialized.
-- Fix: replaced with `KurtE/ILI9341_t3n` which auto-detects SPI bus from pin numbers passed to constructor.
-- `platformio.ini`: `paulstoffregen/ILI9341_t3` → `https://github.com/KurtE/ILI9341_t3n`
-- `src/mouth_tft.cpp`: `#include <ILI9341_t3n.h>`, instance type `ILI9341_t3n`. Constructor signature identical.
-- Build confirmed clean: `[SUCCESS] Took 6.58 seconds` — `ILI9341_t3n @ sha.c2376f9` linked.
-- T4.1 SPI bus allocation now clean: SPI0=right eye, SPI1=left eye, SPI2=mouth. No rewiring needed.
-- RESULT: Bootloop on flash — static global ILI9341_t3n ctor runs before setup(), hard faults on SPI2 peripheral init.
-
-**S13 (2026-04-12):**
-- Root cause: static global object constructor for ILI9341_t3n executes before setup() on T4.x, hard faulting during SPI2 init. All displays dead + bootloop.
-- Fix: heap-allocate `_tft` in `mouthTFTInit()` (same pattern as eye displays via `new` in `initEyes()`).
-- `src/mouth_tft.cpp`: `static ILI9341_t3n *_tft = nullptr;` — `new ILI9341_t3n(...)` called at top of `mouthTFTInit()`. All `_tft.` → `_tft->`. Null guards added to all public API functions.
-- Build confirmed clean: `[SUCCESS] Took 6.58 seconds`.
-- RESULT: Bootloop on flash — ILI9341_t3n DMA static state conflicts with GC9A01A_t3n at startup.
-- Fix (S14): Reverted to Arduino_GFX SWSPI (same library as confirmed-working T4.0 commit 732b069 on main).
-  - `platformio.ini`: `KurtE/ILI9341_t3n` → `moononournation/GFX Library for Arduino @ ^1.4.9`
-  - `src/mouth_tft.cpp`: include → `<Arduino_GFX_Library.h>`, heap-allocate `_bus` (Arduino_SWSPI) + `_tft` (Arduino_ILI9341) in `mouthTFTInit()`. Pins unchanged: MOSI=35, SCK=37, CS=36, DC=8, RST=4, BL=14.
-  - Bit-bang on T4.1 pins 35/37/36 — no DMA, no hardware SPI conflict.
-  - Build confirmed clean: `[SUCCESS] Took 7.89 seconds` — GFX Library for Arduino @ 1.6.5 linked.
-
-**S14 (2026-04-12):**
-- Pre-migration checklist session. No firmware changes.
-- Claude Desktop installed on GandalfAI (192.168.1.3). Planned centralization of IRIS dev environment to GandalfAI.
-- Fixed snapshot rotation discrepancy: Section 5 corrected to `rotation=3` (matches actual code).
-- `MOUTH_TFT_HANDOFF.md` committed (stale — documents S11 attempt history, not current state).
-
-**S15 (2026-04-12):**
-- `refactor/modular-assistant` branch merged to `main`. Repo now on `main`.
-- GandalfAI Claude Desktop confirmed installed with local filesystem MCP (direct access `C:\Users\gandalf\`, `C:\docker\` — no SMB/SSH needed).
-- GandalfAI Docker Compose consolidated: `docker-compose.wyoming.yml` + `docker-compose.voice.yml` → `C:\docker\docker-compose.yml` (name: gandalf).
-  - Includes: wyoming-whisper, wyoming-piper, chatterbox, open-webui, watchtower.
-  - All GPU services use `runtime: nvidia`. open-webui uses named external volume.
-- Chatterbox confirmed working post sleep/wake. Root cause: was `docker run` with `deploy.resources` GPU path instead of `runtime: nvidia` — fixed in new compose.
-- **PENDING items (not yet done):**
-  1. `C:\IRIS\` directory centralization — GandalfAI files still at: `C:\docker\`, `C:\Users\gandalf\Chatterbox-TTS-Server\`, `C:\Users\gandalf\jarvis_modelfile.txt`
-  2. jarvis modelfile edits not yet applied — two queued changes:
-     - RESPONSE STYLE: "Keep all responses under 2 sentences and under 30 words unless the question genuinely requires detail. When in doubt, say less."
-     - HARD RULES append: "Never volunteer the current date, time, or location in a response unless the user explicitly asked for it."
-  3. Chatterbox `config.yaml` `last_chunk_size`: 120 → 300 not yet applied
+**MCP scope clarification:**
+- GandalfAI Claude Desktop filesystem MCP is scoped to `C:\Users\gandalf\` ONLY (not `C:\docker\` as previously documented). All `C:\IRIS\` and `C:\docker\` operations require Bash tool.
 
 ---
 
-## 13. CURRENT KNOWN ISSUES / TODO
+## 15. CURRENT KNOWN ISSUES / TODO
 
 ### HIGH
 - **Mouth TFT expressions not yet smoke-tested beyond NEUTRAL** — confirm all 8 expressions (HAPPY, CURIOUS, ANGRY, SLEEPY, SURPRISED, SAD, CONFUSED) render correctly via `MOUTH:n` commands from Pi4.
-- **End-to-end voice not tested** — iris_voice.wav uploaded. Run live wakeword test, confirm Chatterbox renders cloned voice.
+- **End-to-end voice not tested** — iris_voice.wav confirmed present. Run live wakeword test, confirm Chatterbox renders cloned voice correctly.
 - **implies_followup() gap** — IRIS doesn't reopen mic when LLM appends trailing sentence after `?`. Fix: modelfile hard rule first, then broaden reply[-80:] check.
 - **Piper not installed as standalone binary** — iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail. Route both through Wyoming Piper on GandalfAI port 10200.
 
 ### MEDIUM
+- **Clean up old GandalfAI source locations** — Next session: after confirming stability, delete originals:
+  - `C:\docker\whisper\`, `C:\docker\piper\` (data migrated to `C:\IRIS\docker\`)
+  - `C:\Users\gandalf\Chatterbox-TTS-Server\` (migrated to `C:\IRIS\chatterbox\`)
+  - `C:\Users\gandalf\jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt` (migrated to `C:\IRIS\ollama\`)
 - **Smoke test sleep LED** — Verify web UI Sleep button triggers indigo breathe. Wake restores idle cyan.
 - **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
 - **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders [chuckle] etc. as sounds, not literal text.
-
-### MEDIUM — GandalfAI / Infrastructure
-- **C:\IRIS\ centralization (APPROVED, NOT DONE)** — Move all GandalfAI IRIS-related files to `C:\IRIS\`. Current locations: `C:\docker\docker-compose.yml`, `C:\Users\gandalf\Chatterbox-TTS-Server\`, `C:\Users\gandalf\jarvis_modelfile.txt`.
-- **jarvis modelfile edits (QUEUED, NOT APPLIED):**
-  1. RESPONSE STYLE rule: responses under 2 sentences / 30 words unless detail required.
-  2. HARD RULE: never volunteer date/time/location unprompted.
-- **Chatterbox config.yaml last_chunk_size (QUEUED):** 120 → 300.
+- **Chatterbox healthcheck fix** — `curl -f http://localhost:8000/` times out while GPU is busy. Either increase timeout in compose healthcheck or change to a lightweight `/health` endpoint. Currently harmless but noisy.
+- **Chatterbox auto-start on Gandalf boot** — not configured. Currently requires manual `docker compose up` after reboot (compose file is now at `C:\IRIS\docker\docker-compose.yml`).
 
 ### LOW
 - **Untracked files in project root** — iris_voice.wav, _decode_assistant.py, REFACTOR_VISUAL.md, IRIS_AUDIT_2026-04-03.md. Add wav to .gitignore, review/delete or commit others.
 - **Old log file** — /home/pi/iris_sleep.log (root level, pre-S2) stale.
-- **Chatterbox auto-start on Gandalf boot** — not configured.
 - **OWW_THRESHOLD** — Pi4 live = 0.9, config.py default = 0.85. Confirm intended value.
 
 ---
 
-## 14. FLASH / DEPLOY COMMANDS
+## 16. FLASH / DEPLOY COMMANDS
 
 ```bash
 # Pi4 persist a file to SD:
@@ -392,4 +405,7 @@ journalctl -u assistant -n 30 --no-pager
 
 # FLASH: Claude runs `pio run` only. User clicks PlatformIO upload. Teensy USB → Desktop PC.
 # NEVER remote flash, NEVER transfer hex, NEVER run teensy_loader_cli.
+
+# Bring up GandalfAI containers (after reboot or manual down):
+docker compose -f C:\IRIS\docker\docker-compose.yml up -d
 ```
