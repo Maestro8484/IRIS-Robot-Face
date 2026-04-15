@@ -513,7 +513,12 @@ def main():
                 "you", "the", "bye", "bye bye", "goodbye", "see you next time",
                 "please subscribe", ".", "", " ",
             }
-            if _text_norm in _WHISPER_HALLUCINATIONS:
+            _WHISPER_HALLUCINATION_PATTERNS = (
+                "for more information", "visit www.", "www.", ".gov", ".com",
+                "subscribe to", "like and subscribe", "don't forget to",
+            )
+            if _text_norm in _WHISPER_HALLUCINATIONS or \
+               any(_text_norm.startswith(p) or p in _text_norm for p in _WHISPER_HALLUCINATION_PATTERNS):
                 print(f"[STT]  Hallucination filtered: '{text}'", flush=True)
                 show_idle_for_mode(leds); continue
 
@@ -667,9 +672,7 @@ def main():
 
             # ── Follow-up loop ─────────────────────────────────────────────────
             _followup_turns = 0
-            _conv_active = len(state.conversation_history) >= 4
-            while (implies_followup(reply) or _conv_active) and _followup_turns < FOLLOWUP_MAX_TURNS and not _interrupted:
-                _conv_active = len(state.conversation_history) >= 4
+            while implies_followup(reply) and _followup_turns < FOLLOWUP_MAX_TURNS and not _interrupted:
                 print(f"[FLWP] Follow-up turn {_followup_turns+1}/{FOLLOWUP_MAX_TURNS}...", flush=True)
                 _followup_turns += 1
                 followup_audio = record_followup(mic, pa, leds)
@@ -682,6 +685,13 @@ def main():
                 if not text: print("[FLWP] Empty transcript", flush=True); break
                 print(f"[STT]  '{text}'", flush=True)
                 _text_norm = text.lower().strip().strip(".!?,;:")
+                # Gate: < 3 words is noise/hallucination
+                if len(_text_norm.split()) < 3:
+                    print(f"[FLWP] Short transcript filtered: '{text}'", flush=True); break
+                # Gate: URL/spam hallucination patterns
+                if any(p in _text_norm for p in ("www.", ".gov", ".com", ".org",
+                       "for more information", "subscribe", "don't forget")):
+                    print(f"[FLWP] Hallucination filtered: '{text}'", flush=True); break
                 if any(_text_norm == phrase or _text_norm.startswith(phrase)
                        for phrase in STOP_PHRASES):
                     print("[STOP] Stop in follow-up", flush=True); break
