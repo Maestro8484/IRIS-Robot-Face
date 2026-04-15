@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
-**Date:** 2026-04-14
-**Session:** 17b
+**Date:** 2026-04-15
+**Session:** 17c
 **Branch:** `main`
-**Last commit:** 4dec563 — S17: T4.1 flashed, build complete, enclosure installed, mouth smoke test queued, workflow rules updated
+**Last commit:** 815891b — fix: block worktree creation via WorktreeCreate hook exit 2, harden branch discipline in CLAUDE.md
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -21,7 +21,7 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 | Pi4 (IRIS / Jarvis) | 192.168.1.200 | pi / ohs | Voice pipeline, LEDs, camera, Teensy serial |
 | GandalfAI | 192.168.1.3 | gandalf / 5309 | Ollama LLM, Whisper STT, Piper TTS, Chatterbox TTS, RTX 3090 |
 | Desktop PC | 192.168.1.103 | SuperMaster | PlatformIO firmware, VS Code, Claude Desktop |
-| GandalfAI (Claude Desktop) | 192.168.1.3 | gandalf / 5309 | Claude Desktop + MCP installed (S14). Local filesystem MCP scope: `C:\Users\gandalf\` ONLY — `C:\docker\` and `C:\IRIS\` are NOT in MCP scope. Use Bash tool for all C:\docker\ and C:\IRIS\ operations. |
+| GandalfAI (Claude Desktop) | 192.168.1.3 | gandalf / 5309 | Claude Desktop + MCP installed (S14). Local filesystem MCP scope updated S17: now covers `C:\Users\gandalf\`, `C:\IRIS\`, `C:\docker\`, `G:\`. Claude Desktop can read all IRIS project files directly. |
 | Teensy 4.1 | USB → Desktop PC | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
 | Synology NAS | 192.168.1.102 | Master / Gateway!7007 | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
@@ -181,23 +181,23 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 
 ---
 
-## 8. OLLAMA MODELS (as of S17)
+## 8. OLLAMA MODELS (as of S17c)
 
 ### jarvis (adult Jarvis persona)
-- **File:** `ollama/jarvis_modelfile.txt` (repo) / `C:\IRIS\ollama\jarvis_modelfile.txt` (GandalfAI)
-- **Base:** `gemma3:27b-it-qat`
-- **Key params:** `num_predict 120`, `temperature 0.7`, `num_ctx 8192`
-- **S17 changes (CONFIRMED deployed + model rebuilt):**
-  - RESPONSE STYLE: "Keep all responses under **2 sentences and under 30 words** unless the question genuinely requires more detail. When in doubt, say less."
-  - HARD RULES appended: "Never volunteer the current date, time, or location in a response unless the user explicitly asked for it."
-- **ollama list confirms:** `jarvis:latest` rebuilt 7 seconds after S17 deploy
+- **File:** `C:\IRIS\ollama\jarvis_modelfile.txt` (GandalfAI — outside repo)
+- **Base:** `mistral-small3.2:24b` (Q4_K_M, `mistral3` arch) — **swapped from gemma3:27b-it-qat in S17c**
+- **Key params:** `num_predict 120`, `temperature 0.7`, `num_ctx 4096`, `stop </s>`
+- **New system layer sha:** `sha256:63221ef0931df606ee7fdeb305f163b4edc227fbee3253973b9db32fb9745adf`
+- **Smoke test passed:** `[EMOTION:NEUTRAL]` on own line, plain spoken reply, no markdown
+- **Note:** Bartowski HF GGUF path (`hf.co/bartowski/Mistral-Small-3.2-24B-Instruct-2506-GGUF`) returned 404/host mismatch — using Ollama registry pull directly
 
 ### jarvis-kids (Leo & Mae persona)
-- **File:** `ollama/jarvis-kids_modelfile.txt` (repo) / `C:\IRIS\ollama\jarvis-kids_modelfile.txt` (GandalfAI)
-- **Base:** `gemma3:27b-it-qat`
-- **Key params:** `num_predict 120`, `temperature 0.90`, `num_ctx 8192`
-- **S16 changes applied:** SAFETY section appended date/time/location rule
-- **NOT touched S17** — do not rebuild unless explicitly tasked
+- **File:** `C:\IRIS\ollama\jarvis-kids_modelfile.txt` (GandalfAI — outside repo)
+- **Base:** `mistral-small3.2:24b` (Q4_K_M) — **swapped from gemma3:27b-it-qat in S17c**
+- **Key params:** `num_predict 120`, `temperature 0.90`, `num_ctx 4096`, `stop </s>`
+- **New system layer sha:** `sha256:b8f8c4c1d8c4ec39f859e37d3afcc14de33de7a03dff82d5a6e7739183a0fdd4`
+- **S17c changes:** Leo description updated with hockey/lacrosse; Mae description updated
+- **Smoke test passed:** `[EMOTION:HAPPY]`, playful reply, turned question back to user
 
 ---
 
@@ -340,18 +340,27 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 14. CHANGES THIS SESSION (S17b — 2026-04-14)
+## 14. CHANGES THIS SESSION (S17c — 2026-04-15)
 
-**SNAPSHOT_LATEST.md + CLAUDE.md — state update and workflow rules**
-- Firmware state updated: T4.1 swap complete, firmware flashed and confirmed, enclosure installed. T4.0 eca1627 archived.
-- Section 6 heading updated: "FLASH PENDING" → "FLASHED AND CONFIRMED"
-- PENDING HIGH reordered: mouth smoke test promoted to RESUME POINT #1 with full route description; end-to-end voice test gated on smoke test pass; Piper standalone routing clarified with GandalfAI:10200.
-- WORKFLOW RULES section added to both SNAPSHOT_LATEST.md (section 16) and CLAUDE.md.
-- Commit: 4dec563
+**Branch cleanup + infrastructure hardening (commit 815891b):**
+- Deleted worktrees: `claude/beautiful-blackburn`, `claude/thirsty-brahmagupta`, `claude/frosty-curie` (this session's worktree)
+- Deleted orphan branches: `claude/loving-lovelace`, `claude/beautiful-blackburn`, `claude/thirsty-brahmagupta`
+- `.claude/settings.json` — added `WorktreeCreate` hook (`exit 2`) to block future worktree creation
+- `CLAUDE.md` — hardened branch discipline section: added "No worktrees", added `git worktree list` session-start check
+
+**Task A — Model swap (GandalfAI only, no Pi4 SSH, no Pi4 file changes):**
+- Pulled `mistral-small3.2:24b` (Q4_K_M, 24B, `mistral3` arch) from Ollama registry
+- Updated `C:\IRIS\ollama\jarvis_modelfile.txt`: `FROM gemma3:27b-it-qat` → `FROM mistral-small3.2:24b`, `num_ctx 8192` → `4096`, `stop <end_of_turn>` → `stop </s>`
+- Updated `C:\IRIS\ollama\jarvis-kids_modelfile.txt`: same base/ctx/stop swap + Leo description updated with hockey/lacrosse, Mae reading note added
+- Rebuilt both models via `ollama create` — both returned `success`
+- Smoke tests passed: `[EMOTION:NEUTRAL]` / `[EMOTION:HAPPY]`, plain spoken replies, no markdown
+
+**Previous session changes (S17b — 2026-04-14, commit 4dec563):**
+- Firmware state updated, enclosure installed, mouth smoke test queued, workflow rules added
 
 **Previous session changes (S17 — 2026-04-14, commits 037944d / e93c07d):**
-- `pi4/services/tts.py` — `_truncate_for_tts(max_chars=220)` deployed + persisted (md5: ec2d7bca634d28e9b005072ddb98e6d3)
-- `ollama/jarvis_modelfile.txt` — 2-sentence/30-word limit + no-date/time/location rule deployed; jarvis model rebuilt
+- `pi4/services/tts.py` — `_truncate_for_tts(max_chars=220)` deployed + persisted
+- `ollama/jarvis_modelfile.txt` — 2-sentence/30-word limit + no-date/time/location rule
 
 ---
 
@@ -360,8 +369,10 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 ### HIGH
 - **RESUME POINT #1: Mouth TFT smoke test** — Pi4 TeensyBridge sends `MOUTH:0` through `MOUTH:8` via UDP `127.0.0.1:10500`, Teensy receives over `/dev/ttyACM0`. No USB connection to SuperMaster required. Confirm all 9 expressions render on TFT. Do not proceed to end-to-end voice test until all 9 confirmed.
 - **End-to-end voice test** — wakeword through Chatterbox cloned voice, only after mouth smoke test passes. iris_voice.wav confirmed present. Watch for `[TTS] Truncated` log lines to verify truncation fires.
-- **implies_followup() gap** — IRIS doesn't reopen mic when LLM appends trailing sentence after `?`. Fix: modelfile hard rule first, then broaden reply[-80:] check in assistant.py.
-- **Piper standalone routing for Goodnight/Good morning** — through Wyoming Piper GandalfAI:10200. iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail if Wyoming Piper is down. Phrases route through `_synthesize_piper()` via the direct phrase check — Wyoming Piper on GandalfAI must be running.
+- **Mistral Small 3.2 personality tuning** — observe first 3-5 live interactions post-model-swap. If Jarvis persona drifts (too verbose, wrong tone, EMOTION tags inconsistent), tune modelfile and rerun `ollama create`.
+- **Task B: Streaming LLM + sentence TTS** — `pi4/services/llm.py` + `pi4/assistant.py`. Full spec in S17 handoff. Separate session.
+- **implies_followup() gap** — IRIS doesn't reopen mic when LLM appends trailing sentence after `?`. Addressed in Task B/C of S17 handoff.
+- **Piper standalone routing for Goodnight/Good morning** — through Wyoming Piper GandalfAI:10200. iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail if Wyoming Piper is down.
 
 ### MEDIUM
 - **Clean up old GandalfAI source locations** — Next session: after confirming stability, delete originals:
