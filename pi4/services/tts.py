@@ -192,6 +192,27 @@ def spoken_numbers(text: str) -> str:
     return text
 
 
+# ── TTS input truncation ─────────────────────────────────────────────────────
+
+def _truncate_for_tts(text: str, max_chars: int = 220) -> str:
+    """
+    Cap TTS input at max_chars to bound Chatterbox generation time.
+    Truncates at the last sentence boundary (. ? !) before max_chars.
+    If no boundary found, returns text untruncated to avoid mid-word cut.
+    """
+    if len(text) <= max_chars:
+        return text
+    window = text[:max_chars]
+    for punct in ('.', '?', '!'):
+        idx = window.rfind(punct)
+        if idx > max_chars // 2:
+            truncated = text[:idx + 1].strip()
+            print(f"[TTS]  Truncated {len(text)}→{len(truncated)} chars at sentence boundary", flush=True)
+            return truncated
+    print(f"[TTS]  No sentence boundary in first {max_chars} chars — passing full text", flush=True)
+    return text
+
+
 # ── Public entry point ────────────────────────────────────────────────────────
 
 # Phrases that bypass Chatterbox and go directly to Piper (system state announcements)
@@ -219,6 +240,7 @@ def synthesize(text: str) -> bytes:
     text = re.sub(r'\[chuckle\]|\[laugh\]|\[sigh\]|\[gasp\]', '', text, flags=re.IGNORECASE)
     text = re.sub(r'\s+', ' ', text).strip()
     text = re.sub(r'[^\x00-\x7F]+', ' ', text).strip()      # existing non-ASCII strip (keep)
+    text = _truncate_for_tts(text)
 
     # Route sleep/wake system phrases directly to Piper - bypass Chatterbox
     _text_check = text.lower().strip().rstrip('.')
