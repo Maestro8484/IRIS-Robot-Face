@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
 **Date:** 2026-04-15
-**Session:** 17c
+**Session:** 17d
 **Branch:** `main`
-**Last commit:** 815891b — fix: block worktree creation via WorktreeCreate hook exit 2, harden branch discipline in CLAUDE.md
+**Last commit:** a93da41 — fix: remove _conv_active follow-up, add STT gates to stop hallucination spirals
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -342,23 +342,32 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 14. CHANGES THIS SESSION (S17c — 2026-04-15)
+## 14. CHANGES THIS SESSION (S17d — 2026-04-15)
 
-**Branch cleanup + infrastructure hardening (commit 815891b):**
-- Deleted worktrees: `claude/beautiful-blackburn`, `claude/thirsty-brahmagupta`, `claude/frosty-curie` (this session's worktree)
-- Deleted orphan branches: `claude/loving-lovelace`, `claude/beautiful-blackburn`, `claude/thirsty-brahmagupta`
-- `.claude/settings.json` — added `WorktreeCreate` hook (`exit 2`) to block future worktree creation
-- `CLAUDE.md` — hardened branch discipline section: added "No worktrees", added `git worktree list` session-start check
+**Modelfile migration to repo (commit 7d836e9):**
+- Copied `C:\IRIS\ollama\jarvis_modelfile.txt` and `jarvis-kids_modelfile.txt` into `ollama/` in repo (replaced stale gemma3 versions with current mistral-small3.2:24b versions)
+- `CLAUDE.md` — added canonical ollama/ path + rebuild command
+- `SNAPSHOT_LATEST.md` — updated all `C:\IRIS\ollama\` refs to repo path
+- Deleted `C:\IRIS\ollama\` directory entirely — repo is now canonical
 
-**Task A — Model swap (GandalfAI only, no Pi4 SSH, no Pi4 file changes):**
-- Pulled `mistral-small3.2:24b` (Q4_K_M, 24B, `mistral3` arch) from Ollama registry
-- Updated `C:\IRIS\ollama\jarvis_modelfile.txt`: `FROM gemma3:27b-it-qat` → `FROM mistral-small3.2:24b`, `num_ctx 8192` → `4096`, `stop <end_of_turn>` → `stop </s>`
-- Updated `C:\IRIS\ollama\jarvis-kids_modelfile.txt`: same base/ctx/stop swap + Leo description updated with hockey/lacrosse, Mae reading note added
-- Rebuilt both models via `ollama create` — both returned `success`
-- Smoke tests passed: `[EMOTION:NEUTRAL]` / `[EMOTION:HAPPY]`, plain spoken replies, no markdown
+**Task B — Streaming LLM + single TTS call (commits 1c01714, c240d7c):**
+- `pi4/services/llm.py` — added `stream_ollama()` (sentence-boundary streaming from Ollama `/api/chat`, yields `(chunk, emotion)` tuples), added `_split_sentences()`
+- `pi4/assistant.py` — main LLM path streams tokens to extract emotion early, collects full reply, then one `synthesize()` call (no per-sentence TTS gaps)
+- `ask_ollama()` retained for follow-up loop and vision path
+- RMS gate raised 400 → 700; Whisper hallucination filter added to main path
+- `_build_messages()` extracted as shared helper
+
+**Follow-up + hallucination fixes (commit a93da41):**
+- Removed `_conv_active` flag — follow-up loop now only fires when `implies_followup(reply)` is true (reply ends with `?`). Previously fired after every response once ≥4 turns in history, causing Whisper noise to spiral into LLM lectures
+- Follow-up loop: `< 3 words → break` gate (catches single-word hallucinations like "You")
+- Follow-up loop: URL/spam pattern filter (`www.`, `.gov`, `.com`, `for more information`, etc.) — stops FEMA-style hallucination spirals
+- Main STT: same URL/spam patterns added to hallucination filter set
+
+**Previous session changes (S17c — 2026-04-15, commit 815891b):**
+- Branch cleanup: deleted orphan branches/worktrees, WorktreeCreate hook added
 
 **Previous session changes (S17b — 2026-04-14, commit 4dec563):**
-- Firmware state updated, enclosure installed, mouth smoke test queued, workflow rules added
+- Enclosure installed, mouth smoke test queued, workflow rules added
 
 **Previous session changes (S17 — 2026-04-14, commits 037944d / e93c07d):**
 - `pi4/services/tts.py` — `_truncate_for_tts(max_chars=220)` deployed + persisted
@@ -369,18 +378,13 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 ## 15. CURRENT KNOWN ISSUES / TODO
 
 ### HIGH
-- **RESUME POINT #1: Mouth TFT smoke test** — Pi4 TeensyBridge sends `MOUTH:0` through `MOUTH:8` via UDP `127.0.0.1:10500`, Teensy receives over `/dev/ttyACM0`. No USB connection to SuperMaster required. Confirm all 9 expressions render on TFT. Do not proceed to end-to-end voice test until all 9 confirmed.
-- **End-to-end voice test** — wakeword through Chatterbox cloned voice, only after mouth smoke test passes. iris_voice.wav confirmed present. Watch for `[TTS] Truncated` log lines to verify truncation fires.
-- **Mistral Small 3.2 personality tuning** — observe first 3-5 live interactions post-model-swap. If Jarvis persona drifts (too verbose, wrong tone, EMOTION tags inconsistent), tune modelfile and rerun `ollama create`.
-- **Task B: Streaming LLM + sentence TTS** — `pi4/services/llm.py` + `pi4/assistant.py`. Full spec in S17 handoff. Separate session.
-- **implies_followup() gap** — IRIS doesn't reopen mic when LLM appends trailing sentence after `?`. Addressed in Task B/C of S17 handoff.
+- **Mistral Small 3.2 personality tuning** — model is verbose on open-ended prompts ("Tell me something interesting" → 6-sentence Venus lecture despite 2-sentence/30-word rule in modelfile). First 3-5 live interactions confirmed: EMOTION tags working, but response length drifts on open-ended asks. May need `num_predict` reduction or stronger system prompt constraint.
 - **Piper standalone routing for Goodnight/Good morning** — through Wyoming Piper GandalfAI:10200. iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail if Wyoming Piper is down.
 
 ### MEDIUM
 - **Clean up old GandalfAI source locations** — Next session: after confirming stability, delete originals:
   - `C:\docker\whisper\`, `C:\docker\piper\` (data migrated to `C:\IRIS\docker\`)
   - `C:\Users\gandalf\Chatterbox-TTS-Server\` (migrated to `C:\IRIS\chatterbox\`)
-  - `C:\Users\gandalf\jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt` (stale — migrated to repo `ollama/`)
 - **Smoke test sleep LED** — Verify web UI Sleep button triggers indigo breathe. Wake restores idle cyan.
 - **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
 - **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders [chuckle] etc. as sounds, not literal text. (Stripping still active as fallback.)
