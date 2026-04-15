@@ -620,14 +620,13 @@ def main():
                 emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
                 print("[INFO] Ready.", flush=True); continue
 
-            # ── Streaming LLM + sentence-chunked TTS ──────────────────────────
+            # ── Streaming LLM (emotion early) + single TTS call ───────────────
             print(f"[LLM]  Streaming... (model={get_model()})", flush=True)
             state.last_interaction = time.time()
             state.conversation_history.append({"role": "user", "content": text})
 
             reply_parts = []
             _interrupted = False
-            _speaking_started = False
             _emotion_set = False
 
             try:
@@ -638,35 +637,27 @@ def main():
                         emit_emotion(teensy, leds, chunk_emotion)
                         _emotion_set = True
                     reply_parts.append(chunk)
-                    print(f"[TTS]  chunk: '{chunk}'", flush=True)
-                    try:
-                        pcm_data = synthesize(chunk)
-                    except Exception as e:
-                        print(f"[ERR]  TTS chunk: {e}", flush=True)
-                        continue
-                    if not _speaking_started:
-                        leds.show_speaking()
-                        mic.stop_stream()
-                        _speaking_started = True
-                    _interrupted = play_pcm_speaking(pcm_data, pa, teensy)
-                    if _interrupted:
-                        print("[STOP] Interrupted mid-stream", flush=True)
-                        break
             except Exception as e:
                 print(f"[ERR]  LLM stream: {e}", flush=True)
                 leds.show_error(); time.sleep(1)
-                if _speaking_started:
-                    try: mic.start_stream()
-                    except OSError: pass
                 show_idle_for_mode(leds); continue
 
             if not _emotion_set:
                 emit_emotion(teensy, leds, "NEUTRAL")
-            if not _speaking_started:
-                mic.stop_stream()
 
             reply = " ".join(reply_parts).strip()
-            print(f"[LLM]  full: '{reply}'", flush=True)
+            print(f"[LLM]  '{reply}'", flush=True)
+
+            print("[TTS]  Synthesizing...", flush=True)
+            try:
+                pcm_data = synthesize(reply)
+            except Exception as e:
+                print(f"[ERR]  TTS: {e}", flush=True)
+                leds.show_error(); time.sleep(1)
+                show_idle_for_mode(leds); continue
+
+            leds.show_speaking(); mic.stop_stream()
+            _interrupted = play_pcm_speaking(pcm_data, pa, teensy)
 
             state.conversation_history.append({"role": "assistant", "content": reply})
             if len(state.conversation_history) > 20:
