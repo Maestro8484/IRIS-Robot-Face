@@ -1,5 +1,17 @@
 {
   "enabledFeatures": {
     "autonomousBranchCreation": false
+  },
+  "hooks": {
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "exit 2"
+          }
+        ]
+      }
+    ]
   }
 }

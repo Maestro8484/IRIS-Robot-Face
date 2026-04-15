@@ -10,14 +10,15 @@ physical hardware and require SSH recovery. Read before acting.
 ---
 
 ## Branch discipline — HARD RULE, NO EXCEPTIONS
-Always work on `main` directly. No feature branches. No Claude-created branches.
-NEVER run git checkout -b, git switch -c, or any command that creates a branch.
-NEVER create a branch autonomously for any reason including safety or task isolation.
+Always work on `main` directly. No feature branches. No Claude-created branches. No worktrees.
+NEVER run git checkout -b, git switch -c, or any command that creates a branch or worktree.
+NEVER create a branch or worktree autonomously for any reason.
 
 Session start mandatory check:
   git branch --show-current   <- must output exactly: main
-  If NOT main: git checkout main, then report wrong branch to user before proceeding.
-  git branch -D <wrong-branch> only after user confirms it is safe to delete.
+  If NOT main: git checkout main, delete wrong branch, report to user, wait for confirmation.
+  git worktree list           <- must show only the main worktree
+  If any claude/* worktrees exist: git worktree remove --force <path>, git worktree prune
 
 ## Git discipline
 Session start: git pull origin main
