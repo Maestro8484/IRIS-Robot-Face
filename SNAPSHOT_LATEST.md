@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
 **Date:** 2026-04-14
-**Session:** 17
+**Session:** 17b
 **Branch:** `main`
-**Last commit:** 037944d — perf: TTS truncation 220 chars + jarvis modelfile 2-sentence limit
+**Last commit:** 4dec563 — S17: T4.1 flashed, build complete, enclosure installed, mouth smoke test queued, workflow rules updated
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -83,7 +83,7 @@ C:\IRIS\
 **Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000.
 **NUM_PREDICT:** 120 in iris_config.json.
 **Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths.
-**ILI9341 TFT mouth:** Library switched to KurtE/ILI9341_t3n (auto-detects SPI bus from pin numbers). CS=36, DC=8, RST=4, MOSI=35, SCK=37 → SPI2. Build confirmed clean. Physical verification pending T4.1 swap.
+**ILI9341 TFT mouth:** Library switched to KurtE/ILI9341_t3n (auto-detects SPI bus from pin numbers). CS=36, DC=8, RST=4, MOSI=35, SCK=37 → SPI2. Build confirmed clean. T4.1 flashed and installed — physical smoke test pending.
 **Flash workflow:** MANUAL ONLY — user clicks PlatformIO upload button, Teensy USB → Desktop PC. Claude runs `pio run` only.
 **Ollama models:** `jarvis` rebuilt S17 (new RESPONSE STYLE + HARD RULE). `jarvis-kids` rebuilt S16.
 
@@ -340,24 +340,18 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 14. CHANGES THIS SESSION (S17 — 2026-04-14)
+## 14. CHANGES THIS SESSION (S17b — 2026-04-14)
 
-**pi4/services/tts.py — TTS input truncation**
-- Added `_truncate_for_tts(text, max_chars=220)` above `synthesize()` (lines 197–213)
-- Truncates at last sentence boundary (`.`, `?`, `!`) in first 220 chars; only truncates if boundary is past char 110 (max_chars // 2). Passes full text untruncated if no boundary found.
-- Call added in `synthesize()` at line 243, after all markdown/non-ASCII stripping, before Piper direct route check
-- Deployed to `/home/pi/services/tts.py` via sftp_write
-- Persisted to SD: md5 matched both sides (`ec2d7bca634d28e9b005072ddb98e6d3`)
-- `sudo systemctl restart assistant` → `[INFO] Ready.` confirmed
+**SNAPSHOT_LATEST.md + CLAUDE.md — state update and workflow rules**
+- Firmware state updated: T4.1 swap complete, firmware flashed and confirmed, enclosure installed. T4.0 eca1627 archived.
+- Section 6 heading updated: "FLASH PENDING" → "FLASHED AND CONFIRMED"
+- PENDING HIGH reordered: mouth smoke test promoted to RESUME POINT #1 with full route description; end-to-end voice test gated on smoke test pass; Piper standalone routing clarified with GandalfAI:10200.
+- WORKFLOW RULES section added to both SNAPSHOT_LATEST.md (section 16) and CLAUDE.md.
+- Commit: 4dec563
 
-**ollama/jarvis_modelfile.txt — verbosity reduction**
-- RESPONSE STYLE: "3 sentences" → "2 sentences and under 30 words unless the question genuinely requires more detail. When in doubt, say less."
-- HARD RULES: added "Never volunteer the current date, time, or location in a response unless the user explicitly asked for it."
-- Deployed to `C:\IRIS\ollama\jarvis_modelfile.txt` via sftp_write
-- `ollama create jarvis -f C:\IRIS\ollama\jarvis_modelfile.txt` → success (new layer: e60b9a5a...)
-- `ollama list` confirms `jarvis:latest` rebuilt (timestamp: 7 seconds ago at time of check)
-
-**Note on S16 modelfile claims:** S16 snapshot claimed these jarvis_modelfile changes were applied, but the repo file still had "3 sentences" at S17 session start. S17 is the authoritative apply for these changes.
+**Previous session changes (S17 — 2026-04-14, commits 037944d / e93c07d):**
+- `pi4/services/tts.py` — `_truncate_for_tts(max_chars=220)` deployed + persisted (md5: ec2d7bca634d28e9b005072ddb98e6d3)
+- `ollama/jarvis_modelfile.txt` — 2-sentence/30-word limit + no-date/time/location rule deployed; jarvis model rebuilt
 
 ---
 
