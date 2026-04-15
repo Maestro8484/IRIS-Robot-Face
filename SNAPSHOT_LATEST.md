@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
 **Date:** 2026-04-14
-**Session:** 16
+**Session:** 17
 **Branch:** `main`
-**Last commit:** 34f9456 — docs: update snapshot - main branch consolidated, GandalfAI Claude Desktop, docker compose centralized, pending items logged
+**Last commit:** 037944d — perf: TTS truncation 220 chars + jarvis modelfile 2-sentence limit
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -28,7 +28,7 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 **SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (NAS, port 2233)
 **SSH auth:** Pi4 uses **password auth only** — key auth fails. Always connect with `username: pi`, `password: ohs`.
 **GandalfAI:** Windows machine. No `df`, `head`, `grep` — use PowerShell / findstr / dir equivalents.
-**GandalfAI MCP scope correction (S16):** filesystem MCP only covers `C:\Users\gandalf\`. All `C:\IRIS\`, `C:\docker\` file reads/writes must go through the Bash tool.
+**GandalfAI MCP scope:** filesystem MCP only covers `C:\Users\gandalf\`. All `C:\IRIS\`, `C:\docker\` file reads/writes must go through SSH sftp_write or ssh_exec.
 
 ---
 
@@ -51,8 +51,8 @@ C:\IRIS\
     logs\
     outputs\
   ollama\
-    jarvis_modelfile.txt      -- UPDATED (S16 edits applied, model rebuilt)
-    jarvis-kids_modelfile.txt -- UPDATED (S16 edits applied, model rebuilt)
+    jarvis_modelfile.txt      -- UPDATED S17 (2-sentence/30-word limit + date/time/location rule)
+    jarvis-kids_modelfile.txt -- UPDATED S16
   backup\
     docker-compose.yml.bak    -- original pre-migration backup
 ```
@@ -61,7 +61,7 @@ C:\IRIS\
 - `C:\docker\docker-compose.yml.pre-iris.bak` — archived
 - `C:\docker\whisper\`, `C:\docker\piper\` — originals still present, safe to delete next session
 - `C:\Users\gandalf\Chatterbox-TTS-Server\` — original still present, safe to delete next session
-- `C:\Users\gandalf\jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt` — originals still present
+- `C:\Users\gandalf\jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt` — originals still present (STALE — do not use)
 
 **HF cache:** `C:\Users\gandalf\.cache\huggingface` — intentionally NOT moved, stays in user profile.
 
@@ -77,14 +77,15 @@ C:\IRIS\
 **Wake from webui:** Working. Cron sleep 9PM/7:30AM UDP path. False wakeword during cron window ignored (button-only override).
 **Voice pipeline (assistant.py):** Operational. Modular (hardware/, core/, services/, state/).
 **TTS routing:** Chatterbox (primary) → ElevenLabs (disabled) → Piper (fallback).
-**Chatterbox server:** Running on GandalfAI at http://192.168.1.3:8004. Now serving from `C:\IRIS\docker\docker-compose.yml`.
+**TTS truncation:** `_truncate_for_tts()` active in tts.py — caps Chatterbox input at 220 chars at last sentence boundary. Deployed + persisted S17.
+**Chatterbox server:** Running on GandalfAI at http://192.168.1.3:8004. Serving from `C:\IRIS\docker\docker-compose.yml`.
 **ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in iris_config.json and config.py.
 **Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000.
 **NUM_PREDICT:** 120 in iris_config.json.
 **Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths.
 **ILI9341 TFT mouth:** Library switched to KurtE/ILI9341_t3n (auto-detects SPI bus from pin numbers). CS=36, DC=8, RST=4, MOSI=35, SCK=37 → SPI2. Build confirmed clean. Physical verification pending T4.1 swap.
 **Flash workflow:** MANUAL ONLY — user clicks PlatformIO upload button, Teensy USB → Desktop PC. Claude runs `pio run` only.
-**Ollama models:** `jarvis` and `jarvis-kids` both rebuilt fresh as of S16 with updated modelfiles.
+**Ollama models:** `jarvis` rebuilt S17 (new RESPONSE STYLE + HARD RULE). `jarvis-kids` rebuilt S16.
 
 ---
 
@@ -169,34 +170,34 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 
 ## 7. CHATTERBOX TTS
 
-- **Server:** GandalfAI — now containerized at `C:\IRIS\docker\docker-compose.yml`, port 8004
+- **Server:** GandalfAI — containerized at `C:\IRIS\docker\docker-compose.yml`, port 8004
 - **Config:** `C:\IRIS\chatterbox\config.yaml` — `last_chunk_size: 300` (updated S16)
 - **Model:** Chatterbox Turbo, exaggeration 0.45
 - **Voice:** `iris_voice.wav` — CONFIRMED PRESENT at `C:\IRIS\chatterbox\reference_audio\iris_voice.wav`
 - **Endpoint:** `POST http://192.168.1.3:8004/tts` — `voice_mode: clone`, `reference_audio_filename: iris_voice.wav`
 - **Confirmed working** post sleep/wake (S15). HTTP 200 confirmed S16.
-- **Healthcheck note:** Docker healthcheck reports `unhealthy` when GPU is busy inferring (curl times out during generation). This is a false negative — container is operational. HTTP 200 on direct poll confirms health.
+- **Input truncation:** `_truncate_for_tts(max_chars=220)` applied in tts.py before Chatterbox call. Truncates at last `.?!` boundary in window; passes full text if no boundary found.
+- **Healthcheck note:** Docker healthcheck reports `unhealthy` when GPU is busy inferring (curl times out during generation). This is a false negative — container is operational.
 
 ---
 
-## 8. OLLAMA MODELS (as of S16)
+## 8. OLLAMA MODELS (as of S17)
 
 ### jarvis (adult Jarvis persona)
-- **File:** `C:\IRIS\ollama\jarvis_modelfile.txt`
+- **File:** `ollama/jarvis_modelfile.txt` (repo) / `C:\IRIS\ollama\jarvis_modelfile.txt` (GandalfAI)
 - **Base:** `gemma3:27b-it-qat`
 - **Key params:** `num_predict 120`, `temperature 0.7`, `num_ctx 8192`
-- **S16 changes applied:**
+- **S17 changes (CONFIRMED deployed + model rebuilt):**
   - RESPONSE STYLE: "Keep all responses under **2 sentences and under 30 words** unless the question genuinely requires more detail. When in doubt, say less."
   - HARD RULES appended: "Never volunteer the current date, time, or location in a response unless the user explicitly asked for it."
+- **ollama list confirms:** `jarvis:latest` rebuilt 7 seconds after S17 deploy
 
 ### jarvis-kids (Leo & Mae persona)
-- **File:** `C:\IRIS\ollama\jarvis-kids_modelfile.txt`
+- **File:** `ollama/jarvis-kids_modelfile.txt` (repo) / `C:\IRIS\ollama\jarvis-kids_modelfile.txt` (GandalfAI)
 - **Base:** `gemma3:27b-it-qat`
 - **Key params:** `num_predict 120`, `temperature 0.90`, `num_ctx 8192`
-- **S16 changes applied:**
-  - SAFETY section appended: "Never volunteer the current date, time, or location in a response unless the user explicitly asked for it."
-
-Both models rebuilt with `ollama create` — confirmed `success`, new layer hashes written.
+- **S16 changes applied:** SAFETY section appended date/time/location rule
+- **NOT touched S17** — do not rebuild unless explicitly tasked
 
 ---
 
@@ -214,6 +215,7 @@ IRIS-Robot-Face/
     sensors/PersonSensor.h/.cpp -- I2C face detection (SAMPLE_TIME_MS=70, conf>60, is_facing)
     mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (Arduino_GFX SWSPI bit-bang)
   pi4/                          -- mirrors /home/pi/ on Pi4
+    services/tts.py             -- Chatterbox→EL→Piper; _truncate_for_tts() added S17
 ```
 
 ---
@@ -338,29 +340,24 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 14. CHANGES THIS SESSION (S16 — 2026-04-14)
+## 14. CHANGES THIS SESSION (S17 — 2026-04-14)
 
-**GandalfAI C:\IRIS\ Centralization — COMPLETE**
-- Created directory tree: `C:\IRIS\docker\`, `C:\IRIS\chatterbox\{reference_audio,voices,model_cache,logs,outputs}`, `C:\IRIS\ollama\`, `C:\IRIS\backup\`
-- Robocopy (non-destructive, sources intact): `C:\docker\whisper` → `C:\IRIS\docker\whisper` (17 files, 3.0 GB), `C:\docker\piper` → `C:\IRIS\docker\piper` (29 files, 928 MB)
-- Robocopy Chatterbox dirs: `reference_audio` (3 files, 5.9 MB), `voices` (28 files, 19.5 MB), `logs` (1 file), `model_cache` (empty), `outputs` (empty)
-- Flat file copies: `config.yaml`, `jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt`, `docker-compose.yml.bak`
-- Wrote new `C:\IRIS\docker\docker-compose.yml` with all volume paths updated to `C:\IRIS\*` (HF cache left in user profile)
-- Stopped old containers from `C:\docker\docker-compose.yml`, brought up from `C:\IRIS\docker\docker-compose.yml`
-- Archived: `C:\docker\docker-compose.yml` → `C:\docker\docker-compose.yml.pre-iris.bak`
-- All 5 containers verified: wyoming-whisper Up, wyoming-piper Up, open-webui healthy, watchtower healthy, chatterbox HTTP 200 (healthcheck `unhealthy` is false negative — GPU busy during curl timeout)
+**pi4/services/tts.py — TTS input truncation**
+- Added `_truncate_for_tts(text, max_chars=220)` above `synthesize()` (lines 197–213)
+- Truncates at last sentence boundary (`.`, `?`, `!`) in first 220 chars; only truncates if boundary is past char 110 (max_chars // 2). Passes full text untruncated if no boundary found.
+- Call added in `synthesize()` at line 243, after all markdown/non-ASCII stripping, before Piper direct route check
+- Deployed to `/home/pi/services/tts.py` via sftp_write
+- Persisted to SD: md5 matched both sides (`ec2d7bca634d28e9b005072ddb98e6d3`)
+- `sudo systemctl restart assistant` → `[INFO] Ready.` confirmed
 
-**Chatterbox config.yaml:**
-- `last_chunk_size`: 120 → **300** at `C:\IRIS\chatterbox\config.yaml`
+**ollama/jarvis_modelfile.txt — verbosity reduction**
+- RESPONSE STYLE: "3 sentences" → "2 sentences and under 30 words unless the question genuinely requires more detail. When in doubt, say less."
+- HARD RULES: added "Never volunteer the current date, time, or location in a response unless the user explicitly asked for it."
+- Deployed to `C:\IRIS\ollama\jarvis_modelfile.txt` via sftp_write
+- `ollama create jarvis -f C:\IRIS\ollama\jarvis_modelfile.txt` → success (new layer: e60b9a5a...)
+- `ollama list` confirms `jarvis:latest` rebuilt (timestamp: 7 seconds ago at time of check)
 
-**Modelfile edits + ollama rebuild:**
-- `C:\IRIS\ollama\jarvis_modelfile.txt`: RESPONSE STYLE sentence limit tightened (2 sentences / 30 words); HARD RULES appended date/time/location rule
-- `C:\IRIS\ollama\jarvis-kids_modelfile.txt`: SAFETY section appended date/time/location rule
-- `ollama create jarvis` — success (new layer sha: be12af6...)
-- `ollama create jarvis-kids` — success (new layer sha: e94160f...)
-
-**MCP scope clarification:**
-- GandalfAI Claude Desktop filesystem MCP is scoped to `C:\Users\gandalf\` ONLY (not `C:\docker\` as previously documented). All `C:\IRIS\` and `C:\docker\` operations require Bash tool.
+**Note on S16 modelfile claims:** S16 snapshot claimed these jarvis_modelfile changes were applied, but the repo file still had "3 sentences" at S17 session start. S17 is the authoritative apply for these changes.
 
 ---
 
@@ -368,25 +365,26 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ### HIGH
 - **Mouth TFT expressions not yet smoke-tested beyond NEUTRAL** — confirm all 8 expressions (HAPPY, CURIOUS, ANGRY, SLEEPY, SURPRISED, SAD, CONFUSED) render correctly via `MOUTH:n` commands from Pi4.
-- **End-to-end voice not tested** — iris_voice.wav confirmed present. Run live wakeword test, confirm Chatterbox renders cloned voice correctly.
-- **implies_followup() gap** — IRIS doesn't reopen mic when LLM appends trailing sentence after `?`. Fix: modelfile hard rule first, then broaden reply[-80:] check.
-- **Piper not installed as standalone binary** — iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail. Route both through Wyoming Piper on GandalfAI port 10200.
+- **End-to-end voice not tested** — iris_voice.wav confirmed present. Run live wakeword test, confirm Chatterbox renders cloned voice correctly. Watch for `[TTS] Truncated` log lines to verify truncation fires.
+- **implies_followup() gap** — IRIS doesn't reopen mic when LLM appends trailing sentence after `?`. Fix: modelfile hard rule first, then broaden reply[-80:] check in assistant.py.
+- **Piper not installed as standalone binary** — iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail if Wyoming Piper is down. These phrases now route through `_synthesize_piper()` via the direct phrase check — but Wyoming Piper on GandalfAI must be running.
 
 ### MEDIUM
 - **Clean up old GandalfAI source locations** — Next session: after confirming stability, delete originals:
   - `C:\docker\whisper\`, `C:\docker\piper\` (data migrated to `C:\IRIS\docker\`)
   - `C:\Users\gandalf\Chatterbox-TTS-Server\` (migrated to `C:\IRIS\chatterbox\`)
-  - `C:\Users\gandalf\jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt` (migrated to `C:\IRIS\ollama\`)
+  - `C:\Users\gandalf\jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt` (stale — migrated to `C:\IRIS\ollama\`)
 - **Smoke test sleep LED** — Verify web UI Sleep button triggers indigo breathe. Wake restores idle cyan.
 - **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
-- **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders [chuckle] etc. as sounds, not literal text.
-- **Chatterbox healthcheck fix** — `curl -f http://localhost:8000/` times out while GPU is busy. Either increase timeout in compose healthcheck or change to a lightweight `/health` endpoint. Currently harmless but noisy.
-- **Chatterbox auto-start on Gandalf boot** — not configured. Currently requires manual `docker compose up` after reboot (compose file is now at `C:\IRIS\docker\docker-compose.yml`).
+- **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders [chuckle] etc. as sounds, not literal text. (Stripping still active as fallback.)
+- **Chatterbox healthcheck fix** — `curl -f http://localhost:8000/` times out while GPU is busy. Increase timeout in compose healthcheck or use lightweight `/health` endpoint. Currently harmless but noisy.
+- **Chatterbox auto-start on Gandalf boot** — not configured. Requires manual `docker compose up` after reboot (compose file: `C:\IRIS\docker\docker-compose.yml`).
+- **TTS truncation threshold tuning** — 220 chars is a starting point. Monitor real responses; if Jarvis 2-sentence answers routinely exceed 220 chars, adjust. If short answers get cut, investigate.
 
 ### LOW
 - **Untracked files in project root** — iris_voice.wav, _decode_assistant.py, REFACTOR_VISUAL.md, IRIS_AUDIT_2026-04-03.md. Add wav to .gitignore, review/delete or commit others.
 - **Old log file** — /home/pi/iris_sleep.log (root level, pre-S2) stale.
-- **OWW_THRESHOLD** — Pi4 live = 0.9, config.py default = 0.85. Confirm intended value.
+- **OWW_THRESHOLD** — Pi4 live = 0.9 (iris_config.json), config.py default = 0.85. Confirm intended value.
 
 ---
 
@@ -408,4 +406,8 @@ journalctl -u assistant -n 30 --no-pager
 
 # Bring up GandalfAI containers (after reboot or manual down):
 docker compose -f C:\IRIS\docker\docker-compose.yml up -d
+
+# Rebuild jarvis model after modelfile change:
+ollama create jarvis -f C:\IRIS\ollama\jarvis_modelfile.txt
+ollama list  # confirm timestamp
 ```
