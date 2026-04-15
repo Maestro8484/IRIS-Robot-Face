@@ -69,7 +69,7 @@ C:\IRIS\
 
 ## 3. PROJECT STATUS
 
-**Firmware:** Build clean 2026-04-11 (S9). NOT YET FLASHED — pending physical T4.1 swap. T4.0 last confirmed working state: eca1627.
+**Firmware:** Build clean 2026-04-11 (S9). T4.1 swap: complete. Firmware: flashed and confirmed. Physical build: laser cut / 3D printed enclosure complete, renovated and installed. T4.0 reference commit: eca1627 (archived, no longer active).
 **Person Sensor tracking:** CONFIRMED WORKING. Stock chrismiller code. Sensor physically mounted right-side-up. `is_facing && conf > 60`, 70ms poll, 120ms animation, stock coordinate formula. Eye tracks face laterally and vertically.
 **Sleep display:** Starfield + ZZZ animation on both TFTs confirmed working.
 **Sleep LEDs:** APA102 dim indigo breathe on EYES:SLEEP. peak=26, global_bright=0xFF, floor=3.
@@ -152,7 +152,7 @@ python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep
 
 ---
 
-## 6. MOUTH TFT STATUS — BUILD CLEAN, FLASH PENDING
+## 6. MOUTH TFT STATUS — BUILD CLEAN, FLASHED AND CONFIRMED
 
 **Library:** `moononournation/GFX Library for Arduino @ ^1.4.9` — Arduino_GFX SWSPI (bit-bang).
 Same library as confirmed-working T4.0 commit 732b069 on main. Pins moved from 5/6/7 → 35/37/36.
@@ -364,10 +364,10 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 ## 15. CURRENT KNOWN ISSUES / TODO
 
 ### HIGH
-- **Mouth TFT expressions not yet smoke-tested beyond NEUTRAL** — confirm all 8 expressions (HAPPY, CURIOUS, ANGRY, SLEEPY, SURPRISED, SAD, CONFUSED) render correctly via `MOUTH:n` commands from Pi4.
-- **End-to-end voice not tested** — iris_voice.wav confirmed present. Run live wakeword test, confirm Chatterbox renders cloned voice correctly. Watch for `[TTS] Truncated` log lines to verify truncation fires.
+- **RESUME POINT #1: Mouth TFT smoke test** — Pi4 TeensyBridge sends `MOUTH:0` through `MOUTH:8` via UDP `127.0.0.1:10500`, Teensy receives over `/dev/ttyACM0`. No USB connection to SuperMaster required. Confirm all 9 expressions render on TFT. Do not proceed to end-to-end voice test until all 9 confirmed.
+- **End-to-end voice test** — wakeword through Chatterbox cloned voice, only after mouth smoke test passes. iris_voice.wav confirmed present. Watch for `[TTS] Truncated` log lines to verify truncation fires.
 - **implies_followup() gap** — IRIS doesn't reopen mic when LLM appends trailing sentence after `?`. Fix: modelfile hard rule first, then broaden reply[-80:] check in assistant.py.
-- **Piper not installed as standalone binary** — iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail if Wyoming Piper is down. These phrases now route through `_synthesize_piper()` via the direct phrase check — but Wyoming Piper on GandalfAI must be running.
+- **Piper standalone routing for Goodnight/Good morning** — through Wyoming Piper GandalfAI:10200. iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail if Wyoming Piper is down. Phrases route through `_synthesize_piper()` via the direct phrase check — Wyoming Piper on GandalfAI must be running.
 
 ### MEDIUM
 - **Clean up old GandalfAI source locations** — Next session: after confirming stability, delete originals:
@@ -388,7 +388,22 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 16. FLASH / DEPLOY COMMANDS
+## 16. WORKFLOW RULES
+
+- Claude Chat = diagnosis, log reading, planning only. No file writes, no SSH command chains.
+- Claude Code = all file writes, SSH chains, implementation, service restarts.
+- Every Code session opens with: read CLAUDE.md, confirm live state matches declared state, report any drift before acting.
+- One session, one concern. State the single goal at session open.
+- Smoke test mouth TFT before any further firmware or voice pipeline work.
+- Mouth smoke test route: Pi4 SSH -> send `MOUTH:0` through `MOUTH:8` via UDP `127.0.0.1:10500` -> TeensyBridge -> `/dev/ttyACM0` -> Teensy renders on TFT.
+- Flash rule: Claude runs `pio run` only. User clicks PlatformIO upload. Never remote flash.
+- Canonical Pi4 source: `pi4/assistant.py` only. Never read or write root-level `assistant.py`.
+- SNAPSHOT_LATEST.md and CLAUDE.md must stay identical at all times.
+- Every Code session ends with: `git add -A && git commit && git push`, then `/snapshot`.
+
+---
+
+## 17. FLASH / DEPLOY COMMANDS
 
 ```bash
 # Pi4 persist a file to SD:

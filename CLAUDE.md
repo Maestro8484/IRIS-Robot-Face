@@ -188,6 +188,21 @@ python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep
 
 ---
 
+## Workflow rules
+
+- Claude Chat = diagnosis, log reading, planning only. No file writes, no SSH command chains.
+- Claude Code = all file writes, SSH chains, implementation, service restarts.
+- Every Code session opens with: read CLAUDE.md, confirm live state matches declared state, report any drift before acting.
+- One session, one concern. State the single goal at session open.
+- Smoke test mouth TFT before any further firmware or voice pipeline work.
+- Mouth smoke test route: Pi4 SSH -> send `MOUTH:0` through `MOUTH:8` via UDP `127.0.0.1:10500` -> TeensyBridge -> `/dev/ttyACM0` -> Teensy renders on TFT.
+- Flash rule: Claude runs `pio run` only. User clicks PlatformIO upload. Never remote flash.
+- Canonical Pi4 source: `pi4/assistant.py` only. Never read or write root-level `assistant.py`.
+- SNAPSHOT_LATEST.md and CLAUDE.md must stay identical at all times.
+- Every Code session ends with: `git add -A && git commit && git push`, then `/snapshot`.
+
+---
+
 ## Session end -- mandatory
 1. State explicitly: what was changed, what was NOT changed, any new risks introduced.
 2. git add -A && git commit
