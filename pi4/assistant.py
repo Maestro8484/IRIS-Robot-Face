@@ -3,11 +3,11 @@
 assistant.py - Pi4 IRIS voice assistant
 Wake: wyoming-openwakeword hey_jarvis (:10400) OR button press (GPIO17)
 STT:  Wyoming Whisper  @ 192.168.1.3:10300
-LLM:  Ollama           @ 192.168.1.3:11434
-TTS:  Wyoming Piper    @ 192.168.1.3:10200
+LLM:  Ollama           @ 192.168.1.3:11434 (streaming)
+TTS:  Chatterbox       @ 192.168.1.3:8004 (primary)
 Audio: wm8960-soundcard (dynamic card detection)
 LEDs: 3x APA102 via SPI -- status indicator
-Eyes: Teensy 4.0 Wall-E face via /dev/ttyACM0
+Eyes: Teensy face via /dev/ttyACM0
 """
 
 import json, os, re, socket, subprocess, sys, threading, time
@@ -28,7 +28,7 @@ from hardware.audio_io import (
 from services.wyoming import wy_send, read_line
 from services.stt import transcribe
 from services.tts import synthesize, spoken_numbers
-from services.llm import extract_emotion_from_reply, clean_llm_reply
+from services.llm import extract_emotion_from_reply, clean_llm_reply, stream_ollama
 from services.vision import capture_image, is_vision_trigger, ask_vision
 from services.wakeword import wait_for_wakeword_or_button
 from state.state_manager import state
@@ -126,7 +126,7 @@ def ensure_gandalf_up(leds) -> bool:
     return False
 
 
-# ── CMD listener + Emotion helper ────────────────────────────────────────────
+# ── CMD listener + Emotion helper ─────────────────────────────────────────────
 
 def start_cmd_listener(teensy, leds):
     """UDP listener on CMD_PORT. iris_web.py sends raw commands here."""
@@ -158,6 +158,7 @@ def start_cmd_listener(teensy, leds):
                 except Exception as e:
                     print(f"[CMD] Listener error: {e}", flush=True)
     threading.Thread(target=_listener, daemon=True).start()
+
 
 def emit_emotion(teensy, leds, emotion: str):
     """Send emotion to Teensy eyes AND sync LED color in one call."""
@@ -224,7 +225,6 @@ WEATHER_TRIGGERS = (
 )
 
 def fetch_weather() -> str:
-    """Fetch current conditions from wttr.in for Kaysville UT. Returns spoken sentence."""
     try:
         r = requests.get("https://wttr.in/Kaysville,UT?format=j1", timeout=6)
         r.raise_for_status()
@@ -282,7 +282,7 @@ def handle_daily_briefing(text: str):
     return f"Good morning. It is {time_str} on {now.strftime('%A, %B')} {now.day}. {wx}"
 
 
-# ── Person recognition (background, non-blocking) ────────────────────────────
+# ── Person recognition (background, non-blocking) ─────────────────────────────
 
 PERSON_RECOG_PROMPT = (
     "Look at this image. Is there a person visible? "
@@ -300,7 +300,6 @@ PERSON_SYSTEM_LINES = {
 }
 
 def _run_person_recognition():
-    """Capture image and identify who is present. Stores result in state.person_context."""
     if not CAMERA_ENABLED:
         return
     if state.conversation_history and (time.time() - state.last_recognition_time) <= 300:
@@ -331,45 +330,43 @@ def _run_person_recognition():
         state.set_person(None, "")
 
 
-# ── LLM ───────────────────────────────────────────────────────────────────────
+# ── LLM helpers ───────────────────────────────────────────────────────────────
 
-def ask_ollama(text):
-    """
-    Query Ollama. Returns (reply, emotion) tuple.
-    Strips [EMOTION:X] tag from reply before returning -- tag never reaches TTS.
-    Falls back to NEUTRAL if tag absent (e.g. kids model).
-    """
-    state.last_interaction = time.time()
-    state.conversation_history.append({"role": "user", "content": text})
+def _build_messages() -> list:
+    """Build the messages list for Ollama including date inject and person context."""
     import datetime
     now = datetime.datetime.now()
     date_inject = {
         "role": "system",
         "content": f"Current date and time: {now.strftime('%A, %B %d %Y, %I:%M %p')} Mountain Time."
     }
-    # Inject person-recognition context if available
     person_inject = None
     _pname = state.person_context.get("name")
     if _pname and _pname in PERSON_SYSTEM_LINES:
         person_inject = {"role": "system", "content": PERSON_SYSTEM_LINES[_pname]}
     if person_inject:
-        messages_with_date = [date_inject, person_inject] + state.conversation_history
-    else:
-        messages_with_date = [date_inject] + state.conversation_history
+        return [date_inject, person_inject] + list(state.conversation_history)
+    return [date_inject] + list(state.conversation_history)
+
+
+def ask_ollama(text):
+    """
+    Blocking LLM query. Used for followup loop and vision path.
+    Returns (reply, emotion) tuple.
+    """
+    state.last_interaction = time.time()
+    state.conversation_history.append({"role": "user", "content": text})
     r = requests.post(
         f"http://{GANDALF}:{OLLAMA_PORT}/api/chat",
-        json={"model": get_model(), "messages": messages_with_date, "stream": False, "options": {"num_predict": NUM_PREDICT}},
+        json={"model": get_model(), "messages": _build_messages(),
+              "stream": False, "options": {"num_predict": NUM_PREDICT}},
         timeout=30
     )
     r.raise_for_status()
     raw = r.json()["message"]["content"]
-
-    # Extract and strip emotion tag BEFORE cleaning
     emotion, stripped = extract_emotion_from_reply(raw)
     reply = clean_llm_reply(stripped)
-
     print(f"[EYES] Emotion from LLM: {emotion}", flush=True)
-
     state.conversation_history.append({"role": "assistant", "content": reply})
     if len(state.conversation_history) > 20:
         state.conversation_history.pop(0); state.conversation_history.pop(0)
@@ -383,7 +380,7 @@ def implies_followup(reply: str) -> bool:
     if r.endswith('?'): return True
     rl = r.lower()
     return any(rl.endswith(p) or rl.endswith(p+'.') for p in
-               ("want me to","shall i","would you like me to","let me know if","go ahead"))
+               ("want me to", "shall i", "would you like me to", "let me know if", "go ahead"))
 
 def record_followup(mic, pa, leds, timeout=None):
     if timeout is None:
@@ -442,7 +439,6 @@ def main():
 
     print("[INFO] openwakeword ready", flush=True)
     pa = pyaudio.PyAudio()
-    # Use system default input -- wm8960 HAT is ALSA default on this Pi4
     mic = pa.open(rate=SAMPLE_RATE, channels=CHANNELS, format=pyaudio.paInt16,
                   input=True, frames_per_buffer=CHUNK)
 
@@ -462,7 +458,7 @@ def main():
             if ptt_mode: print("\n[PTT]  Button pressed", flush=True); leds.show_ptt()
             else: print("\n[WAKE] Wake word detected", flush=True); leds.show_wake()
 
-            # Sleep mode check: if IRIS is sleeping, wake it instead of running STT
+            # Sleep mode check
             if os.path.exists('/tmp/iris_sleep_mode'):
                 print('[SLEEP] Wakeword during sleep -- waking IRIS', flush=True)
                 os.remove('/tmp/iris_sleep_mode')
@@ -483,15 +479,11 @@ def main():
                 leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
 
             play_beep(pa)
-            # Drain mic 150ms: clears the beep echo so it cannot bleed into
-            # record_command and be transcribed as "BEEP" / "1" by Whisper.
-            # pre_buf saves any command audio spoken immediately after the wake word.
             _drain_n = int(SAMPLE_RATE / CHUNK * 0.15)
             _pre_buf = []
             for _ in range(_drain_n):
                 try: _pre_buf.append(mic.read(CHUNK, exception_on_overflow=False))
                 except Exception: break
-            # Fire person recognition in background while user is speaking
             _pr_thread = threading.Thread(target=_run_person_recognition, daemon=True)
             _pr_thread.start()
             leds.show_recording(); print("[REC]  Listening...", flush=True)
@@ -500,8 +492,10 @@ def main():
             rms = np.sqrt(np.mean(arr**2))
             print(f"[REC]  {len(raw)/2/SAMPLE_RATE:.1f}s  RMS={rms:.0f}", flush=True)
 
-            if rms < 400:
-                print("[REC]  Near-silent (Whisper gate), ignoring", flush=True); show_idle_for_mode(leds); continue
+            # ── RMS gate + Whisper hallucination filter ────────────────────────
+            if rms < 700:
+                print(f"[REC]  Below RMS gate ({rms:.0f} < 700), ignoring", flush=True)
+                show_idle_for_mode(leds); continue
 
             leds.show_thinking(); print("[STT]  Transcribing...", flush=True)
             try: text = transcribe(raw)
@@ -514,13 +508,22 @@ def main():
             print(f"[STT]  '{text}'", flush=True)
 
             _text_norm = text.lower().strip().strip(".!?,;:")
+            _WHISPER_HALLUCINATIONS = {
+                "thank you", "thanks", "thank you very much", "thanks for watching",
+                "you", "the", "bye", "bye bye", "goodbye", "see you next time",
+                "please subscribe", ".", "", " ",
+            }
+            if _text_norm in _WHISPER_HALLUCINATIONS:
+                print(f"[STT]  Hallucination filtered: '{text}'", flush=True)
+                show_idle_for_mode(leds); continue
+
             if any(_text_norm == phrase or _text_norm.startswith(phrase)
                    for phrase in STOP_PHRASES):
                 print("[STOP] Stop command received", flush=True)
                 _stop_playback.set(); emit_emotion(teensy, leds, "NEUTRAL")
                 show_idle_for_mode(leds); continue
 
-            # ── Eyes sleep/wake voice commands ────────────────────────────────
+            # ── Eyes sleep/wake voice commands ─────────────────────────────────
             _tnorm = text.lower().strip().strip(".!?,;:")
             if any(_tnorm == p or _tnorm.startswith(p) for p in EYES_SLEEP_TRIGGERS):
                 if not state.eyes_sleeping:
@@ -540,7 +543,6 @@ def main():
                     print("[EYES] Eyes activated by voice", flush=True)
                 show_idle_for_mode(leds); continue
 
-            # Auto-wake: any non-sleep/wake interaction restores the eyes
             if state.eyes_sleeping:
                 state.eyes_sleeping = False
                 teensy.send_command("EYES:WAKE")
@@ -618,28 +620,65 @@ def main():
                 emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
                 print("[INFO] Ready.", flush=True); continue
 
-            print(f"[LLM]  Thinking... (model={get_model()})", flush=True)
-            try: reply, emotion = ask_ollama(text)
+            # ── Streaming LLM + sentence-chunked TTS ──────────────────────────
+            print(f"[LLM]  Streaming... (model={get_model()})", flush=True)
+            state.last_interaction = time.time()
+            state.conversation_history.append({"role": "user", "content": text})
+
+            reply_parts = []
+            _interrupted = False
+            _speaking_started = False
+            _emotion_set = False
+
+            try:
+                for chunk, chunk_emotion in stream_ollama(
+                    _build_messages(), get_model(), NUM_PREDICT
+                ):
+                    if chunk_emotion is not None and not _emotion_set:
+                        emit_emotion(teensy, leds, chunk_emotion)
+                        _emotion_set = True
+                    reply_parts.append(chunk)
+                    print(f"[TTS]  chunk: '{chunk}'", flush=True)
+                    try:
+                        pcm_data = synthesize(chunk)
+                    except Exception as e:
+                        print(f"[ERR]  TTS chunk: {e}", flush=True)
+                        continue
+                    if not _speaking_started:
+                        leds.show_speaking()
+                        mic.stop_stream()
+                        _speaking_started = True
+                    _interrupted = play_pcm_speaking(pcm_data, pa, teensy)
+                    if _interrupted:
+                        print("[STOP] Interrupted mid-stream", flush=True)
+                        break
             except Exception as e:
-                print(f"[ERR]  LLM: {e}", flush=True)
-                leds.show_error(); time.sleep(1); show_idle_for_mode(leds); continue
-            print(f"[LLM]  '{reply}'", flush=True)
+                print(f"[ERR]  LLM stream: {e}", flush=True)
+                leds.show_error(); time.sleep(1)
+                if _speaking_started:
+                    try: mic.start_stream()
+                    except OSError: pass
+                show_idle_for_mode(leds); continue
 
-            emit_emotion(teensy, leds, emotion)
+            if not _emotion_set:
+                emit_emotion(teensy, leds, "NEUTRAL")
+            if not _speaking_started:
+                mic.stop_stream()
 
-            print("[TTS]  Synthesizing...", flush=True)
-            try: pcm_data = synthesize(reply)
-            except Exception as e:
-                print(f"[ERR]  TTS: {e}", flush=True)
-                leds.show_error(); time.sleep(1); show_idle_for_mode(leds); continue
+            reply = " ".join(reply_parts).strip()
+            print(f"[LLM]  full: '{reply}'", flush=True)
 
-            leds.show_speaking(); mic.stop_stream()
-            _interrupted = play_pcm_speaking(pcm_data, pa, teensy)
+            state.conversation_history.append({"role": "assistant", "content": reply})
+            if len(state.conversation_history) > 20:
+                state.conversation_history.pop(0); state.conversation_history.pop(0)
+
             if button_pressed(): time.sleep(0.4)
 
-            # Follow-up loop
+            # ── Follow-up loop ─────────────────────────────────────────────────
             _followup_turns = 0
-            while implies_followup(reply) and _followup_turns < FOLLOWUP_MAX_TURNS and not _interrupted:
+            _conv_active = len(state.conversation_history) >= 4
+            while (implies_followup(reply) or _conv_active) and _followup_turns < FOLLOWUP_MAX_TURNS and not _interrupted:
+                _conv_active = len(state.conversation_history) >= 4
                 print(f"[FLWP] Follow-up turn {_followup_turns+1}/{FOLLOWUP_MAX_TURNS}...", flush=True)
                 _followup_turns += 1
                 followup_audio = record_followup(mic, pa, leds)
