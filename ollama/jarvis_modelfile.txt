@@ -1,4 +1,4 @@
-FROM gemma3:27b-it-qat
+FROM mistral-small3.2:24b
 
 SYSTEM """You are Jarvis, the AI assistant for the Schmidt household.
 
@@ -42,10 +42,10 @@ Examples:
   User asks something that makes no sense -> [EMOTION:CONFUSED]
 Default to [EMOTION:NEUTRAL] if no other emotion clearly applies."""
 
-PARAMETER num_ctx 8192
+PARAMETER num_ctx 4096
 PARAMETER num_predict 120
 PARAMETER temperature 0.7
 PARAMETER repeat_penalty 1.1
 PARAMETER top_k 40
 PARAMETER top_p 0.9
-PARAMETER stop <end_of_turn>
+PARAMETER stop </s>

@@ -50,12 +50,14 @@ C:\IRIS\
     model_cache\              -- empty (model downloads on first start)
     logs\
     outputs\
-  ollama\
-    jarvis_modelfile.txt      -- UPDATED S17 (2-sentence/30-word limit + date/time/location rule)
-    jarvis-kids_modelfile.txt -- UPDATED S16
   backup\
     docker-compose.yml.bak    -- original pre-migration backup
 ```
+
+**Ollama modelfiles (now in repo):**
+- `C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt` — adult Jarvis persona (mistral-small3.2:24b)
+- `C:\IRIS\IRIS-Robot-Face\ollama\jarvis-kids_modelfile.txt` — kids Jarvis persona (mistral-small3.2:24b)
+- `C:\IRIS\ollama\` — deleted S17d (migrated to repo)
 
 **Old locations (DO NOT USE for new work — originals left intact for stability):**
 - `C:\docker\docker-compose.yml.pre-iris.bak` — archived
@@ -184,7 +186,7 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 ## 8. OLLAMA MODELS (as of S17c)
 
 ### jarvis (adult Jarvis persona)
-- **File:** `C:\IRIS\ollama\jarvis_modelfile.txt` (GandalfAI — outside repo)
+- **File:** `C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt` (in repo — canonical)
 - **Base:** `mistral-small3.2:24b` (Q4_K_M, `mistral3` arch) — **swapped from gemma3:27b-it-qat in S17c**
 - **Key params:** `num_predict 120`, `temperature 0.7`, `num_ctx 4096`, `stop </s>`
 - **New system layer sha:** `sha256:63221ef0931df606ee7fdeb305f163b4edc227fbee3253973b9db32fb9745adf`
@@ -192,7 +194,7 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 - **Note:** Bartowski HF GGUF path (`hf.co/bartowski/Mistral-Small-3.2-24B-Instruct-2506-GGUF`) returned 404/host mismatch — using Ollama registry pull directly
 
 ### jarvis-kids (Leo & Mae persona)
-- **File:** `C:\IRIS\ollama\jarvis-kids_modelfile.txt` (GandalfAI — outside repo)
+- **File:** `C:\IRIS\IRIS-Robot-Face\ollama\jarvis-kids_modelfile.txt` (in repo — canonical)
 - **Base:** `mistral-small3.2:24b` (Q4_K_M) — **swapped from gemma3:27b-it-qat in S17c**
 - **Key params:** `num_predict 120`, `temperature 0.90`, `num_ctx 4096`, `stop </s>`
 - **New system layer sha:** `sha256:b8f8c4c1d8c4ec39f859e37d3afcc14de33de7a03dff82d5a6e7739183a0fdd4`
@@ -378,7 +380,7 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 - **Clean up old GandalfAI source locations** — Next session: after confirming stability, delete originals:
   - `C:\docker\whisper\`, `C:\docker\piper\` (data migrated to `C:\IRIS\docker\`)
   - `C:\Users\gandalf\Chatterbox-TTS-Server\` (migrated to `C:\IRIS\chatterbox\`)
-  - `C:\Users\gandalf\jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt` (stale — migrated to `C:\IRIS\ollama\`)
+  - `C:\Users\gandalf\jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt` (stale — migrated to repo `ollama/`)
 - **Smoke test sleep LED** — Verify web UI Sleep button triggers indigo breathe. Wake restores idle cyan.
 - **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
 - **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders [chuckle] etc. as sounds, not literal text. (Stripping still active as fallback.)
@@ -428,6 +430,6 @@ journalctl -u assistant -n 30 --no-pager
 docker compose -f C:\IRIS\docker\docker-compose.yml up -d
 
 # Rebuild jarvis model after modelfile change:
-ollama create jarvis -f C:\IRIS\ollama\jarvis_modelfile.txt
+ollama create jarvis -f C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt
 ollama list  # confirm timestamp
 ```
