@@ -58,7 +58,7 @@ SuperMaster: firmware builds and PlatformIO only. Claude runs pio run only. User
 GandalfAI: pi4/ and snapshot work only. Never touch src/ firmware files. No pio commands. No firmware builds.
 GandalfAI filesystem MCP: C:\Users\gandalf\ only. Use Bash tool for C:\IRIS\ and C:\docker\.
 GandalfAI: PowerShell only. No grep/df/head. Heredocs unreliable -- use sftp_write for multi-line files.
-Ollama modelfiles: canonical copies live in `ollama/` in this repo. To rebuild: `ollama create jarvis -f C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt`
+Ollama models: `jarvis` and `jarvis-kids` -- both built on `mistral-small3.2:24b` Q4_K_M (24B params, 14GB disk, 17.1GB VRAM). Canonical modelfiles in `ollama/` in this repo. To rebuild: `ollama create jarvis -f C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt`
 
 ---
 

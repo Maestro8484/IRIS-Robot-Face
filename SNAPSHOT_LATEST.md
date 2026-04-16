@@ -186,26 +186,31 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 ## 8. OLLAMA MODELS (as of S17d)
 
 ### jarvis (adult Jarvis persona)
+- **Ollama model name:** `jarvis:latest`
 - **File:** `C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt` (in repo — canonical)
-- **Base:** `mistral-small3.2:24b` (Q4_K_M, `mistral3` arch) — swapped from `gemma3:27b-it-qat` in S17c
+- **Base:** `mistral-small3.2:24b` — Q4_K_M, 24B params, `mistral3` arch
+- **Size:** 14 GB on disk, 17.1 GB VRAM at inference (ctx 4096)
 - **Key params:** `num_predict 120`, `temperature 0.7`, `num_ctx 4096`, `stop </s>`
 - **System layer sha:** `sha256:63221ef0931df606ee7fdeb305f163b4edc227fbee3253973b9db32fb9745adf`
 - **Smoke test passed:** `[EMOTION:NEUTRAL]` on own line, plain spoken reply, no markdown
-- **Note:** Bartowski HF GGUF path returned 404 — using Ollama registry pull directly
-- **Known issue:** Verbose on open-ended prompts (e.g. "tell me something interesting") — ignores 30-word rule. Monitor; may need `num_predict` reduction.
+- **Known issue:** Verbose on open-ended prompts — ignores 30-word rule. May need `num_predict` reduction.
 
 ### jarvis-kids (Leo & Mae persona)
+- **Ollama model name:** `jarvis-kids:latest`
 - **File:** `C:\IRIS\IRIS-Robot-Face\ollama\jarvis-kids_modelfile.txt` (in repo — canonical)
-- **Base:** `mistral-small3.2:24b` (Q4_K_M) — swapped from `gemma3:27b-it-qat` in S17c
+- **Base:** `mistral-small3.2:24b` — Q4_K_M, 24B params
+- **Size:** 14 GB on disk, 17.1 GB VRAM at inference (ctx 4096)
 - **Key params:** `num_predict 120`, `temperature 0.90`, `num_ctx 4096`, `stop </s>`
 - **System layer sha:** `sha256:b8f8c4c1d8c4ec39f859e37d3afcc14de33de7a03dff82d5a6e7739183a0fdd4`
-- **S17c changes:** Leo description updated with hockey/lacrosse; Mae reading note added
 - **Smoke test passed:** `[EMOTION:HAPPY]`, playful reply, turned question back to user
 
 ### LLM call flow (as of S17d)
 - **Main path:** `stream_ollama()` in `pi4/services/llm.py` — streams tokens from Ollama `/api/chat`, extracts `[EMOTION:X]` tag early, collects full reply, then one `synthesize()` call
 - **Follow-up / vision path:** `ask_ollama()` in `pi4/assistant.py` — blocking single call, same emotion extraction
 - **Rebuild after modelfile change:** `ollama create jarvis -f C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt` (run on GandalfAI)
+
+### Other models on GandalfAI disk (not active)
+`gemma3:27b-it-qat` (16GB), `gemma3:12b` (7GB), `gemma3:27b-voice` (16GB), `llama3.1:8b` (4GB), `mistral:7b-instruct-q4_K_M` (4GB), `gpt-oss:20b` (12GB), `qwen2.5-coder:14b` (8GB), `deepseek-r1:14b` (8GB)
 
 ---
 
