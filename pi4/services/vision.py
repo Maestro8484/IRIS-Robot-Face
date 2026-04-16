@@ -74,6 +74,11 @@ def ask_vision(image_bytes: bytes, prompt: str) -> str:
     vision_prompt = (
         f"Describe what you see in plain spoken sentences only. "
         f"No markdown, no lists, no preamble. 2-3 sentences max. "
+        f"Describe objects, background, and setting. "
+        f"If a person is visible, identify them by name if they resemble any of: "
+        f"Leo (boy around age 9), Mae (girl around age 5), "
+        f"Megan (adult woman), or Maestro (adult man). "
+        f"Otherwise describe the person generically. "
         f"The user asked: {prompt}"
     )
     r = requests.post(

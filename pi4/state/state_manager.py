@@ -26,28 +26,16 @@ class StateManager:
         self.kids_mode: bool = False
         self.eyes_sleeping: bool = False
 
-        # Person recognition
-        self.person_context: dict = {"name": None, "desc": ""}
-        self.last_recognition_time: float = 0.0
-
     # ── Conversation helpers ──────────────────────────────────────────────────
 
     def clear_conversation(self):
-        """Clear conversation history, person context, and recognition timer.
+        """Clear conversation history.
         Does NOT reset last_interaction (mode switches keep the timer running)."""
         with self._lock:
             self.conversation_history.clear()
-            self.person_context = {"name": None, "desc": ""}
-            self.last_recognition_time = 0.0
 
     def has_conversation(self) -> bool:
         return bool(self.conversation_history)
-
-    # ── Person context ────────────────────────────────────────────────────────
-
-    def set_person(self, name, desc: str = ""):
-        with self._lock:
-            self.person_context = {"name": name, "desc": desc}
 
 
 # Module-level singleton — import `state` wherever runtime state is needed.

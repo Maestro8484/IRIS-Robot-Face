@@ -12,7 +12,6 @@ GANDALF      = "192.168.1.3"
 OLLAMA_PORT  = 11434
 TEENSY_PORT  = "/dev/ttyACM0"
 TEENSY_BAUD  = 115200
-EL_API_KEY   = "sk_752184d377335347d38c185ba56a1bebe9deba4da50ce082"
 CHATTERBOX_URL = "http://192.168.1.3:8004"
 CONFIG_FILE  = "/home/pi/iris_config.json"
 SD_CONFIG    = "/media/root-ro/home/pi/iris_config.json"
@@ -64,7 +63,7 @@ def _sd_synced():
 _speak_lock = threading.Lock()
 
 def _speak_worker(text: str, cfg: dict):
-    """Synthesize via services.tts (ElevenLabs->Piper routing, honours ELEVENLABS_ENABLED)."""
+    """Synthesize via services.tts (Chatterbox->Piper routing)."""
     with _speak_lock:
         try:
             from services.tts import synthesize
@@ -137,16 +136,6 @@ def api_logs():
         lines = [l for l in out.strip().splitlines() if l][-120:]
         return jsonify(lines=lines)
     except Exception as e: return jsonify(lines=[f"[ERR] {e}"])
-
-@app.route("/api/voices")
-def api_voices():
-    try:
-        r = requests.get("https://api.elevenlabs.io/v1/voices",
-                         headers={"xi-api-key": EL_API_KEY}, timeout=10)
-        r.raise_for_status()
-        v = r.json().get("voices",[])
-        return jsonify([{"voice_id":x["voice_id"],"name":x["name"],"labels":x.get("labels",{})} for x in v])
-    except Exception as e: return jsonify(error=str(e)), 500
 
 
 @app.route("/api/chatterbox_voices")

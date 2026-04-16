@@ -214,121 +214,6 @@ def handle_time_command(text: str):
     else: return f"Today is {day_name}, {month_name} {now.tm_mday}, {now.tm_year}."
 
 
-# ── Weather ───────────────────────────────────────────────────────────────────
-
-WEATHER_TRIGGERS = (
-    "weather", "how's it outside", "hows it outside", "temperature outside",
-    "what's it like outside", "whats it like outside", "is it cold", "is it hot",
-    "is it raining", "is it snowing", "should i bring a jacket", "do i need a coat",
-    "how cold is it", "how warm is it", "how hot is it", "what's the forecast",
-    "whats the forecast", "forecast today", "will it rain", "will it snow",
-)
-
-def fetch_weather() -> str:
-    try:
-        r = requests.get("https://wttr.in/Kaysville,UT?format=j1", timeout=6)
-        r.raise_for_status()
-        d = r.json()
-        c = d["current_condition"][0]
-        temp_f   = c["temp_F"]
-        feels_f  = c["FeelsLikeF"]
-        desc     = c["weatherDesc"][0]["value"]
-        wind_mph = c["windspeedMiles"]
-        try:
-            precip_chance = max(int(h.get("chanceofrain", 0)) for h in d["weather"][0]["hourly"])
-        except Exception:
-            precip_chance = 0
-        reply = f"It is {temp_f} degrees in Kaysville, feeling like {feels_f}. Conditions are {desc.lower()}."
-        if int(wind_mph) >= 10:
-            reply += f" Wind at {wind_mph} miles per hour."
-        if precip_chance >= 40:
-            reply += f" There is a {precip_chance} percent chance of rain today."
-        return reply
-    except Exception as e:
-        print(f"[WX]   Weather fetch failed: {e}", flush=True)
-        return "I could not get the weather right now."
-
-def handle_weather_command(text: str):
-    t = text.lower().strip().rstrip(".!?")
-    if any(tr in t for tr in WEATHER_TRIGGERS):
-        print("[WX]   Weather trigger detected", flush=True)
-        return fetch_weather()
-    return None
-
-
-# ── Daily briefing ────────────────────────────────────────────────────────────
-
-BRIEFING_TRIGGERS = (
-    "good morning", "daily briefing", "morning briefing",
-    "what's today look like", "whats today look like",
-    "what do i have today", "morning update", "start my day",
-    "what's going on today", "whats going on today",
-)
-
-def handle_daily_briefing(text: str):
-    t = text.lower().strip().rstrip(".!?")
-    if not any(tr in t for tr in BRIEFING_TRIGGERS):
-        return None
-    print("[BRIEF] Daily briefing triggered", flush=True)
-    import datetime
-    now = datetime.datetime.now()
-    hour = now.hour; minute = now.minute
-    period = "AM" if hour < 12 else "PM"
-    hour12 = hour % 12 or 12
-    if minute == 0:    time_str = f"{hour12} {period}"
-    elif minute < 10:  time_str = f"{hour12} oh {minute} {period}"
-    else:              time_str = f"{hour12} {minute} {period}"
-    wx = fetch_weather()
-    return f"Good morning. It is {time_str} on {now.strftime('%A, %B')} {now.day}. {wx}"
-
-
-# ── Person recognition (background, non-blocking) ─────────────────────────────
-
-PERSON_RECOG_PROMPT = (
-    "Look at this image. Is there a person visible? "
-    "If yes, which of these people does it look like: "
-    "Leo (boy, age 9), Mae (girl, age 5), Megan (adult woman), or Maestro (adult man)? "
-    "If you cannot tell or nobody is visible, say unknown. "
-    "Reply with ONLY one word: Leo, Mae, Megan, Maestro, or unknown."
-)
-
-PERSON_SYSTEM_LINES = {
-    "Leo":     "The person speaking is Leo, a 9-year-old boy. Use his name naturally. Match his energy. Explain clearly but don't talk down to him.",
-    "Mae":     "The person speaking is Mae, a 5-year-old girl. Use very simple words. Be warm and encouraging. Use her name. Keep answers to one or two sentences.",
-    "Megan":   "The person speaking is Megan, an adult woman. Be direct and efficient. Use her name sparingly, only when natural.",
-    "Maestro": "The person speaking is Maestro, the owner and systems administrator. Be direct, technical when relevant, skip pleasantries. Dry humor is welcome.",
-}
-
-def _run_person_recognition():
-    if not CAMERA_ENABLED:
-        return
-    if state.conversation_history and (time.time() - state.last_recognition_time) <= 300:
-        return
-    img = capture_image()
-    if img is None:
-        state.set_person(None, "")
-        return
-    try:
-        import base64
-        img_b64 = base64.b64encode(img).decode()
-        r = requests.post(
-            f"http://{GANDALF}:{OLLAMA_PORT}/api/generate",
-            json={"model": VISION_MODEL, "prompt": PERSON_RECOG_PROMPT,
-                  "images": [img_b64], "stream": False},
-            timeout=30,
-        )
-        r.raise_for_status()
-        raw = r.json().get("response", "").strip()
-        name = re.sub(r"[^a-zA-Z]", "", raw).capitalize()
-        if name not in {"Leo", "Mae", "Megan", "Maestro"}:
-            name = None
-        state.set_person(name, raw)
-        state.last_recognition_time = time.time()
-        print(f"[PERS] Recognized: {name or 'unknown'} (raw='{raw}')", flush=True)
-    except Exception as e:
-        print(f"[PERS] Recognition failed: {e}", flush=True)
-        state.set_person(None, "")
-
 
 # ── LLM helpers ───────────────────────────────────────────────────────────────
 
@@ -340,12 +225,6 @@ def _build_messages() -> list:
         "role": "system",
         "content": f"Current date and time: {now.strftime('%A, %B %d %Y, %I:%M %p')} Mountain Time."
     }
-    person_inject = None
-    _pname = state.person_context.get("name")
-    if _pname and _pname in PERSON_SYSTEM_LINES:
-        person_inject = {"role": "system", "content": PERSON_SYSTEM_LINES[_pname]}
-    if person_inject:
-        return [date_inject, person_inject] + list(state.conversation_history)
     return [date_inject] + list(state.conversation_history)
 
 
@@ -484,8 +363,6 @@ def main():
             for _ in range(_drain_n):
                 try: _pre_buf.append(mic.read(CHUNK, exception_on_overflow=False))
                 except Exception: break
-            _pr_thread = threading.Thread(target=_run_person_recognition, daemon=True)
-            _pr_thread.start()
             leds.show_recording(); print("[REC]  Listening...", flush=True)
             raw = b"".join(_pre_buf) + record_command(mic, ptt_mode=ptt_mode, kids_mode=state.kids_mode)
             arr = np.frombuffer(raw, dtype=np.int16).astype(float)
@@ -592,26 +469,6 @@ def main():
                     pcm_data = synthesize(reply)
                     leds.show_speaking(); mic.stop_stream(); play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
                 except Exception as e: print(f"[ERR]  TTS vision: {e}", flush=True)
-                emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
-                print("[INFO] Ready.", flush=True); continue
-
-            weather_reply = handle_weather_command(text)
-            if weather_reply is not None:
-                print(f"[WX]   {weather_reply}", flush=True)
-                try:
-                    pcm_data = synthesize(weather_reply)
-                    leds.show_speaking(); mic.stop_stream(); play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
-                except Exception as e: print(f"[ERR]  TTS weather: {e}", flush=True)
-                emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
-                print("[INFO] Ready.", flush=True); continue
-
-            briefing_reply = handle_daily_briefing(text)
-            if briefing_reply is not None:
-                print(f"[BRIEF] {briefing_reply[:80]}...", flush=True)
-                try:
-                    pcm_data = synthesize(briefing_reply)
-                    leds.show_speaking(); mic.stop_stream(); play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
-                except Exception as e: print(f"[ERR]  TTS briefing: {e}", flush=True)
                 emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
                 print("[INFO] Ready.", flush=True); continue
 

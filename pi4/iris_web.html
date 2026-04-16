@@ -164,34 +164,8 @@ select:focus{outline:none;border-color:var(--blue)}
     <button class="btn btn-primary" onclick="saveChatterboxSettings()">Save Chatterbox Settings</button>
   </div>
   <div class="card">
-    <h2>ElevenLabs (Fallback)</h2>
-    <p class="hint">Used if Chatterbox is disabled or unavailable.</p>
-    <div class="field-row">
-      <label>Voice</label>
-      <select id="voice-select" style="width:260px"><option>Loading...</option></select>
-      <button class="btn btn-sm" onclick="loadVoices()" style="background:var(--input-bg);border:1px solid var(--border)">Refresh</button>
-    </div>
-    <div class="field-row">
-      <label>Model</label>
-      <select id="ELEVENLABS_MODEL" style="width:260px">
-        <option value="eleven_turbo_v2_5">eleven_turbo_v2_5 (fast)</option>
-        <option value="eleven_multilingual_v2">eleven_multilingual_v2 (quality)</option>
-        <option value="eleven_flash_v2_5">eleven_flash_v2_5 (fastest)</option>
-        <option value="eleven_turbo_v2">eleven_turbo_v2</option>
-      </select>
-    </div>
-    <div class="field-row">
-      <label>ElevenLabs enabled</label>
-      <select id="ELEVENLABS_ENABLED">
-        <option value="true">Yes - use ElevenLabs</option>
-        <option value="false">No - skip to Piper</option>
-      </select>
-    </div>
-    <button class="btn btn-primary" onclick="saveElevenLabsSettings()">Save ElevenLabs Settings</button>
-  </div>
-  <div class="card">
-    <h2>Piper TTS (Final Fallback)</h2>
-    <p class="hint">Offline TTS. Used when both Chatterbox and ElevenLabs are unavailable. No configurable settings.</p>
+    <h2>Piper TTS (Fallback)</h2>
+    <p class="hint">Offline TTS. Used when Chatterbox is unavailable. No configurable settings.</p>
   </div>
 </div>
 
@@ -431,7 +405,7 @@ function tab(name, btn) {
   btn.classList.add('active');
   if (name === 'logs') fetchLogs();
   if (name === 'system') { pollStatus(); checkSDStatus(); refreshVolume(); }
-  if (name === 'voice') { loadVoices(); loadChatterboxVoices(); }
+  if (name === 'voice') { loadChatterboxVoices(); }
   if (name === 'gandalf') loadVram();
   if (name === 'eyes') pollSleepState();
   if (name === 'sleep') pollSleepState();
@@ -514,38 +488,6 @@ async function saveFields(keys) {
   const r = await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch)});
   const j = await r.json();
   toast(j.ok ? 'Saved to RAM' : 'Error', j.ok);
-  if (j.ok) checkSDStatus();
-}
-
-// ── Voice ─────────────────────────────────────────────────────────────────────
-let _voices = [];
-async function loadVoices() {
-  const sel = document.getElementById('voice-select');
-  sel.innerHTML = '<option>Loading...</option>';
-  try {
-    const r = await fetch('/api/voices');
-    _voices = await r.json();
-    sel.innerHTML = '';
-    const current = _cfg.ELEVENLABS_VOICE_ID || '';
-    _voices.forEach(v => {
-      const o = document.createElement('option');
-      o.value = v.voice_id;
-      o.textContent = v.name;
-      if (v.voice_id === current) o.selected = true;
-      sel.appendChild(o);
-    });
-  } catch(e) { sel.innerHTML = '<option>Error loading voices</option>'; }
-}
-
-async function saveElevenLabsSettings() {
-  const vid = document.getElementById('voice-select').value;
-  const model = document.getElementById('ELEVENLABS_MODEL').value;
-  const enabled = document.getElementById('ELEVENLABS_ENABLED').value === 'true';
-  const r = await fetch('/api/config', {method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ELEVENLABS_VOICE_ID:vid, ELEVENLABS_MODEL:model, ELEVENLABS_ENABLED:enabled})});
-  const j = await r.json();
-  toast(j.ok ? 'Voice saved to RAM' : 'Error', j.ok);
   if (j.ok) checkSDStatus();
 }
 
