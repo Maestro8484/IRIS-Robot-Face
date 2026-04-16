@@ -118,7 +118,7 @@ All logic lives in modules. Do not inline anything that belongs in a module.
 - `pi4/services/stt.py` — Wyoming Whisper STT (`data_length` payload parser -- do not rewrite inline)
 - `pi4/services/tts.py` — Chatterbox -> ElevenLabs -> Piper routing
 - `pi4/services/wakeword.py` — OWW + GPIO button handler
-- `pi4/services/llm.py` — emotion tag extraction, reply cleaning
+- `pi4/services/llm.py` — `stream_ollama()` (streaming main path), `ask_ollama()` (followup/vision), emotion tag extraction, reply cleaning
 - `pi4/services/vision.py` — camera capture + vision query
 - `pi4/hardware/audio_io.py` — PCM playback, record, beep, interrupt detection
 - `pi4/hardware/led.py` — APA102 driver
