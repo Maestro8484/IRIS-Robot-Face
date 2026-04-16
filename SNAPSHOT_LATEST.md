@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
-**Date:** 2026-04-15
-**Session:** 17d
+**Date:** 2026-04-16
+**Session:** 18
 **Branch:** `main`
-**Last commit:** a93da41 — fix: remove _conv_active follow-up, add STT gates to stop hallucination spirals
+**Last commit:** 906d8e1 — audit: feature triage pass 1 — remove weather/briefing/person-recog, ElevenLabs web UI
 **Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
 ---
@@ -57,7 +57,6 @@ C:\IRIS\
 **Ollama modelfiles (now in repo):**
 - `C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt` — adult Jarvis persona (mistral-small3.2:24b)
 - `C:\IRIS\IRIS-Robot-Face\ollama\jarvis-kids_modelfile.txt` — kids Jarvis persona (mistral-small3.2:24b)
-- `C:\IRIS\ollama\` — deleted S17d (migrated to repo)
 
 **Old locations (DO NOT USE for new work — originals left intact for stability):**
 - `C:\docker\docker-compose.yml.pre-iris.bak` — archived
@@ -77,17 +76,19 @@ C:\IRIS\
 **Sleep LEDs:** APA102 dim indigo breathe on EYES:SLEEP. peak=26, global_bright=0xFF, floor=3.
 **Mouth during sleep:** Snore animation. TFT stays blank. BL dims to 40/255.
 **Wake from webui:** Working. Cron sleep 9PM/7:30AM UDP path. False wakeword during cron window ignored (button-only override).
-**Voice pipeline (assistant.py):** Operational. Modular (hardware/, core/, services/, state/).
+**Voice pipeline (assistant.py):** Operational. Modular (hardware/, core/, services/, state/). Deployed S18 (rebased commit 906d8e1).
 **TTS routing:** Chatterbox (primary) → ElevenLabs (disabled) → Piper (fallback).
 **TTS truncation:** `_truncate_for_tts()` active in tts.py — caps Chatterbox input at 220 chars at last sentence boundary. Deployed + persisted S17.
 **Chatterbox server:** Running on GandalfAI at http://192.168.1.3:8004. Serving from `C:\IRIS\docker\docker-compose.yml`.
-**ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in iris_config.json and config.py.
-**Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000.
+**ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in iris_config.json and config.py. Code kept in tts.py (removal deferred to ~2026-04-22). ElevenLabs card fully removed from web UI (S18).
+**Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000. ElevenLabs references fully purged (S18).
 **NUM_PREDICT:** 120 in iris_config.json.
 **Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths.
 **ILI9341 TFT mouth:** Library switched to KurtE/ILI9341_t3n (auto-detects SPI bus from pin numbers). CS=36, DC=8, RST=4, MOSI=35, SCK=37 → SPI2. Build confirmed clean. T4.1 flashed and installed — physical smoke test pending.
 **Flash workflow:** MANUAL ONLY — user clicks PlatformIO upload button, Teensy USB → Desktop PC. Claude runs `pio run` only.
 **Ollama models:** `jarvis` rebuilt S17 (new RESPONSE STYLE + HARD RULE). `jarvis-kids` rebuilt S16.
+**Person recognition (standalone):** REMOVED S18. Was: background `_pr_thread` + `_run_person_recognition()` + `person_inject` in `_build_messages()`. Person ID now integrated into `ask_vision()` prompt in `services/vision.py` — fires only on "what do you see?" trigger.
+**Weather/briefing commands:** REMOVED S18. `handle_weather_command()`, `fetch_weather()`, `WEATHER_TRIGGERS`, `handle_daily_briefing()`, `BRIEFING_TRIGGERS` all deleted.
 
 ---
 
@@ -193,7 +194,6 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 - **Key params:** `num_predict 120`, `temperature 0.7`, `num_ctx 4096`, `stop </s>`
 - **System layer sha:** `sha256:63221ef0931df606ee7fdeb305f163b4edc227fbee3253973b9db32fb9745adf`
 - **Smoke test passed:** `[EMOTION:NEUTRAL]` on own line, plain spoken reply, no markdown
-- **Known issue:** Verbose on open-ended prompts — ignores 30-word rule. May need `num_predict` reduction.
 
 ### jarvis-kids (Leo & Mae persona)
 - **Ollama model name:** `jarvis-kids:latest`
@@ -204,7 +204,7 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 - **System layer sha:** `sha256:b8f8c4c1d8c4ec39f859e37d3afcc14de33de7a03dff82d5a6e7739183a0fdd4`
 - **Smoke test passed:** `[EMOTION:HAPPY]`, playful reply, turned question back to user
 
-### LLM call flow (as of S17d)
+### LLM call flow (as of S17d / confirmed S18)
 - **Main path:** `stream_ollama()` in `pi4/services/llm.py` — streams tokens from Ollama `/api/chat`, extracts `[EMOTION:X]` tag early, collects full reply, then one `synthesize()` call
 - **Follow-up / vision path:** `ask_ollama()` in `pi4/assistant.py` — blocking single call, same emotion extraction
 - **Rebuild after modelfile change:** `ollama create jarvis -f C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt` (run on GandalfAI)
@@ -228,7 +228,13 @@ IRIS-Robot-Face/
     sensors/PersonSensor.h/.cpp -- I2C face detection (SAMPLE_TIME_MS=70, conf>60, is_facing)
     mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (Arduino_GFX SWSPI bit-bang)
   pi4/                          -- mirrors /home/pi/ on Pi4
+    assistant.py                -- THIN orchestrator (~600 lines). No weather/briefing/person-recog.
     services/tts.py             -- Chatterbox→EL→Piper; _truncate_for_tts() added S17
+    services/vision.py          -- ask_vision() includes person ID in prompt (Leo/Mae/Megan/Maestro)
+    services/llm.py             -- stream_ollama(), extract_emotion_from_reply(), clean_llm_reply()
+    state/state_manager.py      -- StateManager: conversation_history, kids_mode, eyes_sleeping only
+    iris_web.py                 -- Flask web panel (EL_API_KEY + api_voices() removed S18)
+    iris_web.html               -- Web UI (ElevenLabs card fully removed S18)
 ```
 
 ---
@@ -353,55 +359,72 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 14. CHANGES THIS SESSION (S17d — 2026-04-15)
+## 14. CHANGES THIS SESSION (S18 — 2026-04-16)
 
-**Modelfile migration to repo (commit 7d836e9):**
-- Copied `C:\IRIS\ollama\jarvis_modelfile.txt` and `jarvis-kids_modelfile.txt` into `ollama/` in repo (replaced stale gemma3 versions with current mistral-small3.2:24b versions)
-- `CLAUDE.md` — added canonical ollama/ path + rebuild command
-- `SNAPSHOT_LATEST.md` — updated all `C:\IRIS\ollama\` refs to repo path
-- Deleted `C:\IRIS\ollama\` directory entirely — repo is now canonical
+**Feature triage audit — pass 1 (commit 906d8e1):**
 
-**Task B — Streaming LLM + single TTS call (commits 1c01714, c240d7c):**
-- `pi4/services/llm.py` — added `stream_ollama()` (sentence-boundary streaming from Ollama `/api/chat`, yields `(chunk, emotion)` tuples), added `_split_sentences()`
-- `pi4/assistant.py` — main LLM path streams tokens to extract emotion early, collects full reply, then one `synthesize()` call (no per-sentence TTS gaps)
-- `ask_ollama()` retained for follow-up loop and vision path
-- RMS gate raised 400 → 700; Whisper hallucination filter added to main path
-- `_build_messages()` extracted as shared helper
+- **`pi4/assistant.py`** — Feature removals + rebase conflict resolution:
+  - Removed `WEATHER_TRIGGERS`, `fetch_weather()`, `handle_weather_command()` (~40 lines)
+  - Removed `BRIEFING_TRIGGERS`, `handle_daily_briefing()` (~25 lines)
+  - Removed `PERSON_RECOG_PROMPT`, `PERSON_SYSTEM_LINES`, `_run_person_recognition()` (~50 lines)
+  - Removed `person_inject` block from `_build_messages()` (was injecting person context into LLM)
+  - Removed `_pr_thread` background thread from `main()`
+  - Rebase conflict resolved: preserved remote streaming LLM refactor (stream_ollama, _build_messages(), RMS gate 700, hallucination filter) while applying all audit removals
+  - Final `_build_messages()`: date_inject + conversation_history only (no person_inject)
 
-**Follow-up + hallucination fixes (commit a93da41):**
-- Removed `_conv_active` flag — follow-up loop now only fires when `implies_followup(reply)` is true (reply ends with `?`). Previously fired after every response once ≥4 turns in history, causing Whisper noise to spiral into LLM lectures
-- Follow-up loop: `< 3 words → break` gate (catches single-word hallucinations like "You")
-- Follow-up loop: URL/spam pattern filter (`www.`, `.gov`, `.com`, `for more information`, etc.) — stops FEMA-style hallucination spirals
-- Main STT: same URL/spam patterns added to hallucination filter set
+- **`pi4/services/vision.py`** — Person ID integrated into `ask_vision()` prompt:
+  - Prompt now includes: "If a person is visible, identify them by name if they resemble any of: Leo (boy around age 9), Mae (girl around age 5), Megan (adult woman), or Maestro (adult man). Otherwise describe the person generically."
+  - This replaces the standalone background person recognition thread entirely
 
-**Previous session changes (S17c — 2026-04-15, commit 815891b):**
-- Branch cleanup: deleted orphan branches/worktrees, WorktreeCreate hook added
+- **`pi4/state/state_manager.py`** — Person state removed:
+  - Removed `person_context: dict = {"name": None, "desc": ""}` from `__init__`
+  - Removed `last_recognition_time: float = 0.0` from `__init__`
+  - Removed `set_person()` method
+  - `clear_conversation()` now only clears `conversation_history` (no longer resets person state)
 
-**Previous session changes (S17b — 2026-04-14, commit 4dec563):**
-- Enclosure installed, mouth smoke test queued, workflow rules added
+- **`pi4/iris_web.py`** — ElevenLabs references purged:
+  - Removed `EL_API_KEY = "sk_752..."` (hardcoded API key — security issue resolved)
+  - Removed entire `api_voices()` endpoint
+  - Updated `_speak_worker` docstring: "ElevenLabs->Piper" → "Chatterbox->Piper"
 
-**Previous session changes (S17 — 2026-04-14, commits 037944d / e93c07d):**
-- `pi4/services/tts.py` — `_truncate_for_tts(max_chars=220)` deployed + persisted
-- `ollama/jarvis_modelfile.txt` — 2-sentence/30-word limit + no-date/time/location rule
+- **`pi4/iris_web.html`** — ElevenLabs card fully removed:
+  - Removed ElevenLabs card (voice picker `<select id="voice-select">`, model selector, enabled toggle, save button)
+  - Updated Piper card label: "Piper TTS (Final Fallback)" → "Piper TTS (Fallback)", hint text updated
+  - Removed `let _voices = [];` and `async function loadVoices()` JS function
+  - Removed `async function saveElevenLabsSettings()` JS function
+  - Fixed section switch handler: `if (name === 'voice') { loadChatterboxVoices(); }` (removed dead loadVoices() call)
+
+**Git rebase (pre-commit):**
+  - Remote had 5 new commits (43bbb20, 5a54024, 4c05269, 21bf02c, a93da41) not in local branch
+  - `git pull --rebase origin main` → conflict in `pi4/assistant.py` (3 conflict blocks)
+  - Resolved: preserved all remote streaming refactor improvements, applied all audit removals
+  - `GIT_EDITOR=true git rebase --continue` → push succeeded as 906d8e1
+
+**Deployment:**
+  - `assistant.py` deployed to Pi4 `/home/pi/assistant.py` and persisted to SD
+  - MD5 verified: `1e98c98e1c6c0eeeea3811fac5c8b5f2` both RAM and SD
+  - `sudo systemctl restart assistant` → `[INFO] Ready.` confirmed
 
 ---
 
 ## 15. CURRENT KNOWN ISSUES / TODO
 
 ### HIGH
-- **Mistral Small 3.2 personality tuning** — model is verbose on open-ended prompts ("Tell me something interesting" → 6-sentence Venus lecture despite 2-sentence/30-word rule in modelfile). First 3-5 live interactions confirmed: EMOTION tags working, but response length drifts on open-ended asks. May need `num_predict` reduction or stronger system prompt constraint.
-- **Piper standalone routing for Goodnight/Good morning** — through Wyoming Piper GandalfAI:10200. iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail if Wyoming Piper is down.
+- **ElevenLabs code removal from tts.py** — Deferred to ~2026-04-22. `ELEVENLABS_ENABLED=False` disables it at runtime. Code still present in `pi4/services/tts.py`. When removing: delete `ElevenLabsClient` import, `_el_speak()`, `_elevenlabs_synth()`, and ElevenLabs branch in `synthesize()`. Also remove `ELEVENLABS_*` constants from `core/config.py` and `_OVERRIDABLE`.
+- **Mouth smoke test** — Never confirmed post-installation. Must verify: `MOUTH:0` through `MOUTH:8` via UDP `127.0.0.1:10500` on Pi4 → TeensyBridge → serial → TFT renders expressions. Do this before any further firmware work.
+- **Mistral Small 3.2 personality tuning** — Model is verbose on open-ended prompts ("Tell me something interesting" → 6-sentence lecture despite 2-sentence/30-word rule). May need `num_predict` reduction or stronger system prompt constraint.
+- **Piper standalone routing for Goodnight/Good morning** — iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail if Wyoming Piper on GandalfAI:10200 is down.
 
 ### MEDIUM
-- **Clean up old GandalfAI source locations** — Next session: after confirming stability, delete originals:
+- **Clean up old GandalfAI source locations** — After confirming stability, delete originals:
   - `C:\docker\whisper\`, `C:\docker\piper\` (data migrated to `C:\IRIS\docker\`)
   - `C:\Users\gandalf\Chatterbox-TTS-Server\` (migrated to `C:\IRIS\chatterbox\`)
 - **Smoke test sleep LED** — Verify web UI Sleep button triggers indigo breathe. Wake restores idle cyan.
 - **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
 - **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders [chuckle] etc. as sounds, not literal text. (Stripping still active as fallback.)
-- **Chatterbox healthcheck fix** — `curl -f http://localhost:8000/` times out while GPU is busy. Increase timeout in compose healthcheck or use lightweight `/health` endpoint. Currently harmless but noisy.
-- **Chatterbox auto-start on Gandalf boot** — not configured. Requires manual `docker compose up` after reboot (compose file: `C:\IRIS\docker\docker-compose.yml`).
-- **TTS truncation threshold tuning** — 220 chars is a starting point. Monitor real responses; if Jarvis 2-sentence answers routinely exceed 220 chars, adjust. If short answers get cut, investigate.
+- **Chatterbox healthcheck fix** — `curl -f http://localhost:8000/` times out while GPU is busy inferring. Currently harmless but noisy.
+- **Chatterbox auto-start on Gandalf boot** — not configured. Requires manual `docker compose up` after reboot.
+- **TTS truncation threshold tuning** — 220 chars is a starting point. Monitor real responses.
 
 ### LOW
 - **Untracked files in project root** — iris_voice.wav, _decode_assistant.py, REFACTOR_VISUAL.md, IRIS_AUDIT_2026-04-03.md. Add wav to .gitignore, review/delete or commit others.
