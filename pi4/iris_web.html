@@ -211,8 +211,8 @@ select:focus{outline:none;border-color:var(--blue)}
     </div>
   </div>
   <div class="card">
-    <h2>Mouth Matrix</h2>
-    <p class="hint" style="margin-bottom:12px">Sends MOUTH:x directly to the MAX7219 32x8 LED matrix.</p>
+    <h2>TFT Mouth</h2>
+    <p class="hint" style="margin-bottom:12px">Sends MOUTH:x directly to the ILI9341 TFT mouth.</p>
     <div class="emo-grid">
       <button class="btn-mouth" onclick="sendTeensy('MOUTH:0')">0 - Neutral</button>
       <button class="btn-mouth" onclick="sendTeensy('MOUTH:1')">1 - Happy</button>
@@ -247,17 +247,16 @@ select:focus{outline:none;border-color:var(--blue)}
     <p class="hint" style="margin-top:6px">Auto-schedule: Sleep at 9:00 PM / Wake at 7:30 AM (cron)</p>
   </div>
 
-  <!-- Mouth Matrix Brightness -->
+  <!-- TFT Mouth Intensity -->
   <div class="card">
-    <h2>Mouth Matrix Brightness (MAX7219)</h2>
-    <p class="hint">Range 0-15. 8 = ~50% (awake default). 1 = ~7% (sleep default).</p>
+    <h2>TFT Mouth Intensity</h2>
+    <p class="hint">Backlight intensity 0–15. 8 = default.</p>
     <div class="field-row">
-      <label>Awake brightness (0-15)</label>
-      <input type="number" id="MOUTH_INTENSITY_AWAKE" min="0" max="15" step="1">
-    </div>
-    <div class="field-row">
-      <label>Sleep brightness (0-15)</label>
-      <input type="number" id="MOUTH_INTENSITY_SLEEP" min="0" max="15" step="1">
+      <label>Intensity (0–15)</label>
+      <input type="range" id="MOUTH_INTENSITY" min="0" max="15" step="1" value="8"
+             style="width:180px;accent-color:#a78bfa;height:6px;cursor:pointer"
+             oninput="document.getElementById('mouth-intensity-display').textContent=this.value">
+      <span id="mouth-intensity-display" style="width:24px;color:var(--text);font-size:13px;flex-shrink:0">8</span>
     </div>
     <button class="btn btn-primary" onclick="saveMouthIntensity()">Save &amp; Apply Now</button>
   </div>
@@ -408,7 +407,12 @@ function tab(name, btn) {
   if (name === 'voice') { loadChatterboxVoices(); }
   if (name === 'gandalf') loadVram();
   if (name === 'eyes') pollSleepState();
-  if (name === 'sleep') pollSleepState();
+  if (name === 'sleep') {
+    pollSleepState();
+    const mi = document.getElementById('MOUTH_INTENSITY');
+    const md = document.getElementById('mouth-intensity-display');
+    if (mi && md) md.textContent = mi.value;
+  }
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────────
@@ -593,17 +597,14 @@ async function triggerWake() {
 
 // ── Mouth intensity ────────────────────────────────────────────────────────────
 async function saveMouthIntensity() {
-  const awake = parseInt(document.getElementById('MOUTH_INTENSITY_AWAKE').value);
-  const sleep = parseInt(document.getElementById('MOUTH_INTENSITY_SLEEP').value);
-  const a = Math.max(0, Math.min(15, awake));
-  const s = Math.max(0, Math.min(15, sleep));
+  const v = Math.max(0, Math.min(15, parseInt(document.getElementById('MOUTH_INTENSITY').value)));
   await fetch('/api/config', {method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({MOUTH_INTENSITY_AWAKE: a, MOUTH_INTENSITY_SLEEP: s})});
+    body: JSON.stringify({MOUTH_INTENSITY: v})});
   await fetch('/api/teensy', {method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({cmd: 'MOUTH_INTENSITY:' + a})});
-  toast('Mouth brightness saved and applied');
+    body: JSON.stringify({cmd: 'MOUTH_INTENSITY:' + v})});
+  toast('Mouth intensity saved and applied');
   checkSDStatus();
 }
 
