@@ -210,3 +210,34 @@ See [IRIS_ARCH.md](IRIS_ARCH.md).
 3. Confirm with user before git push
 4. Run /snapshot
 5. Final line every session: `git add -A && git commit && git push origin main`
+
+---
+
+## Handoff Protocol — Template
+
+All Claude Chat → Claude Code handoffs must follow this format.
+Reference, don't repeat. CLAUDE.md and SNAPSHOT_LATEST.md are the source of truth.
+
+---
+
+**Task:** [One sentence. What changes.]
+**Environment:** [Pi4 | GandalfAI | Firmware | Multi — pick one per session]
+**Files:** [List only files that will be read or modified]
+**Issue ref:** [SNAPSHOT_LATEST.md section or active issue label]
+
+**Change spec:**
+[File path]: [What changes — function name, behavior delta, not architecture re-explanation]
+
+**Deploy:** Follow CLAUDE.md [Pi4 deploy checklist | GandalfAI deploy | firmware flash]
+**Verify:** [One specific observable outcome — pass/fail check only]
+**Commit:** "[conventional commit message]"
+**After commit:** Confirm with user before push. Run /snapshot.
+
+---
+
+Handoff rules:
+- One environment per session. Split multi-environment tasks into separate handoffs.
+- Do not re-explain architecture already in CLAUDE.md or SNAPSHOT_LATEST.md.
+- Verification steps already in CLAUDE.md checklists must not be repeated in the handoff.
+- Firmware-only tasks (no SSH, no Pi4): confirm user flashes manually before opening session.
+- If a task requires 3+ environments or 3+ files across subsystems, flag to user and split before starting.
