@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
-**Date:** 2026-04-16
-**Session:** 19
+**Date:** 2026-04-17
+**Session:** 20
 **Branch:** `main`
-**Last commit:** 121f6e2 — rename jarvis->iris throughout: models, persona, docker stack, wakeword threshold
+**Last commit:** 192e6a0 — fix: remove ElevenLabs, fix CLAUDE.md model refs, tighten iris-kids no-markdown
 **Repo:** `C:\IRIS\IRIS-Robot-Face`
 
 ---
@@ -26,9 +26,8 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 | Synology NAS | 192.168.1.102 | Master / Gateway!7007 | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
 **SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (NAS, port 2233)
-**SSH auth Pi4:** Password auth only — key auth fails on GandalfAI bash. Use `plink`/`pscp` (PuTTY):
-- `plink -ssh pi@192.168.1.200 -pw ohs -batch -hostkey "SHA256:IN+qEsZ6kWG4PfXob8V8fZX0ykvGl4n6GOMzBGCQCbo" '<cmd>'`
-- `pscp -pw ohs -hostkey "SHA256:IN+qEsZ6kWG4PfXob8V8fZX0ykvGl4n6GOMzBGCQCbo" <src> pi@192.168.1.200:<dst>`
+**SSH auth Pi4:** Password auth only — key auth fails. Pi4 IP confirmed 192.168.1.200.
+**SSH auth GandalfAI:** `gandalf / 5309` — confirmed working S20 via mcp__ssh-gandalf__ssh_connect.
 **GandalfAI:** Windows machine. No `df`, `head`, `grep` — use PowerShell / findstr / dir equivalents.
 **GandalfAI MCP scope:** filesystem MCP only covers `C:\Users\gandalf\`. All `C:\IRIS\`, `C:\docker\` file reads/writes must go through SSH sftp_write or ssh_exec.
 
@@ -79,17 +78,16 @@ C:\IRIS\
 **Mouth during sleep:** Snore animation. TFT stays blank. BL dims to 40/255.
 **Wake from webui:** Working. Cron sleep 9PM/7:30AM UDP path. False wakeword during cron window ignored (button-only override).
 **Voice pipeline (assistant.py):** Operational. Modular (hardware/, core/, services/, state/).
-**TTS routing:** Chatterbox (primary) → ElevenLabs (disabled) → Piper (fallback).
+**TTS routing:** Chatterbox (primary) → Piper (fallback). ElevenLabs fully removed S20.
 **TTS truncation:** `_truncate_for_tts()` active in tts.py — caps Chatterbox input at 220 chars at last sentence boundary.
 **Chatterbox server:** Running on GandalfAI at http://192.168.1.3:8004. Stack: `C:\IRIS\docker\docker-compose.yml`.
-**ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in iris_config.json and config.py. Code kept in tts.py (removal deferred).
 **Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000. ElevenLabs references fully purged (S18).
 **NUM_PREDICT:** 120 in iris_config.json.
 **Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths.
 **ILI9341 TFT mouth:** Library switched to KurtE/ILI9341_t3n. CS=36, DC=8, RST=4, MOSI=35, SCK=37 → SPI2. Build confirmed clean. Flashed and installed — physical smoke test pending.
 **Flash workflow:** MANUAL ONLY — user clicks PlatformIO upload button. Claude runs `pio run` only.
-**Ollama models:** `iris` + `iris-kids` rebuilt S19 on gemma3:12b. `jarvis`/`jarvis-kids` deleted S19.
-**OWW_THRESHOLD:** 0.90 in config.py (updated S19). iris_config.json also has 0.9 — consistent.
+**Ollama models:** `iris` + `iris-kids` on gemma3:12b. Rebuilt S19 (rename) and S20 (iris-kids no-asterisk).
+**OWW_THRESHOLD:** 0.90 in config.py. iris_config.json also has 0.9 — consistent.
 
 ---
 
@@ -182,7 +180,7 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 
 ---
 
-## 8. OLLAMA MODELS (as of S19)
+## 8. OLLAMA MODELS (as of S20)
 
 ### iris (adult persona)
 - **Ollama model name:** `iris:latest`
@@ -198,7 +196,8 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 - **Base:** `gemma3:12b` — ~7GB VRAM, stop token `<end_of_turn>`
 - **Key params:** `num_predict 120`, `temperature 0.90`, `num_ctx 4096`
 - **Identity:** Playful, goofy, reciprocal conversation, always redirects with something fun
-- **Smoke test S19:** `[EMOTION:HAPPY]`, playful reply, turned question back to user ✓
+- **Smoke test S20:** `[EMOTION:HAPPY]` ✓, playful reply ✓, turned question back ✓, asterisks still present (see Known Issues)
+- **Rebuilt S20** with strengthened no-asterisk constraint (3 locations in system prompt)
 
 ### VRAM budget (RTX 3090, 24GB)
 - Chatterbox Turbo: ~4.5GB resident
@@ -230,16 +229,16 @@ IRIS-Robot-Face/
     mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (Arduino_GFX SWSPI bit-bang)
   pi4/                          -- mirrors /home/pi/ on Pi4
     assistant.py                -- THIN orchestrator. No weather/briefing/person-recog.
-    services/tts.py             -- Chatterbox→EL→Piper; _truncate_for_tts() added S17
+    services/tts.py             -- Chatterbox→Piper only (ElevenLabs removed S20)
     services/vision.py          -- ask_vision() includes person ID in prompt
     services/llm.py             -- stream_ollama(), extract_emotion_from_reply(), clean_llm_reply()
     state/state_manager.py      -- StateManager: conversation_history, kids_mode, eyes_sleeping only
-    core/config.py              -- all constants; iris_config.json override loader
+    core/config.py              -- all constants; iris_config.json override loader (EL constants removed S20)
     iris_web.py                 -- Flask web panel (ElevenLabs removed S18)
     iris_web.html               -- Web UI (ElevenLabs card removed S18)
   ollama/
     iris_modelfile.txt          -- adult IRIS persona (gemma3:12b) — canonical
-    iris-kids_modelfile.txt     -- kids IRIS persona (gemma3:12b) — canonical
+    iris-kids_modelfile.txt     -- kids IRIS persona (gemma3:12b) — canonical, no-asterisk hardened S20
 ```
 
 ---
@@ -283,7 +282,7 @@ lib_deps =
 | bigBlue | 0.24 | 0.50 |
 | hypnoRed | 0.25 | 0.50 |
 
-### core/config.py — Key constants (as of S19)
+### core/config.py — Key constants (as of S20)
 ```python
 OLLAMA_MODEL_ADULT      = "iris"
 OLLAMA_MODEL_KIDS       = "iris-kids"
@@ -293,7 +292,7 @@ CHATTERBOX_BASE_URL     = "http://192.168.1.3:8004"
 CHATTERBOX_VOICE        = "iris_voice.wav"
 CHATTERBOX_EXAGGERATION = 0.45
 CHATTERBOX_ENABLED      = True
-ELEVENLABS_ENABLED      = False
+# ELEVENLABS_* constants removed S20
 NUM_PREDICT             = 150     # overridden to 120 by iris_config.json
 LED_SLEEP_PEAK          = 26
 LED_SLEEP_FLOOR         = 3
@@ -305,11 +304,11 @@ LED_SLEEP_BRIGHT        = 0xFF
 ```json
 {
   "OWW_THRESHOLD": 0.9,
-  "ELEVENLABS_ENABLED": false,
   "CHATTERBOX_ENABLED": true,
   "NUM_PREDICT": 120
 }
 ```
+Note: `ELEVENLABS_ENABLED` key removed from iris_config.json is not urgent — config loader will silently ignore unknown keys. Clean up opportunistically.
 
 ### src/main.cpp — Key constants
 ```cpp
@@ -364,47 +363,47 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 14. CHANGES THIS SESSION (S19 — 2026-04-16)
+## 14. CHANGES THIS SESSION (S20 — 2026-04-17)
 
-**Task 0 — Stop old gandalf stack:**
-- `docker compose -f C:\docker\docker-compose.yml.pre-iris.bak down --remove-orphans`
-- Removed: wyoming-whisper, wyoming-piper, open-webui, watchtower, gandalf_default network
+**Task 1 — Remove ElevenLabs from tts.py:**
+- Removed `ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, ELEVENLABS_MODEL, ELEVENLABS_ENABLED` from import
+- Removed entire `_synthesize_elevenlabs()` function (~47 lines)
+- Removed `if ELEVENLABS_ENABLED:` branch in `synthesize()`
+- Updated module docstring and `synthesize()` docstring: "CB → Piper only"
+- Deployed to Pi4 `/home/pi/services/tts.py`, persisted to SD, md5: `420d24fbb0985df9ec42c7810fec910d` ✓
 
-**Task 1 — Rewrite Docker stacks:**
-- `C:\IRIS\docker\docker-compose.yml` — renamed stack from `gandalf-IRIS` → `iris`; removed open-webui + watchtower (now in gandalf stack); 3 services: wyoming-whisper, wyoming-piper, chatterbox
-- `C:\IRIS\docker\docker-compose.gandalf.yml` — NEW; stack name `gandalf`; 2 services: open-webui (port 3000), watchtower
-- All 5 containers confirmed running. Chatterbox `/docs` → HTTP 200. VRAM: 16.2GB (Ollama idle, no model loaded).
+**Task 2 — Remove ElevenLabs from config.py:**
+- Removed `# ── ElevenLabs TTS` block: `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL`, `ELEVENLABS_ENABLED`
+- Removed `"ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL", "ELEVENLABS_ENABLED"` from `_OVERRIDABLE`
+- Deployed to Pi4 `/home/pi/core/config.py`, persisted to SD, md5: `38c66d3f39539feebaf0b03dc6244f4f` ✓
+- `sudo systemctl restart assistant` → `[INFO] Ready.` confirmed, no ElevenLabs refs in startup log ✓
 
-**Task 2 — Rename modelfiles jarvis→iris, rebuild on gemma3:12b:**
-- Created `ollama/iris_modelfile.txt` — new IRIS adult persona, FROM gemma3:12b, stop `<end_of_turn>`
-- Created `ollama/iris-kids_modelfile.txt` — new IRIS kids persona, FROM gemma3:12b, stop `<end_of_turn>`
-- Deleted `ollama/jarvis_modelfile.txt` and `ollama/jarvis-kids_modelfile.txt`
-- Deleted stale modelfiles from `C:\Users\gandalf\` (jarvis_modelfile.txt, .bak, _current, _new, jarvis-kids, jarvis12b)
-- Rebuilt: `ollama create iris` + `ollama create iris-kids` — both 8.1GB, success
-- Deleted old Ollama models: `ollama rm jarvis && ollama rm jarvis-kids`
-- Smoke tests passed (see Section 8)
+**Task 3 — Fix CLAUDE.md LLM section:**
+- Machine rules Ollama line: updated `jarvis`/`jarvis-kids`/`mistral-small3.2:24b` → `iris`/`iris-kids`/`gemma3:12b`
+- Replaced entire LLM Model Selection section: removed mistral-small3.2:24b analysis, model criteria table, multi-family stop token list
+- New section: gemma3:12b current model, ~7GB VRAM, ~11.5GB combined, ~12.5GB headroom, `<end_of_turn>` stop token, smoke test criteria includes "no asterisks"
 
-**Task 3 — Update Pi4 config.py:**
-- `OLLAMA_MODEL_ADULT`: `"jarvis"` → `"iris"`
-- `OLLAMA_MODEL_KIDS`: `"jarvis-kids"` → `"iris-kids"`
-- `VISION_MODEL`: `"jarvis"` → `"iris"`
-- `OWW_THRESHOLD`: `0.85` → `0.90`
-- Deployed via pscp → /home/pi/core/config.py
-- Persisted to SD, md5 verified: `f082b83bc2cc3fc171c1996cd62658da`
-- `sudo systemctl restart assistant` → `[INFO] LLM adult: iris`, `[INFO] LLM kids: iris-kids`, `[INFO] Ready.` ✓
+**Task 4 — Tighten iris-kids no-markdown:**
+- `iris-kids_modelfile.txt`: Added to HOW YOU TALK: "no *word* formatting of any kind"
+- Added new `FORMATTING -- NEVER BREAK` section: "Never use asterisks. Never use *word* or **word** emphasis."
+- Added absolute rule at very top of SYSTEM prompt (first line): "FORMATTING RULE -- ABSOLUTE, NO EXCEPTIONS: Never use asterisks..."
+- Rebuilt `iris-kids` on GandalfAI twice (after each constraint addition) — success both times
+- Smoke test result: gemma3:12b still outputs `*you*` and `*actual*` despite all constraints
+- **Finding:** gemma3:12b has deeply embedded `*word*` emphasis behavior; system prompt cannot fully suppress it
+- **Mitigation confirmed:** `tts.py` line 183 `re.sub(r'\*+', '', text)` strips all asterisks before TTS — voice output is clean
 
-**Not touched:** assistant.py, tts.py, iris_config.json, alsa-init.sh, src/ firmware
+**Not touched:** `src/` firmware, `iris_config.json`, `alsa-init.sh`, `iris_sleep.py`, `iris_wake.py`, `assistant.py`
 
 ---
 
 ## 15. CURRENT KNOWN ISSUES / TODO
 
 ### HIGH
-- **ElevenLabs code removal from tts.py** — Deferred. `ELEVENLABS_ENABLED=False` disables at runtime. When removing: delete `ElevenLabsClient` import, `_el_speak()`, `_elevenlabs_synth()`, ElevenLabs branch in `synthesize()`. Also remove `ELEVENLABS_*` constants from `core/config.py` and `_OVERRIDABLE`.
 - **Mouth smoke test** — Never confirmed post-installation. Must verify: `MOUTH:0` through `MOUTH:8` via UDP `127.0.0.1:10500` on Pi4 → TeensyBridge → serial → TFT renders expressions. Do this before any further firmware work.
-- **iris-kids asterisk in responses** — Smoke test showed model used `*your*` emphasis (markdown). Minor but violates system prompt. May need stronger no-asterisk instruction or a second smoke test with an open-ended question.
 
 ### MEDIUM
+- **iris-kids asterisk in responses (accepted behavior)** — gemma3:12b uses `*word*` emphasis regardless of system prompt. Three-location constraint is in place. tts.py strips asterisks before TTS (line 183). Voice output is clean. Web UI shows raw response with asterisks — cosmetic only. No further action unless web UI display becomes a concern.
+- **iris_config.json stale key** — `ELEVENLABS_ENABLED` key may still exist in iris_config.json on Pi4. Config loader silently ignores unknown keys, so harmless. Clean up next time the file is touched.
 - **Clean up old GandalfAI source locations** — After confirming stability:
   - `C:\docker\whisper\`, `C:\docker\piper\` (data migrated to `C:\IRIS\docker\`)
   - `C:\Users\gandalf\Chatterbox-TTS-Server\` (migrated to `C:\IRIS\chatterbox\`)
@@ -431,19 +430,16 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 - Mouth smoke test route: Pi4 SSH -> send `MOUTH:0` through `MOUTH:8` via UDP `127.0.0.1:10500` -> TeensyBridge -> `/dev/ttyACM0` -> Teensy renders on TFT.
 - Flash rule: Claude runs `pio run` only. User clicks PlatformIO upload. Never remote flash.
 - Canonical Pi4 source: `pi4/assistant.py` only. Never read or write root-level `assistant.py`.
-- SNAPSHOT_LATEST.md and CLAUDE.md must stay identical at all times.
 - Every Code session ends with: `git add -A && git commit && git push`, then `/snapshot`.
+- **GandalfAI SSH:** use `mcp__ssh-gandalf__ssh_connect` with host=192.168.1.3, user=gandalf, pass=5309. `ollama run` is interactive — use REST API instead: `curl -s http://localhost:11434/api/generate -d '{"model":"...","prompt":"...","stream":false}'`
 
 ---
 
 ## 17. FLASH / DEPLOY COMMANDS
 
 ```bash
-# Pi4 SSH (from GandalfAI bash — use plink, not ssh):
-plink -ssh pi@192.168.1.200 -pw ohs -batch -hostkey "SHA256:IN+qEsZ6kWG4PfXob8V8fZX0ykvGl4n6GOMzBGCQCbo" '<cmd>'
-pscp -pw ohs -hostkey "SHA256:IN+qEsZ6kWG4PfXob8V8fZX0ykvGl4n6GOMzBGCQCbo" <src> pi@192.168.1.200:<dst>
-
-# Pi4 persist a file to SD:
+# Pi4 SSH (via mcp__ssh-pi4__ssh_connect host=192.168.1.200, user=pi, pass=ohs):
+# Write file via sftp_write, then persist:
 sudo mount -o remount,rw /media/root-ro
 sudo cp /home/pi/<file> /media/root-ro/home/pi/<file>
 sudo mount -o remount,ro /media/root-ro
@@ -464,4 +460,7 @@ docker compose -f C:\IRIS\docker\docker-compose.gandalf.yml up -d
 ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt
 ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt
 ollama list  # confirm timestamp
+
+# Ollama smoke test (REST API — do NOT use ollama run over SSH, it's interactive and times out):
+curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris-kids\",\"prompt\":\"<question>\",\"stream\":false}" | python -c "import sys,json; r=json.load(sys.stdin); print(r['response'])"
 ```
