@@ -1,8 +1,8 @@
 # IRIS Robot Face — Handoff Snapshot
 **Date:** 2026-04-17
-**Session:** 20
+**Session:** 21
 **Branch:** `main`
-**Last commit:** 192e6a0 — fix: remove ElevenLabs, fix CLAUDE.md model refs, tighten iris-kids no-markdown
+**Last commit:** 47dd53a — fix: web UI mouth tab — replace matrix refs with TFT mouth controls
 **Repo:** `C:\IRIS\IRIS-Robot-Face`
 
 ---
@@ -81,7 +81,7 @@ C:\IRIS\
 **TTS routing:** Chatterbox (primary) → Piper (fallback). ElevenLabs fully removed S20.
 **TTS truncation:** `_truncate_for_tts()` active in tts.py — caps Chatterbox input at 220 chars at last sentence boundary.
 **Chatterbox server:** Running on GandalfAI at http://192.168.1.3:8004. Stack: `C:\IRIS\docker\docker-compose.yml`.
-**Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000. ElevenLabs references fully purged (S18).
+**Web UI:** TFT mouth controls live (S21). EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000. ElevenLabs references fully purged (S18). MAX7219/matrix references purged (S21).
 **NUM_PREDICT:** 120 in iris_config.json.
 **Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths.
 **ILI9341 TFT mouth:** Library switched to KurtE/ILI9341_t3n. CS=36, DC=8, RST=4, MOSI=35, SCK=37 → SPI2. Build confirmed clean. Flashed and installed — physical smoke test pending.
@@ -149,22 +149,15 @@ python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep
 | 14 | BL | Orange | PWM: 220 boot/wake, 40 sleep |
 
 > Free pins: 5, 6, 7, 15–17, 20–25, 28–33, 38–55 (T4.1 extended)
-> MAX7219 matrix uses 5/6/7 (DATA/CLK/CS) — see mouth.h.
+> Pins 5/6/7 were used by the legacy MAX7219 matrix (removed hardware). Now free.
 
 ---
 
 ## 6. MOUTH TFT STATUS — BUILD CLEAN, FLASHED AND CONFIRMED
 
-**Library:** `moononournation/GFX Library for Arduino @ ^1.4.9` — Arduino_GFX SWSPI (bit-bang).
+**Library:** `KurtE/ILI9341_t3n` — hardware SPI2 (MOSI=35, SCK=37, CS=36, DC=8, RST=4, BL=14).
 
-```cpp
-// Bit-bang SPI: MOSI=35, SCK=37, CS=36, DC=8, RST=4, BL=14
-_bus = new Arduino_SWSPI(MOUTH_TFT_DC, MOUTH_TFT_CS,
-                          MOUTH_TFT_SCK, MOUTH_TFT_MOSI, -1);
-_tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape flipped)
-```
-
-> No DMA, no hardware SPI — zero conflict with GC9A01A_t3n on SPI0/SPI1.
+> Physical smoke test still pending — verify MOUTH:0 through MOUTH:8 render correctly on TFT.
 
 ---
 
@@ -226,7 +219,7 @@ IRIS-Robot-Face/
     eyes/EyeController.h        -- eye movement/blink/pupil (setTargetPosition seed fix intact)
     eyes/240x240/               -- nordicBlue/flame/hypnoRed/hazel/blueFlame1/dragon/bigBlue .h
     sensors/PersonSensor.h/.cpp -- I2C face detection (SAMPLE_TIME_MS=70, conf>60, is_facing)
-    mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (Arduino_GFX SWSPI bit-bang)
+    mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (KurtE/ILI9341_t3n, SPI2)
   pi4/                          -- mirrors /home/pi/ on Pi4
     assistant.py                -- THIN orchestrator. No weather/briefing/person-recog.
     services/tts.py             -- Chatterbox→Piper only (ElevenLabs removed S20)
@@ -234,8 +227,8 @@ IRIS-Robot-Face/
     services/llm.py             -- stream_ollama(), extract_emotion_from_reply(), clean_llm_reply()
     state/state_manager.py      -- StateManager: conversation_history, kids_mode, eyes_sleeping only
     core/config.py              -- all constants; iris_config.json override loader (EL constants removed S20)
-    iris_web.py                 -- Flask web panel (ElevenLabs removed S18)
-    iris_web.html               -- Web UI (ElevenLabs card removed S18)
+    iris_web.py                 -- Flask web panel (serves iris_web.html fresh per-request)
+    iris_web.html               -- Web UI (ElevenLabs removed S18, MAX7219/matrix refs removed S21)
   ollama/
     iris_modelfile.txt          -- adult IRIS persona (gemma3:12b) — canonical
     iris-kids_modelfile.txt     -- kids IRIS persona (gemma3:12b) — canonical, no-asterisk hardened S20
@@ -256,7 +249,7 @@ lib_deps =
   https://github.com/PaulStoffregen/Wire
   https://github.com/PaulStoffregen/ST7735_t3
   https://github.com/mjs513/GC9A01A_t3n
-  moononournation/GFX Library for Arduino @ ^1.4.9
+  KurtE/ILI9341_t3n
 ```
 
 ---
@@ -308,7 +301,7 @@ LED_SLEEP_BRIGHT        = 0xFF
   "NUM_PREDICT": 120
 }
 ```
-Note: `ELEVENLABS_ENABLED` key removed from iris_config.json is not urgent — config loader will silently ignore unknown keys. Clean up opportunistically.
+Note: `ELEVENLABS_ENABLED` key may still exist in iris_config.json on Pi4. Config loader silently ignores unknown keys, so harmless. Clean up next time the file is touched.
 
 ### src/main.cpp — Key constants
 ```cpp
@@ -363,36 +356,19 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 14. CHANGES THIS SESSION (S20 — 2026-04-17)
+## 14. CHANGES THIS SESSION (S21 — 2026-04-17)
 
-**Task 1 — Remove ElevenLabs from tts.py:**
-- Removed `ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, ELEVENLABS_MODEL, ELEVENLABS_ENABLED` from import
-- Removed entire `_synthesize_elevenlabs()` function (~47 lines)
-- Removed `if ELEVENLABS_ENABLED:` branch in `synthesize()`
-- Updated module docstring and `synthesize()` docstring: "CB → Piper only"
-- Deployed to Pi4 `/home/pi/services/tts.py`, persisted to SD, md5: `420d24fbb0985df9ec42c7810fec910d` ✓
+**Task — Web UI mouth tab: replace MAX7219/matrix refs with TFT mouth controls**
 
-**Task 2 — Remove ElevenLabs from config.py:**
-- Removed `# ── ElevenLabs TTS` block: `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL`, `ELEVENLABS_ENABLED`
-- Removed `"ELEVENLABS_VOICE_ID", "ELEVENLABS_MODEL", "ELEVENLABS_ENABLED"` from `_OVERRIDABLE`
-- Deployed to Pi4 `/home/pi/core/config.py`, persisted to SD, md5: `38c66d3f39539feebaf0b03dc6244f4f` ✓
-- `sudo systemctl restart assistant` → `[INFO] Ready.` confirmed, no ElevenLabs refs in startup log ✓
+File changed: `pi4/iris_web.html` only. `iris_web.py` had no matrix references — no changes needed.
 
-**Task 3 — Fix CLAUDE.md LLM section:**
-- Machine rules Ollama line: updated `jarvis`/`jarvis-kids`/`mistral-small3.2:24b` → `iris`/`iris-kids`/`gemma3:12b`
-- Replaced entire LLM Model Selection section: removed mistral-small3.2:24b analysis, model criteria table, multi-family stop token list
-- New section: gemma3:12b current model, ~7GB VRAM, ~11.5GB combined, ~12.5GB headroom, `<end_of_turn>` stop token, smoke test criteria includes "no asterisks"
+- **Eyes tab "Mouth Matrix" card** → renamed to "TFT Mouth"; hint updated from "MAX7219 32x8 LED matrix" to "ILI9341 TFT mouth". MOUTH:0–8 buttons unchanged (already correct).
+- **Sleep tab "Mouth Matrix Brightness (MAX7219)" card** → renamed to "TFT Mouth Intensity"; replaced two number inputs (`MOUTH_INTENSITY_AWAKE` + `MOUTH_INTENSITY_SLEEP`) with a single range slider (`MOUTH_INTENSITY`, 0–15, default 8, purple accent).
+- **JS `saveMouthIntensity()`** → simplified from two-value save to single `MOUTH_INTENSITY` value; saves to iris_config.json and sends `MOUTH_INTENSITY:{v}` via UDP to TeensyBridge.
+- **JS `tab()` function** → sleep tab open now syncs `mouth-intensity-display` span from slider current value (so display is correct after loadConfig() pre-populates the input).
+- Deployed to Pi4 `/home/pi/iris_web.html` via sudo cp from /tmp (root-owned file — sftp_write cannot overwrite directly). Persisted to SD. md5: `86baeaffbc639cf12c3ac1b2c5db01cb` ✓. No service restart needed — iris_web.py reads file fresh per-request.
 
-**Task 4 — Tighten iris-kids no-markdown:**
-- `iris-kids_modelfile.txt`: Added to HOW YOU TALK: "no *word* formatting of any kind"
-- Added new `FORMATTING -- NEVER BREAK` section: "Never use asterisks. Never use *word* or **word** emphasis."
-- Added absolute rule at very top of SYSTEM prompt (first line): "FORMATTING RULE -- ABSOLUTE, NO EXCEPTIONS: Never use asterisks..."
-- Rebuilt `iris-kids` on GandalfAI twice (after each constraint addition) — success both times
-- Smoke test result: gemma3:12b still outputs `*you*` and `*actual*` despite all constraints
-- **Finding:** gemma3:12b has deeply embedded `*word*` emphasis behavior; system prompt cannot fully suppress it
-- **Mitigation confirmed:** `tts.py` line 183 `re.sub(r'\*+', '', text)` strips all asterisks before TTS — voice output is clean
-
-**Not touched:** `src/` firmware, `iris_config.json`, `alsa-init.sh`, `iris_sleep.py`, `iris_wake.py`, `assistant.py`
+**Not touched:** `src/` firmware, `iris_web.py`, `core/config.py`, `services/tts.py`, `iris_config.json`, modelfiles, `alsa-init.sh`
 
 ---
 
@@ -417,6 +393,7 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 ### LOW
 - **Untracked files in project root** — iris_voice.wav, _decode_assistant.py, REFACTOR_VISUAL.md, IRIS_AUDIT_2026-04-03.md. Add wav to .gitignore, review/delete or commit others.
 - **Old log file** — /home/pi/iris_sleep.log (root level, pre-S2) stale.
+- **Pi4 sftp_write permission** — `iris_web.html` is root-owned on Pi4; sftp_write fails with permission denied. Pattern: write to /tmp via sftp_write, then `sudo cp /tmp/<file> /home/pi/<file>` via ssh_exec. Same likely applies to any root-owned file in /home/pi.
 
 ---
 
@@ -439,7 +416,9 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ```bash
 # Pi4 SSH (via mcp__ssh-pi4__ssh_connect host=192.168.1.200, user=pi, pass=ohs):
-# Write file via sftp_write, then persist:
+# Root-owned files: write to /tmp via sftp_write, then:
+sudo cp /tmp/<file> /home/pi/<file>
+# Then persist:
 sudo mount -o remount,rw /media/root-ro
 sudo cp /home/pi/<file> /media/root-ro/home/pi/<file>
 sudo mount -o remount,ro /media/root-ro
