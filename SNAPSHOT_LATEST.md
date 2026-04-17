@@ -1,8 +1,8 @@
 # IRIS Robot Face — Session Snapshot
 **Date:** 2026-04-17
-**Session:** 22
+**Session:** 22B
 **Branch:** `main`
-**Last commit:** 5874a5f — chore: token efficiency — lean snapshot, IRIS_ARCH.md, clean repo root
+**Last commit:** f7802c9 — fix: web UI sleep/wake full sequence, sleep animation, return-to-sleep
 
 > Architecture, pins, constants, cron, deploy commands: see [IRIS_ARCH.md](IRIS_ARCH.md)
 
@@ -12,27 +12,27 @@
 
 | System | Status |
 |---|---|
-| Pi4 (192.168.1.200) | Operational. assistant.py running. |
+| Pi4 (192.168.1.200) | Operational. assistant.py + iris-web running. Both services restarted and Ready S22B. |
 | GandalfAI (192.168.1.3) | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. |
-| Teensy 4.1 | Flashed. Eyes + mouth TFT build clean. Mouth smoke test pending. |
+| Teensy 4.1 | Firmware built clean S22B (mouthSleepFrame). Awaiting manual flash. |
 | TTS | Chatterbox primary, Piper fallback. ElevenLabs fully removed S20. |
-| Web UI | Port 5000. TFT mouth controls live (S21). MAX7219 refs purged. |
+| Web UI | Port 5000. Sleep/wake routes fixed S22B. |
 | Cron sleep/wake | 9PM sleep / 7:30AM wake. Hardened S15. |
 
 ---
 
 ## Active Issues
 
-- **HIGH: Mouth smoke test** — MOUTH:0–8 never confirmed post-installation. Do before any firmware work. Route: Pi4 SSH → UDP 127.0.0.1:10500 → TeensyBridge → TFT.
+- **HIGH: Teensy needs manual flash** — mouthSleepFrame + mouthSleepReset firmware built S22B, not yet flashed. Flash before verifying sleep animation.
+- **HIGH: Mouth smoke test** — MOUTH:0–8 never confirmed post-installation. Do before any further firmware work.
 - **MED: iris-kids asterisk** — gemma3 uses `*word*` emphasis. tts.py strips before TTS (cosmetic in web UI only).
-- **MED: iris_config.json stale key** — `ELEVENLABS_ENABLED` still present, silently ignored. Clean next file touch.
-- **MED: Old GandalfAI source locations** — `C:\docker\whisper\`, `C:\docker\piper\`, `C:\Users\gandalf\Chatterbox-TTS-Server\` safe to delete after stability confirmed.
+- **MED: iris_config.json stale key** — `ELEVENLABS_ENABLED` still present, silently ignored.
 - **LOW: /home/pi/iris_sleep.log** — stale root-level log from pre-S2.
 
 ---
 
-## Session Scope (S22)
-Token efficiency overhaul: lean snapshot format, IRIS_ARCH.md extraction, repo root cleanup, session_start.py 80-line truncation.
+## Session Scope (S22B)
+Sleep system fixes: web UI /api/sleep+wake full command sequence, mouthSleepFrame breathing animation, return-to-sleep after wakeword in sleep window.
 
 ---
 
@@ -41,29 +41,30 @@ Token efficiency overhaul: lean snapshot format, IRIS_ARCH.md extraction, repo r
 
 ---
 
-## Last Session Changes (S22 — 2026-04-17)
-**Task:** Token efficiency overhaul
-- `SNAPSHOT_LATEST.md` — rewritten to 60-80 line lean format; S21 full content preserved in `SNAPSHOT_2026-04-17.md`
-- `IRIS_ARCH.md` — created; contains all arch tables, pins, constants, cron, serial protocol, sleep state machine, deploy/flash commands
-- `CLAUDE.md` (repo) — Architecture/Deploy/Eye-edit sections replaced with `See IRIS_ARCH.md.`
-- `.claude/hooks/session_start.py` — truncates snapshot output at 80 lines; prints truncation notice if longer
-- `.claude/commands/snapshot.md` — rewritten with lean format spec; explicitly forbids arch content in snapshots
-- `C:\Users\SuperMaster\.claude\CLAUDE.md` (global) — IRIS local-first read rule appended
-- 14 stale root files deleted: HANDOFF_TASK_A/B/C/D.md, MOUTH_TFT_HANDOFF.md, AUDIT_2026-03-27.md, IRIS_AUDIT_2026-04-03.md, IRIS_AUDIT_PROMPT.md, REFACTOR_PLAN_ANALYSIS.md, REFACTOR_VISUAL.md, chatgpt-projectAudit-instructions.md, REVIEW_2026-03-26.md, PURGE_HISTORY.md, _decode_assistant.py
-- Not touched: all Pi4 files, firmware, iris_config.json, modelfiles, alsa-init.sh
+## Last Session Changes (S22B — 2026-04-17)
+**Task:** Sleep system fixes
 
-## Previous Session Changes (S21 — 2026-04-17)
-**Task:** Web UI mouth tab — replace MAX7219/matrix refs with TFT mouth controls
-- `pi4/iris_web.html` — "Mouth Matrix" → "TFT Mouth"; sleep tab two intensity inputs → single range slider
-- `pi4/iris_web.html` — `saveMouthIntensity()` simplified to single `MOUTH_INTENSITY` value
-- Deployed + persisted to Pi4 SD. md5: `86baeaffbc639cf12c3ac1b2c5db01cb` ✓
+- `pi4/iris_web.py` — `/api/sleep`: added `send_teensy("MOUTH:8")` + `open(SLEEP_FLAG).close()`. `/api/wake`: added `send_teensy("MOUTH:0")` + flag file removal.
+- `src/mouth_tft.cpp` — `mouthSleepFrame()` implemented: breathing BL (8–22, -cos envelope), sine wave cy ±10px around 115 (amp=8, freq=0.028, stroke=5), Z glyph drifts upward over 60 frames / repeats every 150. `mouthSetSleepIntensity()` BL 40→8. File-scope `_sleepFrameCount`. `mouthSleepReset()` added.
+- `src/mouth_tft.h` — `mouthSleepReset()` declaration added.
+- `src/main.cpp` — `mouthSleepReset()` called in EYES:WAKE handler before `mouthRestoreIntensity()`.
+- `pi4/core/config.py` — `SLEEP_WINDOW_START_HOUR = 21`, `SLEEP_WINDOW_END_HOUR = 8` added.
+- `pi4/assistant.py` — `in_sleep_window()` + `return_to_sleep(teensy, st)` helpers added. Called after follow-up loop in main().
+- Deployed + persisted to Pi4 SD. md5 match verified (iris_web.py: 8a77ef, assistant.py: 42cf90, config.py: 458b17). Both services restarted, Ready confirmed.
+
+## Previous Session Changes (S22 — 2026-04-17)
+**Task:** Token efficiency overhaul
+- `IRIS_ARCH.md` created; arch tables, pins, constants, cron, serial protocol, deploy commands extracted here.
+- `SNAPSHOT_LATEST.md` rewritten to lean 60–80 line format.
+- 14 stale root files deleted; `CLAUDE.md` arch sections replaced with `See IRIS_ARCH.md`.
 
 ---
 
 ## Known TODO (carry-forward)
+- **Flash Teensy** — firmware built S22B (mouthSleepFrame), user must click PlatformIO upload
 - Smoke test mouth TFT: Pi4 SSH → UDP 127.0.0.1:10500 → MOUTH:0 through MOUTH:8 → verify TFT renders
-- Smoke test sleep LED: web UI Sleep button → indigo breathe; Wake → idle cyan
+- Smoke test sleep animation: flash → web UI Sleep → verify BL breathes + sine + Z on TFT
+- Smoke test return-to-sleep: trigger wakeword after 9PM → confirm IRIS returns to sleep after reply
 - Exaggeration tuning: 0.45 starting point, tune after live voice test
 - Piper standalone routing for iris_sleep.py Goodnight if Wyoming is down
 - Chatterbox auto-start on GandalfAI boot (requires manual `docker compose up` after reboot)
-- TTS truncation threshold: 220 chars, monitor real responses
