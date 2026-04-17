@@ -135,42 +135,13 @@ ALL Pi4 Python files are edited in `pi4/` in this repo.
 
 ## Architecture
 
-`pi4/assistant.py` is a THIN orchestrator only (~340 lines).
-All logic lives in modules. Do not inline anything that belongs in a module.
-
-- `pi4/core/config.py` — all constants + iris_config.json override loader
-- `pi4/services/stt.py` — Wyoming Whisper STT (`data_length` payload parser -- do not rewrite inline)
-- `pi4/services/tts.py` — Chatterbox -> ElevenLabs -> Piper routing
-- `pi4/services/wakeword.py` — OWW + GPIO button handler
-- `pi4/services/llm.py` — `stream_ollama()` (streaming main path), `ask_ollama()` (followup/vision), emotion tag extraction, reply cleaning
-- `pi4/services/vision.py` — camera capture + vision query
-- `pi4/hardware/audio_io.py` — PCM playback, record, beep, interrupt detection
-- `pi4/hardware/led.py` — APA102 driver
-- `pi4/hardware/teensy_bridge.py` — single serial owner of `/dev/ttyACM0`
-- `pi4/state/state_manager.py` — runtime state singleton (`state.kids_mode`, `state.eyes_sleeping`, etc.)
-
-Serial owner rule: only TeensyBridge owns `/dev/ttyACM0`. Everything else uses UDP -> `127.0.0.1:10500`.
+See [IRIS_ARCH.md](IRIS_ARCH.md).
 
 ---
 
 ## Deploy workflow
 
-**Always follow this order. Never skip steps.**
-
-1. Read the file from `pi4/` in the repo -- confirm it is correct before touching Pi4
-2. Write to `/home/pi/<path>` on Pi4 via SSH
-3. Persist to SD:
-```bash
-sudo mount -o remount,rw /media/root-ro
-sudo cp /home/pi/<file> /media/root-ro/home/pi/<file>
-sudo mount -o remount,ro /media/root-ro
-md5sum /home/pi/<file> /media/root-ro/home/pi/<file>
-```
-4. Verify md5 matches -- if not, repeat step 3
-5. `sudo systemctl restart assistant`
-6. `journalctl -u assistant -n 30 --no-pager` -- confirm `[INFO] Ready.` before closing
-
-Or use the `/deploy` command which enforces this sequence.
+See [IRIS_ARCH.md](IRIS_ARCH.md).
 
 ---
 
@@ -193,11 +164,8 @@ python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep
 ---
 
 ## Eye editing workflow
-1. Edit `resources/eyes/240x240/<eye>/config.eye`
-2. Run `python resources/eyes/240x240/genall.py` to regenerate `.h` files
-3. Re-apply pupil values manually to nordicBlue.h, hazel.h, bigBlue.h after every genall.py run
-   (genall.py resets them -- manual values are not in config.eye)
-4. PlatformIO upload
+
+See [IRIS_ARCH.md](IRIS_ARCH.md).
 
 ---
 
