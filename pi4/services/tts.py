@@ -1,8 +1,8 @@
 """
-services/tts.py - Text-to-speech (Chatterbox primary, ElevenLabs secondary, Wyoming Piper fallback)
+services/tts.py - Text-to-speech (Chatterbox primary, Wyoming Piper fallback)
 Returns raw s16le PCM bytes at 48000 Hz mono.
 
-synthesize(text) → bytes   — public entry point, routes CB → EL → Piper on failure
+synthesize(text) → bytes   — public entry point, routes CB → Piper on failure
 spoken_numbers(text) → str — pre-processes numeric tokens for natural TTS
 """
 
@@ -15,7 +15,6 @@ import requests
 
 from core.config import (
     CHATTERBOX_BASE_URL, CHATTERBOX_VOICE, CHATTERBOX_EXAGGERATION, CHATTERBOX_ENABLED,
-    ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, ELEVENLABS_MODEL, ELEVENLABS_ENABLED,
     GANDALF, PIPER_PORT, PIPER_VOICE,
     SAMPLE_RATE, CHANNELS,
 )
@@ -68,57 +67,6 @@ def _synthesize_chatterbox(text: str) -> bytes:
     boosted = _cb_treble_boost(raw, 48000).astype(np.int16)
     pcm = boosted.tobytes()
     print(f"[CB]   OK {len(wav_bytes)}b WAV → {len(pcm)}b PCM ({decoded.duration:.1f}s) [treble+10dB]", flush=True)
-    return pcm
-
-
-# ── ElevenLabs ────────────────────────────────────────────────────────────────
-
-def _synthesize_elevenlabs(text: str) -> bytes:
-    """ElevenLabs TTS → raw s16le PCM at 48000 Hz. Returns MP3-decoded samples."""
-    import miniaudio
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}/stream"
-    headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
-    payload = {
-        "text": text,
-        "model_id": ELEVENLABS_MODEL,
-        "voice_settings": {
-            "stability": 0.45,
-            "similarity_boost": 0.85,
-            "style": 0.15,
-            "use_speaker_boost": True,
-        },
-    }
-    resp = requests.post(url, headers=headers, json=payload, timeout=15)
-    resp.raise_for_status()
-    mp3 = resp.content
-    if len(mp3) < 100:
-        raise RuntimeError(f"[EL] Response too short: {len(mp3)} bytes")
-
-    decoded = miniaudio.decode(
-        mp3,
-        output_format=miniaudio.SampleFormat.SIGNED16,
-        nchannels=1,
-        sample_rate=48000,
-    )
-    raw = np.frombuffer(bytes(decoded.samples), dtype=np.int16).astype(np.float32)
-
-    # ElevenLabs is mastered ~16 dB quieter than Piper (measured RMS ~2000 vs ~15000).
-    _EL_TARGET_RMS = 5500.0
-    _rms = float(np.sqrt(np.mean(raw ** 2))) if raw.size else 0.0
-    if _rms > 10.0:
-        _peak_safe = 32700.0 / float(np.max(np.abs(raw)))
-        _norm_gain = min(_EL_TARGET_RMS / _rms, _peak_safe * 2.5)
-        raw = np.clip(raw * _norm_gain, -32768.0, 32767.0)
-        print(f"[EL]   Norm gain={_norm_gain:.2f}x  RMS {_rms:.0f}→{np.sqrt(np.mean(raw**2)):.0f}",
-              flush=True)
-
-    samples_padded = np.concatenate([
-        np.zeros(int(48000 * 0.08), dtype=np.int16),
-        raw.astype(np.int16),
-        np.zeros(int(48000 * 0.08), dtype=np.int16),
-    ])
-    pcm = samples_padded.tobytes()
-    print(f"[EL]   OK {len(mp3)}b MP3 → {len(pcm)}b PCM ({decoded.duration:.1f}s)", flush=True)
     return pcm
 
 
@@ -227,7 +175,7 @@ _PIPER_DIRECT_PHRASES = {
 }
 
 def synthesize(text: str) -> bytes:
-    """Chatterbox first; ElevenLabs second; Piper fallback. Returns s16le PCM at 48000 Hz.
+    """Chatterbox first; Piper fallback. Returns s16le PCM at 48000 Hz.
     Sleep/wake phrases route directly to Piper regardless of CHATTERBOX_ENABLED.
     """
     text = spoken_numbers(text)
@@ -255,10 +203,5 @@ def synthesize(text: str) -> bytes:
         try:
             return _synthesize_chatterbox(text)
         except Exception as e:
-            print(f"[CB]   Failed: {e} -- falling back", flush=True)
-    if ELEVENLABS_ENABLED:
-        try:
-            return _synthesize_elevenlabs(text)
-        except Exception as e:
-            print(f"[EL]   Failed: {e} -- falling back to Piper", flush=True)
+            print(f"[CB]   Failed: {e} -- falling back to Piper", flush=True)
     return _synthesize_piper(text)

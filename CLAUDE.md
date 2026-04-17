@@ -58,7 +58,7 @@ SuperMaster: firmware builds and PlatformIO only. Claude runs pio run only. User
 GandalfAI: pi4/ and snapshot work only. Never touch src/ firmware files. No pio commands. No firmware builds.
 GandalfAI filesystem MCP: C:\Users\gandalf\ only. Use Bash tool for C:\IRIS\ and C:\docker\.
 GandalfAI: PowerShell only. No grep/df/head. Heredocs unreliable -- use sftp_write for multi-line files.
-Ollama models: `jarvis` and `jarvis-kids` -- both built on `mistral-small3.2:24b` Q4_K_M (24B params, 14GB disk, 17.1GB VRAM). Canonical modelfiles in `ollama/` in this repo. To rebuild: `ollama create jarvis -f C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt`
+Ollama models: `iris` and `iris-kids` -- both built on `gemma3:12b`. Canonical modelfiles in `ollama/` in this repo. To rebuild: `ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt`
 
 ---
 
@@ -72,36 +72,17 @@ GandalfAI has an RTX 3090 (24GB VRAM). Two GPU processes run simultaneously:
 Headroom below 4GB causes concurrent inference failures — Ollama or Chatterbox spills
 to system RAM, stalling the pipeline. IRIS appears dead post-wakeword with no audio output.
 
-**Current model:** mistral-small3.2:24b Q4_K_M — 17.1GB VRAM at num_ctx 4096.
-Combined with Chatterbox: ~21.6GB. Headroom: ~2.4GB. THIS IS THE ACTIVE VRAM PROBLEM.
+**Current model:** gemma3:12b — ~7GB VRAM at num_ctx 4096.
+Combined with Chatterbox: ~11.5GB. Headroom: ~12.5GB. Well within safe limits.
 
-**Model selection criteria for IRIS (in priority order):**
-1. LLM VRAM footprint must leave 4GB+ headroom after Chatterbox (~4.5GB)
-   - Safe ceiling for LLM: ~15.5GB VRAM
-   - mistral-small3.2:24b Q4_K_M at 17.1GB exceeds this
-2. Personality consistency — must reliably follow the Jarvis system prompt
-   - Short constrained responses (num_predict 120, 2-sentence rule)
-   - Emotion tag on every response, correct format
-   - No markdown, no filler openers, no moralizing
-3. Instruction adherence on open-ended prompts
-   - Known failure: mistral-small3.2:24b ignores 30-word limit on open-ended asks
-
-**Safe model options (already on GandalfAI disk):**
-- qwen2.5:14b Q4_K_M — ~9.5GB LLM VRAM, strong instruction adherence, correct for voice assistant
-- gemma3:12b — ~7GB LLM VRAM, already confirmed on disk, fallback option
-- mistral-small3.2:24b Q3_K_M — saves ~3GB vs Q4, marginal improvement, lower adherence
-
-**Stop tokens by model family:**
-- mistral family: `</s>`
-- qwen family: `<|im_end|>`
-- gemma family: `<end_of_turn>`
+**Stop token for gemma family:** `<end_of_turn>`
 
 **When changing models:** update FROM line and stop token in BOTH modelfiles,
-rebuild both jarvis and jarvis-kids, smoke test both before deploying to Pi4.
-Smoke test confirms: [EMOTION:NEUTRAL] tag present, reply under 30 words, no markdown.
+rebuild both iris and iris-kids, smoke test both before deploying to Pi4.
+Smoke test confirms: [EMOTION:NEUTRAL] tag present, reply under 30 words, no markdown, no asterisks.
 
 **Do not increase num_ctx above 4096.** KV cache cost scales with context size.
-At 8192 ctx, KV cache doubles (~3GB), eliminating headroom entirely.
+At 8192 ctx, KV cache doubles, eliminating headroom.
 
 ---
 
