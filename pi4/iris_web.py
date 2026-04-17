@@ -119,12 +119,16 @@ def api_sleep_state():
 
 @app.route("/api/sleep", methods=["POST"])
 def api_sleep():
-    ok = send_teensy("EYES:SLEEP")
+    send_teensy("EYES:SLEEP")
+    ok = send_teensy("MOUTH:8")
+    open(SLEEP_FLAG, "w").close()
     return jsonify(ok=ok, sleeping=True)
 
 @app.route("/api/wake", methods=["POST"])
 def api_wake():
-    ok = send_teensy("EYES:WAKE")
+    send_teensy("EYES:WAKE")
+    ok = send_teensy("MOUTH:0")
+    if os.path.exists(SLEEP_FLAG): os.remove(SLEEP_FLAG)
     return jsonify(ok=ok, sleeping=False)
 
 @app.route("/api/logs")

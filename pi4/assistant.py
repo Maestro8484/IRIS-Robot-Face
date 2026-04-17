@@ -291,6 +291,19 @@ def show_idle_for_mode(leds):
     else: leds.show_idle()
 
 
+def in_sleep_window() -> bool:
+    hour = time.localtime().tm_hour
+    return hour >= SLEEP_WINDOW_START_HOUR or hour < SLEEP_WINDOW_END_HOUR
+
+
+def return_to_sleep(teensy, st) -> None:
+    teensy.send_command("EYES:SLEEP")
+    teensy.send_command("MOUTH:8")
+    open("/tmp/iris_sleep_mode", "w").close()
+    st.eyes_sleeping = True
+    print("[SLEEP] Returned to sleep (sleep window active)", flush=True)
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -583,6 +596,8 @@ def main():
                 pass
             emit_emotion(teensy, leds, "NEUTRAL")
             show_idle_for_mode(leds)
+            if in_sleep_window():
+                return_to_sleep(teensy, state)
             print("[INFO] Ready.", flush=True)
 
     except KeyboardInterrupt:

@@ -17,3 +17,4 @@ void mouthSetSleepIntensity();
 void mouthRestoreIntensity();
 void mouthSetIntensity(uint8_t level);
 void mouthSleepFrame();
+void mouthSleepReset();

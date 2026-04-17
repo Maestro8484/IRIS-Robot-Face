@@ -239,6 +239,7 @@ static void processSerial() {
             // Restore changed-areas-only for efficient eye engine rendering.
             if (displayLeft)  displayLeft->getDriver()->updateChangedAreasOnly(true);
             if (displayRight) displayRight->getDriver()->updateChangedAreasOnly(true);
+            mouthSleepReset();
             mouthRestoreIntensity();
             uint32_t saved = defIndex;
             defIndex = UINT32_MAX;

@@ -173,7 +173,7 @@ void mouthTFTShow(uint8_t idx) {
 void mouthSetSleepIntensity() {
     if (!_tft) return;
     _tft->fillScreen(MTFT_BLACK);
-    analogWrite(MOUTH_TFT_BL, 40);  // dim during sleep
+    analogWrite(MOUTH_TFT_BL, 8);  // mouthSleepFrame breathes from here
 }
 
 void mouthRestoreIntensity() {
@@ -186,6 +186,35 @@ void mouthSetIntensity(uint8_t level) {
     analogWrite(MOUTH_TFT_BL, (uint16_t)level * 17);
 }
 
+// Sleep animation state — file-scope so mouthSleepReset() can zero it
+static uint32_t _sleepFrameCount = 0;
+
+void mouthSleepReset() {
+    _sleepFrameCount = 0;
+}
+
 void mouthSleepFrame() {
-    // No-op: TFT stays blank during EYES:SLEEP
+    if (!_tft) return;
+
+    // Erase previous frame with targeted fillRect (avoids full-screen flicker at dim BL)
+    _tft->fillRect(25, 88, 270, 62, MTFT_BLACK);   // sine band
+    _tft->fillRect(110, 5, 100, 95, MTFT_BLACK);   // Z drift zone
+
+    // Backlight: breathe 8→22→8 starting at floor (center=15, amp=7)
+    float bl_f = -cosf(2.0f * M_PI * (float)_sleepFrameCount / 120.0f);
+    analogWrite(MOUTH_TFT_BL, (uint8_t)(15.0f + 7.0f * bl_f));
+
+    // Sine: cy oscillates ±10px around 115, amp=8, freq=0.028, stroke=5
+    int16_t cy = 115 + (int16_t)(10.0f * sinf(2.0f * M_PI * (float)_sleepFrameCount / 200.0f));
+    _sine(30, 290, cy, 8.0f, 0.028f, 0.0f, MTFT_PURPLE, 5);
+
+    // Z: drifts upward over 60 frames, repeats every 150 frames
+    uint32_t zp = _sleepFrameCount % 150;
+    if (zp < 60) {
+        int16_t ty = 68 - (int16_t)zp;
+        uint16_t zcolor = (zp < 15 || zp > 45) ? (uint16_t)0x3806 : MTFT_PURPLE;
+        _draw_Z(142, ty, 36, 30, zcolor);
+    }
+
+    _sleepFrameCount++;
 }

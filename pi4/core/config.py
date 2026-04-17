@@ -98,6 +98,10 @@ VISION_TRIGGERS = {
     "who is this", "who is that",
 }
 
+# ── Sleep window ─────────────────────────────────────────────────────────────
+SLEEP_WINDOW_START_HOUR = 21  # 9 PM
+SLEEP_WINDOW_END_HOUR   = 8   # 8 AM
+
 # ── Eye trigger phrases ───────────────────────────────────────────────────────
 EYES_SLEEP_TRIGGERS = {
     "turn off your eyes", "turn off eyes", "turn off the eyes",
