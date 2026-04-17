@@ -17,8 +17,8 @@ OWW_PORT       = 10400
 CMD_PORT       = 10500  # web UI → Teensy command bridge
 
 # ── Models ────────────────────────────────────────────────────────────────────
-OLLAMA_MODEL_ADULT = "jarvis"
-OLLAMA_MODEL_KIDS  = "jarvis-kids"
+OLLAMA_MODEL_ADULT = "iris"
+OLLAMA_MODEL_KIDS  = "iris-kids"
 WAKE_WORD      = "hey_jarvis"
 PIPER_VOICE    = "en_US-ryan-high"
 
@@ -85,7 +85,7 @@ CAMERA_ENABLED = True
 CAMERA_WIDTH   = 1024
 CAMERA_HEIGHT  = 768
 CAMERA_TIMEOUT = 5000
-VISION_MODEL   = "jarvis"
+VISION_MODEL   = "iris"
 
 VISION_TRIGGERS = {
     # contracted forms
@@ -126,7 +126,7 @@ WOL_BOOT_TIMEOUT  = 120
 WOL_POLL_INTERVAL = 5
 
 # ── Wake word ─────────────────────────────────────────────────────────────────
-OWW_THRESHOLD  = 0.85
+OWW_THRESHOLD  = 0.90
 
 # ── Mouth MAX7219 intensity ───────────────────────────────────────────────────
 MOUTH_INTENSITY_AWAKE = 8   # MAX7219 register 0x0A, range 0-15
