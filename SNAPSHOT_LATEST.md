@@ -1,9 +1,9 @@
 # IRIS Robot Face — Handoff Snapshot
 **Date:** 2026-04-16
-**Session:** 18
+**Session:** 19
 **Branch:** `main`
-**Last commit:** 906d8e1 — audit: feature triage pass 1 — remove weather/briefing/person-recog, ElevenLabs web UI
-**Repo:** `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
+**Last commit:** 121f6e2 — rename jarvis->iris throughout: models, persona, docker stack, wakeword threshold
+**Repo:** `C:\IRIS\IRIS-Robot-Face`
 
 ---
 
@@ -18,7 +18,7 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 
 | System | IP | Credentials | Role |
 |---|---|---|---|
-| Pi4 (IRIS / Jarvis) | 192.168.1.200 | pi / ohs | Voice pipeline, LEDs, camera, Teensy serial |
+| Pi4 (IRIS) | 192.168.1.200 | pi / ohs | Voice pipeline, LEDs, camera, Teensy serial |
 | GandalfAI | 192.168.1.3 | gandalf / 5309 | Ollama LLM, Whisper STT, Piper TTS, Chatterbox TTS, RTX 3090 |
 | Desktop PC | 192.168.1.103 | SuperMaster | PlatformIO firmware, VS Code, Claude Desktop |
 | GandalfAI (Claude Desktop) | 192.168.1.3 | gandalf / 5309 | Claude Desktop + MCP installed (S14). Local filesystem MCP scope updated S17: now covers `C:\Users\gandalf\`, `C:\IRIS\`, `C:\docker\`, `G:\`. Claude Desktop can read all IRIS project files directly. |
@@ -26,43 +26,45 @@ If context seems missing: `python3 .claude/hooks/session_start.py`
 | Synology NAS | 192.168.1.102 | Master / Gateway!7007 | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
 **SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (NAS, port 2233)
-**SSH auth:** Pi4 uses **password auth only** — key auth fails. Always connect with `username: pi`, `password: ohs`.
+**SSH auth Pi4:** Password auth only — key auth fails on GandalfAI bash. Use `plink`/`pscp` (PuTTY):
+- `plink -ssh pi@192.168.1.200 -pw ohs -batch -hostkey "SHA256:IN+qEsZ6kWG4PfXob8V8fZX0ykvGl4n6GOMzBGCQCbo" '<cmd>'`
+- `pscp -pw ohs -hostkey "SHA256:IN+qEsZ6kWG4PfXob8V8fZX0ykvGl4n6GOMzBGCQCbo" <src> pi@192.168.1.200:<dst>`
 **GandalfAI:** Windows machine. No `df`, `head`, `grep` — use PowerShell / findstr / dir equivalents.
 **GandalfAI MCP scope:** filesystem MCP only covers `C:\Users\gandalf\`. All `C:\IRIS\`, `C:\docker\` file reads/writes must go through SSH sftp_write or ssh_exec.
 
 ---
 
-## 2. GANDALFAI FILE LAYOUT (as of S16 — CENTRALIZATION COMPLETE)
+## 2. GANDALFAI FILE LAYOUT
 
 All IRIS-related files on GandalfAI now live under `C:\IRIS\`:
 
 ```
 C:\IRIS\
   docker\
-    docker-compose.yml        -- CANONICAL compose file (was C:\docker\docker-compose.yml)
-    whisper\                  -- whisper model cache (migrated from C:\docker\whisper\)
-    piper\                    -- piper data (migrated from C:\docker\piper\)
+    docker-compose.yml          -- iris stack (pipeline: whisper, piper, chatterbox)
+    docker-compose.gandalf.yml  -- gandalf stack (utility: open-webui, watchtower)
+    whisper\                    -- whisper model cache
+    piper\                      -- piper data
   chatterbox\
-    config.yaml               -- Chatterbox config (last_chunk_size: 300)
+    config.yaml                 -- Chatterbox config (last_chunk_size: 300)
     reference_audio\
-      iris_voice.wav          -- CONFIRMED PRESENT
-    voices\                   -- predefined voices
-    model_cache\              -- empty (model downloads on first start)
+      iris_voice.wav            -- CONFIRMED PRESENT
+    voices\                     -- predefined voices
+    model_cache\
     logs\
     outputs\
   backup\
-    docker-compose.yml.bak    -- original pre-migration backup
+    docker-compose.yml.bak      -- original pre-migration backup
 ```
 
-**Ollama modelfiles (now in repo):**
-- `C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt` — adult Jarvis persona (mistral-small3.2:24b)
-- `C:\IRIS\IRIS-Robot-Face\ollama\jarvis-kids_modelfile.txt` — kids Jarvis persona (mistral-small3.2:24b)
+**Ollama modelfiles (in repo — canonical):**
+- `C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt` — adult IRIS persona (gemma3:12b)
+- `C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt` — kids IRIS persona (gemma3:12b)
 
-**Old locations (DO NOT USE for new work — originals left intact for stability):**
-- `C:\docker\docker-compose.yml.pre-iris.bak` — archived
-- `C:\docker\whisper\`, `C:\docker\piper\` — originals still present, safe to delete next session
-- `C:\Users\gandalf\Chatterbox-TTS-Server\` — original still present, safe to delete next session
-- `C:\Users\gandalf\jarvis_modelfile.txt`, `jarvis-kids_modelfile.txt` — originals still present (STALE — do not use)
+**Stale/archived (do not use):**
+- `C:\docker\docker-compose.yml.pre-iris.bak` — old monolithic gandalf-IRIS stack (do not restart)
+- `C:\docker\whisper\`, `C:\docker\piper\` — originals still present, safe to delete
+- `C:\Users\gandalf\Chatterbox-TTS-Server\` — original still present, safe to delete
 
 **HF cache:** `C:\Users\gandalf\.cache\huggingface` — intentionally NOT moved, stays in user profile.
 
@@ -70,25 +72,24 @@ C:\IRIS\
 
 ## 3. PROJECT STATUS
 
-**Firmware:** Build clean 2026-04-11 (S9). T4.1 swap: complete. Firmware: flashed and confirmed. Physical build: laser cut / 3D printed enclosure complete, renovated and installed. T4.0 reference commit: eca1627 (archived, no longer active).
-**Person Sensor tracking:** CONFIRMED WORKING. Stock chrismiller code. Sensor physically mounted right-side-up. `is_facing && conf > 60`, 70ms poll, 120ms animation, stock coordinate formula. Eye tracks face laterally and vertically.
+**Firmware:** Build clean 2026-04-11 (S9). T4.1 swap: complete. Firmware: flashed and confirmed. Physical build: laser cut / 3D printed enclosure complete, renovated and installed.
+**Person Sensor tracking:** CONFIRMED WORKING. Stock chrismiller code. Sensor physically mounted right-side-up. `is_facing && conf > 60`, 70ms poll, 120ms animation, stock coordinate formula.
 **Sleep display:** Starfield + ZZZ animation on both TFTs confirmed working.
 **Sleep LEDs:** APA102 dim indigo breathe on EYES:SLEEP. peak=26, global_bright=0xFF, floor=3.
 **Mouth during sleep:** Snore animation. TFT stays blank. BL dims to 40/255.
 **Wake from webui:** Working. Cron sleep 9PM/7:30AM UDP path. False wakeword during cron window ignored (button-only override).
-**Voice pipeline (assistant.py):** Operational. Modular (hardware/, core/, services/, state/). Deployed S18 (rebased commit 906d8e1).
+**Voice pipeline (assistant.py):** Operational. Modular (hardware/, core/, services/, state/).
 **TTS routing:** Chatterbox (primary) → ElevenLabs (disabled) → Piper (fallback).
-**TTS truncation:** `_truncate_for_tts()` active in tts.py — caps Chatterbox input at 220 chars at last sentence boundary. Deployed + persisted S17.
-**Chatterbox server:** Running on GandalfAI at http://192.168.1.3:8004. Serving from `C:\IRIS\docker\docker-compose.yml`.
-**ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in iris_config.json and config.py. Code kept in tts.py (removal deferred to ~2026-04-22). ElevenLabs card fully removed from web UI (S18).
+**TTS truncation:** `_truncate_for_tts()` active in tts.py — caps Chatterbox input at 220 chars at last sentence boundary.
+**Chatterbox server:** Running on GandalfAI at http://192.168.1.3:8004. Stack: `C:\IRIS\docker\docker-compose.yml`.
+**ElevenLabs:** Disabled — `ELEVENLABS_ENABLED=False` in iris_config.json and config.py. Code kept in tts.py (removal deferred).
 **Web UI:** Chatterbox-first Voice tab live. EYE:n switching (0–6), Sleep/Wake buttons, live state polling. Port 5000. ElevenLabs references fully purged (S18).
 **NUM_PREDICT:** 120 in iris_config.json.
 **Cron sleep/wake:** HARDENED. Single user crontab, ALSA_CARD env, correct log paths.
-**ILI9341 TFT mouth:** Library switched to KurtE/ILI9341_t3n (auto-detects SPI bus from pin numbers). CS=36, DC=8, RST=4, MOSI=35, SCK=37 → SPI2. Build confirmed clean. T4.1 flashed and installed — physical smoke test pending.
-**Flash workflow:** MANUAL ONLY — user clicks PlatformIO upload button, Teensy USB → Desktop PC. Claude runs `pio run` only.
-**Ollama models:** `jarvis` rebuilt S17 (new RESPONSE STYLE + HARD RULE). `jarvis-kids` rebuilt S16.
-**Person recognition (standalone):** REMOVED S18. Was: background `_pr_thread` + `_run_person_recognition()` + `person_inject` in `_build_messages()`. Person ID now integrated into `ask_vision()` prompt in `services/vision.py` — fires only on "what do you see?" trigger.
-**Weather/briefing commands:** REMOVED S18. `handle_weather_command()`, `fetch_weather()`, `WEATHER_TRIGGERS`, `handle_daily_briefing()`, `BRIEFING_TRIGGERS` all deleted.
+**ILI9341 TFT mouth:** Library switched to KurtE/ILI9341_t3n. CS=36, DC=8, RST=4, MOSI=35, SCK=37 → SPI2. Build confirmed clean. Flashed and installed — physical smoke test pending.
+**Flash workflow:** MANUAL ONLY — user clicks PlatformIO upload button. Claude runs `pio run` only.
+**Ollama models:** `iris` + `iris-kids` rebuilt S19 on gemma3:12b. `jarvis`/`jarvis-kids` deleted S19.
+**OWW_THRESHOLD:** 0.90 in config.py (updated S19). iris_config.json also has 0.9 — consistent.
 
 ---
 
@@ -106,7 +107,6 @@ C:\IRIS\
 ### iris-snapshot GitHub repo
 - **Repo:** `https://github.com/Maestro8484/iris-snapshot` (private)
 - **Local:** `C:/Users/SuperMaster/Documents/PlatformIO/iris-snapshot/`
-- **Raw URL:** `https://raw.githubusercontent.com/Maestro8484/iris-snapshot/main/SNAPSHOT_latest.md`
 
 ### Pi4 Sudoers (persisted to SD)
 - `/etc/sudoers.d/iris_service` — passwordless sudo for systemctl stop/start/restart/status assistant
@@ -158,7 +158,6 @@ python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep
 ## 6. MOUTH TFT STATUS — BUILD CLEAN, FLASHED AND CONFIRMED
 
 **Library:** `moononournation/GFX Library for Arduino @ ^1.4.9` — Arduino_GFX SWSPI (bit-bang).
-Same library as confirmed-working T4.0 commit 732b069 on main. Pins moved from 5/6/7 → 35/37/36.
 
 ```cpp
 // Bit-bang SPI: MOSI=35, SCK=37, CS=36, DC=8, RST=4, BL=14
@@ -174,43 +173,45 @@ _tft = new Arduino_ILI9341(_bus, MOUTH_TFT_RST, 3);  // rotation=3 (landscape fl
 ## 7. CHATTERBOX TTS
 
 - **Server:** GandalfAI — containerized at `C:\IRIS\docker\docker-compose.yml`, port 8004
-- **Config:** `C:\IRIS\chatterbox\config.yaml` — `last_chunk_size: 300` (updated S16)
+- **Config:** `C:\IRIS\chatterbox\config.yaml` — `last_chunk_size: 300`
 - **Model:** Chatterbox Turbo, exaggeration 0.45
 - **Voice:** `iris_voice.wav` — CONFIRMED PRESENT at `C:\IRIS\chatterbox\reference_audio\iris_voice.wav`
 - **Endpoint:** `POST http://192.168.1.3:8004/tts` — `voice_mode: clone`, `reference_audio_filename: iris_voice.wav`
-- **Confirmed working** post sleep/wake (S15). HTTP 200 confirmed S16.
-- **Input truncation:** `_truncate_for_tts(max_chars=220)` applied in tts.py before Chatterbox call. Truncates at last `.?!` boundary in window; passes full text if no boundary found.
+- **Input truncation:** `_truncate_for_tts(max_chars=220)` applied in tts.py before Chatterbox call.
 - **Healthcheck note:** Docker healthcheck reports `unhealthy` when GPU is busy inferring (curl times out during generation). This is a false negative — container is operational.
 
 ---
 
-## 8. OLLAMA MODELS (as of S17d)
+## 8. OLLAMA MODELS (as of S19)
 
-### jarvis (adult Jarvis persona)
-- **Ollama model name:** `jarvis:latest`
-- **File:** `C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt` (in repo — canonical)
-- **Base:** `mistral-small3.2:24b` — Q4_K_M, 24B params, `mistral3` arch
-- **Size:** 14 GB on disk, 17.1 GB VRAM at inference (ctx 4096)
-- **Key params:** `num_predict 120`, `temperature 0.7`, `num_ctx 4096`, `stop </s>`
-- **System layer sha:** `sha256:63221ef0931df606ee7fdeb305f163b4edc227fbee3253973b9db32fb9745adf`
-- **Smoke test passed:** `[EMOTION:NEUTRAL]` on own line, plain spoken reply, no markdown
+### iris (adult persona)
+- **Ollama model name:** `iris:latest`
+- **File:** `C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt` (in repo — canonical)
+- **Base:** `gemma3:12b` — ~7GB VRAM, stop token `<end_of_turn>`
+- **Key params:** `num_predict 120`, `temperature 0.7`, `num_ctx 4096`
+- **Identity:** IRIS — Schmidt household AI, dry wit, direct, no sycophancy, no em dashes
+- **Smoke test S19:** `[EMOTION:NEUTRAL]` on own line, plain spoken reply, under 2 sentences ✓
 
-### jarvis-kids (Leo & Mae persona)
-- **Ollama model name:** `jarvis-kids:latest`
-- **File:** `C:\IRIS\IRIS-Robot-Face\ollama\jarvis-kids_modelfile.txt` (in repo — canonical)
-- **Base:** `mistral-small3.2:24b` — Q4_K_M, 24B params
-- **Size:** 14 GB on disk, 17.1 GB VRAM at inference (ctx 4096)
-- **Key params:** `num_predict 120`, `temperature 0.90`, `num_ctx 4096`, `stop </s>`
-- **System layer sha:** `sha256:b8f8c4c1d8c4ec39f859e37d3afcc14de33de7a03dff82d5a6e7739183a0fdd4`
-- **Smoke test passed:** `[EMOTION:HAPPY]`, playful reply, turned question back to user
+### iris-kids (Leo & Mae persona)
+- **Ollama model name:** `iris-kids:latest`
+- **File:** `C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt` (in repo — canonical)
+- **Base:** `gemma3:12b` — ~7GB VRAM, stop token `<end_of_turn>`
+- **Key params:** `num_predict 120`, `temperature 0.90`, `num_ctx 4096`
+- **Identity:** Playful, goofy, reciprocal conversation, always redirects with something fun
+- **Smoke test S19:** `[EMOTION:HAPPY]`, playful reply, turned question back to user ✓
 
-### LLM call flow (as of S17d / confirmed S18)
-- **Main path:** `stream_ollama()` in `pi4/services/llm.py` — streams tokens from Ollama `/api/chat`, extracts `[EMOTION:X]` tag early, collects full reply, then one `synthesize()` call
-- **Follow-up / vision path:** `ask_ollama()` in `pi4/assistant.py` — blocking single call, same emotion extraction
-- **Rebuild after modelfile change:** `ollama create jarvis -f C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt` (run on GandalfAI)
+### VRAM budget (RTX 3090, 24GB)
+- Chatterbox Turbo: ~4.5GB resident
+- gemma3:12b at num_ctx 4096: ~7GB
+- Combined: ~11.5GB — **~12.5GB headroom** (well within safe zone)
+
+### LLM call flow
+- **Main path:** `stream_ollama()` in `pi4/services/llm.py` — streams tokens, extracts `[EMOTION:X]` tag early
+- **Follow-up / vision path:** `ask_ollama()` — blocking single call, same emotion extraction
+- **Rebuild after modelfile change:** `ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt`
 
 ### Other models on GandalfAI disk (not active)
-`gemma3:27b-it-qat` (16GB), `gemma3:12b` (7GB), `gemma3:27b-voice` (16GB), `llama3.1:8b` (4GB), `mistral:7b-instruct-q4_K_M` (4GB), `gpt-oss:20b` (12GB), `qwen2.5-coder:14b` (8GB), `deepseek-r1:14b` (8GB)
+`gemma3:27b-it-qat` (16GB), `gemma3:12b` (8GB base), `gemma3:27b-voice` (17GB), `llama3.1:8b` (4GB), `mistral-small3.2:24b` (15GB), `mistral:7b-instruct-q4_K_M` (4GB), `gpt-oss:20b` (13GB), `qwen2.5-coder:14b` (9GB), `deepseek-r1:14b` (9GB)
 
 ---
 
@@ -228,13 +229,17 @@ IRIS-Robot-Face/
     sensors/PersonSensor.h/.cpp -- I2C face detection (SAMPLE_TIME_MS=70, conf>60, is_facing)
     mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (Arduino_GFX SWSPI bit-bang)
   pi4/                          -- mirrors /home/pi/ on Pi4
-    assistant.py                -- THIN orchestrator (~600 lines). No weather/briefing/person-recog.
+    assistant.py                -- THIN orchestrator. No weather/briefing/person-recog.
     services/tts.py             -- Chatterbox→EL→Piper; _truncate_for_tts() added S17
-    services/vision.py          -- ask_vision() includes person ID in prompt (Leo/Mae/Megan/Maestro)
+    services/vision.py          -- ask_vision() includes person ID in prompt
     services/llm.py             -- stream_ollama(), extract_emotion_from_reply(), clean_llm_reply()
     state/state_manager.py      -- StateManager: conversation_history, kids_mode, eyes_sleeping only
-    iris_web.py                 -- Flask web panel (EL_API_KEY + api_voices() removed S18)
-    iris_web.html               -- Web UI (ElevenLabs card fully removed S18)
+    core/config.py              -- all constants; iris_config.json override loader
+    iris_web.py                 -- Flask web panel (ElevenLabs removed S18)
+    iris_web.html               -- Web UI (ElevenLabs card removed S18)
+  ollama/
+    iris_modelfile.txt          -- adult IRIS persona (gemma3:12b) — canonical
+    iris-kids_modelfile.txt     -- kids IRIS persona (gemma3:12b) — canonical
 ```
 
 ---
@@ -278,8 +283,12 @@ lib_deps =
 | bigBlue | 0.24 | 0.50 |
 | hypnoRed | 0.25 | 0.50 |
 
-### core/config.py — Key constants
+### core/config.py — Key constants (as of S19)
 ```python
+OLLAMA_MODEL_ADULT      = "iris"
+OLLAMA_MODEL_KIDS       = "iris-kids"
+VISION_MODEL            = "iris"
+OWW_THRESHOLD           = 0.90
 CHATTERBOX_BASE_URL     = "http://192.168.1.3:8004"
 CHATTERBOX_VOICE        = "iris_voice.wav"
 CHATTERBOX_EXAGGERATION = 0.45
@@ -311,15 +320,11 @@ EYE_IDX_DEFAULT=0, ANGRY=1, CONFUSED=2, COUNT=7
 
 ### Person Sensor tracking (CONFIRMED WORKING — do not change)
 ```cpp
-// PersonSensor.h
 SAMPLE_TIME_MS = 70
-
-// main.cpp loop — stock chrismiller
 if (face.is_facing && face.box_confidence > 60) { ... }
 float targetX = -((box_left + width/2) / 127.5 - 1.0)
 float targetY =  ((box_top + height/3) / 127.5 - 1.0)
-eyes->setTargetPosition(targetX, targetY);  // default 120ms duration
-// autoMove re-enables after FACE_LOST_TIMEOUT_MS via timeSinceFaceDetectedMs()
+eyes->setTargetPosition(targetX, targetY);  // 120ms duration
 // Sensor physically mounted RIGHT-SIDE-UP — stock formula is correct
 ```
 
@@ -359,77 +364,60 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 
 ---
 
-## 14. CHANGES THIS SESSION (S18 — 2026-04-16)
+## 14. CHANGES THIS SESSION (S19 — 2026-04-16)
 
-**Feature triage audit — pass 1 (commit 906d8e1):**
+**Task 0 — Stop old gandalf stack:**
+- `docker compose -f C:\docker\docker-compose.yml.pre-iris.bak down --remove-orphans`
+- Removed: wyoming-whisper, wyoming-piper, open-webui, watchtower, gandalf_default network
 
-- **`pi4/assistant.py`** — Feature removals + rebase conflict resolution:
-  - Removed `WEATHER_TRIGGERS`, `fetch_weather()`, `handle_weather_command()` (~40 lines)
-  - Removed `BRIEFING_TRIGGERS`, `handle_daily_briefing()` (~25 lines)
-  - Removed `PERSON_RECOG_PROMPT`, `PERSON_SYSTEM_LINES`, `_run_person_recognition()` (~50 lines)
-  - Removed `person_inject` block from `_build_messages()` (was injecting person context into LLM)
-  - Removed `_pr_thread` background thread from `main()`
-  - Rebase conflict resolved: preserved remote streaming LLM refactor (stream_ollama, _build_messages(), RMS gate 700, hallucination filter) while applying all audit removals
-  - Final `_build_messages()`: date_inject + conversation_history only (no person_inject)
+**Task 1 — Rewrite Docker stacks:**
+- `C:\IRIS\docker\docker-compose.yml` — renamed stack from `gandalf-IRIS` → `iris`; removed open-webui + watchtower (now in gandalf stack); 3 services: wyoming-whisper, wyoming-piper, chatterbox
+- `C:\IRIS\docker\docker-compose.gandalf.yml` — NEW; stack name `gandalf`; 2 services: open-webui (port 3000), watchtower
+- All 5 containers confirmed running. Chatterbox `/docs` → HTTP 200. VRAM: 16.2GB (Ollama idle, no model loaded).
 
-- **`pi4/services/vision.py`** — Person ID integrated into `ask_vision()` prompt:
-  - Prompt now includes: "If a person is visible, identify them by name if they resemble any of: Leo (boy around age 9), Mae (girl around age 5), Megan (adult woman), or Maestro (adult man). Otherwise describe the person generically."
-  - This replaces the standalone background person recognition thread entirely
+**Task 2 — Rename modelfiles jarvis→iris, rebuild on gemma3:12b:**
+- Created `ollama/iris_modelfile.txt` — new IRIS adult persona, FROM gemma3:12b, stop `<end_of_turn>`
+- Created `ollama/iris-kids_modelfile.txt` — new IRIS kids persona, FROM gemma3:12b, stop `<end_of_turn>`
+- Deleted `ollama/jarvis_modelfile.txt` and `ollama/jarvis-kids_modelfile.txt`
+- Deleted stale modelfiles from `C:\Users\gandalf\` (jarvis_modelfile.txt, .bak, _current, _new, jarvis-kids, jarvis12b)
+- Rebuilt: `ollama create iris` + `ollama create iris-kids` — both 8.1GB, success
+- Deleted old Ollama models: `ollama rm jarvis && ollama rm jarvis-kids`
+- Smoke tests passed (see Section 8)
 
-- **`pi4/state/state_manager.py`** — Person state removed:
-  - Removed `person_context: dict = {"name": None, "desc": ""}` from `__init__`
-  - Removed `last_recognition_time: float = 0.0` from `__init__`
-  - Removed `set_person()` method
-  - `clear_conversation()` now only clears `conversation_history` (no longer resets person state)
+**Task 3 — Update Pi4 config.py:**
+- `OLLAMA_MODEL_ADULT`: `"jarvis"` → `"iris"`
+- `OLLAMA_MODEL_KIDS`: `"jarvis-kids"` → `"iris-kids"`
+- `VISION_MODEL`: `"jarvis"` → `"iris"`
+- `OWW_THRESHOLD`: `0.85` → `0.90`
+- Deployed via pscp → /home/pi/core/config.py
+- Persisted to SD, md5 verified: `f082b83bc2cc3fc171c1996cd62658da`
+- `sudo systemctl restart assistant` → `[INFO] LLM adult: iris`, `[INFO] LLM kids: iris-kids`, `[INFO] Ready.` ✓
 
-- **`pi4/iris_web.py`** — ElevenLabs references purged:
-  - Removed `EL_API_KEY = "sk_752..."` (hardcoded API key — security issue resolved)
-  - Removed entire `api_voices()` endpoint
-  - Updated `_speak_worker` docstring: "ElevenLabs->Piper" → "Chatterbox->Piper"
-
-- **`pi4/iris_web.html`** — ElevenLabs card fully removed:
-  - Removed ElevenLabs card (voice picker `<select id="voice-select">`, model selector, enabled toggle, save button)
-  - Updated Piper card label: "Piper TTS (Final Fallback)" → "Piper TTS (Fallback)", hint text updated
-  - Removed `let _voices = [];` and `async function loadVoices()` JS function
-  - Removed `async function saveElevenLabsSettings()` JS function
-  - Fixed section switch handler: `if (name === 'voice') { loadChatterboxVoices(); }` (removed dead loadVoices() call)
-
-**Git rebase (pre-commit):**
-  - Remote had 5 new commits (43bbb20, 5a54024, 4c05269, 21bf02c, a93da41) not in local branch
-  - `git pull --rebase origin main` → conflict in `pi4/assistant.py` (3 conflict blocks)
-  - Resolved: preserved all remote streaming refactor improvements, applied all audit removals
-  - `GIT_EDITOR=true git rebase --continue` → push succeeded as 906d8e1
-
-**Deployment:**
-  - `assistant.py` deployed to Pi4 `/home/pi/assistant.py` and persisted to SD
-  - MD5 verified: `1e98c98e1c6c0eeeea3811fac5c8b5f2` both RAM and SD
-  - `sudo systemctl restart assistant` → `[INFO] Ready.` confirmed
+**Not touched:** assistant.py, tts.py, iris_config.json, alsa-init.sh, src/ firmware
 
 ---
 
 ## 15. CURRENT KNOWN ISSUES / TODO
 
 ### HIGH
-- **ElevenLabs code removal from tts.py** — Deferred to ~2026-04-22. `ELEVENLABS_ENABLED=False` disables it at runtime. Code still present in `pi4/services/tts.py`. When removing: delete `ElevenLabsClient` import, `_el_speak()`, `_elevenlabs_synth()`, and ElevenLabs branch in `synthesize()`. Also remove `ELEVENLABS_*` constants from `core/config.py` and `_OVERRIDABLE`.
+- **ElevenLabs code removal from tts.py** — Deferred. `ELEVENLABS_ENABLED=False` disables at runtime. When removing: delete `ElevenLabsClient` import, `_el_speak()`, `_elevenlabs_synth()`, ElevenLabs branch in `synthesize()`. Also remove `ELEVENLABS_*` constants from `core/config.py` and `_OVERRIDABLE`.
 - **Mouth smoke test** — Never confirmed post-installation. Must verify: `MOUTH:0` through `MOUTH:8` via UDP `127.0.0.1:10500` on Pi4 → TeensyBridge → serial → TFT renders expressions. Do this before any further firmware work.
-- **Mistral Small 3.2 personality tuning** — Model is verbose on open-ended prompts ("Tell me something interesting" → 6-sentence lecture despite 2-sentence/30-word rule). May need `num_predict` reduction or stronger system prompt constraint.
-- **Piper standalone routing for Goodnight/Good morning** — iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail if Wyoming Piper on GandalfAI:10200 is down.
+- **iris-kids asterisk in responses** — Smoke test showed model used `*your*` emphasis (markdown). Minor but violates system prompt. May need stronger no-asterisk instruction or a second smoke test with an open-ended question.
 
 ### MEDIUM
-- **Clean up old GandalfAI source locations** — After confirming stability, delete originals:
+- **Clean up old GandalfAI source locations** — After confirming stability:
   - `C:\docker\whisper\`, `C:\docker\piper\` (data migrated to `C:\IRIS\docker\`)
   - `C:\Users\gandalf\Chatterbox-TTS-Server\` (migrated to `C:\IRIS\chatterbox\`)
 - **Smoke test sleep LED** — Verify web UI Sleep button triggers indigo breathe. Wake restores idle cyan.
 - **Exaggeration tuning** — 0.45 starting point. Tune after first live voice test.
-- **Paralinguistic tag rendering** — Verify Chatterbox Turbo renders [chuckle] etc. as sounds, not literal text. (Stripping still active as fallback.)
 - **Chatterbox healthcheck fix** — `curl -f http://localhost:8000/` times out while GPU is busy inferring. Currently harmless but noisy.
 - **Chatterbox auto-start on Gandalf boot** — not configured. Requires manual `docker compose up` after reboot.
 - **TTS truncation threshold tuning** — 220 chars is a starting point. Monitor real responses.
+- **Piper standalone routing for Goodnight/Good morning** — iris_sleep.py "Goodnight" and wakeword-during-sleep "Good morning" silently fail if Wyoming Piper on GandalfAI:10200 is down.
 
 ### LOW
 - **Untracked files in project root** — iris_voice.wav, _decode_assistant.py, REFACTOR_VISUAL.md, IRIS_AUDIT_2026-04-03.md. Add wav to .gitignore, review/delete or commit others.
 - **Old log file** — /home/pi/iris_sleep.log (root level, pre-S2) stale.
-- **OWW_THRESHOLD** — Pi4 live = 0.9 (iris_config.json), config.py default = 0.85. Confirm intended value.
 
 ---
 
@@ -451,6 +439,10 @@ EYES:WAKE:  eyesSleeping=false, mouthRestoreIntensity(), setEyeDefinition(saved)
 ## 17. FLASH / DEPLOY COMMANDS
 
 ```bash
+# Pi4 SSH (from GandalfAI bash — use plink, not ssh):
+plink -ssh pi@192.168.1.200 -pw ohs -batch -hostkey "SHA256:IN+qEsZ6kWG4PfXob8V8fZX0ykvGl4n6GOMzBGCQCbo" '<cmd>'
+pscp -pw ohs -hostkey "SHA256:IN+qEsZ6kWG4PfXob8V8fZX0ykvGl4n6GOMzBGCQCbo" <src> pi@192.168.1.200:<dst>
+
 # Pi4 persist a file to SD:
 sudo mount -o remount,rw /media/root-ro
 sudo cp /home/pi/<file> /media/root-ro/home/pi/<file>
@@ -466,8 +458,10 @@ journalctl -u assistant -n 30 --no-pager
 
 # Bring up GandalfAI containers (after reboot or manual down):
 docker compose -f C:\IRIS\docker\docker-compose.yml up -d
+docker compose -f C:\IRIS\docker\docker-compose.gandalf.yml up -d
 
-# Rebuild jarvis model after modelfile change:
-ollama create jarvis -f C:\IRIS\IRIS-Robot-Face\ollama\jarvis_modelfile.txt
+# Rebuild iris model after modelfile change:
+ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt
+ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt
 ollama list  # confirm timestamp
 ```
