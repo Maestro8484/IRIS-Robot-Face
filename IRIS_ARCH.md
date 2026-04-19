@@ -5,6 +5,27 @@
 
 ---
 
+## System Status — Active Issues
+
+| Item | Status | Notes |
+|---|---|---|
+| Wake word (hey_jarvis) | **WORKING** — confirmed S23 2026-04-18 | OWW score=1.000, full pipeline fires |
+| Mic capture (wm8960 LINPUT1) | **WORKING** — confirmed S23 | Input boost switches required; now in alsa-init.sh |
+| STT → LLM → TTS → audio output | **WORKING** — confirmed S23 | Full pipeline: Whisper→Ollama iris→Chatterbox→speakers |
+| Mouth TFT animation | **WORKING** — confirmed S23 | MOUTH:0-8 cycling during speech |
+| Sleep/wake cron (9PM/7:30AM) | Working but **REBOOT-FRAGILE** | Piper missing at /usr/local/bin/piper — sleep wakeword says nothing |
+| ALSA state on reboot | **HARDENED S23** | alsa-init.sh now sets all 6 critical switches explicitly |
+| GandalfAI reboot | **FRAGILE** | Chatterbox docker must be started manually after reboot (`docker compose up -d`) |
+| Teensy flash (mouthSleepFrame) | **PENDING** | Firmware built S22B, user must click PlatformIO upload |
+| Mouth smoke test | **PENDING** | MOUTH:0–8 via UDP 127.0.0.1:10500 never confirmed post-install |
+
+### Reboot survival checklist
+On Pi4 reboot: alsa-init.sh runs automatically (hardened S23) — mic + speakers restore without manual intervention.  
+On GandalfAI reboot: run `docker compose -f C:\IRIS\docker\docker-compose.yml up -d` manually — Chatterbox does not auto-start.  
+On both rebooting simultaneously: GandalfAI must be up before assistant.py finishes boot or it will WoL-wait.
+
+---
+
 ## System Architecture
 
 | System | IP | Credentials | Role |
