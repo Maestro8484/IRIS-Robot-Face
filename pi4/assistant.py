@@ -383,8 +383,8 @@ def main():
             print(f"[REC]  {len(raw)/2/SAMPLE_RATE:.1f}s  RMS={rms:.0f}", flush=True)
 
             # ── RMS gate + Whisper hallucination filter ────────────────────────
-            if rms < 700:
-                print(f"[REC]  Below RMS gate ({rms:.0f} < 700), ignoring", flush=True)
+            if rms < 300:
+                print(f"[REC]  Below RMS gate ({rms:.0f} < 300), ignoring", flush=True)
                 show_idle_for_mode(leds); continue
 
             leds.show_thinking(); print("[STT]  Transcribing...", flush=True)
