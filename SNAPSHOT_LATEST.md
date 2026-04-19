@@ -1,8 +1,8 @@
 # IRIS Robot Face — Session Snapshot
-**Date:** 2026-04-17
-**Session:** 22B
+**Date:** 2026-04-19
+**Session:** S23
 **Branch:** `main`
-**Last commit:** f7802c9 — fix: web UI sleep/wake full sequence, sleep animation, return-to-sleep
+**Last commit:** (see git log)
 
 > Architecture, pins, constants, cron, deploy commands: see [IRIS_ARCH.md](IRIS_ARCH.md)
 
@@ -13,7 +13,7 @@
 | System | Status |
 |---|---|
 | Pi4 (192.168.1.200) | Operational. assistant.py + iris-web running. Both services restarted and Ready S22B. |
-| GandalfAI (192.168.1.3) | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. |
+| GandalfAI (192.168.1.3) | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. IRISDashboard Windows service on port 8080. |
 | Teensy 4.1 | Firmware built clean S22B (mouthSleepFrame). Awaiting manual flash. |
 | TTS | Chatterbox primary, Piper fallback. ElevenLabs fully removed S20. |
 | Web UI | Port 5000. Sleep/wake routes fixed S22B. |
@@ -31,8 +31,21 @@
 
 ---
 
-## Session Scope (S22B)
-Sleep system fixes: web UI /api/sleep+wake full command sequence, mouthSleepFrame breathing animation, return-to-sleep after wakeword in sleep window.
+## Session Scope (S23)
+Deploy IRIS Mission Control Dashboard on GandalfAI as a persistent Windows service.
+
+## IRIS Mission Control Dashboard — DEPLOYED (S23)
+- **Location:** GandalfAI `C:\Users\gandalf\iris_dashboard\app.py`
+- **Repo:** `tools/iris_dashboard/`
+- **Service:** `IRISDashboard` (Windows service, StartType=Automatic, port 8080)
+- **Access:** http://192.168.1.3:8080 from any LAN browser
+- **Data:** Prometheus GPU metrics (localhost:9090), port checks, Pi4 SSH (paramiko, password auth pi/ohs)
+- **Grafana link:** points to Nvidia GPU metrics dashboard directly
+- **Pi4 SSH:** password auth only (pi/ohs) — no key, uses paramiko
+- **Note:** `sys.executable` in Windows service context resolves to `pythonservice.exe` — hardcoded `C:\Python314\python.exe` in install_service.py
+- **Firewall:** inbound rule "IRIS Dashboard 8080" added
+
+## Previous Session Scope (S22B)
 
 ---
 
