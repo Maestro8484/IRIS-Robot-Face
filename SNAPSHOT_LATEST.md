@@ -2,7 +2,7 @@
 **Date:** 2026-04-19
 **Session:** S23
 **Branch:** `main`
-**Last commit:** (see git log)
+**Last commit:** ded77db — add IRIS mission control dashboard (GandalfAI Flask service, port 8080)
 
 > Architecture, pins, constants, cron, deploy commands: see [IRIS_ARCH.md](IRIS_ARCH.md)
 
@@ -12,8 +12,8 @@
 
 | System | Status |
 |---|---|
-| Pi4 (192.168.1.200) | Operational. assistant.py + iris-web running. Both services restarted and Ready S22B. |
-| GandalfAI (192.168.1.3) | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. IRISDashboard Windows service on port 8080. |
+| Pi4 (192.168.1.200) | Operational. assistant.py + iris-web running. Ready confirmed S22B. |
+| GandalfAI (192.168.1.3) | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. IRISDashboard Windows service port 8080. |
 | Teensy 4.1 | Firmware built clean S22B (mouthSleepFrame). Awaiting manual flash. |
 | TTS | Chatterbox primary, Piper fallback. ElevenLabs fully removed S20. |
 | Web UI | Port 5000. Sleep/wake routes fixed S22B. |
@@ -32,20 +32,7 @@
 ---
 
 ## Session Scope (S23)
-Deploy IRIS Mission Control Dashboard on GandalfAI as a persistent Windows service.
-
-## IRIS Mission Control Dashboard — DEPLOYED (S23)
-- **Location:** GandalfAI `C:\Users\gandalf\iris_dashboard\app.py`
-- **Repo:** `tools/iris_dashboard/`
-- **Service:** `IRISDashboard` (Windows service, StartType=Automatic, port 8080)
-- **Access:** http://192.168.1.3:8080 from any LAN browser
-- **Data:** Prometheus GPU metrics (localhost:9090), port checks, Pi4 SSH (paramiko, password auth pi/ohs)
-- **Grafana link:** points to Nvidia GPU metrics dashboard directly
-- **Pi4 SSH:** password auth only (pi/ohs) — no key, uses paramiko
-- **Note:** `sys.executable` in Windows service context resolves to `pythonservice.exe` — hardcoded `C:\Python314\python.exe` in install_service.py
-- **Firewall:** inbound rule "IRIS Dashboard 8080" added
-
-## Previous Session Scope (S22B)
+Deploy IRIS Mission Control Dashboard on GandalfAI as a persistent Windows service (port 8080).
 
 ---
 
@@ -54,22 +41,18 @@ Deploy IRIS Mission Control Dashboard on GandalfAI as a persistent Windows servi
 
 ---
 
-## Last Session Changes (S22B — 2026-04-17)
+## Last Session Changes (S23 — 2026-04-19)
+**Task:** IRIS Mission Control Dashboard deploy
+
+- `tools/iris_dashboard/app.py` — Flask server: `/` serves dark-theme dashboard UI, `/api/status` returns VRAM/GPU (Prometheus), service dots (port checks), Pi4 logs + assistant status (paramiko SSH), latency parse. `/api/restart/<service>` restarts assistant (Pi4 SSH) or docker containers (local subprocess).
+- `tools/iris_dashboard/install_service.py` — pywin32 Windows service wrapper. Hardcoded `PYTHON_EXE = C:\Python314\python.exe` — `sys.executable` in service context resolves to `pythonservice.exe`, not python.exe (silent failure without hardcode).
+- GandalfAI: service installed, StartType=Automatic, port 8080 LISTENING. Firewall rule "IRIS Dashboard 8080" added (inbound TCP 8080 Any). `requests` pip-installed (was missing from base env).
+- `SNAPSHOT_LATEST.md` — updated to S23.
+
+## Previous Session Changes (S22B — 2026-04-17)
 **Task:** Sleep system fixes
-
-- `pi4/iris_web.py` — `/api/sleep`: added `send_teensy("MOUTH:8")` + `open(SLEEP_FLAG).close()`. `/api/wake`: added `send_teensy("MOUTH:0")` + flag file removal.
-- `src/mouth_tft.cpp` — `mouthSleepFrame()` implemented: breathing BL (8–22, -cos envelope), sine wave cy ±10px around 115 (amp=8, freq=0.028, stroke=5), Z glyph drifts upward over 60 frames / repeats every 150. `mouthSetSleepIntensity()` BL 40→8. File-scope `_sleepFrameCount`. `mouthSleepReset()` added.
-- `src/mouth_tft.h` — `mouthSleepReset()` declaration added.
-- `src/main.cpp` — `mouthSleepReset()` called in EYES:WAKE handler before `mouthRestoreIntensity()`.
-- `pi4/core/config.py` — `SLEEP_WINDOW_START_HOUR = 21`, `SLEEP_WINDOW_END_HOUR = 8` added.
-- `pi4/assistant.py` — `in_sleep_window()` + `return_to_sleep(teensy, st)` helpers added. Called after follow-up loop in main().
-- Deployed + persisted to Pi4 SD. md5 match verified (iris_web.py: 8a77ef, assistant.py: 42cf90, config.py: 458b17). Both services restarted, Ready confirmed.
-
-## Previous Session Changes (S22 — 2026-04-17)
-**Task:** Token efficiency overhaul
-- `IRIS_ARCH.md` created; arch tables, pins, constants, cron, serial protocol, deploy commands extracted here.
-- `SNAPSHOT_LATEST.md` rewritten to lean 60–80 line format.
-- 14 stale root files deleted; `CLAUDE.md` arch sections replaced with `See IRIS_ARCH.md`.
+- `pi4/iris_web.py`, `pi4/assistant.py`, `pi4/core/config.py` — sleep/wake sequence, return-to-sleep, SLEEP_WINDOW hours.
+- `src/mouth_tft.cpp/.h`, `src/main.cpp` — mouthSleepFrame breathing animation, mouthSleepReset on wake.
 
 ---
 
