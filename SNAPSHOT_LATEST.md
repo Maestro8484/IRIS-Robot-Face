@@ -1,8 +1,8 @@
 # IRIS Robot Face — Session Snapshot
 **Date:** 2026-04-19
-**Session:** S23
+**Session:** S24
 **Branch:** `main`
-**Last commit:** ded77db — add IRIS mission control dashboard (GandalfAI Flask service, port 8080)
+**Last commit:** 5c4690f — feat: dashboard v2 — tabbed UI (Log Viewers, Quick Links, Playbooks, False Wakeword)
 
 > Architecture, pins, constants, cron, deploy commands: see [IRIS_ARCH.md](IRIS_ARCH.md)
 
@@ -13,7 +13,7 @@
 | System | Status |
 |---|---|
 | Pi4 (192.168.1.200) | Operational. assistant.py + iris-web running. Ready confirmed S22B. |
-| GandalfAI (192.168.1.3) | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. IRISDashboard Windows service port 8080. |
+| GandalfAI (192.168.1.3) | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. IRISDashboard v2 port 8080. |
 | Teensy 4.1 | Firmware built clean S22B (mouthSleepFrame). Awaiting manual flash. |
 | TTS | Chatterbox primary, Piper fallback. ElevenLabs fully removed S20. |
 | Web UI | Port 5000. Sleep/wake routes fixed S22B. |
@@ -31,8 +31,8 @@
 
 ---
 
-## Session Scope (S23)
-Deploy IRIS Mission Control Dashboard on GandalfAI as a persistent Windows service (port 8080).
+## Session Scope (S24)
+Deploy dashboard v2 HTML to GandalfAI — new tabbed layout replacing single-page dark theme.
 
 ---
 
@@ -41,18 +41,17 @@ Deploy IRIS Mission Control Dashboard on GandalfAI as a persistent Windows servi
 
 ---
 
-## Last Session Changes (S23 — 2026-04-19)
+## Last Session Changes (S24 — 2026-04-19)
+**Task:** Dashboard v2 deploy
+
+- `tools/iris_dashboard/app.py` — full HTML replaced with tabbed v2 layout: Log Viewers tab (Pi4 + GandalfAI log commands), Quick Links tab (web UIs + SSH), Playbooks tab (8 playbooks with CRITICAL/MEDIUM/LOW badges + node pills), False Wakeword tab (6-step diagnostic playbook). CSS variables defined in wrapper so widget renders standalone. Python backend unchanged.
+- GandalfAI: sftp_write to `C:\Users\gandalf\iris_dashboard\app.py`, IRISDashboard service restarted, 200 OK verified.
+
+## Previous Session Changes (S23 — 2026-04-19)
 **Task:** IRIS Mission Control Dashboard deploy
-
-- `tools/iris_dashboard/app.py` — Flask server: `/` serves dark-theme dashboard UI, `/api/status` returns VRAM/GPU (Prometheus), service dots (port checks), Pi4 logs + assistant status (paramiko SSH), latency parse. `/api/restart/<service>` restarts assistant (Pi4 SSH) or docker containers (local subprocess).
-- `tools/iris_dashboard/install_service.py` — pywin32 Windows service wrapper. Hardcoded `PYTHON_EXE = C:\Python314\python.exe` — `sys.executable` in service context resolves to `pythonservice.exe`, not python.exe (silent failure without hardcode).
-- GandalfAI: service installed, StartType=Automatic, port 8080 LISTENING. Firewall rule "IRIS Dashboard 8080" added (inbound TCP 8080 Any). `requests` pip-installed (was missing from base env).
-- `SNAPSHOT_LATEST.md` — updated to S23.
-
-## Previous Session Changes (S22B — 2026-04-17)
-**Task:** Sleep system fixes
-- `pi4/iris_web.py`, `pi4/assistant.py`, `pi4/core/config.py` — sleep/wake sequence, return-to-sleep, SLEEP_WINDOW hours.
-- `src/mouth_tft.cpp/.h`, `src/main.cpp` — mouthSleepFrame breathing animation, mouthSleepReset on wake.
+- `tools/iris_dashboard/app.py` — Flask server: `/` serves dashboard, `/api/status` VRAM/GPU/services/latency/logs, `/api/restart/<service>`.
+- `tools/iris_dashboard/install_service.py` — pywin32 Windows service wrapper (PYTHON_EXE hardcoded).
+- GandalfAI: IRISDashboard service installed + started port 8080, firewall rule added.
 
 ---
 
