@@ -53,6 +53,8 @@ GandalfAI filesystem MCP scope: `C:\Users\gandalf\` only. `C:\IRIS\` and `C:\doc
 - `main` only. No branches, no worktrees.
 - SNAPSHOT_LATEST.md = single source of truth. One file, no dated variants. Updated via `/snapshot` at session close only.
 - Claude Chat must not edit SNAPSHOT_LATEST.md if Claude Code has already updated it this session. Read it first — if it reflects current state, leave it alone.
+- Claude Chat must not attempt to finalize or close a session that Claude Code is handling or has already closed. If Claude Code ran /snapshot and committed, the session is done — Chat does not re-snapshot, re-commit, or re-edit docs.
+- When Claude Chat and Claude Code are both active on the same task: Claude Code is authoritative for all file writes, commits, and snapshots. Claude Chat is read-only for docs unless explicitly directed otherwise by the user.
 - **Git push = SuperMaster Desktop PowerShell only. Claude never pushes.**
 - Session end: commit all changes, run `/snapshot`, commit snapshot, then print exactly: `git push origin main` and ask user to confirm it ran.
 - SNAPSHOT_LATEST.md contains only: Machine Status + Active Issues + Handoff. No session history. Resolved issues are deleted, not archived.
