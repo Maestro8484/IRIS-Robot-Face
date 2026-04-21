@@ -1,8 +1,8 @@
 # IRIS Robot Face — Session Snapshot
-**Date:** 2026-04-19
-**Session:** S24
+**Date:** 2026-04-20
+**Session:** S25
 **Branch:** `main`
-**Last commit:** 5c4690f — feat: dashboard v2 — tabbed UI (Log Viewers, Quick Links, Playbooks, False Wakeword)
+**Last commit:** aa49b52 — refactor: dashboard v3 — dark theme, live polling, action buttons
 
 > Architecture, pins, constants, cron, deploy commands: see [IRIS_ARCH.md](IRIS_ARCH.md)
 
@@ -12,11 +12,11 @@
 
 | System | Status |
 |---|---|
-| Pi4 (192.168.1.200) | Operational. assistant.py + iris-web running. Ready confirmed S22B. |
-| GandalfAI (192.168.1.3) | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. IRISDashboard v2 port 8080. |
+| Pi4 (192.168.1.200) | Operational. assistant.py running. |
+| GandalfAI (192.168.1.3) | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. IRISDashboard v3 port 8080. |
 | Teensy 4.1 | Firmware built clean S22B (mouthSleepFrame). Awaiting manual flash. |
-| TTS | Chatterbox primary, Piper fallback. ElevenLabs fully removed S20. |
-| Web UI | Port 5000. Sleep/wake routes fixed S22B. |
+| TTS | Chatterbox primary, Piper fallback. |
+| Web UI | Port 5000. Sleep/wake routes operational. |
 | Cron sleep/wake | 9PM sleep / 7:30AM wake. Hardened S15. |
 
 ---
@@ -31,8 +31,8 @@
 
 ---
 
-## Session Scope (S24)
-Deploy dashboard v2 HTML to GandalfAI — new tabbed layout replacing single-page dark theme.
+## Session Scope (S25)
+Deploy dashboard v3 — dark theme redesign, live Status tab (5s polling, VRAM bar, GPU/latency lines, 15-log terminal), Force Sleep/Wake action buttons, two new Flask routes.
 
 ---
 
@@ -41,17 +41,17 @@ Deploy dashboard v2 HTML to GandalfAI — new tabbed layout replacing single-pag
 
 ---
 
-## Last Session Changes (S24 — 2026-04-19)
+## Last Session Changes (S25 — 2026-04-20)
+**Task:** Dashboard v3 redesign + deploy
+
+- `tools/iris_dashboard/app.py` — full HTML replaced with v3 dark-theme design. Status tab polls `/api/status` every 5s: 5 service pills (IRIS/Ollama/Whisper/Piper/Chatterbox) with green/red dots + per-service restart buttons; VRAM horizontal bar (green/amber/red thresholds); single-line GPU stats; single-line latency; 15-line auto-scrolling terminal log box; 4 action buttons (Restart IRIS, Restart All, Force Sleep, Force Wake). Logs tab: label+command+copy only, no prose. Playbooks/FalseWakeword: all collapsed by default, prose stripped to note-boxes only.
+- `tools/iris_dashboard/app.py` — added `POST /api/action/sleep` (calls `python3 /home/pi/iris_sleep.py` via Pi4 SSH) and `POST /api/action/wake` routes.
+- GandalfAI: sftp_write to `C:\Users\gandalf\iris_dashboard\app.py`, IRISDashboard service restarted, 200 OK confirmed.
+
+## Previous Session Changes (S24 — 2026-04-19)
 **Task:** Dashboard v2 deploy
-
-- `tools/iris_dashboard/app.py` — full HTML replaced with tabbed v2 layout: Log Viewers tab (Pi4 + GandalfAI log commands), Quick Links tab (web UIs + SSH), Playbooks tab (8 playbooks with CRITICAL/MEDIUM/LOW badges + node pills), False Wakeword tab (6-step diagnostic playbook). CSS variables defined in wrapper so widget renders standalone. Python backend unchanged.
-- GandalfAI: sftp_write to `C:\Users\gandalf\iris_dashboard\app.py`, IRISDashboard service restarted, 200 OK verified.
-
-## Previous Session Changes (S23 — 2026-04-19)
-**Task:** IRIS Mission Control Dashboard deploy
-- `tools/iris_dashboard/app.py` — Flask server: `/` serves dashboard, `/api/status` VRAM/GPU/services/latency/logs, `/api/restart/<service>`.
-- `tools/iris_dashboard/install_service.py` — pywin32 Windows service wrapper (PYTHON_EXE hardcoded).
-- GandalfAI: IRISDashboard service installed + started port 8080, firewall rule added.
+- `tools/iris_dashboard/app.py` — HTML replaced with tabbed v2 layout: Log Viewers, Quick Links, Playbooks (8 playbooks), False Wakeword tabs. Python backend unchanged.
+- GandalfAI: sftp_write + service restart, 200 OK verified.
 
 ---
 
