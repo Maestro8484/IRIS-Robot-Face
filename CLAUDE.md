@@ -5,6 +5,10 @@ A production hardware-integrated AI system. Changes here affect physical hardwar
 
 Session start: read SNAPSHOT_LATEST.md (auto-loaded by hook). If missing, run `python3 .claude/hooks/session_start.py`. Then run `git pull origin main`.
 
+> **Claude Chat vs Claude Code tool scope:** Claude Chat (claude.ai) has filesystem MCP scoped to `C:\Users\SuperMaster\` and ssh-pi4/ssh-gandalf MCP tools for live SSH access. Claude Code (Desktop) has the same MCP tools plus full repo write access. Claude Chat is used for planning, diagnosis, and targeted live fixes (e.g. iris_config.json). Claude Code handles all multi-step implementation, firmware builds, and deployments. When in doubt: Chat = read + plan, Code = write + deploy.
+
+> **Snapshot gitignore history:** SNAPSHOT*.md was gitignored until S26 (2026-04-20). User-confirmed task completions between sessions were not persisted to git during that period. Snapshot is authoritative from S27 forward. If a task seems stale or contradicted by live system state, verify against the live system rather than trusting older snapshot entries.
+
 ---
 
 ## System architecture

@@ -16,8 +16,8 @@
 | Sleep/wake cron (9PM/7:30AM) | Working but **REBOOT-FRAGILE** | Piper missing at /usr/local/bin/piper — sleep wakeword says nothing |
 | ALSA state on reboot | **HARDENED S23** | alsa-init.sh now sets all 6 critical switches explicitly |
 | GandalfAI reboot | **FRAGILE** | Chatterbox docker must be started manually after reboot (`docker compose up -d`) |
-| Teensy flash (mouthSleepFrame) | **PENDING** | Firmware built S22B, user must click PlatformIO upload |
-| Mouth smoke test | **PENDING** | MOUTH:0–8 via UDP 127.0.0.1:10500 never confirmed post-install |
+| Teensy flash (mouthSleepFrame) | **DONE** — confirmed by user, S27 | /dev/ttyACM0 present, firmware live |
+| Mouth smoke test | **DONE** — confirmed by user, S27 | MOUTH:0–8 via UDP 127.0.0.1:10500 confirmed |
 
 ### Reboot survival checklist
 On Pi4 reboot: alsa-init.sh runs automatically (hardened S23) — mic + speakers restore without manual intervention.  
@@ -226,8 +226,8 @@ EYE_IDX_DEFAULT=0, ANGRY=1, CONFUSED=2, COUNT=7
 
 ### Ollama models (as of S20)
 
-- `iris:latest` — gemma3:12b, num_predict 120, temperature 0.7, num_ctx 4096
-- `iris-kids:latest` — gemma3:12b, num_predict 120, temperature 0.90, num_ctx 4096
+- `iris:latest` — gemma3:12b, num_predict 200, temperature 0.7, num_ctx 4096
+- `iris-kids:latest` — gemma3:12b, num_predict 200, temperature 0.90, num_ctx 4096
 - Stop token: `<end_of_turn>` (gemma family)
 - VRAM: Chatterbox ~4.5GB + gemma3:12b ~7GB = ~11.5GB total. Headroom ~12.5GB on RTX 3090 (24GB).
 
