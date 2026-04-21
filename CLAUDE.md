@@ -52,6 +52,7 @@ GandalfAI filesystem MCP scope: `C:\Users\gandalf\` only. `C:\IRIS\` and `C:\doc
 
 - `main` only. No branches, no worktrees.
 - SNAPSHOT_LATEST.md = single source of truth. One file, no dated variants. Updated via `/snapshot` at session close only.
+- Claude Chat must not edit SNAPSHOT_LATEST.md if Claude Code has already updated it this session. Read it first — if it reflects current state, leave it alone.
 - **Git push = SuperMaster Desktop PowerShell only. Claude never pushes.**
 - Session end: commit all changes, run `/snapshot`, commit snapshot, then print exactly: `git push origin main` and ask user to confirm it ran.
 - SNAPSHOT_LATEST.md contains only: Machine Status + Active Issues + Handoff. No session history. Resolved issues are deleted, not archived.

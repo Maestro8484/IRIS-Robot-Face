@@ -2,6 +2,7 @@
 **Session:** S28 | **Date:** 2026-04-20 | **Branch:** `main` | **Last commit:** edb34ce
 
 > Architecture, pins, constants, deploy commands: see IRIS_ARCH.md (load on demand)
+> **New session primer:** `IRIS project. Read C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face\SNAPSHOT_LATEST.md using the filesystem tool, then respond.`
 
 ---
 
