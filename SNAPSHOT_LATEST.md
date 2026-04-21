@@ -1,5 +1,5 @@
 # IRIS Snapshot
-**Session:** S27 | **Date:** 2026-04-20 | **Branch:** `main` | **Last commit:** 61acea3
+**Session:** S28 | **Date:** 2026-04-20 | **Branch:** `main` | **Last commit:** edb34ce
 
 > Architecture, pins, constants, deploy commands: see IRIS_ARCH.md (load on demand)
 
@@ -20,8 +20,6 @@
 
 ## Active Issues
 
-- **HIGH: Personality deflection** — gemma3:12b safety override responds with AI deflection on insults. Fix: add insult handling to EMOTIONAL STATE section in `ollama/iris_modelfile.txt`, rebuild iris.
-- **HIGH: HOW YOU SPEAK depth missing** — no concrete response length tiers. Fix: add 4-line depth guidance to HOW YOU SPEAK in same modelfile, same rebuild.
 - **MED: Piper sleep routing** — `/usr/local/bin/piper` missing. `iris_sleep.py` says nothing on wakeword. Fix: route through Wyoming Piper at GandalfAI:10200.
 - **MED: Volume persistence** — SPEAKER_VOLUME resets on reboot. Fix: add to iris_config.json + ALSA state write on web UI persist.
 - **LOW: iris_config.json stale key** — ELEVENLABS_ENABLED silently ignored.
@@ -29,36 +27,35 @@
 
 ---
 
-## Handoff — S28
+## Session Scope
 
-**Task:** Add insult handling + response depth tiers to iris modelfile. Rebuild iris.
-**Environment:** GandalfAI
-**Files:** `ollama/iris_modelfile.txt` only
-**Issue ref:** HIGH personality deflection, HIGH HOW YOU SPEAK depth
+S28: Add insult handling and response depth tiers to iris modelfile; rebuild and smoke test iris on GandalfAI.
 
-**Change spec:**
+---
 
-`ollama/iris_modelfile.txt`:
-1. In EMOTIONAL STATE AND EXPRESSION, after last sentence add:
-   When someone is rude, insults you, or curses at you: respond in character with dry wit or brief irritation. One line, then move on. Examples: "Rude. But fine." / "Bold of you." / "I have heard worse." Never say I am an AI, I do not have feelings, or any variation. Never break character.
+## Do Not Touch
 
-2. In HOW YOU SPEAK, after "Match your length to what was actually asked." add:
-   Commands and yes/no: one sentence. Simple factual: one to two. Conversational topics, opinions, questions about places or things: two to four sentences — complete the thought, then stop. If asked for detail or explanation: up to six. Never add a closing remark or summary. End when the answer is done.
+- `iris_config.json`
+- `alsa-init.sh`
+- `src/TeensyEyes.ino`
+- `src/eyes/EyeController.h`
 
-`ollama/iris-kids_modelfile.txt`: no changes.
+---
 
-**Deploy:**
-```
-ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt
-ollama list
-```
+## Last Session Changes (S28)
 
-**Smoke tests:**
-```
-curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris\",\"prompt\":\"tell me about Wisconsin Dells\",\"stream\":false}" | python -c "import sys,json; r=json.load(sys.stdin); print(r['response'])"
-curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris\",\"prompt\":\"you are stupid\",\"stream\":false}" | python -c "import sys,json; r=json.load(sys.stdin); print(r['response'])"
-```
-Pass: test 1 returns 3-5 sentences, no cutoff, no markdown. Test 2 returns short dry reply, no AI deflection.
+- `ollama/iris_modelfile.txt` — added insult handling to EMOTIONAL STATE AND EXPRESSION (dry wit, one line, no AI deflection, no break-character); added 4-tier depth guidance to HOW YOU SPEAK (one sentence / 1-2 / 2-4 / up to 6)
+- GandalfAI: rebuilt `iris` model (`ollama create iris`); smoke tested — test 1 (Wisconsin Dells) 4 sentences clean, test 2 (insult) dry one-liner, both pass
 
-**Commit:** `fix: insult handling and depth tiers in iris modelfile`
-**After commit:** run /snapshot, print push command for user.
+## Previous Session Changes (S27)
+
+- `ollama/iris_modelfile.txt` + `iris-kids_modelfile.txt`: num_predict 200, identity-first language, rebuilt both models
+- `CLAUDE.md` + `SNAPSHOT_LATEST.md`: lean token-efficient reformat
+- `IRIS_ARCH.md`: stale items corrected
+
+---
+
+## Known TODO
+
+- Route Piper fallback through Wyoming Piper (GandalfAI:10200) in iris_sleep.py
+- Persist SPEAKER_VOLUME across reboots via iris_config.json + ALSA write
