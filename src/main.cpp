@@ -109,8 +109,9 @@ static uint32_t confusedEyeStartMs = 0;
 // Eyes sleep state: when true, displays are blanked and renderFrame is skipped
 static bool     eyesSleeping = false;
 
-// Mouth sleep frame throttle — prevents bit-bang SPI from saturating loop()
+// Mouth sleep frame throttle — min interval between frames to prevent flicker
 static uint32_t srMouthLastMs = 0;
+static constexpr uint32_t MOUTH_SLEEP_FRAME_MS = 150;
 
 // ---------------------------------------------------------------------------
 // HELPERS
@@ -339,14 +340,16 @@ void loop() {
     }
   }
 
-  // When sleeping: render starfield + snore mouth, skip eye engine.
-  // Mouth throttled to 50ms so bit-bang SPI doesn't saturate loop().
-  // renderSleepFrame() is self-throttled to SR_FRAME_MS; between renders
-  // this loop spins fast so processSerial() stays responsive.
+  // When sleeping: render starfield on eyes + animate mouth, skip eye engine.
+  // renderSleepFrame() is self-throttled to SR_FRAME_MS (150ms).
+  // mouthSleepFrame() runs on iterations where eye renderer skips (the ~140ms
+  // gaps between eye frames). When eye renderer fires it blocks ~114ms on
+  // updateScreen() — mouth skips that iteration. This gives mouth ~10 calls/sec.
   if (eyesSleeping) {
-    renderSleepFrame(displayLeft->getDriver(), displayRight->getDriver());
     uint32_t nowMs2 = millis();
-    if (nowMs2 - srMouthLastMs >= 50) {
+    bool eyeWillRender = (nowMs2 - srLastFrameMs >= SR_FRAME_MS);
+    renderSleepFrame(displayLeft->getDriver(), displayRight->getDriver());
+    if (!eyeWillRender && (nowMs2 - srMouthLastMs >= MOUTH_SLEEP_FRAME_MS)) {
       mouthSleepFrame();
       srMouthLastMs = nowMs2;
     }

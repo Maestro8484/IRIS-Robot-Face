@@ -10,7 +10,7 @@ static constexpr uint8_t MOUTH_TFT_DC   =  8;
 static constexpr uint8_t MOUTH_TFT_RST  =  4;
 static constexpr uint8_t MOUTH_TFT_MOSI = 35;
 static constexpr uint8_t MOUTH_TFT_SCK  = 37;
-static constexpr uint8_t MOUTH_TFT_BL   = 14;
+static constexpr uint8_t MOUTH_TFT_BL   =  5;  // GPIO5 — PWM dimming, wired to ILI9341 BL
 
 // ── Colors (RGB565) matching assistant.py emotion palette ────────────────────
 static constexpr uint16_t MTFT_BLACK   = 0x0000;
@@ -196,19 +196,28 @@ void mouthSleepReset() {
 void mouthSleepFrame() {
     if (!_tft) return;
 
-    // Erase previous frame with targeted fillRect (avoids full-screen flicker at dim BL)
-    _tft->fillRect(25, 88, 270, 62, MTFT_BLACK);   // sine band
-    _tft->fillRect(110, 5, 100, 95, MTFT_BLACK);   // Z drift zone
-
-    // Backlight: breathe 8→22→8 starting at floor (center=15, amp=7)
-    float bl_f = -cosf(2.0f * M_PI * (float)_sleepFrameCount / 120.0f);
-    analogWrite(MOUTH_TFT_BL, (uint8_t)(15.0f + 7.0f * bl_f));
-
     // Sine: cy oscillates ±10px around 115, amp=8, freq=0.028, stroke=5
     int16_t cy = 115 + (int16_t)(10.0f * sinf(2.0f * M_PI * (float)_sleepFrameCount / 200.0f));
-    _sine(30, 290, cy, 8.0f, 0.028f, 0.0f, MTFT_PURPLE, 5);
 
-    // Z: drifts upward over 60 frames, repeats every 150 frames
+    // Draw sine band as solid scanlines — black bg + purple sine inline, no separate erase.
+    // Each column: compute sine y, write black above/below, purple within stroke.
+    // Eliminates the black-flash caused by erasing before drawing over SWSPI.
+    static constexpr int16_t BAND_Y0 = 88;
+    static constexpr int16_t BAND_Y1 = 150;  // 62px tall band
+    static constexpr int16_t STROKE  = 5;
+    for (int16_t x = 25; x < 295; x++) {
+        float dx = (float)(x - 25);
+        int16_t sy = cy + (int16_t)(8.0f * sinf(0.028f * dx));
+        int16_t top    = sy - STROKE / 2;
+        int16_t bottom = sy + STROKE / 2;
+        for (int16_t y = BAND_Y0; y <= BAND_Y1; y++) {
+            uint16_t col = (y >= top && y <= bottom) ? MTFT_PURPLE : MTFT_BLACK;
+            _tft->drawPixel(x, y, col);
+        }
+    }
+
+    // Z zone: erase then redraw — small area, flash not perceptible
+    _tft->fillRect(110, 5, 100, 90, MTFT_BLACK);
     uint32_t zp = _sleepFrameCount % 150;
     if (zp < 60) {
         int16_t ty = 68 - (int16_t)zp;
