@@ -42,7 +42,11 @@ def wait_for_wakeword_or_button(mic, oww_sock) -> str:
                     try:
                         hdr = json.loads(line.decode())
                         if hdr.get("type") == "detection":
-                            score = hdr.get("data", {}).get("score", 1.0)
+                            data = hdr.get("data", {})
+                            score = data.get("score", None)
+                            if score is None:
+                                scores = data.get("scores", {})
+                                score = max(scores.values()) if scores else 0.0
                             print(f"[OWW]  score={score:.3f} (threshold={OWW_THRESHOLD})",
                                   flush=True)
                             if score < OWW_THRESHOLD:
