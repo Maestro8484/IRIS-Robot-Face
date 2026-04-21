@@ -50,6 +50,10 @@ Session end sequence:
 4. `git add SNAPSHOT_LATEST.md && git commit -m "snapshot: S##"`
 5. Tell user to run `git push origin main` from SuperMaster Desktop.
 
+> **Git push rule — ABSOLUTE:** All `git push` commands originate from SuperMaster Desktop PC only. Claude Code never pushes autonomously. Claude Chat cannot push (no git execution). At every session end, Claude must explicitly prompt: "Ready to push — run this in PowerShell on SuperMaster:" followed by the exact command. Do not assume the push happened. If the user has not confirmed the push, the session is not closed.
+
+> **Doc update confirmation rule:** At the end of any session where SNAPSHOT_LATEST.md, IRIS_ARCH.md, or CLAUDE.md were modified — whether by Claude Code, Claude Chat via filesystem MCP, or manually — Claude must ask: "Docs updated. Have you pushed to origin?" before closing. If the user has not explicitly confirmed a push in the current session, prompt for it. Claude Chat sessions that modify docs via filesystem MCP must flag this explicitly since they cannot push themselves.
+
 ---
 
 ## Pre-flight (run at every session start, output before touching anything)
