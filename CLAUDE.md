@@ -1,105 +1,81 @@
 # IRIS Robot Face — Claude Code Rules
 
-## Session start
-The SessionStart hook auto-loads SNAPSHOT_LATEST.md before every session.
-If context seems missing, run: `python3 .claude/hooks/session_start.py`
+## What this is
+A production hardware-integrated AI system. Changes here affect physical hardware running in a home with two children. Read the current state before touching anything. Verify before acting. When uncertain, stop and ask.
 
-You are working on a production hardware-integrated AI system. Mistakes here break
-physical hardware and require SSH recovery. Read before acting.
+Session start: read SNAPSHOT_LATEST.md (auto-loaded by hook). If missing, run `python3 .claude/hooks/session_start.py`. Then run `git pull origin main`.
 
 ---
 
-## Branch discipline — HARD RULE, NO EXCEPTIONS
-Always work on `main` directly. No feature branches. No Claude-created branches. No worktrees.
-NEVER run git checkout -b, git switch -c, or any command that creates a branch or worktree.
-NEVER create a branch or worktree autonomously for any reason.
+## System architecture
 
-Session start mandatory check:
-  git branch --show-current   <- must output exactly: main
-  If NOT main: git checkout main, delete wrong branch, report to user, wait for confirmation.
-  git worktree list           <- must show only the main worktree
-  If any claude/* worktrees exist: git worktree remove --force <path>, git worktree prune
+Three machines. Each has a defined role. Work stays within that role.
 
-## Git discipline
-Session start: git pull origin main
-Session end: git add -A && git commit && git push origin main (push requires user confirmation)
+**Pi4 (192.168.1.200, pi/ohs)**
+Runs the voice pipeline via `assistant.py`. The Pi4 is a thin orchestrator: it captures audio, detects the wakeword via OWW, records speech, sends it to GandalfAI for STT and LLM, receives the reply, drives Teensy serial and APA102 LEDs, and plays audio back. All intelligence and inference lives on GandalfAI. Pi4 Python source lives in `pi4/` in this repo, mirroring `/home/pi/` exactly. The Pi4 SD card is overlayfs-protected -- every file write needs to go to both the RAM layer and the SD layer, with md5 verification.
+
+**GandalfAI (192.168.1.3, gandalf/5309)**
+Windows machine. Runs Ollama (LLM inference), Wyoming Whisper (STT, port 10300), Wyoming Piper (TTS fallback, port 10200), and Chatterbox (primary TTS, port 8004) via Docker. RTX 3090 (24GB VRAM). Canonical LLM modelfiles are in `ollama/` in this repo. Deploy by writing the modelfile and running `ollama create`. GandalfAI uses PowerShell -- no bash, no grep, no df, no head. Use sftp_write for multi-line file writes. filesystem MCP covers `C:\Users\gandalf\` only; use ssh_exec for `C:\IRIS\` and `C:\docker\`.
+
+**SuperMaster Desktop (192.168.1.103)**
+Firmware builds and git push only. PlatformIO runs here. Claude runs `pio run`. User clicks upload. Git push to origin runs here and only here -- never from GandalfAI or any other machine.
+
+**Teensy 4.1 (USB to SuperMaster)**
+Drives dual GC9A01A eye TFTs and ILI9341 mouth TFT. Receives serial commands from Pi4 via TeensyBridge. Firmware source in `src/`. Claude builds only -- user flashes manually via PlatformIO upload button.
 
 ---
 
-## Pre-flight (mandatory at every session start -- output this before touching anything)
+## VRAM budget (GandalfAI RTX 3090, 24GB)
 
-> Branch: [current branch]
+Chatterbox holds ~4.5GB resident. Current LLM is gemma3:12b at ~7GB (num_ctx 4096). Combined ~11.5GB, leaving ~12.5GB headroom. Headroom below 4GB causes inference stalls -- pipeline appears dead after wakeword with no audio output. Do not increase num_ctx above 4096. When evaluating a model change, verify the combined VRAM budget fits with at least 4GB headroom. Stop token for gemma family: `<end_of_turn>`. After any modelfile change, rebuild both `iris` and `iris-kids` and smoke test before considering the task done.
+
+Smoke test: `[EMOTION:x]` tag on first line, response completes without mid-sentence cutoff, plain sentences, no markdown.
+
+---
+
+## Git and snapshot discipline
+
+`main` is the only branch. No feature branches, no worktrees, no Claude-created branches under any circumstances. Session start: verify `git branch --show-current` outputs `main`. If not, fix it before proceeding.
+
+`SNAPSHOT_LATEST.md` is the single source of truth for current system state. It is tracked in git. One file, no dated variants, updated once at session close via `/snapshot`.
+
+Session end sequence:
+1. State what changed, what did not, any new risks.
+2. `git add -A && git commit -m "[message]"`
+3. Run `/snapshot`
+4. `git add SNAPSHOT_LATEST.md && git commit -m "snapshot: S##"`
+5. Tell user to run `git push origin main` from SuperMaster Desktop.
+
+---
+
+## Pre-flight (run at every session start, output before touching anything)
+
+> Branch: [current branch -- must be main]
 > Last commit: [hash + message]
-> Working tree: [clean / dirty -- if dirty STOP and tell user]
+> Working tree: [clean / dirty -- if dirty, stop and tell user]
 > Task this session: [one sentence]
 > Files to be modified: [explicit list]
 > Files NOT touched: [everything else relevant]
 > Risk: [what could break]
 > Rollback: [how to undo]
 
-Do not proceed until user confirms. If working tree is dirty, do not proceed until user commits or explicitly clears it.
+Wait for user confirmation before proceeding. If the working tree is dirty, do not proceed until the user commits or explicitly clears it.
 
 ---
 
-## Hard rules -- no exceptions
-- ONE task per session. No opportunistic fixes. No "while I'm in here" changes.
-- No refactoring unless the session task IS refactoring -- state it explicitly upfront.
-- No file writes without showing the plan first and getting user confirmation.
-- git push requires explicit user confirmation before running.
-- Never touch these files without explicit user instruction:
-  - iris_config.json
-  - alsa-init.sh
-  - Any file not directly named in the confirmed task scope
+## Session discipline
+
+One task per session. State it at the top. Do not fix other things noticed along the way -- log them to the snapshot instead. No file writes without showing the plan first. Read the live file before writing it -- never write from memory or a reconstructed version. Return full files, not snippets.
+
+Files that require explicit user instruction before touching: `iris_config.json`, `alsa-init.sh`, `src/TeensyEyes.ino`, `src/eyes/EyeController.h`.
 
 ---
 
-## Machine rules
-SuperMaster: firmware builds and PlatformIO only. Claude runs pio run only. User clicks upload. Never remote flash.
-GandalfAI: pi4/ and snapshot work only. Never touch src/ firmware files. No pio commands. No firmware builds.
-GandalfAI filesystem MCP: C:\Users\gandalf\ only. Use Bash tool for C:\IRIS\ and C:\docker\.
-GandalfAI: PowerShell only. No grep/df/head. Heredocs unreliable -- use sftp_write for multi-line files.
-Ollama models: `iris` and `iris-kids` -- both built on `gemma3:12b`. Canonical modelfiles in `ollama/` in this repo. To rebuild: `ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt`
+## Pi4 file locations
 
----
+All Pi4 Python source is edited in `pi4/` in this repo. The `pi4/` directory mirrors `/home/pi/` exactly. Read from `pi4/`, deploy to `/home/pi/`, persist to `/media/root-ro/home/pi/`, verify with md5sum.
 
-## LLM Model Selection — VRAM Constraints and Reliability Priority
-
-GandalfAI has an RTX 3090 (24GB VRAM). Two GPU processes run simultaneously:
-- Ollama (LLM inference)
-- Chatterbox Turbo (TTS, containerized, ~4.5GB VRAM resident)
-
-**Hard constraint:** LLM + Chatterbox must fit in 24GB with at least 4GB headroom.
-Headroom below 4GB causes concurrent inference failures — Ollama or Chatterbox spills
-to system RAM, stalling the pipeline. IRIS appears dead post-wakeword with no audio output.
-
-**Current model:** gemma3:12b — ~7GB VRAM at num_ctx 4096.
-Combined with Chatterbox: ~11.5GB. Headroom: ~12.5GB. Well within safe limits.
-
-**Stop token for gemma family:** `<end_of_turn>`
-
-**When changing models:** update FROM line and stop token in BOTH modelfiles,
-rebuild both iris and iris-kids, smoke test both before deploying to Pi4.
-Smoke test confirms: [EMOTION:NEUTRAL] tag present, reply under 30 words, no markdown, no asterisks.
-
-**Do not increase num_ctx above 4096.** KV cache cost scales with context size.
-At 8192 ctx, KV cache doubles, eliminating headroom.
-
----
-
-## Snapshot discipline
-SNAPSHOT_LATEST.md is the single authoritative file.
-No dated variants. No lettered variants.
-Update once at session close only via /snapshot.
-Never update mid-session.
-
----
-
-## CRITICAL: Pi4 source location
-
-ALL Pi4 Python files are edited in `pi4/` in this repo.
-`pi4/` mirrors the Pi4 filesystem at `/home/pi/` exactly.
-
-| Repo path | Pi4 path |
+| Repo | Pi4 |
 |---|---|
 | `pi4/assistant.py` | `/home/pi/assistant.py` |
 | `pi4/core/config.py` | `/home/pi/core/config.py` |
@@ -117,127 +93,33 @@ ALL Pi4 Python files are edited in `pi4/` in this repo.
 | `pi4/iris_sleep.py` | `/home/pi/iris_sleep.py` |
 | `pi4/iris_wake.py` | `/home/pi/iris_wake.py` |
 
-**NEVER read from or write to a root-level `assistant.py`. It does not exist.**
-**NEVER deploy any Pi4 file that was not explicitly read from `pi4/` this session.**
-**NEVER deploy from memory, a snippet, or a reconstructed version.**
+The SD layer at `/media/root-ro` is read-only by default. Remount with `sudo mount -o remount,rw /media/root-ro` before writing. `/tmp/iris_sleep_mode` is intentionally volatile -- do not persist it.
 
 ---
 
-## Rules
-- Do NOT guess pins, ports, device paths, or hardware behavior
-- Do NOT refactor multiple systems at once
-- Preserve current behavior unless explicitly told to change it
-- Only modify files explicitly mentioned in the task
-- Return FULL updated files, not partial snippets
-- If uncertain, stop and ask instead of guessing
+## Firmware
 
----
-
-## Architecture
-
-See [IRIS_ARCH.md](IRIS_ARCH.md).
-
----
-
-## Deploy workflow
-
-See [IRIS_ARCH.md](IRIS_ARCH.md).
-
----
-
-## Pi4 persistence (overlayfs)
-- SD is read-only. All SSH writes go to RAM and are wiped on reboot.
-- ALWAYS persist after every SSH file write.
-- `sudo cp` is required -- files on `/media/root-ro` are root-owned.
-- Do NOT persist `/tmp/iris_sleep_mode` -- intentionally volatile.
-
----
-
-## Firmware rules
-- Do NOT modify `TeensyEyes.ino` -- upstream engine, off limits.
-- After any `src/` change: run `/flash` (local USB) or `/flash-remote` (Pi4 SSH).
-- Software bootloader entry (Teensy in enclosure, no PROG button access):
-```bash
+`src/TeensyEyes.ino` is upstream engine -- do not modify. `src/eyes/EyeController.h` contains a setTargetPosition seed fix -- do not break it. After any `src/` change, run `pio run` and tell the user to click upload. Software bootloader entry when Teensy is in enclosure:
+```
 python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"
 ```
 
----
-
-## Eye editing workflow
-
-See [IRIS_ARCH.md](IRIS_ARCH.md).
+See IRIS_ARCH.md for pin assignments, eye index, and mouth TFT wiring.
 
 ---
 
-## Serial protocol
-- Pi4 -> Teensy: `EMOTION:x`, `EYES:SLEEP`, `EYES:WAKE`, `EYE:n` (0-6), `MOUTH:n`
-- Teensy -> Pi4: `FACE:1`, `FACE:0`
+## Handoff template (Claude Chat -> Claude Code)
 
----
-
-## Key firmware files
-- `src/main.cpp` — serial parsing, emotion, tracking, sleep logic
-- `src/eyes/EyeController.h` — eye movement/blink/pupil (do NOT break setTargetPosition seed fix)
-- `src/mouth_tft.cpp` / `src/mouth_tft.h` — ILI9341 TFT mouth driver (Arduino_GFX SWSPI bit-bang, T4.1 pins MOSI=35, SCK=37, CS=36, DC=8, RST=4, BL=14)
-- `src/sleep_renderer.h` — deep space starfield renderer
-
----
-
-## Long output
-- Snapshots, full file dumps, large summaries -> write to a `.md` file, then summarize inline.
-- Never print large content blocks as chat -- truncation loses data.
-
----
-
-## Workflow rules
-
-- Claude Chat = diagnosis, log reading, planning only. No file writes, no SSH command chains.
-- Claude Code = all file writes, SSH chains, implementation, service restarts.
-- Every Code session opens with: read CLAUDE.md, confirm live state matches declared state, report any drift before acting.
-- One session, one concern. State the single goal at session open.
-- Smoke test mouth TFT before any further firmware or voice pipeline work.
-- Mouth smoke test route: Pi4 SSH -> send `MOUTH:0` through `MOUTH:8` via UDP `127.0.0.1:10500` -> TeensyBridge -> `/dev/ttyACM0` -> Teensy renders on TFT.
-- Flash rule: Claude runs `pio run` only. User clicks PlatformIO upload. Never remote flash.
-- Canonical Pi4 source: `pi4/assistant.py` only. Never read or write root-level `assistant.py`.
-- SNAPSHOT_LATEST.md and CLAUDE.md must stay identical at all times.
-- Every Code session ends with: `git add -A && git commit && git push`, then `/snapshot`.
-
----
-
-## Session end -- mandatory
-1. State explicitly: what was changed, what was NOT changed, any new risks introduced.
-2. git add -A && git commit
-3. Confirm with user before git push
-4. Run /snapshot
-5. Final line every session: `git add -A && git commit && git push origin main`
-
----
-
-## Handoff Protocol — Template
-
-All Claude Chat → Claude Code handoffs must follow this format.
-Reference, don't repeat. CLAUDE.md and SNAPSHOT_LATEST.md are the source of truth.
-
----
-
-**Task:** [One sentence. What changes.]
-**Environment:** [Pi4 | GandalfAI | Firmware | Multi — pick one per session]
-**Files:** [List only files that will be read or modified]
-**Issue ref:** [SNAPSHOT_LATEST.md section or active issue label]
+**Task:** [One sentence.]
+**Environment:** [Pi4 | GandalfAI | Firmware | Multi]
+**Files:** [Only files being read or modified]
+**Issue ref:** [Active Issues label from SNAPSHOT_LATEST.md]
 
 **Change spec:**
-[File path]: [What changes — function name, behavior delta, not architecture re-explanation]
+[filepath]: [what changes -- specific function or behavior, not architecture summary]
 
-**Deploy:** Follow CLAUDE.md [Pi4 deploy checklist | GandalfAI deploy | firmware flash]
-**Verify:** [One specific observable outcome — pass/fail check only]
-**Commit:** "[conventional commit message]"
-**After commit:** Confirm with user before push. Run /snapshot.
+**Verify:** [One observable pass/fail outcome]
+**Commit:** "[message]"
+**After commit:** Run /snapshot. Tell user to git push from SuperMaster.
 
----
-
-Handoff rules:
-- One environment per session. Split multi-environment tasks into separate handoffs.
-- Do not re-explain architecture already in CLAUDE.md or SNAPSHOT_LATEST.md.
-- Verification steps already in CLAUDE.md checklists must not be repeated in the handoff.
-- Firmware-only tasks (no SSH, no Pi4): confirm user flashes manually before opening session.
-- If a task requires 3+ environments or 3+ files across subsystems, flag to user and split before starting.
+One environment per session. If a task spans more than two files across different subsystems, split it and say so.
