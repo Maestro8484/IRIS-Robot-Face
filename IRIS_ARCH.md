@@ -32,11 +32,11 @@ On both rebooting simultaneously: GandalfAI must be up before assistant.py finis
 |---|---|---|---|
 | Pi4 (IRIS) | 192.168.1.200 | pi / ohs | Voice pipeline, LEDs, camera, Teensy serial |
 | GandalfAI | 192.168.1.3 | gandalf / 5309 | Ollama LLM, Whisper STT, Piper TTS, Chatterbox TTS, RTX 3090 |
-| Desktop PC | 192.168.1.103 | SuperMaster | PlatformIO firmware, VS Code, Claude Desktop |
+| Desktop PC | 192.168.1.103 | SuperMaster / ohs | PlatformIO firmware, VS Code, Claude Desktop. OpenSSH server enabled S29 — Claude can ssh_exec PowerShell commands and run git directly. |
 | Teensy 4.1 | USB → Desktop PC | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
 | Synology NAS | 192.168.1.102 | Master / Gateway!7007 | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
-**SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (NAS, port 2233)
+**SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (SuperMaster 192.168.1.103, PowerShell). NAS SSH: port 2233, credentials Master/Gateway!7007 — connect via ssh MCP with explicit host override.
 **SSH auth Pi4:** Password auth only — key auth fails.
 **SSH auth GandalfAI:** `gandalf / 5309`
 **GandalfAI:** Windows machine. No `df`, `head`, `grep` — use PowerShell / findstr / dir equivalents.
