@@ -1,5 +1,5 @@
 # IRIS Snapshot
-**Session:** S28 | **Date:** 2026-04-20 | **Branch:** `main` | **Last commit:** edb34ce
+**Session:** S29 | **Date:** 2026-04-22 | **Branch:** `main` | **Last commit:** edb34ce
 
 > Architecture, pins, constants, deploy commands: see IRIS_ARCH.md (load on demand)
 > **New session primer:** `IRIS project. Read C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face\SNAPSHOT_LATEST.md using the filesystem tool, then respond.`
@@ -12,7 +12,7 @@
 |---|---|
 | Pi4 192.168.1.200 | Operational. assistant.py running. |
 | GandalfAI 192.168.1.3 | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. IRISDashboard port 8080. |
-| Teensy 4.1 | Flashed (mouthSleepFrame). /dev/ttyACM0 present. |
+| Teensy 4.1 | Flashed S29. All displays operational. /dev/ttyACM0 present. |
 | TTS | Chatterbox primary, Piper fallback. |
 | Web UI | Port 5000 operational. |
 | Cron sleep/wake | 9PM/7:30AM. Sleep wakeword silent (Piper path broken). |
@@ -30,7 +30,7 @@
 
 ## Session Scope
 
-S28: Add insult handling and response depth tiers to iris modelfile; rebuild and smoke test iris on GandalfAI.
+S29: Hardware repair — broken RST Dupont wire on left eye display. BL GPIO 5 confirmed working. All systems verified operational.
 
 ---
 
@@ -43,7 +43,14 @@ S28: Add insult handling and response depth tiers to iris modelfile; rebuild and
 
 ---
 
-## Last Session Changes (S28)
+## Last Session Changes (S29)
+
+- Hardware: RST Dupont female connector on GPIO 3 (left eye GC9A01A) recrimped — resolves boot hang in `_t3n::begin`
+- Hardware: ILI9341 mouth TFT BL wire confirmed on GPIO 5 — backlight PWM control working, web UI intensity control working
+- Hardware: Person sensor tracking confirmed fully operational — S29 apparent failure was 5V 4A power supply disconnected
+- No firmware changes from S28 baseline
+
+## Previous Session Changes (S28)
 
 - `ollama/iris_modelfile.txt` — added insult handling to EMOTIONAL STATE AND EXPRESSION (dry wit, one line, no AI deflection, no break-character); added 4-tier depth guidance to HOW YOU SPEAK (one sentence / 1-2 / 2-4 / up to 6)
 - GandalfAI: rebuilt `iris` model (`ollama create iris`); smoke tested — test 1 (Wisconsin Dells) 4 sentences clean, test 2 (insult) dry one-liner, both pass

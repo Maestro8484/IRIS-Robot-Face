@@ -12,7 +12,7 @@
 | Wake word (hey_jarvis) | **WORKING** — confirmed S23 2026-04-18 | OWW score=1.000, full pipeline fires |
 | Mic capture (wm8960 LINPUT1) | **WORKING** — confirmed S23 | Input boost switches required; now in alsa-init.sh |
 | STT → LLM → TTS → audio output | **WORKING** — confirmed S23 | Full pipeline: Whisper→Ollama iris→Chatterbox→speakers |
-| Mouth TFT animation | **WORKING** — confirmed S23 | MOUTH:0-8 cycling during speech |
+| Mouth TFT animation | **WORKING** — confirmed S29 | MOUTH:0-8 cycling during speech. BL on GPIO 5, web UI intensity control working. |
 | Sleep/wake cron (9PM/7:30AM) | Working but **REBOOT-FRAGILE** | Piper missing at /usr/local/bin/piper — sleep wakeword says nothing |
 | ALSA state on reboot | **HARDENED S23** | alsa-init.sh now sets all 6 critical switches explicitly |
 | GandalfAI reboot | **FRAGILE** | Chatterbox docker must be started manually after reboot (`docker compose up -d`) |
@@ -103,10 +103,13 @@ HF cache: `C:\Users\gandalf\.cache\huggingface` — stays in user profile, inten
 | 36 | CS | — |
 | 8 | DC | — |
 | 4 | RST | — |
-| 14 | BL | PWM: 220 boot/wake, 40 sleep |
+| 5 | BL | PWM: 220 boot/wake, 8 sleep — reassigned S29 from GPIO 14 |
 
-> Free pins: 5, 6, 7, 15–17, 20–25, 28–33, 38–55 (T4.1 extended)
-> Pins 5/6/7 were legacy MAX7219 matrix (removed hardware). Now free.
+> Free pins: 6, 7, 15–17, 20–25, 28–33, 38–55 (T4.1 extended)
+> Pins 6/7 were legacy MAX7219 matrix (removed hardware). Now free.
+> GPIO 5 now assigned to ILI9341 BL.
+> GPIO 3 RST Dupont female recrimped S29 after wire snip during enclosure work.
+> Teensy is enclosure-mounted. RESET and PROG buttons are NOT accessible. All resets via software bootloader entry only.
 
 ---
 
@@ -298,10 +301,12 @@ md5sum /home/pi/<file> /media/root-ro/home/pi/<file>
 sudo systemctl restart assistant
 journalctl -u assistant -n 30 --no-pager
 
-# FLASH: Claude runs `pio run` only. User clicks PlatformIO upload. Teensy USB → Desktop PC.
+# FLASH: Claude runs `pio run` only. User clicks PlatformIO upload. Teensy USB → Desktop PC (COM7).
 # NEVER remote flash. NEVER transfer hex. NEVER run teensy_loader_cli.
-# Software bootloader entry (Teensy in enclosure, no PROG button):
+# Physical access: Teensy is enclosure-mounted. RESET and PROG buttons are NOT accessible.
+# All resets must be done via software bootloader entry (run on Pi4):
 python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"
+# Serial monitoring: Teensy on COM7 when connected to desktop. Use VS Code terminal (not PlatformIO serial monitor — it locks the port).
 
 # GandalfAI containers (after reboot or manual down):
 docker compose -f C:\IRIS\docker\docker-compose.yml up -d
