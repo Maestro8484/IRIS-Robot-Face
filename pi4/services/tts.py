@@ -157,8 +157,12 @@ def _truncate_for_tts(text: str, max_chars: int = 220) -> str:
             truncated = text[:idx + 1].strip()
             print(f"[TTS]  Truncated {len(text)}→{len(truncated)} chars at sentence boundary", flush=True)
             return truncated
-    print(f"[TTS]  No sentence boundary in first {max_chars} chars — passing full text", flush=True)
-    return text
+    hard_cut = text[:max_chars]
+    last_space = hard_cut.rfind(' ')
+    if last_space > max_chars // 2:
+        hard_cut = hard_cut[:last_space]
+    print(f"[TTS]  No sentence boundary -- hard cap at {len(hard_cut)} chars", flush=True)
+    return hard_cut
 
 
 # ── Public entry point ────────────────────────────────────────────────────────

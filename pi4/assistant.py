@@ -419,7 +419,14 @@ def main():
                 _do_wake(teensy, leds)
                 if not ensure_gandalf_up(leds):
                     leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
-                # TODO(1C): route sleep wakeword greeting through Wyoming Piper (GandalfAI:10200)
+                try:
+                    hour = time.localtime().tm_hour
+                    greeting = "Good morning." if SLEEP_WINDOW_END_HOUR <= hour < 12 else \
+                               "Good evening." if hour >= 18 else "Hello."
+                    pcm = synthesize(greeting)
+                    play_pcm_speaking(pcm, pa, teensy, restore_mouth_idx=0)
+                except Exception as _e:
+                    print(f"[SLEEP] Wake greeting failed: {_e}", flush=True)
                 show_idle_for_mode(leds); continue
 
             if not ensure_gandalf_up(leds):
