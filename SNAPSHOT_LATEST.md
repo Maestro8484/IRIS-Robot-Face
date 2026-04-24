@@ -30,7 +30,7 @@
 
 ## Session Scope
 
-S29: Hardware repair — broken RST Dupont wire on left eye display. BL GPIO 5 confirmed working. All systems verified operational.
+S30: Fix 1A — wakeword OWW resilience. Socket liveness detection, 3-attempt retry/backoff on startup and mid-run crash, error return path prevents hang.
 
 ---
 
@@ -43,17 +43,19 @@ S29: Hardware repair — broken RST Dupont wire on left eye display. BL GPIO 5 c
 
 ---
 
-## Last Session Changes (S29)
+## Last Session Changes (S30)
+
+- `pi4/assistant.py`: `_start_oww()` helper with 3-attempt backoff (1s/2s/4s); startup failure no longer calls sys.exit — retries in main loop
+- `pi4/assistant.py`: `while True` loop checks `oww_proc.poll()` each iteration; restarts OWW if dead; `trigger == "error"` path skips STT/LLM/TTS
+- `pi4/services/wakeword.py`: socket drop sets `trigger[0] = "error"` and fires detected event instead of silent break; `t.join(timeout=2)`; returns `trigger[0] or "error"`; `oww_sock.settimeout(5.0)` before first send
+- Commit: 078da91
+
+## Previous Session Changes (S29)
 
 - Hardware: RST Dupont female connector on GPIO 3 (left eye GC9A01A) recrimped — resolves boot hang in `_t3n::begin`
 - Hardware: ILI9341 mouth TFT BL wire confirmed on GPIO 5 — backlight PWM control working, web UI intensity control working
 - Hardware: Person sensor tracking confirmed fully operational — S29 apparent failure was 5V 4A power supply disconnected
 - No firmware changes from S28 baseline
-
-## Previous Session Changes (S28)
-
-- `ollama/iris_modelfile.txt` — added insult handling to EMOTIONAL STATE AND EXPRESSION (dry wit, one line, no AI deflection, no break-character); added 4-tier depth guidance to HOW YOU SPEAK (one sentence / 1-2 / 2-4 / up to 6)
-- GandalfAI: rebuilt `iris` model (`ollama create iris`); smoke tested — test 1 (Wisconsin Dells) 4 sentences clean, test 2 (insult) dry one-liner, both pass
 
 ## Previous Session Changes (S27)
 
