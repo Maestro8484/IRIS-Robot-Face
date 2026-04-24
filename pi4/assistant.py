@@ -143,18 +143,9 @@ def start_cmd_listener(teensy, leds):
                         print(f"[CMD] -> teensy: {cmd}", flush=True)
                         teensy.send_command(cmd)
                         if cmd == "EYES:SLEEP":
-                            state.eyes_sleeping = True
-                            open("/tmp/iris_sleep_mode", "w").close()
-                            leds.show_sleep()
-                            lvl = globals().get("MOUTH_INTENSITY_SLEEP", 1)
-                            teensy.send_command(f"MOUTH_INTENSITY:{lvl}")
+                            _do_sleep(teensy, leds)
                         elif cmd == "EYES:WAKE":
-                            state.eyes_sleeping = False
-                            try: os.remove("/tmp/iris_sleep_mode")
-                            except FileNotFoundError: pass
-                            show_idle_for_mode(leds)
-                            lvl = globals().get("MOUTH_INTENSITY_AWAKE", 8)
-                            teensy.send_command(f"MOUTH_INTENSITY:{lvl}")
+                            _do_wake(teensy, leds)
                 except Exception as e:
                     print(f"[CMD] Listener error: {e}", flush=True)
     threading.Thread(target=_listener, daemon=True).start()
@@ -304,6 +295,27 @@ def return_to_sleep(teensy, st) -> None:
     print("[SLEEP] Returned to sleep (sleep window active)", flush=True)
 
 
+def _do_sleep(teensy, leds):
+    teensy.send_command("EYES:SLEEP")
+    teensy.send_command("MOUTH:8")
+    teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_SLEEP}")
+    state.eyes_sleeping = True
+    open("/tmp/iris_sleep_mode", "w").close()
+    leds.show_sleep()
+    print("[SLEEP] _do_sleep() complete", flush=True)
+
+
+def _do_wake(teensy, leds):
+    teensy.send_command("EYES:WAKE")
+    teensy.send_command("MOUTH:0")
+    teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_AWAKE}")
+    state.eyes_sleeping = False
+    try: os.remove("/tmp/iris_sleep_mode")
+    except FileNotFoundError: pass
+    show_idle_for_mode(leds)
+    print("[WAKE] _do_wake() complete", flush=True)
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -404,18 +416,10 @@ def main():
             # Sleep mode check
             if os.path.exists('/tmp/iris_sleep_mode'):
                 print('[SLEEP] Wakeword during sleep -- waking IRIS', flush=True)
-                os.remove('/tmp/iris_sleep_mode')
-                state.eyes_sleeping = False
-                teensy.send_command('EYES:WAKE')
-                teensy.send_command('MOUTH:0')
+                _do_wake(teensy, leds)
                 if not ensure_gandalf_up(leds):
                     leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
-                subprocess.run([
-                    'bash', '-c',
-                    'echo "Good morning." | /usr/local/bin/piper'
-                    ' --model /home/pi/piper/en_US-ryan-high.onnx'
-                    ' --output_raw | aplay -r 22050 -f S16_LE -t raw -'
-                ])
+                # TODO(1C): route sleep wakeword greeting through Wyoming Piper (GandalfAI:10200)
                 show_idle_for_mode(leds); continue
 
             if not ensure_gandalf_up(leds):

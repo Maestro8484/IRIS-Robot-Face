@@ -23,4 +23,12 @@ try:
 except Exception as e:
     log(f'[WAKE] UDP error: {e}')
 
+try:
+    os.remove('/tmp/iris_sleep_mode')
+    log('[WAKE] /tmp/iris_sleep_mode removed')
+except FileNotFoundError:
+    log('[WAKE] /tmp/iris_sleep_mode already absent')
+except Exception as e:
+    log(f'[WAKE] Flag removal error: {e}')
+
 log('[WAKE] Wake mode activated')

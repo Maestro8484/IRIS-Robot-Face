@@ -58,14 +58,15 @@ class TeensyBridge:
                     self._ser = None
                 time.sleep(5)
 
-    def send_emotion(self, emotion: str):
+    def send_emotion(self, emotion: str) -> bool:
         with self._lock:
             if self._ser is None or not self._ser.is_open:
-                return
+                return False
             try:
                 self._ser.write(f"EMOTION:{emotion}\n".encode())
                 self._ser.flush()
                 print(f"[EYES] >> EMOTION:{emotion}", flush=True)
+                return True
             except (serial.SerialException, OSError) as e:
                 print(f"[EYES] Send failed: {e}", flush=True)
                 try:
@@ -73,16 +74,18 @@ class TeensyBridge:
                 except Exception:
                     pass
                 self._ser = None
+                return False
 
-    def send_command(self, cmd: str):
+    def send_command(self, cmd: str) -> bool:
         """Send a raw command string (no EMOTION: prefix) to the Teensy."""
         with self._lock:
             if self._ser is None or not self._ser.is_open:
-                return
+                return False
             try:
                 self._ser.write(f"{cmd}\n".encode())
                 self._ser.flush()
                 print(f"[EYES] >> {cmd}", flush=True)
+                return True
             except (serial.SerialException, OSError) as e:
                 print(f"[EYES] Send failed: {e}", flush=True)
                 try:
@@ -90,6 +93,7 @@ class TeensyBridge:
                 except Exception:
                     pass
                 self._ser = None
+                return False
 
     def close(self):
         self._active = False

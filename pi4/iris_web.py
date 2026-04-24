@@ -121,6 +121,7 @@ def api_sleep_state():
 def api_sleep():
     send_teensy("EYES:SLEEP")
     ok = send_teensy("MOUTH:8")
+    send_teensy("MOUTH_INTENSITY:1")
     open(SLEEP_FLAG, "w").close()
     return jsonify(ok=ok, sleeping=True)
 
@@ -128,6 +129,7 @@ def api_sleep():
 def api_wake():
     send_teensy("EYES:WAKE")
     ok = send_teensy("MOUTH:0")
+    send_teensy("MOUTH_INTENSITY:8")
     if os.path.exists(SLEEP_FLAG): os.remove(SLEEP_FLAG)
     return jsonify(ok=ok, sleeping=False)
 
