@@ -207,8 +207,10 @@ def _coerce_value(key, val):
             coerced = val
         elif isinstance(val, int) and val in (0, 1):
             coerced = bool(val)
-        elif isinstance(val, str) and val.lower() in ("true", "false"):
-            coerced = val.lower() == "true"
+        elif isinstance(val, str) and val.lower() in (
+            "true", "false", "yes", "no", "on", "off", "y", "n"
+        ):
+            coerced = val.lower() in ("true", "yes", "on", "y")
         else:
             raise ValueError(f"cannot convert {val!r} to bool")
         return coerced, None
