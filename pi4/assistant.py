@@ -345,8 +345,10 @@ def main():
     else:
         print("[INFO] openwakeword ready", flush=True)
     pa = pyaudio.PyAudio()
+    mic_idx = _find_mic_device_index()
     mic = pa.open(rate=SAMPLE_RATE, channels=CHANNELS, format=pyaudio.paInt16,
-                  input=True, frames_per_buffer=CHUNK)
+                  input=True, frames_per_buffer=CHUNK,
+                  input_device_index=mic_idx)
 
     print(f"[INFO] Wake word  : {WAKE_WORD}", flush=True)
     print(f"[INFO] LLM adult  : {OLLAMA_MODEL_ADULT} @ {GANDALF}:{OLLAMA_PORT}", flush=True)

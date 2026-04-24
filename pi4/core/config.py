@@ -30,7 +30,7 @@ CHATTERBOX_ENABLED      = True
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
 SAMPLE_RATE    = 16000
-CHANNELS       = 1
+CHANNELS       = 2
 CHUNK          = 1024
 RECORD_SECONDS = 10
 SILENCE_SECS   = 1.5

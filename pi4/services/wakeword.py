@@ -48,7 +48,8 @@ def wait_for_wakeword_or_button(mic, oww_sock) -> str:
                             score = data.get("score", None)
                             if score is None:
                                 scores = data.get("scores", {})
-                                score = max(scores.values()) if scores else 0.0
+                                # Detection event = OWW already passed threshold; 1.0 if no score
+                                score = max(scores.values()) if scores else 1.0
                             print(f"[OWW]  score={score:.3f} (threshold={OWW_THRESHOLD})",
                                   flush=True)
                             if score < OWW_THRESHOLD:
