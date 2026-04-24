@@ -34,6 +34,13 @@ Always trust local repo state first:
 4. live system checks
 5. GitHub remote only after fetch/compare
 
+## Explicit Operational Constraints (Always Enforced)
+
+- Local repo is the only source of truth for all edits.
+- Do not push to GitHub unless explicitly instructed by the user.
+- Do not edit Pi4 or GandalfAI directly unless the user says DEPLOY.
+- Show diff, wait for approval before writing any file.
+
 ---
 
 ## Session Start
@@ -77,6 +84,8 @@ Required pre-flight:
 - Commit each batch separately.
 - Update docs after meaningful changes.
 - Do not stack unverified changes.
+- Never push to GitHub unless explicitly authorized in the current session.
+- Never write to Pi4 or GandalfAI unless the user says DEPLOY.
 
 ---
 

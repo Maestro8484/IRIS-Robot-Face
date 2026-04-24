@@ -51,3 +51,6 @@ Add to pre-flight block:
 - Local repo is always #1 truth. GitHub is #1.5.
 - If snapshot conflicts with GitHub, local snapshot wins.
 - IRIS_ARCH.md loads only when architecture, pins, deploy commands, or service config is needed.
+- GitHub push is never automatic. User must explicitly request it.
+- Pi4 and GandalfAI are read-only until user says DEPLOY.
+- All edits go to local repo only. Show diff, wait for approval.

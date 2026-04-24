@@ -9,6 +9,9 @@
 - No broad refactors.
 - Touch only files required for task.
 - Preserve working behavior unless behavior is the identified bug.
+- Never push to GitHub unless explicitly instructed.
+- Never edit Pi4 or GandalfAI directly unless user says DEPLOY.
+- Local repo is the only source of truth. Show diff, wait for approval before any write.
 
 ---
 
