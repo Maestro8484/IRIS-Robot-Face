@@ -1,5 +1,5 @@
 # IRIS Snapshot
-**Session:** S31 | **Date:** 2026-04-23 | **Branch:** `main` | **Last commit:** 09977e4
+**Session:** S31 | **Date:** 2026-04-23 | **Branch:** `main` | **Last commit:** c5704fc
 
 > Architecture, pins, constants, deploy commands: see IRIS_ARCH.md (load on demand)
 > **New session primer:** `IRIS project. Read C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face\SNAPSHOT_LATEST.md using the filesystem tool, then respond.`
