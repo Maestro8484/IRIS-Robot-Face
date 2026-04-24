@@ -92,13 +92,17 @@ def _find_wm8960_card() -> int:
 # ── Volume control ────────────────────────────────────────────────────────────
 
 def get_volume() -> int:
-    out = subprocess.check_output(
-        ["amixer", "-c", str(_find_wm8960_card()), "sget", VOL_CONTROL], text=True)
-    for line in out.splitlines():
-        if "Playback" in line and "[" in line:
-            m = re.search(r"Playback (\d+)", line)
-            if m:
-                return int(m.group(1))
+    try:
+        out = subprocess.check_output(
+            ["amixer", "-c", str(_find_wm8960_card()), "sget", VOL_CONTROL],
+            text=True, timeout=5)
+        for line in out.splitlines():
+            if "Playback" in line and "[" in line:
+                m = re.search(r"Playback (\d+)", line)
+                if m:
+                    return int(m.group(1))
+    except Exception as e:
+        print(f"[VOL]  get_volume failed: {e} -- returning fallback 110", flush=True)
     return 110
 
 
