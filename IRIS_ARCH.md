@@ -337,3 +337,56 @@ curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris\",\"prompt\":\
 - **Repo:** `https://github.com/Maestro8484/iris-snapshot` (private)
 - **Local:** `C:/Users/SuperMaster/Documents/PlatformIO/iris-snapshot/`
 - **Pi4 Sudoers:** `/etc/sudoers.d/iris_service` — passwordless sudo for systemctl stop/start/restart/status assistant
+
+---
+
+---
+
+## Operational Notes — Hard-Won Lessons
+
+> These are confirmed failure patterns and non-obvious system behaviors. Do not remove. Update in place when superseded.
+
+### GandalfAI — Wake on LAN
+- MAC: `A4:BB:6D:CA:83:20`
+- WoL triggered from Pi4 via assistant.py before Ollama polling begins.
+
+### GandalfAI — VRAM Pressure
+- Chatterbox ~4.5GB + gemma3:12b ~7GB = ~11.5GB baseline. RTX 3090 = 24GB.
+- Chrome, Claude Desktop, and any vision model all consume additional VRAM.
+- Close Chrome and Claude Desktop during inference-heavy sessions to avoid 30+ second delays.
+- Do not raise `num_ctx` above 4096 -- headroom is <4GB at baseline.
+
+### GandalfAI — PowerShell Ampersand Rule
+- String operations involving URLs containing `&` must NOT be done inline in PowerShell.
+- Pattern: write a Python script via `sftp_write`, execute it via `ssh_exec`, then restart the service.
+- Inline PS string handling of `&` in URLs causes silent failures.
+
+### GandalfAI — Chatterbox Parameters (Baseline)
+- `speed_factor=1.0`, `temperature=0.8`
+- Values of `speed_factor=1.05` / `temperature=0.89` caused muffled output -- revert immediately if degradation observed.
+- Reference audio: `C:\IRIS\chatterbox\reference_audio\iris_voice.wav`
+
+### Pi4 — overlayfs Mental Model
+- Filesystem has a glass panel in front of it. All writes go to RAM layer and are wiped on reboot.
+- `overlayroot-chroot` opens a side door to write directly to SD.
+- `/boot/firmware` is a separate locked cabinet -- needs its own `remount,rw` even inside chroot.
+- Always `md5sum` verify RAM layer and SD layer match after every write. No exceptions.
+- Config: `/etc/overlayroot.local.conf`. Do NOT use `raspi-config nonint do_overlayfs` -- unreliable.
+
+### Pi4 — `api_persist_config` Ownership Bug
+- Any route doing `sudo cp` to `iris_config.json` must immediately follow with `sudo chown pi:pi /home/pi/iris_config.json`.
+- Ownership corruption silently breaks the entire assistant pipeline on next deploy.
+- Root cause of April 16-18 failure cascade (S22B post-mortem).
+
+### Pi4 — SSH Auth
+- Password auth currently used. Credential stored out-of-band; do not commit it to repo. Key-based auth is not configured and fails.
+- Claude MCP tool: `ssh-pi4`. Bash syntax only.
+
+### Pi4 — iris_config.json Override Behavior
+- Keys are only applied at runtime if they appear in `core/config.py`'s `_OVERRIDABLE` list.
+- Unknown keys (e.g. `ELEVENLABS_ENABLED`) are silently ignored -- no error, no effect.
+
+### Ollama — Model Name History
+- Models were renamed from `jarvis` / `jarvis-kids` (mistral-small3.2:24b) to `iris` / `iris-kids` (gemma3:12b) between S18-S22B.
+- Always confirm current model names via `ollama list` before any Ollama work. Never assume from memory.
+- Any modelfile referencing old household names or lacking paralinguistic tags is stale -- delete, do not edit.
