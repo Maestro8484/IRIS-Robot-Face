@@ -1,8 +1,9 @@
 # IRIS Snapshot
-**Session:** S32 | **Date:** 2026-04-24 | **Branch:** `main` | **Last commit:** 075d098
 
-> Architecture, pins, constants, deploy commands: see IRIS_ARCH.md (load on demand)
-> **New session primer:** `IRIS project. Read C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face\SNAPSHOT_LATEST.md using the filesystem tool, then respond.`
+**Session:** S33 | **Date:** 2026-04-24 | **Branch:** `main` | **Last commit:** verify with `git log --oneline -1`
+
+> Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
+> Current state and roadmap: see `HANDOFF_CURRENT.md`.
 
 ---
 
@@ -10,31 +11,42 @@
 
 | System | Status |
 |---|---|
+| SuperMaster Desktop | Canonical local repo and control node. Claude Desktop, filesystem MCP, SSH MCP, VS Code, PlatformIO, and git available. |
 | Pi4 192.168.1.200 | Operational. assistant.py running. Wakeword responding. |
-| GandalfAI 192.168.1.3 | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. IRISDashboard port 8080. |
-| Teensy 4.1 | Flashed S29. All displays operational. /dev/ttyACM0 present. |
+| GandalfAI 192.168.1.3 | Ollama iris/iris-kids on gemma3:12b. Chatterbox port 8004. Whisper and Piper services hosted here. |
+| Teensy 4.1 | Operational. All displays working. `/dev/ttyACM0` present when connected. |
 | TTS | Chatterbox primary, Piper fallback. |
-| Web UI | Port 5000 operational. |
-| Cron sleep/wake | 9PM/7:30AM. Sleep wakeword silent (Piper path broken — TODO 1C). |
+| Web UI | Operational. |
+| Cron sleep/wake | 9PM/7:30AM. Sleep wakeword greeting still needs Wyoming Piper route in Batch 1C. |
+
+---
+
+## Delivery Model
+
+MAD Loop is active for non-trivial changes.
+
+Batch status:
+- Batch 1A complete.
+- Batch 1B complete.
+- Next target: Batch 1C.
+
+Canonical source of truth:
+`C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
+
+GitHub is a secondary mirror and may lag local state.
 
 ---
 
 ## Active Issues
 
-- **MED: Piper sleep routing** — `/usr/local/bin/piper` missing. Wakeword-during-sleep says nothing. Fix: route through Wyoming Piper at GandalfAI:10200 (TODO 1C).
-- **MED: Volume persistence** — SPEAKER_VOLUME resets on reboot. Fix: add to iris_config.json + ALSA state write on web UI persist.
-- **LOW: iris_config.json stale key** — ELEVENLABS_ENABLED silently ignored.
-- **LOW: /home/pi/iris_sleep.log** — stale root-level log.
+- **MED: Piper sleep routing** - local `/usr/local/bin/piper` path is broken. Wakeword-during-sleep greeting should route through Wyoming Piper on GandalfAI:10200 in Batch 1C.
+- **MED: Volume persistence** - `SPEAKER_VOLUME` may reset on reboot. Batch 1C should persist through `iris_config.json` and/or ALSA state workflow.
+- **LOW: iris_config.json stale keys** - unknown keys such as `ELEVENLABS_ENABLED` may still exist and are ignored by `core/config.py`.
+- **LOW: root-level stale sleep log** - `/home/pi/iris_sleep.log` may be stale or duplicated relative to `/home/pi/logs/iris_sleep.log`.
 
 ---
 
-## Session Scope
-
-S32: Batch 1B — canonical `_do_sleep()`/`_do_wake()` authority, `send_command()` bool returns, iris_wake.py flag removal, iris_web.py MOUTH_INTENSITY on sleep/wake routes.
-
----
-
-## Do Not Touch
+## Do Not Touch Without Explicit Instruction
 
 - `iris_config.json`
 - `alsa-init.sh`
@@ -43,22 +55,44 @@ S32: Batch 1B — canonical `_do_sleep()`/`_do_wake()` authority, `send_command(
 
 ---
 
-## Last Session Changes (S32)
+## Last Completed Work
 
-- `pi4/hardware/teensy_bridge.py`: `send_emotion()` and `send_command()` now return `True` on success, `False` on no port or serial error (previously implicit `None`).
-- `pi4/assistant.py`: Added `_do_sleep(teensy, leds)` — sends EYES:SLEEP, MOUTH:8, MOUTH_INTENSITY:SLEEP, sets state flag, touches `/tmp/iris_sleep_mode`, calls `leds.show_sleep()`. Added `_do_wake(teensy, leds)` — sends EYES:WAKE, MOUTH:0, MOUTH_INTENSITY:AWAKE, clears state flag, removes `/tmp/iris_sleep_mode`, calls `show_idle_for_mode()`. `start_cmd_listener()` inline EYES:SLEEP/WAKE blocks replaced with these calls. Wakeword-during-sleep block in `main()` uses `_do_wake()` and has `# TODO(1C)` replacing broken `subprocess.run([piper...])`.
-- `pi4/iris_wake.py`: After UDP send, attempts `os.remove('/tmp/iris_sleep_mode')` with FileNotFoundError guard; logs result.
-- `pi4/iris_web.py`: `/api/sleep` adds `send_teensy("MOUTH_INTENSITY:1")` after MOUTH:8. `/api/wake` adds `send_teensy("MOUTH_INTENSITY:8")` after MOUTH:0.
+### Batch 1A - Runtime Survival
 
-## Previous Session Changes (S31)
+- OpenWakeWord startup retry/backoff implemented.
+- Runtime restart if OWW process dies.
+- Wakeword socket timeout added.
+- Wakeword failures return `"error"` instead of silent hang.
+- Main loop skips STT/LLM/TTS when wakeword error occurs.
+- Deployed, persisted, committed, and pushed.
 
-- `pi4/hardware/audio_io.py`: mic device match changed to `'capture'`; `CHANNELS = 1` → `2`.
-- `pi4/assistant.py`: `input_device_index=mic_idx` wired into `pa.open()`.
-- `pi4/services/wakeword.py`: OWW Detection score defaults to `1.0` when field absent.
+### Batch 1B - Sleep/Wake Authority
+
+- `_do_sleep()` and `_do_wake()` introduced in assistant runtime.
+- Sleep/wake state centralized for assistant command handling and wakeword-during-sleep path.
+- `/tmp/iris_sleep_mode` synchronized with runtime state.
+- `send_command()` and `send_emotion()` return bool.
+- Web sleep/wake routes update mouth intensity.
+- `iris_wake.py` clears `/tmp/iris_sleep_mode`.
 
 ---
 
-## Known TODO
+## Immediate Handoff
 
-- TODO(1C): Route sleep wakeword greeting through Wyoming Piper (GandalfAI:10200) in assistant.py wakeword-during-sleep block
-- Persist SPEAKER_VOLUME across reboots via iris_config.json + ALSA write
+Next work is Batch 1C only.
+
+Batch 1C target:
+- Fix sleep wakeword greeting through Wyoming Piper.
+- Persist `SPEAKER_VOLUME` across reboot.
+- Add TTS hard-cap fallback.
+- Add config validation/coercion.
+- Replace unsafe temp file creation in vision service.
+- Add rate-limited malformed JSON logging in LLM stream.
+- Remove dead code only if verified unused.
+
+Rules:
+- One batch only.
+- Minimal diffs.
+- No broad refactors.
+- Use direct `/media/root-ro` persistence only.
+- Test before continuing.
