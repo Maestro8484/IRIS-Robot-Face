@@ -316,20 +316,34 @@ def main():
     teensy = TeensyBridge(TEENSY_PORT, TEENSY_BAUD)
     start_cmd_listener(teensy, leds)
 
+    def _start_oww():
+        proc = subprocess.Popen(
+            ["/home/pi/wyoming-openwakeword/.venv/bin/python3", "-m", "wyoming_openwakeword",
+             "--uri", f"tcp://127.0.0.1:{OWW_PORT}", "--preload-model", WAKE_WORD],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(30):
+            try:
+                socket.create_connection(("127.0.0.1", OWW_PORT), timeout=1).close()
+                return proc
+            except (ConnectionRefusedError, OSError):
+                time.sleep(0.5)
+        proc.kill()
+        return None
+
     print("[INFO] Starting wyoming-openwakeword...", flush=True)
     leds.show_thinking()
-    oww_proc = subprocess.Popen(
-        ["/home/pi/wyoming-openwakeword/.venv/bin/python3", "-m", "wyoming_openwakeword",
-         "--uri", f"tcp://127.0.0.1:{OWW_PORT}", "--preload-model", WAKE_WORD],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(30):
-        try: socket.create_connection(("127.0.0.1", OWW_PORT), timeout=1).close(); break
-        except (ConnectionRefusedError, OSError): time.sleep(0.5)
+    oww_proc = None
+    for _attempt in range(3):
+        oww_proc = _start_oww()
+        if oww_proc is not None:
+            break
+        print(f"[ERR] openwakeword start attempt {_attempt+1}/3 failed", flush=True)
+        time.sleep(2 ** _attempt)
+    if oww_proc is None:
+        print("[ERR] openwakeword could not start after 3 attempts -- will retry in main loop", flush=True)
+        leds.show_error(); time.sleep(2)
     else:
-        print("[ERR] openwakeword failed to start", flush=True)
-        leds.show_error(); time.sleep(2); leds.close(); oww_proc.kill(); sys.exit(1)
-
-    print("[INFO] openwakeword ready", flush=True)
+        print("[INFO] openwakeword ready", flush=True)
     pa = pyaudio.PyAudio()
     mic = pa.open(rate=SAMPLE_RATE, channels=CHANNELS, format=pyaudio.paInt16,
                   input=True, frames_per_buffer=CHUNK)
@@ -343,8 +357,43 @@ def main():
 
     try:
         while True:
-            oww_sock = socket.create_connection(("127.0.0.1", OWW_PORT), timeout=10)
-            trigger = wait_for_wakeword_or_button(mic, oww_sock); oww_sock.close()
+            # Restart OWW process if it has died
+            if oww_proc is None or oww_proc.poll() is not None:
+                print("[WARN] openwakeword process not running -- attempting restart", flush=True)
+                if oww_proc is not None:
+                    try: oww_proc.kill()
+                    except Exception: pass
+                oww_proc = None
+                for _attempt in range(3):
+                    oww_proc = _start_oww()
+                    if oww_proc is not None:
+                        print("[INFO] openwakeword restarted", flush=True)
+                        break
+                    print(f"[ERR] openwakeword restart attempt {_attempt+1}/3 failed", flush=True)
+                    time.sleep(2 ** _attempt)
+                if oww_proc is None:
+                    print("[ERR] openwakeword unavailable -- retrying in 10s", flush=True)
+                    leds.show_error(); time.sleep(10); show_idle_for_mode(leds); continue
+
+            try:
+                oww_sock = socket.create_connection(("127.0.0.1", OWW_PORT), timeout=10)
+            except (OSError, ConnectionRefusedError) as e:
+                print(f"[ERR] Cannot connect to openwakeword: {e} -- retrying in 5s", flush=True)
+                leds.show_error(); time.sleep(5); show_idle_for_mode(leds); continue
+
+            try:
+                trigger = wait_for_wakeword_or_button(mic, oww_sock)
+            except Exception as e:
+                print(f"[ERR] wait_for_wakeword_or_button exception: {e}", flush=True)
+                trigger = "error"
+            finally:
+                try: oww_sock.close()
+                except Exception: pass
+
+            if trigger == "error":
+                print("[WARN] Wakeword socket error -- reconnecting", flush=True)
+                leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
+
             ptt_mode = (trigger == "button")
 
             if ptt_mode: print("\n[PTT]  Button pressed", flush=True); leds.show_ptt()
@@ -607,7 +656,8 @@ def main():
         emit_emotion(teensy, leds, "NEUTRAL"); teensy.close()
         leds.close(); gpio_cleanup()
         mic.stop_stream(); mic.close(); pa.terminate()
-        oww_proc.terminate()
+        if oww_proc is not None:
+            oww_proc.terminate()
 
 
 if __name__ == "__main__":

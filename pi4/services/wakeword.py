@@ -35,7 +35,9 @@ def wait_for_wakeword_or_button(mic, oww_sock) -> str:
                     continue
                 chunk = oww_sock.recv(4096)
                 if not chunk:
-                    break
+                    trigger[0] = "error"
+                    detected.set()
+                    return
                 buf += chunk
                 while b"\n" in buf:
                     line, buf = buf.split(b"\n", 1)
@@ -59,6 +61,10 @@ def wait_for_wakeword_or_button(mic, oww_sock) -> str:
             except Exception:
                 break
 
+    try:
+        oww_sock.settimeout(5.0)
+    except Exception:
+        pass
     wy_send(oww_sock, "detect", {"names": [WAKE_WORD]})
     wy_send(oww_sock, "audio-start",
             {"rate": SAMPLE_RATE, "width": 2, "channels": CHANNELS})
@@ -75,5 +81,7 @@ def wait_for_wakeword_or_button(mic, oww_sock) -> str:
             detected.set()
             threading.Event().wait(0.05)  # debounce
 
-    t.join(timeout=1)
-    return trigger[0]
+    t.join(timeout=2)
+    if trigger[0] is None:
+        trigger[0] = "error"
+    return trigger[0] or "error"
