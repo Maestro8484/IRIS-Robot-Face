@@ -158,6 +158,74 @@ _OVERRIDABLE = {
     "MOUTH_INTENSITY_AWAKE", "MOUTH_INTENSITY_SLEEP",
 }
 
+# Type coercion and range bounds for overridable numeric/bool keys.
+# String keys (CHATTERBOX_VOICE, OLLAMA_MODEL_*) are not listed -- passed through as-is.
+# Range is (min_inclusive, max_inclusive). None = no range check (bool only).
+_TYPE_COERCE = {
+    "RECORD_SECONDS":          (int,   (1, 60)),
+    "SILENCE_SECS":            (float, (0.1, 10.0)),
+    "SILENCE_RMS":             (int,   (50, 5000)),
+    "KIDS_RECORD_SECONDS":     (int,   (1, 60)),
+    "KIDS_SILENCE_SECS":       (float, (0.1, 15.0)),
+    "KIDS_SILENCE_RMS":        (int,   (50, 5000)),
+    "OWW_THRESHOLD":           (float, (0.5, 1.0)),
+    "FOLLOWUP_TIMEOUT":        (int,   (1, 60)),
+    "KIDS_FOLLOWUP_TIMEOUT":   (int,   (1, 120)),
+    "FOLLOWUP_MAX_TURNS":      (int,   (1, 20)),
+    "CONTEXT_TIMEOUT_SECS":    (int,   (30, 3600)),
+    "NUM_PREDICT":             (int,   (10, 1000)),
+    "CHATTERBOX_EXAGGERATION": (float, (0.0, 2.0)),
+    "CHATTERBOX_ENABLED":      (bool,  None),
+    "VOL_MAX":                 (int,   (60, 127)),
+    "SPEAKER_VOLUME":          (int,   (60, 127)),
+    "LED_IDLE_PEAK":           (int,   (0, 255)),
+    "LED_IDLE_FLOOR":          (int,   (0, 255)),
+    "LED_IDLE_PERIOD":         (float, (0.5, 30.0)),
+    "LED_KIDS_PEAK":           (int,   (0, 255)),
+    "LED_KIDS_PERIOD":         (float, (0.5, 30.0)),
+    "LED_SLEEP_PEAK":          (int,   (0, 255)),
+    "LED_SLEEP_FLOOR":         (int,   (0, 255)),
+    "LED_SLEEP_PERIOD":        (float, (0.5, 30.0)),
+    "MOUTH_INTENSITY_AWAKE":   (int,   (0, 15)),
+    "MOUTH_INTENSITY_SLEEP":   (int,   (0, 15)),
+}
+
+
+def _coerce_value(key, val):
+    """
+    Coerce val to the type registered in _TYPE_COERCE[key].
+    Returns (coerced_value, warn_message_or_None).
+    Raises ValueError if the value cannot be coerced at all.
+    """
+    if key not in _TYPE_COERCE:
+        return val, None  # string key -- pass through
+
+    typ, bounds = _TYPE_COERCE[key]
+
+    if typ is bool:
+        if isinstance(val, bool):
+            coerced = val
+        elif isinstance(val, int) and val in (0, 1):
+            coerced = bool(val)
+        elif isinstance(val, str) and val.lower() in ("true", "false"):
+            coerced = val.lower() == "true"
+        else:
+            raise ValueError(f"cannot convert {val!r} to bool")
+        return coerced, None
+
+    # int or float
+    coerced = typ(val)  # raises ValueError/TypeError on bad input
+
+    if bounds is not None:
+        lo, hi = bounds
+        if coerced < lo:
+            return lo, f"{key}={val!r} below minimum {lo}, clamped to {lo}"
+        if coerced > hi:
+            return hi, f"{key}={val!r} above maximum {hi}, clamped to {hi}"
+
+    return coerced, None
+
+
 _CONFIG_PATH = "/home/pi/iris_config.json"
 
 try:
@@ -167,8 +235,14 @@ try:
     _ignored = []
     for _k, _v in _cfg.items():
         if _k in _OVERRIDABLE:
-            globals()[_k] = _v
-            _applied.append(f"{_k}={_v!r}")
+            try:
+                _coerced, _warn = _coerce_value(_k, _v)
+                if _warn:
+                    print(f"[CFG]  WARN: {_warn}", flush=True)
+                globals()[_k] = _coerced
+                _applied.append(f"{_k}={_coerced!r}")
+            except (ValueError, TypeError) as _ce:
+                print(f"[CFG]  WARN: bad value for {_k}={_v!r} ({_ce}) -- keeping default", flush=True)
         else:
             _ignored.append(_k)
     print(f"[CFG]  iris_config.json loaded: {', '.join(_applied) if _applied else 'no overrides'}", flush=True)
@@ -177,6 +251,6 @@ try:
 except FileNotFoundError:
     print(f"[CFG]  iris_config.json not found, using defaults", flush=True)
 except _json.JSONDecodeError as _e:
-    print(f"[CFG]  iris_config.json parse error: {_e} — using defaults", flush=True)
+    print(f"[CFG]  iris_config.json parse error: {_e} -- using defaults", flush=True)
 except Exception as _e:
-    print(f"[CFG]  iris_config.json load failed: {_e} — using defaults", flush=True)
+    print(f"[CFG]  iris_config.json load failed: {_e} -- using defaults", flush=True)
