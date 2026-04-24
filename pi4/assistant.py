@@ -28,7 +28,7 @@ from hardware.audio_io import (
 from services.wyoming import wy_send, read_line
 from services.stt import transcribe
 from services.tts import synthesize, spoken_numbers
-from services.llm import extract_emotion_from_reply, clean_llm_reply, stream_ollama
+from services.llm import extract_emotion_from_reply, clean_llm_reply, stream_ollama, classify_response_length
 from services.vision import capture_image, is_vision_trigger, ask_vision
 from services.wakeword import wait_for_wakeword_or_button
 from state.state_manager import state
@@ -219,7 +219,7 @@ def _build_messages() -> list:
     return [date_inject] + list(state.conversation_history)
 
 
-def ask_ollama(text):
+def ask_ollama(text, num_predict=None):
     """
     Blocking LLM query. Used for followup loop and vision path.
     Returns (reply, emotion) tuple.
@@ -229,7 +229,7 @@ def ask_ollama(text):
     r = requests.post(
         f"http://{GANDALF}:{OLLAMA_PORT}/api/chat",
         json={"model": get_model(), "messages": _build_messages(),
-              "stream": False, "options": {"num_predict": NUM_PREDICT}},
+              "stream": False, "options": {"num_predict": num_predict if num_predict is not None else NUM_PREDICT}},
         timeout=30
     )
     r.raise_for_status()
@@ -558,7 +558,8 @@ def main():
                 print("[INFO] Ready.", flush=True); continue
 
             # ── Streaming LLM (emotion early) + single TTS call ───────────────
-            print(f"[LLM]  Streaming... (model={get_model()})", flush=True)
+            _num_predict = classify_response_length(text)
+            print(f"[LLM]  Streaming... (model={get_model()}, num_predict={_num_predict})", flush=True)
             state.last_interaction = time.time()
             state.conversation_history.append({"role": "user", "content": text})
 
@@ -568,7 +569,7 @@ def main():
 
             try:
                 for chunk, chunk_emotion in stream_ollama(
-                    _build_messages(), get_model(), NUM_PREDICT
+                    _build_messages(), get_model(), _num_predict
                 ):
                     if chunk_emotion is not None and not _emotion_set:
                         emit_emotion(teensy, leds, chunk_emotion)
@@ -638,8 +639,9 @@ def main():
                     if vol_reply is not None:
                         reply = vol_reply; emotion = "NEUTRAL"
                     else:
-                        print(f"[LLM]  Thinking... (model={get_model()})", flush=True)
-                        try: reply, emotion = ask_ollama(text)
+                        _followup_predict = classify_response_length(text)
+                        print(f"[LLM]  Thinking... (model={get_model()}, num_predict={_followup_predict})", flush=True)
+                        try: reply, emotion = ask_ollama(text, num_predict=_followup_predict)
                         except Exception as e: print(f"[ERR]  LLM follow-up: {e}", flush=True); break
                         print(f"[LLM]  '{reply}'", flush=True)
                 emit_emotion(teensy, leds, emotion)

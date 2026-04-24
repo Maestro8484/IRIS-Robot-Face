@@ -155,3 +155,111 @@ def stream_ollama(messages: list, model: str, num_predict: int):
 
     except Exception as e:
         raise RuntimeError(f"[LLM] stream_ollama failed: {e}") from e
+
+
+# ── Response length classifier ─────────────────────────────────────────────────
+
+# Patterns that signal a short answer is sufficient
+_SHORT_PATTERNS = (
+    "what time", "what's the time", "what day", "what date",
+    "how old", "who made", "who created", "what is your name", "what's your name",
+    "are you", "can you", "do you", "did you", "will you",
+    "yes or no", "true or false",
+    "hello", "hi iris", "hey iris", "good morning", "good night", "good evening",
+    "thank you", "thanks", "okay", "ok", "got it", "nevermind", "never mind",
+    "stop", "pause", "quit", "restart",
+    "turn on", "turn off", "set volume", "volume up", "volume down",
+    "what's the weather", "what is the weather",
+    "remind me", "set a timer", "set timer",
+)
+
+# Patterns that signal a long response is appropriate
+_LONG_PATTERNS = (
+    "explain", "explain to me", "explain how", "explain why", "explain what",
+    "how does", "how do", "how would", "how should", "how can",
+    "tell me about", "tell me everything", "tell me more",
+    "what is the difference", "what's the difference", "compare",
+    "walk me through", "walk me through it", "step by step", "step-by-step",
+    "give me a list", "list of", "list the", "list all",
+    "what are all the", "what are the different", "what are some",
+    "write a", "write me a", "create a", "create me a",
+    "make a list", "make me a",
+    "story", "tell me a story", "tell a story",
+    "recipe", "instructions for", "how to make", "how to build", "how to fix",
+    "what are the steps", "what are the stages",
+    "pros and cons", "advantages and disadvantages",
+    "history of", "background on", "overview of",
+    "describe", "describe the", "describe how",
+    "what do you think about", "what do you think of",
+    "give me your opinion", "give me advice",
+    "debug", "troubleshoot", "diagnose",
+    "brainstorm", "ideas for", "suggest some", "suggestions for",
+    "in detail", "more detail", "more information", "more info",
+    "elaborate", "expand on", "go deeper",
+    "summary of", "summarize",
+)
+
+# Patterns that signal MAX tokens needed
+_MAX_PATTERNS = (
+    "everything about", "tell me everything", "complete guide",
+    "comprehensive", "full explanation", "all you know",
+    "write a long", "write me a long", "write a detailed",
+    "essay", "full story", "long story",
+    "all the steps", "all the details",
+)
+
+
+def classify_response_length(text: str,
+                              short: int = None,
+                              medium: int = None,
+                              long: int = None,
+                              max_val: int = None) -> int:
+    """
+    Examine a user utterance and return an appropriate num_predict value.
+
+    Falls back to config constants if overrides not provided.
+    Priority: MAX > LONG > SHORT > MEDIUM (default).
+    """
+    # Import lazily to avoid circular imports
+    from core.config import (
+        NUM_PREDICT_SHORT  as _S,
+        NUM_PREDICT_MEDIUM as _M,
+        NUM_PREDICT_LONG   as _L,
+        NUM_PREDICT_MAX    as _X,
+    )
+    _short  = short   if short   is not None else _S
+    _medium = medium  if medium  is not None else _M
+    _long   = long    if long    is not None else _L
+    _max    = max_val if max_val is not None else _X
+
+    t = text.lower().strip().rstrip(".!?,;:")
+    words = t.split()
+    word_count = len(words)
+
+    # MAX tier
+    if any(p in t for p in _MAX_PATTERNS):
+        return _max
+
+    # LONG tier
+    if any(p in t for p in _LONG_PATTERNS):
+        # Scale within long tier by question complexity (word count proxy)
+        if word_count > 15:
+            return _max
+        return _long
+
+    # SHORT tier -- only if clearly a simple query
+    if any(t.startswith(p) or t == p for p in _SHORT_PATTERNS):
+        return _short
+
+    # Heuristic: questions under 6 words with no complexity signals -> short
+    if word_count <= 5 and t.endswith("?"):
+        return _short
+
+    # Heuristic: question word present and moderate length -> medium
+    if any(t.startswith(qw) for qw in ("what", "who", "where", "when", "which")):
+        if word_count <= 10:
+            return _medium
+        return _long
+
+    # Default: medium
+    return _medium

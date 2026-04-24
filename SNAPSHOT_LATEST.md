@@ -55,6 +55,30 @@ GitHub is a secondary mirror and may lag local state.
 
 ---
 
+## !! HIGH PRIORITY - Active Tuning Area !!
+
+### Dynamic Response Length (needs live testing + tuning)
+
+`classify_response_length()` in `services/llm.py` classifies each utterance into SHORT/MEDIUM/LONG/MAX tiers before calling Ollama. Tier values are runtime-overridable via `iris_config.json`. Modelfile floor raised to 800 tokens. System prompt "default to less" instruction removed.
+
+**What to watch for:**
+- SHORT tier (120 tokens) cutting off greetings or factual responses -- widen SHORT patterns or raise NUM_PREDICT_SHORT
+- MEDIUM tier (350) insufficient for conversational depth -- raise to 450-500
+- LONG tier (700) triggering on questions that don't need it -- tighten _LONG_PATTERNS list
+- MAX tier (1200) latency impact -- may need to cap lower for voice UX
+- Word-count heuristics in classify_response_length() are a first pass -- adjust thresholds after observing real transcripts
+
+**Tuning levers (no redeploy needed):**
+Add to `iris_config.json`: `"NUM_PREDICT_SHORT": 150, "NUM_PREDICT_MEDIUM": 400, "NUM_PREDICT_LONG": 700, "NUM_PREDICT_MAX": 1000`
+
+**Files:**
+- `pi4/services/llm.py` -- `classify_response_length()`, `_SHORT_PATTERNS`, `_LONG_PATTERNS`, `_MAX_PATTERNS`
+- `pi4/core/config.py` -- tier constants NUM_PREDICT_SHORT/MEDIUM/LONG/MAX
+- `pi4/assistant.py` -- two call sites logging `num_predict=N` in `[LLM]` lines
+- `ollama/iris_modelfile.txt` / `ollama/iris-kids_modelfile.txt` -- num_predict 800 floor
+
+---
+
 ## Last Completed Work
 
 ### Batch 1A - Runtime Survival

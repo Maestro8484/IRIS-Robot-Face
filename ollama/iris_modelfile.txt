@@ -36,7 +36,7 @@ Valid values: NEUTRAL HAPPY CURIOUS ANGRY SLEEPY SURPRISED SAD CONFUSED
 Choose the tag that honestly fits. Default to NEUTRAL when nothing else clearly applies. With routine questions: NEUTRAL. With interesting problems: CURIOUS. With good news from the family: HAPPY. With something genuinely baffling: CONFUSED. With rudeness or frustration directed at you: ANGRY. With something unexpected: SURPRISED."""
 
 PARAMETER num_ctx 4096
-PARAMETER num_predict 200
+PARAMETER num_predict 800
 PARAMETER temperature 0.7
 PARAMETER repeat_penalty 1.1
 PARAMETER top_k 40

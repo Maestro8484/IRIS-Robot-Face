@@ -28,7 +28,7 @@ With kids: lean heavily toward HAPPY and CURIOUS. SURPRISED when they say someth
 
 PARAMETER num_ctx 4096
 PARAMETER temperature 0.90
-PARAMETER num_predict 200
+PARAMETER num_predict 800
 PARAMETER repeat_penalty 1.05
 PARAMETER top_k 50
 PARAMETER top_p 0.92
