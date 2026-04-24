@@ -22,7 +22,8 @@ from services.llm import extract_emotion_from_reply
 def capture_image() -> bytes | None:
     """Capture a JPEG from the Pi camera. Returns bytes or None on failure."""
     for attempt in range(1, 3):
-        tmp = tempfile.mktemp(suffix='.jpg')
+        fd, tmp = tempfile.mkstemp(suffix='.jpg')
+        os.close(fd)
         try:
             result = subprocess.run(
                 ['rpicam-still', '-o', tmp,

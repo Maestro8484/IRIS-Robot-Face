@@ -95,6 +95,7 @@ def stream_ollama(messages: list, model: str, num_predict: int):
     emotion_done = False
     first_yield = True
     buffer = ""
+    _json_warn_fired = False
 
     try:
         with requests.post(url, json=payload, stream=True, timeout=60) as resp:
@@ -105,6 +106,9 @@ def stream_ollama(messages: list, model: str, num_predict: int):
                 try:
                     data = json.loads(raw_line)
                 except json.JSONDecodeError:
+                    if not _json_warn_fired:
+                        print("[LLM]  Malformed JSON line skipped (further skips suppressed)", flush=True)
+                        _json_warn_fired = True
                     continue
 
                 token = data.get("message", {}).get("content", "")
