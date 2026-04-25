@@ -433,6 +433,8 @@ def main():
                 leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
 
             play_beep(pa)
+            _t_wake = time.time()
+            print(f"[BENCH] t={_t_wake:.3f} stage=wake_detected trigger={'ptt' if ptt_mode else 'wake'}", flush=True)
             _drain_n = int(SAMPLE_RATE / CHUNK * 0.15)
             _pre_buf = []
             for _ in range(_drain_n):
@@ -443,6 +445,8 @@ def main():
             arr = np.frombuffer(raw, dtype=np.int16).astype(float)
             rms = np.sqrt(np.mean(arr**2))
             print(f"[REC]  {len(raw)/2/SAMPLE_RATE:.1f}s  RMS={rms:.0f}", flush=True)
+            _t_rec = time.time()
+            print(f"[BENCH] t={_t_rec:.3f} stage=rec_done dur_rec={_t_rec-_t_wake:.2f} rms={rms:.0f}", flush=True)
 
             # ── RMS gate + Whisper hallucination filter ────────────────────────
             if rms < 300:
@@ -458,6 +462,9 @@ def main():
             if not text:
                 print("[STT]  Empty transcript", flush=True); show_idle_for_mode(leds); continue
             print(f"[STT]  '{text}'", flush=True)
+            _t_stt = time.time()
+            _snip = text[:30].replace('"', "'")
+            print(f"[BENCH] t={_t_stt:.3f} stage=stt_done dur_stt={_t_stt-_t_rec:.2f} transcript=\"{_snip}\"", flush=True)
 
             _text_norm = text.lower().strip().strip(".!?,;:")
             _WHISPER_HALLUCINATIONS = {
@@ -559,13 +566,18 @@ def main():
 
             # ── Streaming LLM (emotion early) + single TTS call ───────────────
             _num_predict = classify_response_length(text)
+            _tier = {NUM_PREDICT_SHORT: "SHORT", NUM_PREDICT_MEDIUM: "MEDIUM",
+                     NUM_PREDICT_LONG: "LONG", NUM_PREDICT_MAX: "MAX"}.get(_num_predict, "CUSTOM")
             print(f"[LLM]  Streaming... (model={get_model()}, num_predict={_num_predict})", flush=True)
+            _t_llm0 = time.time()
+            print(f"[BENCH] t={_t_llm0:.3f} stage=llm_start tier={_tier} num_predict={_num_predict}", flush=True)
             state.last_interaction = time.time()
             state.conversation_history.append({"role": "user", "content": text})
 
             reply_parts = []
             _interrupted = False
             _emotion_set = False
+            _bench_first_chunk = True
 
             try:
                 for chunk, chunk_emotion in stream_ollama(
@@ -574,6 +586,10 @@ def main():
                     if chunk_emotion is not None and not _emotion_set:
                         emit_emotion(teensy, leds, chunk_emotion)
                         _emotion_set = True
+                    if _bench_first_chunk:
+                        _t_llm_first = time.time()
+                        print(f"[BENCH] t={_t_llm_first:.3f} stage=llm_first_chunk dur_ttfc={_t_llm_first-_t_llm0:.2f}", flush=True)
+                        _bench_first_chunk = False
                     reply_parts.append(chunk)
             except Exception as e:
                 print(f"[ERR]  LLM stream: {e}", flush=True)
@@ -585,10 +601,15 @@ def main():
 
             reply = " ".join(reply_parts).strip()
             print(f"[LLM]  '{reply}'", flush=True)
+            _t_llm1 = time.time()
+            print(f"[BENCH] t={_t_llm1:.3f} stage=llm_done dur_llm={_t_llm1-_t_llm0:.2f} reply_chars={len(reply)}", flush=True)
 
             print("[TTS]  Synthesizing...", flush=True)
             try:
                 pcm_data = synthesize(reply)
+                _t_tts = time.time()
+                _tts_eng = "chatterbox" if CHATTERBOX_ENABLED else "piper"
+                print(f"[BENCH] t={_t_tts:.3f} stage=tts_done dur_tts={_t_tts-_t_llm1:.2f} reply_chars={len(reply)} engine={_tts_eng}", flush=True)
             except Exception as e:
                 print(f"[ERR]  TTS: {e}", flush=True)
                 leds.show_error(); time.sleep(1)
@@ -596,6 +617,8 @@ def main():
 
             leds.show_speaking(); mic.stop_stream()
             _interrupted = play_pcm_speaking(pcm_data, pa, teensy)
+            _t_audio = time.time()
+            print(f"[BENCH] t={_t_audio:.3f} stage=audio_done dur_audio={_t_audio-_t_tts:.2f} dur_total={_t_audio-_t_wake:.2f}", flush=True)
 
             state.conversation_history.append({"role": "assistant", "content": reply})
             if len(state.conversation_history) > 20:

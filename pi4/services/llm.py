@@ -140,6 +140,11 @@ def stream_ollama(messages: list, model: str, num_predict: int):
                             first_yield = False
                             yield cleaned, out_emotion
                     buffer = ""
+                    _e_tok = data.get("eval_count", 0)
+                    _p_tok = data.get("prompt_eval_count", 0)
+                    _e_ms  = round(data.get("eval_duration", 0) / 1_000_000)
+                    _p_ms  = round(data.get("prompt_eval_duration", 0) / 1_000_000)
+                    print(f"[BENCH] stage=ollama_stats eval_tokens={_e_tok} prompt_tokens={_p_tok} eval_ms={_e_ms} prompt_ms={_p_ms}", flush=True)
                     break
                 else:
                     # Yield complete sentences, hold last (may be incomplete)
