@@ -55,18 +55,18 @@ GitHub is a secondary mirror and may lag local state.
 
 ---
 
-## !! HIGH PRIORITY - Active Tuning Area !!
+## Active Tuning Area — Verified Working, Minor Tweaks Welcome
 
-### Dynamic Response Length (needs live testing + tuning)
+### Dynamic Response Length (live-tested S33, behavior confirmed good)
 
-`classify_response_length()` in `services/llm.py` classifies each utterance into SHORT/MEDIUM/LONG/MAX tiers before calling Ollama. Tier values are runtime-overridable via `iris_config.json`. Modelfile floor raised to 800 tokens. System prompt "default to less" instruction removed.
+`classify_response_length()` in `services/llm.py` classifies each utterance into SHORT/MEDIUM/LONG/MAX tiers before calling Ollama. Tier values are runtime-overridable via `iris_config.json`. Modelfile floor raised to 800 tokens. System prompt "default to less" instruction removed. TTS hard-cap raised from 220 to 900 chars.
 
-**What to watch for:**
-- SHORT tier (120 tokens) cutting off greetings or factual responses -- widen SHORT patterns or raise NUM_PREDICT_SHORT
-- MEDIUM tier (350) insufficient for conversational depth -- raise to 450-500
-- LONG tier (700) triggering on questions that don't need it -- tighten _LONG_PATTERNS list
-- MAX tier (1200) latency impact -- may need to cap lower for voice UX
-- Word-count heuristics in classify_response_length() are a first pass -- adjust thresholds after observing real transcripts
+**Confirmed behavior (S33 live test):** Short/prompt questions get 1-sentence answers. Multi-sentence requests ("tell me in 5 sentences") get full responses. Classification is routing correctly across tiers.
+
+**If further tuning is needed:**
+- SHORT tier too chatty: tighten `_SHORT_PATTERNS` in `services/llm.py`
+- MEDIUM depth still thin: raise `NUM_PREDICT_MEDIUM` in `iris_config.json` (no redeploy)
+- Response latency too high on long answers: lower `TTS_MAX_CHARS` in `iris_config.json` (no redeploy)
 
 **Tuning levers (no redeploy needed):**
 Add to `iris_config.json`: `"NUM_PREDICT_SHORT": 150, "NUM_PREDICT_MEDIUM": 400, "NUM_PREDICT_LONG": 700, "NUM_PREDICT_MAX": 1000`
@@ -80,6 +80,17 @@ Add to `iris_config.json`: `"NUM_PREDICT_SHORT": 150, "NUM_PREDICT_MEDIUM": 400,
 ---
 
 ## Last Completed Work
+
+### S33 - Dynamic Response Length (COMPLETE)
+
+- `classify_response_length()` added to `services/llm.py` -- routes per utterance to SHORT(120)/MEDIUM(350)/LONG(700)/MAX(1200) token tiers
+- Both LLM call sites in `assistant.py` use dynamic num_predict; logs show tier on every call
+- `core/config.py`: all four tier constants + `TTS_MAX_CHARS=900` overridable via `iris_config.json`
+- TTS hard-cap raised 220→900 chars (was silently cutting all long responses to 1 sentence)
+- Modelfile `num_predict` floor raised 200→800; "default to less" instruction removed
+- Live-tested: short questions prompt, multi-sentence requests deliver full answers
+
+---
 
 ### Batch 1A - Runtime Survival
 
