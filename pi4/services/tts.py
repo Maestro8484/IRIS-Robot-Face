@@ -16,7 +16,7 @@ import requests
 from core.config import (
     CHATTERBOX_BASE_URL, CHATTERBOX_VOICE, CHATTERBOX_EXAGGERATION, CHATTERBOX_ENABLED,
     GANDALF, PIPER_PORT, PIPER_VOICE,
-    SAMPLE_RATE, CHANNELS,
+    SAMPLE_RATE, CHANNELS, TTS_MAX_CHARS,
 )
 from services.wyoming import wy_send, read_line
 
@@ -142,11 +142,12 @@ def spoken_numbers(text: str) -> str:
 
 # ── TTS input truncation ─────────────────────────────────────────────────────
 
-def _truncate_for_tts(text: str, max_chars: int = 220) -> str:
+def _truncate_for_tts(text: str, max_chars: int = TTS_MAX_CHARS) -> str:
     """
     Cap TTS input at max_chars to bound Chatterbox generation time.
     Truncates at the last sentence boundary (. ? !) before max_chars.
     If no boundary found, returns text untruncated to avoid mid-word cut.
+    Default is TTS_MAX_CHARS from config (overridable via iris_config.json).
     """
     if len(text) <= max_chars:
         return text

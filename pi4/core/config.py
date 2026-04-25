@@ -77,6 +77,8 @@ NUM_PREDICT_SHORT     = 120   # greetings, yes/no, simple facts
 NUM_PREDICT_MEDIUM    = 350   # explanations, multi-step answers
 NUM_PREDICT_LONG      = 700   # stories, detailed how-to, lists, comparisons
 NUM_PREDICT_MAX       = 1200  # "tell me everything about", essays, code
+# ── TTS ───────────────────────────────────────────────────────────────────────
+TTS_MAX_CHARS         = 900   # Chatterbox hard-cap; ~5-8 spoken sentences
 CONVERSATION_LOG      = "/home/pi/logs/conversations.jsonl"
 
 # ── Camera / Vision ───────────────────────────────────────────────────────────
@@ -154,7 +156,7 @@ _OVERRIDABLE = {
     "RECORD_SECONDS", "SILENCE_SECS", "SILENCE_RMS",
     "KIDS_RECORD_SECONDS", "KIDS_SILENCE_SECS", "KIDS_SILENCE_RMS",
     "OWW_THRESHOLD", "FOLLOWUP_TIMEOUT", "KIDS_FOLLOWUP_TIMEOUT",
-    "FOLLOWUP_MAX_TURNS", "CONTEXT_TIMEOUT_SECS", "NUM_PREDICT", "NUM_PREDICT_SHORT", "NUM_PREDICT_MEDIUM", "NUM_PREDICT_LONG", "NUM_PREDICT_MAX",
+    "FOLLOWUP_MAX_TURNS", "CONTEXT_TIMEOUT_SECS", "NUM_PREDICT", "NUM_PREDICT_SHORT", "NUM_PREDICT_MEDIUM", "NUM_PREDICT_LONG", "NUM_PREDICT_MAX", "TTS_MAX_CHARS",
     "CHATTERBOX_VOICE", "CHATTERBOX_EXAGGERATION", "CHATTERBOX_ENABLED",
     "VOL_MAX", "SPEAKER_VOLUME", "OLLAMA_MODEL_ADULT", "OLLAMA_MODEL_KIDS",
     "LED_IDLE_PEAK", "LED_IDLE_FLOOR", "LED_IDLE_PERIOD",
@@ -183,6 +185,7 @@ _TYPE_COERCE = {
     "NUM_PREDICT_MEDIUM":      (int,   (10, 2000)),
     "NUM_PREDICT_LONG":        (int,   (10, 2000)),
     "NUM_PREDICT_MAX":         (int,   (10, 2000)),
+    "TTS_MAX_CHARS":           (int,   (100, 4000)),
     "CHATTERBOX_EXAGGERATION": (float, (0.0, 2.0)),
     "CHATTERBOX_ENABLED":      (bool,  None),
     "VOL_MAX":                 (int,   (60, 127)),
