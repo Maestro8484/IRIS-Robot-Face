@@ -76,6 +76,17 @@ select:focus{outline:none;border-color:var(--blue)}
 .btn-wake{background:#1d4ed8;border:1px solid #2563eb;color:#fff;padding:10px 22px;border-radius:6px;cursor:pointer;font-size:13px;transition:all .2s}
 .btn-wake:hover{background:#2563eb}
 .btn-wake.active-state{background:#14532d;border-color:var(--green);color:var(--green)}
+.bench-table{width:100%;border-collapse:collapse;font-size:12px;font-family:'Courier New',monospace}
+.bench-table th{text-align:right;color:var(--muted);padding:4px 8px;border-bottom:1px solid var(--border);white-space:nowrap;font-weight:500}
+.bench-table th:last-child{text-align:left}
+.bench-table td{text-align:right;padding:4px 8px;border-bottom:1px solid #1a1a22;color:var(--text);white-space:nowrap}
+.bench-table td:last-child{text-align:left;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.bench-table tr:hover td{background:#1a1a22}
+.bench-table .tier-SHORT{color:#4ade80}.bench-table .tier-MEDIUM{color:#60a5fa}
+.bench-table .tier-LONG{color:#fbbf24}.bench-table .tier-MAX{color:#f87171}
+.bench-wrap{overflow-x:auto;margin-top:4px}
+.levers-row{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;font-family:'Courier New',monospace;margin-top:4px;color:var(--muted)}
+.levers-row span{color:var(--text)}
 </style>
 </head>
 <body>
@@ -100,6 +111,7 @@ select:focus{outline:none;border-color:var(--blue)}
   <button onclick="tab('logs',this)">Logs</button>
   <button onclick="tab('system',this)">System</button>
   <button onclick="tab('chat',this)">Chat</button>
+  <button onclick="tab('bench',this)">Bench</button>
 </nav>
 
 <!-- SD persistence bar — always visible -->
@@ -393,6 +405,38 @@ select:focus{outline:none;border-color:var(--blue)}
   </div>
 </div>
 
+<!-- BENCH -->
+<div class="section" id="sec-bench">
+  <div class="card">
+    <h2>Pipeline Timing</h2>
+    <p class="hint" style="margin-bottom:10px">rec=recording &nbsp; stt=Whisper &nbsp; ttfc=first LLM chunk &nbsp; llm=full stream &nbsp; tts=synthesis &nbsp; aud=playback &nbsp; TOTAL=beep&rarr;audio-done</p>
+    <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+      <button class="btn btn-sm" style="background:var(--input-bg);border:1px solid var(--border);color:var(--text)" onclick="fetchBench()">Refresh</button>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" id="bench-auto" onchange="toggleBenchAuto(this)"> auto every 15s
+      </label>
+      <span id="bench-count" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+    </div>
+    <div class="bench-wrap">
+      <table class="bench-table" id="bench-table">
+        <thead><tr>
+          <th>#</th><th>time</th><th>trig</th><th>tier</th><th>np</th>
+          <th>rec</th><th>stt</th><th>ttfc</th><th>llm</th><th>tts</th><th>aud</th>
+          <th>TOTAL</th><th>eval/prompt</th><th style="text-align:left">transcript</th>
+        </tr></thead>
+        <tbody id="bench-body">
+          <tr><td colspan="14" style="text-align:center;color:var(--muted);padding:20px">Click Refresh to load</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Active Tuning Levers</h2>
+    <p class="hint" style="margin-bottom:8px">Live values from core/config + iris_config.json. Adjust via Conversation tab or iris_config.json.</p>
+    <div class="levers-row" id="bench-levers">&mdash;</div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -406,6 +450,7 @@ function tab(name, btn) {
   if (name === 'system') { pollStatus(); checkSDStatus(); refreshVolume(); }
   if (name === 'voice') { loadChatterboxVoices(); }
   if (name === 'gandalf') loadVram();
+  if (name === 'bench') fetchBench();
   if (name === 'eyes') pollSleepState();
   if (name === 'sleep') {
     pollSleepState();
@@ -733,6 +778,83 @@ async function setVolume() {
     document.getElementById('vol-display').textContent = `${j.level} (${j.pct}%)`;
     toast(`Volume set to ${j.level} (${j.pct}%)`);
   }
+}
+
+// ── Bench ──────────────────────────────────────────────────────────────────────
+let _benchAutoTimer = null;
+
+function _fmt(v) {
+  if (v == null) return '-';
+  const n = parseFloat(v);
+  return isNaN(n) ? '-' : n.toFixed(2) + 's';
+}
+function _ts(t) {
+  if (!t) return '-';
+  try { return new Date(parseFloat(t) * 1000).toLocaleTimeString(); }
+  catch(e) { return String(t).slice(0,8); }
+}
+
+async function fetchBench() {
+  const tbody = document.getElementById('bench-body');
+  const cnt   = document.getElementById('bench-count');
+  tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:16px">Loading...</td></tr>';
+  try {
+    const r = await fetch('/api/bench');
+    const j = await r.json();
+    if (j.error) {
+      tbody.innerHTML = `<tr><td colspan="14" style="color:var(--red);padding:12px">${j.error}</td></tr>`;
+      return;
+    }
+    const cycles = j.cycles || [];
+    cnt.textContent = cycles.length ? cycles.length + ' cycle(s)' : '';
+    if (!cycles.length) {
+      tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:20px">No [BENCH] cycles yet — trigger IRIS to speak first</td></tr>';
+    } else {
+      tbody.innerHTML = cycles.slice().reverse().map((c, i) => {
+        const ls    = c.llm_start || {};
+        const tier  = ls.tier || '-';
+        const np    = ls.num_predict || '-';
+        const rec   = _fmt((c.rec_done || {}).dur_rec);
+        const stt   = _fmt((c.stt_done || {}).dur_stt);
+        const ttfc  = _fmt((c.llm_first_chunk || {}).dur_ttfc);
+        const llm   = _fmt((c.llm_done || {}).dur_llm);
+        const tts   = _fmt((c.tts_done || {}).dur_tts);
+        const aud   = _fmt((c.audio_done || {}).dur_audio);
+        const total = _fmt((c.audio_done || {}).dur_total);
+        const os    = c.ollama_stats || {};
+        const ep    = (os.eval_tokens || '-') + '/' + (os.prompt_tokens || '-');
+        const snip  = ((c.stt_done || {}).transcript || '').slice(0, 22);
+        const n     = parseFloat((c.audio_done || {}).dur_total);
+        const tcol  = isNaN(n) ? '' : n < 6 ? 'style="color:var(--green)"' : n < 10 ? 'style="color:var(--amber)"' : 'style="color:var(--red)"';
+        return `<tr>
+          <td>${cycles.length - i}</td><td>${_ts(c.t)}</td>
+          <td>${(c.trigger||'?').slice(0,4)}</td>
+          <td class="tier-${tier}">${tier}</td><td>${np}</td>
+          <td>${rec}</td><td>${stt}</td><td>${ttfc}</td><td>${llm}</td><td>${tts}</td><td>${aud}</td>
+          <td ${tcol}>${total}</td><td>${ep}</td><td>${snip}</td></tr>`;
+      }).join('');
+    }
+    const lev = j.levers || {};
+    const levDiv = document.getElementById('bench-levers');
+    if (Object.keys(lev).length) {
+      const sep = '<span style="color:var(--border);margin:0 2px">|</span>';
+      levDiv.innerHTML = [
+        'SHORT=<span>' + lev.NUM_PREDICT_SHORT + '</span>',
+        'MEDIUM=<span>' + lev.NUM_PREDICT_MEDIUM + '</span>',
+        'LONG=<span>' + lev.NUM_PREDICT_LONG + '</span>',
+        'MAX=<span>' + lev.NUM_PREDICT_MAX + '</span>',
+        'TTS_MAX_CHARS=<span>' + lev.TTS_MAX_CHARS + '</span>',
+        'TTS=<span>' + (lev.CHATTERBOX_ENABLED ? 'chatterbox' : 'piper') + '</span>',
+      ].join(sep);
+    } else { levDiv.textContent = 'Could not load config'; }
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="14" style="color:var(--red);padding:12px">Error: ${e}</td></tr>`;
+  }
+}
+
+function toggleBenchAuto(cb) {
+  if (_benchAutoTimer) { clearInterval(_benchAutoTimer); _benchAutoTimer = null; }
+  if (cb.checked) _benchAutoTimer = setInterval(fetchBench, 15000);
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────

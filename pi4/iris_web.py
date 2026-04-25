@@ -246,5 +246,53 @@ def api_volume():
     return jsonify(level=110, pct=87)
 
 
+@app.route("/api/bench")
+def api_bench():
+    """Parse recent [BENCH] log lines and return structured cycle data + tuning levers."""
+    import re as _re
+    try:
+        raw = subprocess.check_output(
+            ["journalctl", "-u", "assistant", "-n", "600", "--no-pager", "--output=short-iso"],
+            text=True, stderr=subprocess.DEVNULL)
+        lines = raw.splitlines()
+    except Exception as e:
+        return jsonify(error=str(e), cycles=[], levers={})
+
+    def _parse(line):
+        m = _re.search(r'\[BENCH\](.*)', line)
+        if not m: return None
+        kv = {}
+        for part in m.group(1).split():
+            if '=' in part:
+                k, v = part.split('=', 1)
+                kv[k] = v.strip('"\'')
+        return kv if kv else None
+
+    cycles, cur = [], {}
+    for line in lines:
+        kv = _parse(line)
+        if not kv: continue
+        stage = kv.get('stage')
+        if not stage: continue
+        if stage == 'wake_detected':
+            if cur: cycles.append(cur)
+            cur = {'trigger': kv.get('trigger', '?'), 't': kv.get('t', '')}
+        elif cur:
+            cur[stage] = kv
+    if cur:
+        cycles.append(cur)
+
+    try:
+        import core.config as _cc
+        levers = {k: getattr(_cc, k) for k in
+                  ('NUM_PREDICT_SHORT', 'NUM_PREDICT_MEDIUM', 'NUM_PREDICT_LONG',
+                   'NUM_PREDICT_MAX', 'TTS_MAX_CHARS', 'CHATTERBOX_ENABLED')
+                  if hasattr(_cc, k)}
+    except Exception:
+        levers = {}
+
+    return jsonify(cycles=cycles[-25:], levers=levers)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
