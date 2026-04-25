@@ -47,11 +47,12 @@ GitHub is useful for backup, history, sharing, and recovery, but it may lag loca
 
 - Batch 1A complete.
 - Batch 1B complete.
+- Batch 1C largely complete (see below -- two items remain).
 - Pi4 operational.
 - Wakeword responding.
 - Teensy 4.1 operational.
 - GandalfAI services active.
-- Next target: Batch 1C.
+- Dynamic response-length classification live and verified (S33).
 
 ---
 
@@ -92,26 +93,23 @@ Do not re-plan or re-do Batch 1B unless explicitly instructed.
 
 ## Current Roadmap
 
-### Batch 1C - Reliability Hygiene (NEXT)
+### Batch 1C - Reliability Hygiene (MOSTLY COMPLETE)
 
-Primary objectives:
-- Route sleep wakeword greeting through Wyoming Piper on GandalfAI instead of broken local `/usr/local/bin/piper`.
-- Persist `SPEAKER_VOLUME` across reboot.
-- Add TTS hard-cap fallback for long punctuation-free text.
-- Add config validation/coercion for `iris_config.json` overrides.
-- Replace `tempfile.mktemp()` with `mkstemp()` or another safe temp-file pattern.
-- Add malformed Ollama JSON stream warning once per request.
-- Remove dead code only if verified unused.
-- Add graceful volume subprocess failure handling if still missing.
+Completed items:
+- ✅ Config validation/coercion for `iris_config.json` (1C-A, 1C-A.2)
+- ✅ Graceful volume subprocess failure handling (1C-B)
+- ✅ TTS hard-cap fallback at sentence boundary (1C-C); cap raised 220→900 chars (1C-F fix)
+- ✅ `mkstemp()` replacing unsafe `mktemp()` in vision.py (1C-E)
+- ✅ Rate-limited malformed JSON stream warning in llm.py (1C-E)
+- ✅ Dynamic response-length classification: SHORT/MEDIUM/LONG/MAX tiers (1C-F, S33)
+  - `classify_response_length()` in `services/llm.py`
+  - All tier constants in `core/config.py`, overridable via `iris_config.json`
+  - Modelfile num_predict floor 200→800; "default to less" removed
+  - Live-tested and confirmed working
 
-Likely files:
-- `pi4/assistant.py`
-- `pi4/iris_web.py`
-- `pi4/services/tts.py`
-- `pi4/core/config.py`
-- `pi4/services/vision.py`
-- `pi4/services/llm.py`
-- `pi4/hardware/audio_io.py`
+Remaining Batch 1C items:
+- ❌ Route sleep wakeword greeting through Wyoming Piper (local `/usr/local/bin/piper` is broken)
+- ❌ Persist `SPEAKER_VOLUME` across reboot via `iris_config.json` + ALSA state workflow
 
 ### Batch 2 - Teensy Hardware/Firmware Pass
 
