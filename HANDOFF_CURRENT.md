@@ -45,9 +45,15 @@ GitHub is useful for backup, history, sharing, and recovery, but it may lag loca
 ## Systems
 
 - Pi4 = runtime orchestration, assistant loop, wakeword handling, web UI, cron sleep/wake, LEDs, camera, and Teensy serial bridge.
-- GandalfAI = Ollama, Modelfiles, personality, Whisper STT, Piper TTS, Chatterbox TTS, and pipeline behavior.
+- GandalfAI = Ollama, Modelfiles, personality, Whisper STT, Piper TTS, Kokoro TTS, and pipeline behavior.
 - Teensy 4.1 = embedded display controller for eyes, mouth, sleep renderer, serial protocol, and face behavior.
 - SuperMaster desktop = source repository, Claude Desktop, VS Code, PlatformIO, git, and command/control workstation.
+
+## IRIS Identity — Standing Rule
+
+IRIS is male. Pronouns: he/him.
+
+This applies to all modelfile edits, persona descriptions, handoff docs, and any AI-generated text about IRIS's character. The name IRIS sounds female but is not. Do not use she/her in any context referring to IRIS's personality or behavior. The modelfile EMOTIONAL STATE block correctly uses he/him as of Batch 3-D (S39).
 
 ---
 
