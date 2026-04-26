@@ -55,13 +55,14 @@ GitHub is useful for backup, history, sharing, and recovery, but it may lag loca
 
 - Batch 1A complete.
 - Batch 1B complete.
-- Batch 1C largely complete, with remaining items listed below.
+- Batch 1A, 1B complete. Batch 1C largely complete (one item remaining, one deprioritized).
 - S36 complete: eye movement suspended during TTS responses (`src/main.cpp`).
-- S37 complete: Batch 3-A initial pass — persona framing rewrite + temperature 0.82 (`ollama/iris_modelfile.txt`).
-- Pi4 operational.
-- Wakeword production baseline: `hey_jarvis`.
+- S37 complete: Batch 3-A — persona framing rewrite + temperature 0.82.
+- S38 complete: Batch 3-B — Kokoro TTS replaces Chatterbox (Docker, GandalfAI).
+- S39 complete: Batch 3-C — gemma3:12b → gemma3:27b-it-qat; Batch 3-D — full persona pass (AMUSED tag, vocal texture, insult examples, contradiction fix).
+- Pi4 operational. Wakeword: `hey_jarvis`.
 - Teensy 4.1 operational.
-- GandalfAI services active.
+- GandalfAI: Kokoro TTS (Docker), Ollama gemma3:27b-it-qat, iris model current.
 - Dynamic response-length classification live and verified.
 
 ---
@@ -159,8 +160,8 @@ Completed items:
 
 Remaining Batch 1C items:
 
-- Route sleep wakeword greeting through Wyoming Piper because local `/usr/local/bin/piper` is broken.
 - Persist `SPEAKER_VOLUME` across reboot via `iris_config.json` plus ALSA state workflow.
+- ~~Route sleep wakeword greeting through Wyoming Piper~~ — LOW-LOW PRIORITY. Kokoro is primary TTS. Piper is fallback only. Sleep greeting edge case not worth the effort until Piper routing becomes a real problem.
 
 ### Batch 2 - Teensy Hardware/Firmware Pass
 
@@ -207,10 +208,16 @@ Implemented:
 - Temperature raised from 0.7 to 0.82.
 - Model rebuilt on GandalfAI. Smoke tests passed.
 
+Completed through S39:
+
+- Batch 3-A: persona framing + temp 0.82 (S37).
+- Batch 3-B: Kokoro TTS (S38).
+- Batch 3-C: gemma3:27b-it-qat upgrade (S39).
+- Batch 3-D: full persona pass — AMUSED tag, vocal texture, insult examples, contradiction fix (S39).
+
 Remaining Batch 3 items:
 
-- Chatterbox/Piper routing tuning.
-- Vision prompt behavior.
+- Vision prompt behavior (NEXT).
 - Inference settings review.
 - Model rebuilds as needed.
 
