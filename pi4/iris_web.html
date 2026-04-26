@@ -153,33 +153,26 @@ select:focus{outline:none;border-color:var(--blue)}
 <!-- VOICE -->
 <div class="section" id="sec-voice">
   <div class="card">
-    <h2>Chatterbox TTS (Primary)</h2>
-    <p class="hint">Primary TTS engine. Voice cloning via reference audio. Runs on GandalfAI (RTX 3090).</p>
+    <h2>Kokoro TTS (Primary)</h2>
+    <p class="hint">Primary TTS engine. Neural multi-voice synthesis. Runs on GandalfAI (Docker, port 8004).</p>
     <div class="field-row">
-      <label>Chatterbox enabled</label>
-      <select id="CHATTERBOX_ENABLED">
-        <option value="true">Yes - use Chatterbox</option>
+      <label>Kokoro enabled</label>
+      <select id="KOKORO_ENABLED">
+        <option value="true">Yes - use Kokoro</option>
         <option value="false">No - skip to fallback</option>
       </select>
     </div>
     <div class="field-row">
-      <label>Reference voice</label>
-      <select id="CHATTERBOX_VOICE" style="width:260px"><option>Loading...</option></select>
-      <button class="btn btn-sm" onclick="loadChatterboxVoices()" style="background:var(--input-bg);border:1px solid var(--border)">Refresh</button>
+      <label>Voice</label>
+      <select id="KOKORO_VOICE" style="width:260px"><option>Loading...</option></select>
+      <button class="btn btn-sm" onclick="loadKokoroVoices()" style="background:var(--input-bg);border:1px solid var(--border)">Refresh</button>
     </div>
-    <div class="field-row">
-      <label>Exaggeration (0-1)</label>
-      <input type="range" id="CHATTERBOX_EXAGGERATION" min="0" max="1" step="0.05" value="0.45"
-             style="width:180px;accent-color:var(--blue);height:6px;cursor:pointer"
-             oninput="document.getElementById('cb-exag-display').textContent=parseFloat(this.value).toFixed(2)">
-      <span id="cb-exag-display" style="width:36px;color:var(--text);font-size:13px;flex-shrink:0">0.45</span>
-    </div>
-    <p class="hint" style="margin-bottom:8px">0.0 = flat, 0.45 = dry wit (IRIS default), 1.0 = dramatic. <a href="http://192.168.1.3:8004" target="_blank" style="color:var(--blue)">Open Chatterbox Web UI</a></p>
-    <button class="btn btn-primary" onclick="saveChatterboxSettings()">Save Chatterbox Settings</button>
+    <p class="hint" style="margin-bottom:8px">Voice name sent to Kokoro API. <a href="http://192.168.1.3:8004" target="_blank" style="color:var(--blue)">Open Kokoro Web UI</a></p>
+    <button class="btn btn-primary" onclick="saveKokoroSettings()">Save Kokoro Settings</button>
   </div>
   <div class="card">
     <h2>Piper TTS (Fallback)</h2>
-    <p class="hint">Offline TTS. Used when Chatterbox is unavailable. No configurable settings.</p>
+    <p class="hint">Offline TTS. Used when Kokoro is unavailable. No configurable settings.</p>
   </div>
 </div>
 
@@ -474,7 +467,7 @@ function tab(name, btn) {
   btn.classList.add('active');
   if (name === 'logs') fetchLogs();
   if (name === 'system') { pollStatus(); checkSDStatus(); refreshVolume(); }
-  if (name === 'voice') { loadChatterboxVoices(); }
+  if (name === 'voice') { loadKokoroVoices(); }
   if (name === 'gandalf') loadVram();
   if (name === 'bench') fetchBench();
   if (name === 'eyes') pollSleepState();
@@ -556,8 +549,6 @@ async function loadConfig() {
   if (ma) document.getElementById('mouth-awake-display').textContent = ma.value;
   const ms = document.getElementById('MOUTH_INTENSITY_SLEEP');
   if (ms) document.getElementById('mouth-sleep-display').textContent = ms.value;
-  const cbExag = document.getElementById('CHATTERBOX_EXAGGERATION');
-  if (cbExag) document.getElementById('cb-exag-display').textContent = parseFloat(cbExag.value).toFixed(2);
   // Show active wakeword model name
   const wakeLabel = document.getElementById('wakeword-model-label');
   if (wakeLabel && _cfg.WAKE_WORD) wakeLabel.textContent = _cfg.WAKE_WORD;
@@ -578,39 +569,35 @@ async function saveFields(keys) {
 }
 
 // ── Teensy ─────────────────────────────────────────────────────────────────────
-async function loadChatterboxVoices() {
-  const sel = document.getElementById('CHATTERBOX_VOICE');
+async function loadKokoroVoices() {
+  const sel = document.getElementById('KOKORO_VOICE');
   if (!sel) return;
-  const cbExag = document.getElementById('CHATTERBOX_EXAGGERATION');
-  const cbDisp = document.getElementById('cb-exag-display');
-  if (cbExag && cbDisp) cbDisp.textContent = parseFloat(cbExag.value).toFixed(2);
   sel.innerHTML = '<option>Loading...</option>';
   try {
-    const r = await fetch('/api/chatterbox_voices');
+    const r = await fetch('/api/kokoro_voices');
     const j = await r.json();
-    const files = j.files || [];
+    const voices = j.voices || [];
     sel.innerHTML = '';
-    const current = (_cfg && _cfg.CHATTERBOX_VOICE) ? _cfg.CHATTERBOX_VOICE : 'iris_voice.wav';
-    if (!files.length) { sel.innerHTML = '<option value="">No voices uploaded yet</option>'; return; }
-    files.forEach(function(name) {
+    const current = (_cfg && _cfg.KOKORO_VOICE) ? _cfg.KOKORO_VOICE : 'bm_lewis';
+    if (!voices.length) { sel.innerHTML = '<option value="">No voices found</option>'; return; }
+    voices.forEach(function(name) {
       const o = document.createElement('option');
       o.value = name; o.textContent = name;
       if (name === current) o.selected = true;
       sel.appendChild(o);
     });
-  } catch(e) { sel.innerHTML = '<option>Chatterbox offline</option>'; }
+  } catch(e) { sel.innerHTML = '<option>Kokoro offline</option>'; }
 }
 
-async function saveChatterboxSettings() {
-  const enabled = document.getElementById('CHATTERBOX_ENABLED').value === 'true';
-  const voice = document.getElementById('CHATTERBOX_VOICE').value;
-  const exag = parseFloat(document.getElementById('CHATTERBOX_EXAGGERATION').value);
+async function saveKokoroSettings() {
+  const enabled = document.getElementById('KOKORO_ENABLED').value === 'true';
+  const voice = document.getElementById('KOKORO_VOICE').value;
   const r = await fetch('/api/config', {method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({CHATTERBOX_ENABLED: enabled, CHATTERBOX_VOICE: voice, CHATTERBOX_EXAGGERATION: exag})});
+    body: JSON.stringify({KOKORO_ENABLED: enabled, KOKORO_VOICE: voice})});
   const j = await r.json();
-  toast(j.ok ? 'Chatterbox settings saved' : 'Error', j.ok);
-  if (j.ok) checkSDStatus();
+  toast(j.ok ? 'Kokoro settings saved' : 'Error', j.ok);
+  if (j.ok) persistToSD();
 }
 
 async function sendTeensy(cmd) {
@@ -883,7 +870,7 @@ async function fetchBench() {
         'LONG=<span>' + lev.NUM_PREDICT_LONG + '</span>',
         'MAX=<span>' + lev.NUM_PREDICT_MAX + '</span>',
         'TTS_MAX_CHARS=<span>' + lev.TTS_MAX_CHARS + '</span>',
-        'TTS=<span>' + (lev.CHATTERBOX_ENABLED ? 'chatterbox' : 'piper') + '</span>',
+        'TTS=<span>' + (lev.KOKORO_ENABLED ? 'kokoro' : 'piper') + '</span>',
       ].join(sep);
     } else { levDiv.textContent = 'Could not load config'; }
   } catch(e) {

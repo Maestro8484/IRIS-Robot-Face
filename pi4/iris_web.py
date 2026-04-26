@@ -12,7 +12,7 @@ GANDALF      = "192.168.1.3"
 OLLAMA_PORT  = 11434
 TEENSY_PORT  = "/dev/ttyACM0"
 TEENSY_BAUD  = 115200
-CHATTERBOX_URL = "http://192.168.1.3:8004"
+KOKORO_URL = "http://192.168.1.3:8004"
 CONFIG_FILE  = "/home/pi/iris_config.json"
 SD_CONFIG    = "/media/root-ro/home/pi/iris_config.json"
 HTML_FILE    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "iris_web.html")
@@ -63,7 +63,7 @@ def _sd_synced():
 _speak_lock = threading.Lock()
 
 def _speak_worker(text: str, cfg: dict):
-    """Synthesize via services.tts (Chatterbox->Piper routing)."""
+    """Synthesize via services.tts (Kokoro->Piper routing)."""
     with _speak_lock:
         try:
             from services.tts import synthesize
@@ -144,14 +144,28 @@ def api_logs():
     except Exception as e: return jsonify(lines=[f"[ERR] {e}"])
 
 
-@app.route("/api/chatterbox_voices")
-def api_chatterbox_voices():
+_KOKORO_FALLBACK_VOICES = [
+    "af_alloy", "af_bella", "af_heart", "af_jessica", "af_nicole", "af_nova",
+    "af_sarah", "af_sky", "am_adam", "am_echo", "am_eric", "am_liam",
+    "am_michael", "am_onyx", "bf_alice", "bf_emma", "bf_isabella",
+    "bm_daniel", "bm_fable", "bm_george", "bm_lewis", "bm_myles",
+]
+
+@app.route("/api/kokoro_voices")
+def api_kokoro_voices():
     try:
-        r = requests.get(f"{CHATTERBOX_URL}/get_reference_files", timeout=5)
+        r = requests.get(f"{KOKORO_URL}/v1/voices", timeout=5)
         r.raise_for_status()
-        return jsonify(files=r.json())
+        data = r.json()
+        if isinstance(data, list):
+            voices = data
+        elif isinstance(data, dict):
+            voices = data.get("voices", data.get("data", _KOKORO_FALLBACK_VOICES))
+        else:
+            voices = _KOKORO_FALLBACK_VOICES
+        return jsonify(voices=voices)
     except Exception as e:
-        return jsonify(files=[], error=str(e))
+        return jsonify(voices=_KOKORO_FALLBACK_VOICES, error=str(e))
 
 @app.route("/api/restart", methods=["POST"])
 def api_restart():
@@ -286,7 +300,7 @@ def api_bench():
         import core.config as _cc
         levers = {k: getattr(_cc, k) for k in
                   ('NUM_PREDICT_SHORT', 'NUM_PREDICT_MEDIUM', 'NUM_PREDICT_LONG',
-                   'NUM_PREDICT_MAX', 'TTS_MAX_CHARS', 'CHATTERBOX_ENABLED')
+                   'NUM_PREDICT_MAX', 'TTS_MAX_CHARS', 'KOKORO_ENABLED')
                   if hasattr(_cc, k)}
     except Exception:
         levers = {}
