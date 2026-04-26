@@ -42,3 +42,6 @@ claude_desktop_config_UPDATED.json
 .env
 config.json
 iris_voice.wav
+
+# Generated runtime state — not committed
+IRIS_STATUS.json
