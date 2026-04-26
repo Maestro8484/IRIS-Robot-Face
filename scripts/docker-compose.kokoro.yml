@@ -1,0 +1,53 @@
+name: iris
+
+services:
+
+  wyoming-whisper:
+    image: lscr.io/linuxserver/faster-whisper:gpu
+    container_name: wyoming-whisper
+    restart: unless-stopped
+    runtime: nvidia
+    ports:
+      - "10300:10300"
+    volumes:
+      - C:/IRIS/docker/whisper:/config
+    environment:
+      - TZ=America/Denver
+      - WHISPER_MODEL=large-v3-turbo
+      - WHISPER_LANG=en
+      - WHISPER_BEAM=1
+      - COMPUTE_TYPE=int8_float16
+      - NVIDIA_VISIBLE_DEVICES=all
+
+  wyoming-piper:
+    image: rhasspy/wyoming-piper
+    container_name: wyoming-piper
+    restart: unless-stopped
+    ports:
+      - "10200:10200"
+    volumes:
+      - C:/IRIS/docker/piper/data:/data
+    command:
+      - --voice
+      - en_US-lessac-medium
+    environment:
+      - TZ=America/Denver
+
+  kokoro-tts:
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:latest
+    container_name: kokoro-tts
+    restart: unless-stopped
+    runtime: nvidia
+    ports:
+      - "8004:8880"
+    environment:
+      - TZ=America/Denver
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

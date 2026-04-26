@@ -1,8 +1,8 @@
 """
-services/tts.py - Text-to-speech (Chatterbox primary, Wyoming Piper fallback)
+services/tts.py - Text-to-speech (Kokoro primary, Wyoming Piper fallback)
 Returns raw s16le PCM bytes at 48000 Hz mono.
 
-synthesize(text) → bytes   — public entry point, routes CB → Piper on failure
+synthesize(text) → bytes   — public entry point, routes Kokoro → Piper on failure
 spoken_numbers(text) → str — pre-processes numeric tokens for natural TTS
 """
 
@@ -10,63 +10,41 @@ import json
 import re
 import socket
 
-import numpy as np
 import requests
 
 from core.config import (
-    CHATTERBOX_BASE_URL, CHATTERBOX_VOICE, CHATTERBOX_EXAGGERATION, CHATTERBOX_ENABLED,
+    KOKORO_BASE_URL, KOKORO_VOICE, KOKORO_ENABLED,
     GANDALF, PIPER_PORT, PIPER_VOICE,
     SAMPLE_RATE, CHANNELS, TTS_MAX_CHARS,
 )
 from services.wyoming import wy_send, read_line
 
 
-# ── Chatterbox TTS ────────────────────────────────────────────────────────────
+# ── Kokoro TTS ────────────────────────────────────────────────────────────────
 
-def _cb_treble_boost(data: np.ndarray, sr: int) -> np.ndarray:
-    """
-    FFT-based high-shelf boost to compensate for Chatterbox Turbo's clone low-pass characteristic.
-    Chatterbox clone output has ~95% energy below 2kHz; normal speech should peak around 2-4kHz.
-    Applies a smooth +10dB shelf rising from ~1kHz to ~6kHz.
-    """
-    n = len(data)
-    if n < 64:
-        return data
-    F = np.fft.rfft(data.astype(np.float64))
-    freqs = np.fft.rfftfreq(n, 1.0 / sr)
-    # tanh shelf: 0dB at low freqs, +10dB at high freqs, centred at 3kHz, width 2kHz
-    gain_db = 10.0 * 0.5 * (1.0 + np.tanh((freqs - 3000.0) / 2000.0))
-    gain_linear = 10.0 ** (gain_db / 20.0)
-    boosted = np.fft.irfft(F * gain_linear, n)
-    return np.clip(boosted, -32768.0, 32767.0)
-
-
-def _synthesize_chatterbox(text: str) -> bytes:
-    """Chatterbox-TTS-Server /tts endpoint, clone mode. Returns s16le PCM at 48000 Hz."""
+def _synthesize_kokoro(text: str) -> bytes:
+    """Kokoro-FastAPI /v1/audio/speech endpoint. Returns s16le PCM at 48000 Hz."""
     import miniaudio
-    url = f"{CHATTERBOX_BASE_URL}/tts"
+    url = f"{KOKORO_BASE_URL}/v1/audio/speech"
     payload = {
-        "text": text,
-        "voice_mode": "clone",
-        "reference_audio_filename": CHATTERBOX_VOICE,
-        "exaggeration": CHATTERBOX_EXAGGERATION,
-        "output_format": "wav",
+        "model": "kokoro",
+        "input": text,
+        "voice": KOKORO_VOICE,
+        "response_format": "wav",
     }
-    resp = requests.post(url, json=payload, timeout=60)
+    resp = requests.post(url, json=payload, timeout=30)
     resp.raise_for_status()
     wav_bytes = resp.content
     if len(wav_bytes) < 44:
-        raise RuntimeError(f"[CB] Response too short: {len(wav_bytes)} bytes")
+        raise RuntimeError(f"[KOK] Response too short: {len(wav_bytes)} bytes")
     decoded = miniaudio.decode(
         wav_bytes,
         output_format=miniaudio.SampleFormat.SIGNED16,
         nchannels=1,
         sample_rate=48000,
     )
-    raw = np.frombuffer(bytes(decoded.samples), dtype=np.int16).astype(np.float32)
-    boosted = _cb_treble_boost(raw, 48000).astype(np.int16)
-    pcm = boosted.tobytes()
-    print(f"[CB]   OK {len(wav_bytes)}b WAV → {len(pcm)}b PCM ({decoded.duration:.1f}s) [treble+10dB]", flush=True)
+    pcm = bytes(decoded.samples)
+    print(f"[KOK]  OK {len(wav_bytes)}b WAV -> {len(pcm)}b PCM ({decoded.duration:.1f}s)", flush=True)
     return pcm
 
 
@@ -168,7 +146,7 @@ def _truncate_for_tts(text: str, max_chars: int = TTS_MAX_CHARS) -> str:
 
 # ── Public entry point ────────────────────────────────────────────────────────
 
-# Phrases that bypass Chatterbox and go directly to Piper (system state announcements)
+# Phrases that bypass Kokoro and go directly to Piper (system state announcements)
 _PIPER_DIRECT_PHRASES = {
     "good night",
     "goodnight",
@@ -180,8 +158,8 @@ _PIPER_DIRECT_PHRASES = {
 }
 
 def synthesize(text: str) -> bytes:
-    """Chatterbox first; Piper fallback. Returns s16le PCM at 48000 Hz.
-    Sleep/wake phrases route directly to Piper regardless of CHATTERBOX_ENABLED.
+    """Kokoro first; Piper fallback. Returns s16le PCM at 48000 Hz.
+    Sleep/wake phrases route directly to Piper regardless of KOKORO_ENABLED.
     """
     text = spoken_numbers(text)
     # Strip markdown and speech markers that must never reach TTS
@@ -195,7 +173,7 @@ def synthesize(text: str) -> bytes:
     text = re.sub(r'[^\x00-\x7F]+', ' ', text).strip()      # existing non-ASCII strip (keep)
     text = _truncate_for_tts(text)
 
-    # Route sleep/wake system phrases directly to Piper - bypass Chatterbox
+    # Route sleep/wake system phrases directly to Piper - bypass Kokoro
     _text_check = text.lower().strip().rstrip('.')
     if any(_text_check == p or _text_check.startswith(p) for p in _PIPER_DIRECT_PHRASES):
         print(f"[TTS]  Piper direct route (system phrase): '{text}'", flush=True)
@@ -204,9 +182,9 @@ def synthesize(text: str) -> bytes:
         except Exception as e:
             print(f"[PIPER] Direct route failed: {e}", flush=True)
 
-    if CHATTERBOX_ENABLED:
+    if KOKORO_ENABLED:
         try:
-            return _synthesize_chatterbox(text)
+            return _synthesize_kokoro(text)
         except Exception as e:
-            print(f"[CB]   Failed: {e} -- falling back to Piper", flush=True)
+            print(f"[KOK]  Failed: {e} -- falling back to Piper", flush=True)
     return _synthesize_piper(text)
