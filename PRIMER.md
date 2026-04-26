@@ -32,7 +32,7 @@ After reading all three, output pre-flight and wait for confirmation:
 
 Do not proceed to the task without explicit confirmation.
 
-TASK: [paste task here]
+TASK: [see TASK at bottom]
 
 ---
 
@@ -47,3 +47,5 @@ TASK: [paste task here]
 - All edits go to local repo only. Show diff, wait for approval before any write.
 - Before starting a session, run: .\scripts\iris_status.ps1
   This writes IRIS_STATUS.json which Claude Code loads automatically at session start.
+
+TASK:  [paste task here]

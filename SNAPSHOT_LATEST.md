@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S34 | **Date:** 2026-04-25 | **Branch:** `main` | **Last commit:** c5677f5 S33: add Bench tab to web UI
+**Session:** S35 | **Date:** 2026-04-25 | **Branch:** `main` | **Last commit:** 84f0e5d S34: web UI config expansion — OWW_DRAIN_SECS, response tiers, dual mouth intensity, VOL_MAX, stale key cleanup
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -12,9 +12,9 @@
 | System | Status |
 |---|---|
 | SuperMaster Desktop | Canonical local repo. Claude Desktop, filesystem MCP, SSH MCP active. |
-| Pi4 192.168.1.200 | Operational. assistant.py running. Wakeword deploy in progress — custom models deployed but NOT verified (see Active Issues). |
-| GandalfAI 192.168.1.3 | Operational. TFLite conversion complete. `C:\IRIS\wakewords\` has both .onnx and .tflite files. |
-| Teensy 4.1 | Operational. All displays working. |
+| Pi4 192.168.1.200 | Operational. assistant.py running. Production wakeword: hey_jarvis. |
+| GandalfAI 192.168.1.3 | Operational. Custom wakeword TFLite models archived as experimental. |
+| Teensy 4.1 | Operational. All displays working. S36 firmware change pending (suspend eye movement during TTS). |
 | TTS | Chatterbox primary, Piper fallback. |
 | Web UI | Operational. Bench tab live. |
 
@@ -22,7 +22,6 @@
 
 ## Active Issues
 
-- **HIGH: Custom wakeword not triggering** — hey_der_iris/real_quick_iris TFLite models deployed to Pi4 custom dir but old wyoming process (with --preload-model hey_jarvis) likely survived pkill and still owns port 10400. New wyoming (--custom-model-dir) never actually bound the port. Fix: `pkill -f wyoming_openwakeword` then restart assistant.py cleanly before any further wakeword testing.
 - **MED: Piper sleep routing** — local `/usr/local/bin/piper` broken. Sleep wakeword greeting should route through Wyoming Piper on GandalfAI:10200 (Batch 1C).
 - **MED: Volume persistence** — SPEAKER_VOLUME may reset on reboot (Batch 1C).
 - **LOW: iris_config.json stale keys** — ELEVENLABS_ENABLED and similar ignored keys still present.
@@ -32,7 +31,7 @@
 
 ## Session Scope
 
-S34: Deploy custom wakeword ONNX models (hey_der_iris, real_quick_iris) from GandalfAI to Pi4 wyoming-openwakeword and update config.
+S35: Restore hey_jarvis as production wakeword baseline. Archive hey_der_iris and real_quick_iris as experimental. Commit wakeword documentation and training tooling.
 
 ---
 
@@ -45,27 +44,24 @@ S34: Deploy custom wakeword ONNX models (hey_der_iris, real_quick_iris) from Gan
 
 ---
 
-## Last Session Changes (S34)
+## Last Session Changes (S35)
 
-- **GandalfAI** `C:\IRIS\convert_to_tflite.py` — new script: direct Keras weight rebuild from ONNX, bypasses broken `openwakeword.train.convert_onnx_to_tflite` (onnx.mapping removed in newer onnx). Both models verified diff < 0.000001 vs ONNX. TF 2.15.1 / Python 3.11.
-- **Pi4** `/home/pi/wyoming-openwakeword/custom/` — created; hey_der_iris.tflite + real_quick_iris.tflite (841 KB each) deployed via sshpass/scp from GandalfAI. SD-persisted + md5-verified.
-- **Pi4** `/home/pi/iris_config.json:WAKE_WORD` — added `"WAKE_WORD": "hey_der_iris"`. SD-persisted + md5-verified.
-- **Pi4** `/home/pi/assistant.py:334` — changed wyoming launch from `--preload-model WAKE_WORD` to `--custom-model-dir /home/pi/wyoming-openwakeword/custom/`. SD-persisted + md5-verified.
-- **Backup** `/home/pi/iris_config.json.bak_wakeword` — created on Pi4 before any changes.
-- **NOT yet verified** — hey_jarvis still triggering suggests old wyoming process survived restart. Clean restart (explicit wyoming kill) required before smoke test.
+- **Wakeword baseline restored** — Production wakeword is `hey_jarvis`. Custom wakeword attempts (`hey_der_iris`, `real_quick_iris`) failed real-world reliability and are archived as experimental history. Do not redeploy without real household voice samples, clean process restart, and one-model-at-a-time testing.
+- **Docs committed** — `HANDOFF_WAKEWORD_DEPLOY.md`, `PRIMER_WAKEWORD_DEPLOY.md`, `WAKEWORD_TRAINING_HANDOFF.md`, `HANDOFF_CURRENT.md`, `PRIMER.md` updated to reflect S35 state.
+- **Batch 3-A paused** — Personality tuning paused until wakeword baseline and repo state are clean.
+- **S36 pending** — `src/main.cpp` approved change: suspend eye movement during TTS responses. Commit separately.
 
-## Previous Session Changes (S33)
+## Previous Session Changes (S34)
 
-- Dynamic response length classifier added to `services/llm.py` — SHORT/MEDIUM/LONG/MAX tiers.
-- TTS hard-cap raised 220→900 chars; modelfile num_predict floor raised to 800.
-- Bench tab added to web UI with pipeline timing table.
+- Web UI config expansion: OWW_DRAIN_SECS, response tiers, dual mouth intensity, VOL_MAX, stale key cleanup.
+- GandalfAI TFLite conversion script for custom wakeword models (archived as experimental).
+- Pi4 custom wakeword models deployed but wakeword test failed — baseline reversion followed.
 
 ---
 
 ## Known TODO
 
-- **Immediate next action:** `pkill -f wyoming_openwakeword && pkill -f assistant.py`, then clean restart, then smoke test "hey der iris".
-- If smoke test fails after clean restart: lower `OWW_THRESHOLD` 0.9 → 0.3 as diagnostic. If still no trigger, TTS-only training is root cause — need real voice samples mixed into retraining.
-- Batch 1C work (Piper sleep routing, volume persistence, config coercion, safe temp files, rate-limited JSON logging) — pending after wakeword confirmed working.
-- `real_quick_iris` trained to val_loss ~0.0000 — may be overfit. Test last; if false-positive floods, remove from custom dir.
-- Untracked files to commit when ready: HANDOFF_WAKEWORD_DEPLOY.md, PRIMER_WAKEWORD_DEPLOY.md, WAKEWORD_TRAINING_HANDOFF.md, scripts/train_wakewords.py.
+- **S36:** Commit `src/main.cpp` — suspend eye movement during TTS responses.
+- **Batch 1C:** Piper sleep routing, volume persistence (remaining items).
+- **Batch 2:** Teensy hardware/firmware pass — only after Pi runtime stable.
+- **Batch 3:** GandalfAI personality/pipeline pass — only after wakeword baseline confirmed clean.
