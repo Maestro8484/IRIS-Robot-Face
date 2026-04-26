@@ -113,6 +113,14 @@ static bool     eyesSleeping = false;
 static uint32_t srMouthLastMs = 0;
 static constexpr uint32_t MOUTH_SLEEP_FRAME_MS = 150;
 
+// Decouple mouth TFT (blocking SWSPI) from the eye render loop.
+// MOUTH: commands queue here; rendered after eyes->renderFrame(), rate-limited
+// so TTS mouth animation never stalls the eye loop.
+static uint8_t  pendingMouthIdx    = 0;
+static bool     mouthUpdatePending = false;
+static uint32_t lastMouthRenderMs  = 0;
+static constexpr uint32_t MOUTH_RENDER_MIN_MS = 500;
+
 // ---------------------------------------------------------------------------
 // HELPERS
 // ---------------------------------------------------------------------------
@@ -223,10 +231,8 @@ static void processSerial() {
           }
 
         } else if (strncmp(serialBuf, "MOUTH:", 6) == 0) {
-          uint8_t idx = (uint8_t)atoi(serialBuf + 6);
-          mouthTFTShow(idx);
-          Serial.print("[DBG] MOUTH cmd: idx=");
-          Serial.println(idx);
+          pendingMouthIdx    = (uint8_t)atoi(serialBuf + 6);
+          mouthUpdatePending = true;
 
         } else if (strncmp(serialBuf, "MOUTH_INTENSITY:", 16) == 0) {
           uint8_t lvl = (uint8_t)constrain(atoi(serialBuf + 16), 0, 15);
@@ -385,4 +391,13 @@ void loop() {
   }
 
   eyes->renderFrame();
+
+  if (mouthUpdatePending) {
+    uint32_t nowMs = millis();
+    if (nowMs - lastMouthRenderMs >= MOUTH_RENDER_MIN_MS) {
+      mouthTFTShow(pendingMouthIdx);
+      mouthUpdatePending = false;
+      lastMouthRenderMs  = nowMs;
+    }
+  }
 }
