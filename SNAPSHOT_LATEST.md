@@ -46,6 +46,7 @@ S39: Batch 3-C — upgrade base model gemma3:12b → gemma3:27b-it-qat in both i
 
 ## Last Session Changes (S39)
 
+- **Batch 3-D** — `ollama/iris_modelfile.txt`: full persona pass. Added AMUSED emotion tag (insults → AMUSED not ANGRY). Added vocal texture line (dry economy, no filler). Added concrete insult response examples. Removed internal contradiction (rude-response line in WHO YOU ARE). Fixed double-negative to active framing. Smoke tests passed across insult, neutral, and curious probes.
 - **Batch 3-C** — `ollama/iris_modelfile.txt`, `ollama/iris-kids_modelfile.txt`: FROM gemma3:12b → gemma3:27b-it-qat. GandalfAI env set: OLLAMA_FLASH_ATTENTION=1, OLLAMA_KV_CACHE_TYPE=q8_0 (machine-level, Ollama restarted). Both models rebuilt and smoke-tested. VRAM post-load: 22079 MiB used / 2248 MiB free.
 
 ## Previous Session Changes (S38)
