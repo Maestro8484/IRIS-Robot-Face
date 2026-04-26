@@ -236,8 +236,8 @@ C:\IRIS\
 ```
 
 Ollama modelfiles (canonical in repo):
-- `ollama/iris_modelfile.txt` - adult IRIS persona (gemma3:12b)
-- `ollama/iris-kids_modelfile.txt` - kids IRIS persona (gemma3:12b)
+- `ollama/iris_modelfile.txt` - adult IRIS persona (gemma3:27b-it-qat)
+- `ollama/iris-kids_modelfile.txt` - kids IRIS persona (gemma3:27b-it-qat)
 
 HF cache: `C:\Users\gandalf\.cache\huggingface` - stays in user profile, intentionally not moved.
 
@@ -400,12 +400,13 @@ ANGRY_EYE_DURATION_MS=9000 | CONFUSED_EYE_DURATION_MS=7000
 EYE_IDX_DEFAULT=0, ANGRY=1, CONFUSED=2, COUNT=7
 ```
 
-### Ollama models (as of S20)
+### Ollama models (as of S39)
 
-- `iris:latest` - gemma3:12b, num_predict 200, temperature 0.7, num_ctx 4096
-- `iris-kids:latest` - gemma3:12b, num_predict 200, temperature 0.90, num_ctx 4096
+- `iris:latest` - gemma3:27b-it-qat, num_predict 800, temperature 0.82, num_ctx 4096
+- `iris-kids:latest` - gemma3:27b-it-qat, num_predict 800, temperature 0.90, num_ctx 4096
 - Stop token: `<end_of_turn>` (gemma family)
-- VRAM: Chatterbox ~4.5GB + gemma3:12b ~7GB = ~11.5GB total. Headroom ~12.5GB on RTX 3090 (24GB).
+- VRAM: Kokoro ~2GB + gemma3:27b-it-qat ~14.1GB = ~16.1GB total. Headroom ~7.9GB on RTX 3090 (24GB).
+- GandalfAI env required: `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0` (set S39, machine-level).
 
 ---
 
@@ -525,10 +526,11 @@ curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris\",\"prompt\":\
 - WoL triggered from Pi4 via assistant.py before Ollama polling begins.
 
 ### GandalfAI - VRAM Pressure
-- Chatterbox ~4.5GB + gemma3:12b ~7GB = ~11.5GB baseline. RTX 3090 = 24GB.
+- Kokoro ~2GB + gemma3:27b-it-qat ~14.1GB = ~16.1GB baseline. RTX 3090 = 24GB. Headroom ~7.9GB.
+- OLLAMA_FLASH_ATTENTION=1 and OLLAMA_KV_CACHE_TYPE=q8_0 are required at 27b scale (set machine-level S39).
 - Chrome, Claude Desktop, and any vision model all consume additional VRAM.
-- Close Chrome and Claude Desktop during inference-heavy sessions to avoid 30+ second delays.
-- Do not raise `num_ctx` above 4096 -- headroom is <4GB at baseline.
+- Close Chrome and Claude Desktop during inference-heavy sessions — headroom is tight at ~2.2GB when models are warm.
+- Do not raise `num_ctx` above 4096.
 
 ### GandalfAI - PowerShell Ampersand Rule
 - String operations involving URLs containing `&` must NOT be done inline in PowerShell.
