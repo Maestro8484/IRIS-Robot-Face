@@ -56,9 +56,10 @@ GitHub is useful for backup, history, sharing, and recovery, but it may lag loca
 - Batch 1A complete.
 - Batch 1B complete.
 - Batch 1C largely complete, with remaining items listed below.
+- S36 complete: eye movement suspended during TTS responses (`src/main.cpp`).
+- S37 complete: Batch 3-A initial pass — persona framing rewrite + temperature 0.82 (`ollama/iris_modelfile.txt`).
 - Pi4 operational.
-- Wakeword production baseline restored to `hey_jarvis`.
-- Custom wakeword attempt paused after failed real-world testing.
+- Wakeword production baseline: `hey_jarvis`.
 - Teensy 4.1 operational.
 - GandalfAI services active.
 - Dynamic response-length classification live and verified.
@@ -82,7 +83,7 @@ Custom wakeword experiment:
 
 Important:
 
-The wakeword issue is the active priority. Batch 3-A personality tuning is paused until the wakeword baseline and repo state are clean.
+Wakeword baseline is stable. Batch 3-A initial pass complete (S37). Remaining Batch 3 items are next.
 
 ---
 
@@ -131,13 +132,13 @@ Do not re-plan or re-do Batch 1B unless explicitly instructed.
 
 Status:
 
-Active current state.
+Complete.
 
 Goal:
 
 Restore `hey_jarvis` as the stable production baseline after failed custom wakeword attempts.
 
-Rules:
+Rules (permanent):
 
 - Do not deploy `hey_der_iris`.
 - Do not deploy `real_quick_iris`.
@@ -184,15 +185,34 @@ Scope:
 - Vision prompt behavior.
 - Model rebuilds and smoke tests.
 
+### S36 - Suspend Eye Movement During TTS
+
+Status:
+
+Complete (commit c27517a).
+
+Implemented:
+
+- `src/main.cpp`: eye movement paused for duration of TTS audio playback, resumed on completion.
+
 ### Batch 3-A - Personality: Emotional Volatility Handling
 
 Status:
 
-Paused.
+Initial pass complete (S37, commit 8bdf87e).
 
-Reason:
+Implemented:
 
-Wakeword rollback and repo hygiene take priority.
+- `ollama/iris_modelfile.txt`: replaced explicit EMOTIONAL STATE AND EXPRESSION block with implicit thick-skin/fast-mouth character framing.
+- Temperature raised from 0.7 to 0.82.
+- Model rebuilt on GandalfAI. Smoke tests passed.
+
+Remaining Batch 3 items:
+
+- Chatterbox/Piper routing tuning.
+- Vision prompt behavior.
+- Inference settings review.
+- Model rebuilds as needed.
 
 Category:
 
