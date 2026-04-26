@@ -331,7 +331,8 @@ def main():
     def _start_oww():
         proc = subprocess.Popen(
             ["/home/pi/wyoming-openwakeword/.venv/bin/python3", "-m", "wyoming_openwakeword",
-             "--uri", f"tcp://127.0.0.1:{OWW_PORT}", "--preload-model", WAKE_WORD],
+             "--uri", f"tcp://127.0.0.1:{OWW_PORT}", "--preload-model", WAKE_WORD,
+             "--threshold", str(OWW_THRESHOLD)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for _ in range(30):
             try:
