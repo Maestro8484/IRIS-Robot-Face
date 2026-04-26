@@ -435,7 +435,7 @@ def main():
             play_beep(pa)
             _t_wake = time.time()
             print(f"[BENCH] t={_t_wake:.3f} stage=wake_detected trigger={'ptt' if ptt_mode else 'wake'}", flush=True)
-            _drain_n = int(SAMPLE_RATE / CHUNK * 0.15)
+            _drain_n = int(SAMPLE_RATE / CHUNK * OWW_DRAIN_SECS)
             _pre_buf = []
             for _ in range(_drain_n):
                 try: _pre_buf.append(mic.read(CHUNK, exception_on_overflow=False))

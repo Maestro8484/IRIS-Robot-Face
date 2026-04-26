@@ -142,9 +142,11 @@ select:focus{outline:none;border-color:var(--blue)}
 <div class="section" id="sec-wakeword">
   <div class="card">
     <h2>OpenWakeWord</h2>
-    <p class="hint">Threshold 0.0-1.0. Higher = fewer false positives. Current model: hey_jarvis</p>
+    <p class="hint">Threshold 0.0–1.0. Higher = fewer false positives. Active model: <span id="wakeword-model-label" style="color:var(--blue)">—</span></p>
     <div class="field-row"><label>Threshold</label><input type="number" id="OWW_THRESHOLD" step="0.01" min="0" max="1"></div>
-    <button class="btn btn-primary" onclick="saveFields(['OWW_THRESHOLD'])">Save</button>
+    <div class="field-row"><label>Post-wake drain (s)</label><input type="number" id="OWW_DRAIN_SECS" step="0.05" min="0.05" max="1"></div>
+    <p class="hint" style="margin-bottom:8px">Drain: audio flushed after wakeword before recording begins (default 0.15s). Lower = faster response, higher = less wakeword bleed-in.</p>
+    <button class="btn btn-primary" onclick="saveFields(['OWW_THRESHOLD','OWW_DRAIN_SECS'])">Save</button>
   </div>
 </div>
 
@@ -190,6 +192,17 @@ select:focus{outline:none;border-color:var(--blue)}
     <div class="field-row"><label>Max follow-up turns</label><input type="number" id="FOLLOWUP_MAX_TURNS" step="1"></div>
     <div class="field-row"><label>Context timeout (s)</label><input type="number" id="CONTEXT_TIMEOUT_SECS" step="30"></div>
     <button class="btn btn-primary" onclick="saveFields(['FOLLOWUP_TIMEOUT','KIDS_FOLLOWUP_TIMEOUT','FOLLOWUP_MAX_TURNS','CONTEXT_TIMEOUT_SECS'])">Save</button>
+  </div>
+  <div class="card">
+    <h2>Response Length Tiers</h2>
+    <p class="hint">Token budget per tier. IRIS picks the tier automatically based on the question. Changes take effect on the next response — no restart needed.</p>
+    <div class="field-row"><label>SHORT (greeting / yes-no)</label><input type="number" id="NUM_PREDICT_SHORT" step="10" min="10" max="2000"></div>
+    <div class="field-row"><label>MEDIUM (explanations)</label><input type="number" id="NUM_PREDICT_MEDIUM" step="10" min="10" max="2000"></div>
+    <div class="field-row"><label>LONG (stories / lists)</label><input type="number" id="NUM_PREDICT_LONG" step="10" min="10" max="2000"></div>
+    <div class="field-row"><label>MAX (essays / code)</label><input type="number" id="NUM_PREDICT_MAX" step="10" min="10" max="2000"></div>
+    <div class="field-row"><label>TTS char cap</label><input type="number" id="TTS_MAX_CHARS" step="50" min="100" max="4000"></div>
+    <p class="hint" style="margin-bottom:8px">TTS cap truncates at sentence boundary before synthesis (~5–8 sentences at 900 chars).</p>
+    <button class="btn btn-primary" onclick="saveFields(['NUM_PREDICT_SHORT','NUM_PREDICT_MEDIUM','NUM_PREDICT_LONG','NUM_PREDICT_MAX','TTS_MAX_CHARS'])">Save Tiers</button>
   </div>
 </div>
 
@@ -262,13 +275,20 @@ select:focus{outline:none;border-color:var(--blue)}
   <!-- TFT Mouth Intensity -->
   <div class="card">
     <h2>TFT Mouth Intensity</h2>
-    <p class="hint">Backlight intensity 0–15. 8 = default.</p>
+    <p class="hint">MAX7219 backlight register 0–15. "Apply Now" sends the value matching the current sleep state to Teensy immediately.</p>
     <div class="field-row">
-      <label>Intensity (0–15)</label>
-      <input type="range" id="MOUTH_INTENSITY" min="0" max="15" step="1" value="8"
+      <label>Awake intensity (0–15)</label>
+      <input type="range" id="MOUTH_INTENSITY_AWAKE" min="0" max="15" step="1" value="8"
              style="width:180px;accent-color:#a78bfa;height:6px;cursor:pointer"
-             oninput="document.getElementById('mouth-intensity-display').textContent=this.value">
-      <span id="mouth-intensity-display" style="width:24px;color:var(--text);font-size:13px;flex-shrink:0">8</span>
+             oninput="document.getElementById('mouth-awake-display').textContent=this.value">
+      <span id="mouth-awake-display" style="width:24px;color:var(--text);font-size:13px;flex-shrink:0">8</span>
+    </div>
+    <div class="field-row">
+      <label>Sleep intensity (0–15)</label>
+      <input type="range" id="MOUTH_INTENSITY_SLEEP" min="0" max="15" step="1" value="1"
+             style="width:180px;accent-color:var(--indigo);height:6px;cursor:pointer"
+             oninput="document.getElementById('mouth-sleep-display').textContent=this.value">
+      <span id="mouth-sleep-display" style="width:24px;color:var(--text);font-size:13px;flex-shrink:0">1</span>
     </div>
     <button class="btn btn-primary" onclick="saveMouthIntensity()">Save &amp; Apply Now</button>
   </div>
@@ -361,10 +381,16 @@ select:focus{outline:none;border-color:var(--blue)}
              oninput="document.getElementById('vol-display').textContent=this.value+' ('+Math.round(this.value/127*100)+'%)'">
       <span id="vol-display" style="width:64px;text-align:right;color:var(--text);font-size:13px;flex-shrink:0">110 (87%)</span>
     </div>
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:8px;margin-bottom:12px">
       <button class="btn btn-primary" onclick="setVolume()">Set Volume</button>
       <button class="btn btn-sm" style="background:var(--input-bg);border:1px solid var(--border);color:var(--text)" onclick="refreshVolume()">Refresh</button>
     </div>
+    <div class="field-row" style="margin-top:4px">
+      <label>Volume ceiling (VOL_MAX)</label>
+      <input type="number" id="VOL_MAX" step="1" min="60" max="127" style="width:80px">
+    </div>
+    <p class="hint" style="margin-bottom:8px">Hard ceiling used by voice volume commands. 127 = no ceiling.</p>
+    <button class="btn btn-primary" onclick="saveFields(['VOL_MAX'])">Save Ceiling</button>
   </div>
 </div>
 
@@ -454,9 +480,10 @@ function tab(name, btn) {
   if (name === 'eyes') pollSleepState();
   if (name === 'sleep') {
     pollSleepState();
-    const mi = document.getElementById('MOUTH_INTENSITY');
-    const md = document.getElementById('mouth-intensity-display');
-    if (mi && md) md.textContent = mi.value;
+    const ma = document.getElementById('MOUTH_INTENSITY_AWAKE');
+    if (ma) document.getElementById('mouth-awake-display').textContent = ma.value;
+    const ms = document.getElementById('MOUTH_INTENSITY_SLEEP');
+    if (ms) document.getElementById('mouth-sleep-display').textContent = ms.value;
   }
 }
 
@@ -524,6 +551,16 @@ async function loadConfig() {
     if (el.tagName === 'SELECT') el.value = String(v);
     else el.value = v;
   }
+  // Sync range slider display spans after values are populated
+  const ma = document.getElementById('MOUTH_INTENSITY_AWAKE');
+  if (ma) document.getElementById('mouth-awake-display').textContent = ma.value;
+  const ms = document.getElementById('MOUTH_INTENSITY_SLEEP');
+  if (ms) document.getElementById('mouth-sleep-display').textContent = ms.value;
+  const cbExag = document.getElementById('CHATTERBOX_EXAGGERATION');
+  if (cbExag) document.getElementById('cb-exag-display').textContent = parseFloat(cbExag.value).toFixed(2);
+  // Show active wakeword model name
+  const wakeLabel = document.getElementById('wakeword-model-label');
+  if (wakeLabel && _cfg.WAKE_WORD) wakeLabel.textContent = _cfg.WAKE_WORD;
 }
 
 async function saveFields(keys) {
@@ -642,13 +679,15 @@ async function triggerWake() {
 
 // ── Mouth intensity ────────────────────────────────────────────────────────────
 async function saveMouthIntensity() {
-  const v = Math.max(0, Math.min(15, parseInt(document.getElementById('MOUTH_INTENSITY').value)));
+  const awake = Math.max(0, Math.min(15, parseInt(document.getElementById('MOUTH_INTENSITY_AWAKE').value)));
+  const sleep  = Math.max(0, Math.min(15, parseInt(document.getElementById('MOUTH_INTENSITY_SLEEP').value)));
   await fetch('/api/config', {method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({MOUTH_INTENSITY: v})});
+    body: JSON.stringify({MOUTH_INTENSITY_AWAKE: awake, MOUTH_INTENSITY_SLEEP: sleep})});
+  const intensity = _isSleeping ? sleep : awake;
   await fetch('/api/teensy', {method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({cmd: 'MOUTH_INTENSITY:' + v})});
+    body: JSON.stringify({cmd: 'MOUTH_INTENSITY:' + intensity})});
   toast('Mouth intensity saved and applied');
   checkSDStatus();
 }

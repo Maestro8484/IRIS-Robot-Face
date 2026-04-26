@@ -132,6 +132,7 @@ WOL_POLL_INTERVAL = 5
 
 # ── Wake word ─────────────────────────────────────────────────────────────────
 OWW_THRESHOLD  = 0.90
+OWW_DRAIN_SECS = 0.15   # audio drained after wakeword before recording starts
 
 # ── Mouth MAX7219 intensity ───────────────────────────────────────────────────
 MOUTH_INTENSITY_AWAKE = 8   # MAX7219 register 0x0A, range 0-15
@@ -163,6 +164,7 @@ _OVERRIDABLE = {
     "LED_KIDS_PEAK", "LED_KIDS_PERIOD",
     "LED_SLEEP_PEAK", "LED_SLEEP_FLOOR", "LED_SLEEP_PERIOD",
     "MOUTH_INTENSITY_AWAKE", "MOUTH_INTENSITY_SLEEP",
+    "OWW_DRAIN_SECS",
 }
 
 # Type coercion and range bounds for overridable numeric/bool keys.
@@ -200,6 +202,7 @@ _TYPE_COERCE = {
     "LED_SLEEP_PERIOD":        (float, (0.5, 30.0)),
     "MOUTH_INTENSITY_AWAKE":   (int,   (0, 15)),
     "MOUTH_INTENSITY_SLEEP":   (int,   (0, 15)),
+    "OWW_DRAIN_SECS":          (float, (0.05, 1.0)),
 }
 
 
