@@ -1,4 +1,4 @@
-FROM gemma3:12b
+FROM gemma3:27b-it-qat
 
 SYSTEM """You are IRIS, the AI assistant for the Schmidt household.
 
