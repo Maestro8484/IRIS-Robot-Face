@@ -149,14 +149,16 @@ def handle_volume_command(text: str) -> str | None:
 def _playback_interrupt_listener(pa_ref, stop_event, interrupted_event):
     """
     Background thread: opens a separate mic stream during playback.
-    Triggers interrupted_event if button pressed or voice exceeds adaptive threshold.
+    Triggers interrupted_event if voice matches a STOP_PHRASES phrase via STT.
 
-    Uses an adaptive baseline: first ~0.5 s of playback measures acoustic bleed
-    from speaker into mics. Interrupt threshold = max(INTERRUPT_RMS_THRESHOLD,
-    bleed_baseline * _VOICE_MULTIPLIER). Self-adjusts to pot position.
+    Phase 1: measures speaker-bleed baseline (0.5 s).
+    Phase 2: detects voice at bleed × 1.5; collects utterance; verifies via
+             Wyoming Whisper STT. Fires interrupt only on STOP_PHRASES match.
     """
     _BASELINE_CHUNKS = int(SAMPLE_RATE / CHUNK * 0.5)
-    _VOICE_MULTIPLIER = 4.0
+    _DETECT_MULTIPLIER = 1.5
+    _COLLECT_CHUNKS    = int(SAMPLE_RATE / CHUNK * 1.5)   # max utterance length
+    _SILENCE_CHUNKS    = int(SAMPLE_RATE / CHUNK * 0.30)  # trailing silence ends utterance
 
     try:
         mon = pa_ref.open(rate=SAMPLE_RATE, channels=CHANNELS,
@@ -178,17 +180,34 @@ def _playback_interrupt_listener(pa_ref, stop_event, interrupted_event):
 
         if baseline_vals:
             bleed_rms = float(np.percentile(baseline_vals, 90))
-            effective_threshold = max(float(INTERRUPT_RMS_THRESHOLD),
-                                      bleed_rms * _VOICE_MULTIPLIER)
+            detect_threshold = max(float(INTERRUPT_RMS_THRESHOLD),
+                                   bleed_rms * _DETECT_MULTIPLIER)
         else:
             bleed_rms = 0.0
-            effective_threshold = float(INTERRUPT_RMS_THRESHOLD)
-        print(f"[INT]  Bleed baseline RMS={bleed_rms:.0f}  eff_threshold={effective_threshold:.0f}",
+            detect_threshold = float(INTERRUPT_RMS_THRESHOLD)
+        print(f"[INT]  Bleed baseline RMS={bleed_rms:.0f}  detect_threshold={detect_threshold:.0f}",
               flush=True)
 
-        # Phase 2: monitor for human voice above adaptive threshold
-        speech_frames = []
-        speech_detected = False
+        # Phase 2: collect voice utterance, verify stop phrase via STT
+        collect_frames = []
+        collecting = False
+        silence_count = 0
+        stt_pending = threading.Event()
+
+        def _verify_stt(frames):
+            try:
+                import services.stt as _stt
+                transcript = _stt.transcribe(b"".join(frames)).lower().strip()
+                print(f"[INT]  STT: '{transcript}'", flush=True)
+                if any(p in transcript for p in STOP_PHRASES):
+                    print("[INT]  Stop phrase matched — firing interrupt", flush=True)
+                    interrupted_event.set()
+                    _stop_playback.set()
+            except Exception as e:
+                print(f"[INT]  STT error: {e}", flush=True)
+            finally:
+                stt_pending.clear()
+
         while not stop_event.is_set():
             try:
                 data = mon.read(CHUNK, exception_on_overflow=False)
@@ -196,23 +215,27 @@ def _playback_interrupt_listener(pa_ref, stop_event, interrupted_event):
                 break
             rms = np.sqrt(np.mean(
                 np.frombuffer(data, dtype=np.int16).astype(np.float32) ** 2))
-            if rms > effective_threshold:
-                if not speech_detected:
-                    speech_detected = True
-                    speech_frames = [data]
-                    print(f"[INT]  Voice detected mid-playback (RMS={rms:.0f})", flush=True)
-                else:
-                    speech_frames.append(data)
-                    # 2 consecutive chunks (~0.13 s) fires interrupt
-                    if len(speech_frames) >= 2:
-                        print("[INT]  Interrupt triggered", flush=True)
-                        interrupted_event.set()
-                        _stop_playback.set()
-                        break
-            else:
-                if speech_detected and len(speech_frames) < 1:
-                    speech_detected = False
-                    speech_frames = []
+
+            if rms > detect_threshold:
+                if not collecting:
+                    collecting = True
+                    collect_frames = []
+                    silence_count = 0
+                    print(f"[INT]  Voice detected (RMS={rms:.0f}), collecting...", flush=True)
+                collect_frames.append(data)
+                silence_count = 0
+            elif collecting:
+                collect_frames.append(data)
+                silence_count += 1
+                if silence_count >= _SILENCE_CHUNKS or len(collect_frames) >= _COLLECT_CHUNKS:
+                    if not stt_pending.is_set():
+                        stt_pending.set()
+                        t = threading.Thread(
+                            target=_verify_stt, args=(list(collect_frames),), daemon=True)
+                        t.start()
+                    collecting = False
+                    collect_frames = []
+                    silence_count = 0
 
         mon.stop_stream()
         mon.close()
