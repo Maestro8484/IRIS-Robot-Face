@@ -32,6 +32,10 @@ from services.llm import extract_emotion_from_reply, clean_llm_reply, stream_oll
 from services.vision import capture_image, is_vision_trigger, ask_vision
 from services.wakeword import wait_for_wakeword_or_button
 from state.state_manager import state
+from core.intent_router import (
+    IntentRouter, IntentResult,
+    ROUTE_REFLEX, ROUTE_COMMAND, ROUTE_UTILITY, ROUTE_AMBIGUOUS, ROUTE_LLM,
+)
 
 
 def get_model() -> str:
@@ -327,6 +331,7 @@ def main():
     ctx_thread = threading.Thread(target=_context_watchdog, daemon=True); ctx_thread.start()
     teensy = TeensyBridge(TEENSY_PORT, TEENSY_BAUD)
     start_cmd_listener(teensy, leds)
+    router = IntentRouter()
 
     def _start_oww():
         proc = subprocess.Popen(
@@ -482,88 +487,135 @@ def main():
                 print(f"[STT]  Hallucination filtered: '{text}'", flush=True)
                 show_idle_for_mode(leds); continue
 
-            if any(_text_norm == phrase or _text_norm.startswith(phrase)
-                   for phrase in STOP_PHRASES):
-                print("[STOP] Stop command received", flush=True)
-                _stop_playback.set(); emit_emotion(teensy, leds, "NEUTRAL")
-                show_idle_for_mode(leds); continue
+            # ── Intent routing ────────────────────────────────────────────────
+            _result = router.classify(text, state)
+            _route  = _result.route
+            print(f"[ROUTE] {_route}/{_result.action} conf={_result.confidence}", flush=True)
 
-            # ── Eyes sleep/wake voice commands ─────────────────────────────────
-            _tnorm = text.lower().strip().strip(".!?,;:")
-            if any(_tnorm == p or _tnorm.startswith(p) for p in EYES_SLEEP_TRIGGERS):
-                if not state.eyes_sleeping:
-                    state.eyes_sleeping = True
-                    teensy.send_command("EYES:SLEEP")
-                    lvl = globals().get("MOUTH_INTENSITY_SLEEP", 1)
-                    teensy.send_command(f"MOUTH_INTENSITY:{lvl}")
-                    print("[EYES] Eyes deactivated by voice", flush=True)
-                show_idle_for_mode(leds); continue
-
-            if any(_tnorm == p or _tnorm.startswith(p) for p in EYES_WAKE_TRIGGERS):
-                if state.eyes_sleeping:
-                    state.eyes_sleeping = False
-                    teensy.send_command("EYES:WAKE")
-                    lvl = globals().get("MOUTH_INTENSITY_AWAKE", 8)
-                    teensy.send_command(f"MOUTH_INTENSITY:{lvl}")
-                    print("[EYES] Eyes activated by voice", flush=True)
-                show_idle_for_mode(leds); continue
-
-            if state.eyes_sleeping:
+            # Auto-wake eyes for any route that requires interaction (not sleep/stop)
+            _needs_eye_wake = (
+                _route in (ROUTE_COMMAND, ROUTE_UTILITY, ROUTE_LLM)
+                or (_route == ROUTE_AMBIGUOUS and _result.action not in ("SLEEP", "STOP"))
+            )
+            if state.eyes_sleeping and _needs_eye_wake:
                 state.eyes_sleeping = False
                 teensy.send_command("EYES:WAKE")
-                lvl = globals().get("MOUTH_INTENSITY_AWAKE", 8)
-                teensy.send_command(f"MOUTH_INTENSITY:{lvl}")
+                teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_AWAKE}")
                 print("[EYES] Eyes auto-waked by interaction", flush=True)
 
-            kids_reply, new_mode = handle_kids_mode_command(text)
-            if kids_reply is not None:
-                print(f"[MODE] {kids_reply}", flush=True)
-                leds.show_kids_mode_on() if new_mode else leds.show_kids_mode_off()
-                time.sleep(0.6)
-                try:
-                    pcm_data = synthesize(kids_reply)
-                    leds.show_speaking(); mic.stop_stream(); play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
-                except Exception as e: print(f"[ERR]  TTS mode switch: {e}", flush=True)
-                emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
-                print("[INFO] Ready.", flush=True); continue
+            if _route == ROUTE_REFLEX:
+                if _result.action == "SLEEP":
+                    _do_sleep(teensy, leds)
+                    if _result.response:
+                        try:
+                            pcm_data = synthesize(_result.response)
+                            leds.show_speaking(); mic.stop_stream()
+                            play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                        except Exception as e:
+                            print(f"[ERR]  TTS reflex sleep: {e}", flush=True)
+                    show_idle_for_mode(leds); print("[INFO] Ready.", flush=True); continue
+                elif _result.action == "STOP":
+                    print("[STOP] Stop command received", flush=True)
+                    _stop_playback.set(); emit_emotion(teensy, leds, "NEUTRAL")
+                    show_idle_for_mode(leds); continue
+                elif _result.action == "WAKE":
+                    _do_wake(teensy, leds)
+                    show_idle_for_mode(leds); print("[INFO] Ready.", flush=True); continue
 
-            time_reply = handle_time_command(text)
-            if time_reply is not None:
-                print(f"[TIME] {time_reply}", flush=True)
-                try:
-                    pcm_data = synthesize(time_reply)
-                    leds.show_speaking(); mic.stop_stream(); play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
-                except Exception as e: print(f"[ERR]  TTS time: {e}", flush=True)
-                emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
-                print("[INFO] Ready.", flush=True); continue
-
-            if CAMERA_ENABLED and is_vision_trigger(text):
-                print("[CAM]  Vision trigger detected", flush=True)
-                emit_emotion(teensy, leds, "CURIOUS"); leds.show_thinking()
-                img = capture_image()
-                if img is None: reply = "Sorry, I could not capture an image right now."
+            elif _route == ROUTE_COMMAND:
+                if _result.action == "EYES_SLEEP":
+                    if not state.eyes_sleeping:
+                        state.eyes_sleeping = True
+                        teensy.send_command("EYES:SLEEP")
+                        teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_SLEEP}")
+                        print("[EYES] Eyes deactivated by voice", flush=True)
+                    show_idle_for_mode(leds); continue
+                elif _result.action == "EYES_WAKE":
+                    if state.eyes_sleeping:
+                        state.eyes_sleeping = False
+                        teensy.send_command("EYES:WAKE")
+                        teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_AWAKE}")
+                        print("[EYES] Eyes activated by voice", flush=True)
+                    show_idle_for_mode(leds); continue
+                elif _result.action in ("KIDS_ON", "KIDS_OFF"):
+                    kids_reply, new_mode = handle_kids_mode_command(text)
+                    if kids_reply is not None:
+                        print(f"[MODE] {kids_reply}", flush=True)
+                        leds.show_kids_mode_on() if new_mode else leds.show_kids_mode_off()
+                        time.sleep(0.6)
+                        try:
+                            pcm_data = synthesize(kids_reply)
+                            leds.show_speaking(); mic.stop_stream()
+                            play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                        except Exception as e:
+                            print(f"[ERR]  TTS mode switch: {e}", flush=True)
+                    emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
+                    print("[INFO] Ready.", flush=True); continue
                 else:
-                    print(f"[CAM]  Captured {len(img)//1024}KB", flush=True)
-                    try: reply = ask_vision(img, text); print(f"[VIS]  '{reply}'", flush=True)
-                    except Exception as e:
-                        reply = "I had trouble processing the image."
-                        print(f"[ERR]  Vision: {e}", flush=True)
-                try:
-                    pcm_data = synthesize(reply)
-                    leds.show_speaking(); mic.stop_stream(); play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
-                except Exception as e: print(f"[ERR]  TTS vision: {e}", flush=True)
-                emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
-                print("[INFO] Ready.", flush=True); continue
+                    # Volume commands
+                    vol_reply = handle_volume_command(text)
+                    if vol_reply is not None:
+                        print(f"[VOL]  {vol_reply}", flush=True)
+                        try:
+                            pcm_data = synthesize(vol_reply)
+                            leds.show_speaking(); mic.stop_stream()
+                            play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                        except Exception as e:
+                            print(f"[ERR]  TTS vol: {e}", flush=True)
+                        emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
+                        print("[INFO] Ready.", flush=True); continue
 
-            vol_reply = handle_volume_command(text)
-            if vol_reply is not None:
-                print(f"[VOL]  {vol_reply}", flush=True)
-                try:
-                    pcm_data = synthesize(vol_reply)
-                    leds.show_speaking(); mic.stop_stream(); play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
-                except Exception as e: print(f"[ERR]  TTS vol: {e}", flush=True)
-                emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
-                print("[INFO] Ready.", flush=True); continue
+            elif _route == ROUTE_UTILITY:
+                if _result.action == "VISION":
+                    if CAMERA_ENABLED:
+                        print("[CAM]  Vision trigger detected", flush=True)
+                        emit_emotion(teensy, leds, "CURIOUS"); leds.show_thinking()
+                        img = capture_image()
+                        if img is None:
+                            reply = "Sorry, I could not capture an image right now."
+                        else:
+                            print(f"[CAM]  Captured {len(img)//1024}KB", flush=True)
+                            try:
+                                reply = ask_vision(img, text)
+                                print(f"[VIS]  '{reply}'", flush=True)
+                            except Exception as e:
+                                reply = "I had trouble processing the image."
+                                print(f"[ERR]  Vision: {e}", flush=True)
+                        try:
+                            pcm_data = synthesize(reply)
+                            leds.show_speaking(); mic.stop_stream()
+                            play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                        except Exception as e:
+                            print(f"[ERR]  TTS vision: {e}", flush=True)
+                        emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
+                        print("[INFO] Ready.", flush=True); continue
+                elif _result.response is not None:
+                    print(f"[UTIL] {_result.action}: {_result.response}", flush=True)
+                    try:
+                        pcm_data = synthesize(_result.response)
+                        leds.show_speaking(); mic.stop_stream()
+                        play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                    except Exception as e:
+                        print(f"[ERR]  TTS utility: {e}", flush=True)
+                    emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
+                    print("[INFO] Ready.", flush=True); continue
+
+            elif _route == ROUTE_AMBIGUOUS:
+                if _result.action == "STOP":
+                    print("[STOP] Ambiguous stop command received", flush=True)
+                    _stop_playback.set(); emit_emotion(teensy, leds, "NEUTRAL")
+                    show_idle_for_mode(leds); continue
+                elif _result.action == "SLEEP":
+                    _do_sleep(teensy, leds)
+                    if _result.response:
+                        try:
+                            pcm_data = synthesize(_result.response)
+                            leds.show_speaking(); mic.stop_stream()
+                            play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                        except Exception as e:
+                            print(f"[ERR]  TTS ambiguous sleep: {e}", flush=True)
+                    show_idle_for_mode(leds); print("[INFO] Ready.", flush=True); continue
+                # AMBIGUOUS/LLM falls through to LLM below
 
             # ── Streaming LLM (emotion early) + single TTS call ───────────────
             _num_predict = classify_response_length(text)

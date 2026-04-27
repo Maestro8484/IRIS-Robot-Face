@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S41 | **Date:** 2026-04-26 | **Branch:** `main` | **Last commit:** bc707d7 S40: Batch 3-E vision prompt
+**Session:** S42 | **Date:** 2026-04-26 | **Branch:** `main` | **Last commit:** (pending S42 commit)
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -30,7 +30,7 @@
 
 ## Session Scope
 
-S41: Repo cleanup sprint. ElevenLabs fully scrubbed from live docs and config. MAX7219/bit-bang stale refs removed. src/mouth.h deleted (dead code). Credentials redacted from public docs. snapshots/ untracked from git. docs/tts-history.md and ollama/README.md created. IRIS-Bench documented. Task 3 (GandalfAI modelfile sync) pending — GandalfAI was offline during session.
+S42: Batch 3-F — Pre-LLM intent router. Created `pi4/core/intent_router.py` (5-layer REFLEX/COMMAND/UTILITY/AMBIGUOUS/LLM classifier). Wired into `pi4/assistant.py` replacing all scattered inline checks. Rotating intent log at `/home/pi/logs/iris_intent.log`. Modelfile forbidden phrase block added. Loop 1 (17/17 unit tests) and Loop 2 (10/10 integration smoke) passed on SuperMaster. Loop 3 (live Pi4) pending. Feature doc at `docs/intent-router.md`.
 
 ---
 
@@ -55,7 +55,17 @@ Status: Active. Results stored locally. Separate repo recommended when ready to 
 
 ---
 
-## Last Session Changes (S41)
+## Last Session Changes (S42)
+
+- **Batch 3-F** — `pi4/core/intent_router.py` created. 5-layer intent classifier: REFLEX, COMMAND, UTILITY, AMBIGUOUS, LLM. Fail-open (exception in classify() falls through to LLM). Rotating 7-day intent log at `/home/pi/logs/iris_intent.log`.
+- **assistant.py** — Single `router.classify()` gate replaces all scattered inline checks: STOP_PHRASES, EYES_SLEEP/WAKE_TRIGGERS, handle_kids_mode_command, handle_time_command, is_vision_trigger, handle_volume_command. Follow-up loop unchanged.
+- **iris_modelfile.txt** — 5-line NEVER say block added (LLM identity guardrail).
+- **tests/test_intent_router.py** — 17-case offline unit tests (Loop 1). All pass.
+- **tests/test_integration_smoke.py** — Loop 2 integration smoke (mocked hardware). All pass.
+- **docs/intent-router.md** — Feature guide committed with implementation.
+- **Loop 3 pending** — Deploy to Pi4, speak test phrases, verify intent log.
+
+## Previous Session Changes (S41)
 
 - **ElevenLabs scrub** — All live doc and config refs removed. README, IRIS_ARCH, IRIS_CONFIG_MAP, SNAPSHOT updated. No code references existed (removed ~S20).
 - **MAX7219 retire** — `src/mouth.h` deleted (dead file, not included in main.cpp since ILI9341 TFT replaced MAX7219). All stale MAX7219/bit-bang refs in docs updated to ILI9341 TFT.

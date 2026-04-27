@@ -183,14 +183,20 @@ Candidate scope:
 
 ### Batch 3 - GandalfAI Personality/Pipeline Pass
 
-Scope:
+Completed through S42:
 
-- Ollama Modelfiles.
-- Personality and prompt tuning.
-- Chatterbox/Piper routing.
-- Inference settings.
-- Vision prompt behavior.
-- Model rebuilds and smoke tests.
+- Batch 3-A: persona framing + temp 0.82 (S37).
+- Batch 3-B: Kokoro TTS (S38).
+- Batch 3-C: gemma3:27b-it-qat upgrade (S39).
+- Batch 3-D: full persona pass — AMUSED tag, vocal texture, insult examples, contradiction fix (S39).
+- Batch 3-E: vision prompt (S40).
+- Batch 3-F: pre-LLM intent router (S42). Loop 1 + Loop 2 passed. Loop 3 (Pi4 live) pending.
+
+Remaining:
+
+- Loop 3 gate: deploy Batch 3-F to Pi4, verify intent log for "goodnight", "stop", "what time is it", "what is 5 plus 3", "tell me something interesting". Batch is not closed until Loop 3 passes.
+- Inference settings review.
+- GandalfAI modelfile sync (deferred from S41 — verify live files match local ollama/).
 
 ### S36 - Suspend Eye Movement During TTS
 
