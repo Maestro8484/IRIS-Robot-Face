@@ -1,0 +1,57 @@
+{
+  "mcpServers": {
+    "ollama-control": {
+      "command": "node",
+      "args": [
+        "C:\\MCP-Servers\\ollama-control.js"
+      ]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem@2024.11.5",
+        "C:\\Users\\SuperMaster"
+      ]
+    },
+    "ssh": {
+      "command": "mcp-server-ssh",
+      "args": [],
+      "env": {
+        "SSH_HOST": "192.168.1.103",
+        "SSH_USER": "SuperMaster",
+        "SSH_PASSWORD": "ohs"
+      }
+    },
+    "ssh-pi4": {
+      "command": "mcp-server-ssh",
+      "args": [],
+      "env": {
+        "SSH_HOST": "192.168.1.200",
+        "SSH_USER": "pi",
+        "SSH_PASSWORD": "ohs"
+      }
+    },
+    "ssh-gandalf": {
+      "command": "mcp-server-ssh",
+      "args": [],
+      "env": {
+        "SSH_HOST": "192.168.1.3",
+        "SSH_USER": "gandalf",
+        "SSH_PASSWORD": "5309"
+      }
+    }
+  },
+  "preferences": {
+    "chromeExtension": {
+      "pairedDeviceId": "9fa8168f-3ecc-4a85-ab41-1d537ec17812",
+      "pairedDeviceName": "desktopsuper"
+    },
+    "coworkScheduledTasksEnabled": true,
+    "ccdScheduledTasksEnabled": true,
+    "sidebarMode": "chat",
+    "bypassPermissionsModeEnabled": true,
+    "coworkWebSearchEnabled": true,
+    "coworkOnboardingResumeStep": null
+  }
+}
