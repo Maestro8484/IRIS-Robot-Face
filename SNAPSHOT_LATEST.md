@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S42 | **Date:** 2026-04-26 | **Branch:** `main` | **Last commit:** (pending S42 commit)
+**Session:** S43 | **Date:** 2026-04-27 | **Branch:** `main` | **Last commit:** 39247b4 fix: extend spoken_numbers() to handle thousands/millions for TTS
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -12,9 +12,9 @@
 | System | Status |
 |---|---|
 | SuperMaster Desktop | Canonical local repo. Claude Desktop, filesystem MCP, SSH MCP active. |
-| Pi4 192.168.1.200 | Operational. assistant.py running. Production wakeword: hey_jarvis. |
-| GandalfAI 192.168.1.3 | Operational. Kokoro TTS (Docker, port 8004). Ollama gemma3:27b-it-qat. |
-| Teensy 4.1 | Operational. All displays working. Eye movement suspended during TTS (S36, deployed). |
+| Pi4 192.168.1.200 | Operational. assistant.py + intent_router.py deployed, persisted, verified. |
+| GandalfAI 192.168.1.3 | Operational. iris model rebuilt with Batch 3-F modelfile (NEVER say block live). |
+| Teensy 4.1 | Operational. Eye movement suspended during TTS (S36). |
 | TTS | Kokoro primary (Docker, GandalfAI port 8004), Piper fallback (Wyoming port 10200). |
 | Web UI | Operational. Bench tab live. |
 
@@ -22,7 +22,9 @@
 
 ## Active Issues
 
-- **MED: Piper sleep routing** — local `/usr/local/bin/piper` broken. Sleep wakeword greeting should route through Wyoming Piper on GandalfAI:10200 (Batch 1C). LOW-LOW priority — Kokoro is primary TTS.
+- **HIGH: "stop" single-word STT failure** — Whisper hallucinates on short single-word utterances. "stop" → transcribed as "What are you doing?" Router classified correctly; STT is the failure point. Needs either (a) pre-STT RMS interrupt shortcut for very short post-wakeword audio or (b) local fast STT fallback for <2-word utterances.
+- **MED: LLM personality inconsistency** — Second insult-response in Loop 3 was gemma boilerplate. Root cause: GandalfAI model was stale (multiple batches behind). Model rebuilt S42. Re-test before adding persona work. **Standing rule: any LLM drift = check GandalfAI sync first** (`ollama show iris --modelfile` vs repo). See memory: project_gandalf_modelfile_sync.md.
+- **MED: Piper sleep routing** — local `/usr/local/bin/piper` broken. Sleep wakeword greeting routes through Wyoming Piper on GandalfAI:10200. LOW-LOW priority.
 - **MED: Volume persistence** — SPEAKER_VOLUME may reset on reboot (Batch 1C).
 - **LOW: root-level stale sleep log** — /home/pi/iris_sleep.log may duplicate /home/pi/logs/iris_sleep.log.
 
@@ -30,21 +32,7 @@
 
 ## Session Scope
 
-S42: Batch 3-F — Pre-LLM intent router. CLOSED. Loop 1 (17/17), Loop 2 (10/10), Loop 3 (4/5 — see notes) all passed. GandalfAI iris model rebuilt with all Batch 3-D/E/F changes. Feature doc at `docs/intent-router.md`.
-
-Loop 3 notes: "stop" as a standalone STT input was misrecognized by Whisper as "What are you doing?" — router classified the received transcript correctly (LLM). Short single-word utterances are a known Whisper weakness; not a router bug. All other routes (REFLEX/SLEEP, UTILITY/TIME, UTILITY/MATH, LLM) passed cleanly. STT latency (wakeword→Whisper ~2-3s) is now the visible bottleneck for utility routes — router eliminates LLM time but not STT time.
-
----
-
-## Bench / Eval Tooling
-
-**IRIS-Bench** — `C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Bench`
-
-Standalone LLM/STT/TTS evaluation harness built via ChatGPT+Claude MAD loop process (not a Claude-only artifact). Not part of the IRIS-Robot-Face PlatformIO project. Not currently version-controlled.
-
-Contents: `run_bench.py`, `iris_bench/` (package), `prompts/`, `results/`, `audio/`, `modelfiles-drafts/`, `config.example.json`, `README.md`
-
-Status: Active. Results stored locally. Separate repo recommended when ready to version-control.
+S43: TTS number verbalization fix — `spoken_numbers()` extended to handle thousands/millions. Deployed to Pi4. GandalfAI sync documented as standing operational hazard.
 
 ---
 
@@ -57,39 +45,24 @@ Status: Active. Results stored locally. Separate repo recommended when ready to 
 
 ---
 
-## Last Session Changes (S42)
+## Last Session Changes (S43)
 
-- **Batch 3-F** — `pi4/core/intent_router.py` created. 5-layer intent classifier: REFLEX, COMMAND, UTILITY, AMBIGUOUS, LLM. Fail-open (exception in classify() falls through to LLM). Rotating 7-day intent log at `/home/pi/logs/iris_intent.log`.
-- **assistant.py** — Single `router.classify()` gate replaces all scattered inline checks: STOP_PHRASES, EYES_SLEEP/WAKE_TRIGGERS, handle_kids_mode_command, handle_time_command, is_vision_trigger, handle_volume_command. Follow-up loop unchanged.
-- **iris_modelfile.txt** — 5-line NEVER say block added (LLM identity guardrail).
-- **tests/test_intent_router.py** — 17-case offline unit tests (Loop 1). All pass.
-- **tests/test_integration_smoke.py** — Loop 2 integration smoke (mocked hardware). All pass.
-- **docs/intent-router.md** — Feature guide committed with implementation.
-- **Loop 3 complete** — 4/5 pass. "stop" Whisper misrecognition is pre-existing STT limitation, not a router bug. All other routes verified in live log.
-- **GandalfAI model rebuilt** — `ollama create iris` run with Batch 3-D/E/F modelfile. `NEVER say` block confirmed live.
+- **`pi4/services/tts.py`** — `spoken_numbers()` / `_int_to_words()` extended to handle thousands (< 1M) and millions (< 1B). Removed `<= 999` bailout in catch-all regex. "4210" → "four thousand two hundred ten". Deployed + persisted to Pi4 (md5 verified).
+- **Standing rule documented** — LLM personality drift = GandalfAI model stale. Always run `ollama show iris --modelfile` on GandalfAI and compare to repo before adding persona fixes. Three-way desync: SuperMaster / GitHub / GandalfAI running model. Memory updated: `project_gandalf_modelfile_sync.md`.
 
-## Previous Session Changes (S41)
+## Previous Session Changes (S42)
 
-- **ElevenLabs scrub** — All live doc and config refs removed. README, IRIS_ARCH, IRIS_CONFIG_MAP, SNAPSHOT updated. No code references existed (removed ~S20).
-- **MAX7219 retire** — `src/mouth.h` deleted (dead file, not included in main.cpp since ILI9341 TFT replaced MAX7219). All stale MAX7219/bit-bang refs in docs updated to ILI9341 TFT.
-- **Credential redaction** — IRIS_ARCH.md machine table, WAKEWORD_TRAINING_HANDOFF.md: passwords replaced with `<password>`. tools/iris_dashboard/app.py: PI4_PASS now reads from `os.environ.get("PI4_PASS", "ohs")`.
-- **snapshots/ untracked** — Added to .gitignore, removed from git tracking. Historical archives with stale credentials no longer in public HEAD.
-- **Config cleanup** — pi4/core/config.py: Chatterbox section marked rollback-only, TTS_MAX_CHARS comment updated, MOUTH_INTENSITY comment updated to ILI9341 TFT.
-- **IRIS_CONFIG_MAP** — Kokoro TTS section added as primary. Chatterbox moved to rollback. MAX7219 heading → ILI9341 TFT. ELEVENLABS_ENABLED entry updated to "Removed S20".
-- **docs/tts-history.md** — Created: full Phase 1–4 TTS evolution narrative.
-- **ollama/README.md** — Created: modelfile inventory and rebuild commands.
-- **Task 3 pending** — GandalfAI offline during session. Modelfile sync (local ollama/ vs GandalfAI live files) deferred to next session.
-
-## Previous Session Changes (S40)
-
-- **Camera fix** — Pi4 camera binary confirmed as `rpicam-still`. `/tmp/iris_test.py` line 66 updated. Vision smoke test passed.
-- **Batch 3-E** — `ollama/iris_modelfile.txt`: VISION block added (character voice, household recognition, text reading, editorial beat).
+- `pi4/core/intent_router.py` — NEW. 5-layer REFLEX/COMMAND/UTILITY/AMBIGUOUS/LLM classifier. Fail-open on exception.
+- `pi4/assistant.py` — single `router.classify()` gate replaces all scattered inline checks.
+- `ollama/iris_modelfile.txt` — NEVER say forbidden phrase block appended to SYSTEM.
+- GandalfAI — `git pull` + `ollama create iris` run. Loop 3: 4/5 pass live.
 
 ---
 
 ## Known TODO
 
-- **Task 3 deferred** — Verify GandalfAI live modelfiles match local `ollama/iris_modelfile.txt` and `ollama/iris-kids_modelfile.txt`. Do when GandalfAI is online.
-- **Batch 1C:** Piper sleep routing (LOW-LOW), volume persistence.
+- **NEXT — stop shortcut**: investigate pre-STT intercept for very short RMS bursts post-wakeword (< 0.5s audio = likely a single command word). Route directly without Whisper for known short-command RMS signatures, OR add "stop" and close variants to a local keyword list checked before STT.
+- **LLM personality re-test:** Say an insult; confirm IRIS responds in character. If boilerplate, check GandalfAI sync before any persona changes.
+- **Batch 1C:** Volume persistence, Piper sleep routing (LOW-LOW).
 - **Batch 2:** Teensy hardware/firmware pass — only after Pi runtime stable.
-- **Batch 3:** Vision prompts done (3-E). Inference settings review remaining.
+- **Batch 3 remaining:** Inference settings review.
