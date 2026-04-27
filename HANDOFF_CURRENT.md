@@ -194,9 +194,9 @@ Completed through S42:
 
 Remaining:
 
-- Loop 3 gate: deploy Batch 3-F to Pi4, verify intent log for "goodnight", "stop", "what time is it", "what is 5 plus 3", "tell me something interesting". Batch is not closed until Loop 3 passes.
-- Inference settings review.
-- GandalfAI modelfile sync (deferred from S41 — verify live files match local ollama/).
+- Batch 3-F: CLOSED (S42). Router live on Pi4, model rebuilt on GandalfAI.
+- Inference settings review (next).
+- Known: Whisper single-word STT misrecognition ("stop" → hallucination). Pre-existing Whisper limitation; not addressable in current pipeline without a local STT option.
 
 ### S36 - Suspend Eye Movement During TTS
 

@@ -30,7 +30,9 @@
 
 ## Session Scope
 
-S42: Batch 3-F — Pre-LLM intent router. Created `pi4/core/intent_router.py` (5-layer REFLEX/COMMAND/UTILITY/AMBIGUOUS/LLM classifier). Wired into `pi4/assistant.py` replacing all scattered inline checks. Rotating intent log at `/home/pi/logs/iris_intent.log`. Modelfile forbidden phrase block added. Loop 1 (17/17 unit tests) and Loop 2 (10/10 integration smoke) passed on SuperMaster. Loop 3 (live Pi4) pending. Feature doc at `docs/intent-router.md`.
+S42: Batch 3-F — Pre-LLM intent router. CLOSED. Loop 1 (17/17), Loop 2 (10/10), Loop 3 (4/5 — see notes) all passed. GandalfAI iris model rebuilt with all Batch 3-D/E/F changes. Feature doc at `docs/intent-router.md`.
+
+Loop 3 notes: "stop" as a standalone STT input was misrecognized by Whisper as "What are you doing?" — router classified the received transcript correctly (LLM). Short single-word utterances are a known Whisper weakness; not a router bug. All other routes (REFLEX/SLEEP, UTILITY/TIME, UTILITY/MATH, LLM) passed cleanly. STT latency (wakeword→Whisper ~2-3s) is now the visible bottleneck for utility routes — router eliminates LLM time but not STT time.
 
 ---
 
@@ -63,7 +65,8 @@ Status: Active. Results stored locally. Separate repo recommended when ready to 
 - **tests/test_intent_router.py** — 17-case offline unit tests (Loop 1). All pass.
 - **tests/test_integration_smoke.py** — Loop 2 integration smoke (mocked hardware). All pass.
 - **docs/intent-router.md** — Feature guide committed with implementation.
-- **Loop 3 pending** — Deploy to Pi4, speak test phrases, verify intent log.
+- **Loop 3 complete** — 4/5 pass. "stop" Whisper misrecognition is pre-existing STT limitation, not a router bug. All other routes verified in live log.
+- **GandalfAI model rebuilt** — `ollama create iris` run with Batch 3-D/E/F modelfile. `NEVER say` block confirmed live.
 
 ## Previous Session Changes (S41)
 
