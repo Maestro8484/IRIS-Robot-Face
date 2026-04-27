@@ -103,6 +103,16 @@ def spoken_numbers(text: str) -> str:
         if n < 1000:
             rest = (" " + _int_to_words(n % 100)) if n % 100 else ""
             return _ONES[n // 100] + " hundred" + rest
+        if n < 1_000_000:
+            thousands = n // 1000
+            remainder = n % 1000
+            rest = (" " + _int_to_words(remainder)) if remainder else ""
+            return _int_to_words(thousands) + " thousand" + rest
+        if n < 1_000_000_000:
+            millions = n // 1_000_000
+            remainder = n % 1_000_000
+            rest = (" " + _int_to_words(remainder)) if remainder else ""
+            return _int_to_words(millions) + " million" + rest
         return str(n)
 
     text = re.sub(r'(\d+)\s*[°º]?F\b',
@@ -113,7 +123,7 @@ def spoken_numbers(text: str) -> str:
     text = re.sub(r'(\d+)\s*%',
                   lambda m: _int_to_words(int(m.group(1))) + " percent", text)
     text = re.sub(r'\b(\d+)\b',
-                  lambda m: _int_to_words(int(m.group(1))) if int(m.group(1)) <= 999 else m.group(0),
+                  lambda m: _int_to_words(int(m.group(1))),
                   text)
     return text
 
