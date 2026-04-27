@@ -39,10 +39,16 @@ from `iris_config.json`. The web UI reads and writes `iris_config.json` only.
 > read-only on the Wake Word tab. Changing it requires a wyoming-openwakeword restart
 > (not wired to the UI save — must be done via assistant restart).
 
-### Voice / TTS — Chatterbox (Primary)
+### Voice / TTS — Kokoro (Primary, since S38)
 | Key | Type | Range | Default | Web UI Tab | Feature |
 |---|---|---|---|---|---|
-| CHATTERBOX_ENABLED | bool | — | true | Voice | Use Chatterbox. False falls through to Piper. |
+| KOKORO_ENABLED | bool | — | true | Voice | Use Kokoro. False falls through to Piper. |
+| KOKORO_VOICE | string | — | bm_lewis | Voice | Kokoro preset voice. bm_lewis=primary British male; blend: bm_lewis:0.7+bm_george:0.3 |
+
+### Voice / TTS — Chatterbox (Rollback only — replaced by Kokoro S38)
+| Key | Type | Range | Default | Web UI Tab | Feature |
+|---|---|---|---|---|---|
+| CHATTERBOX_ENABLED | bool | — | true | Voice | Enable Chatterbox (restore_chatterbox.ps1 to reactivate). |
 | CHATTERBOX_VOICE | string | — | iris_voice.wav | Voice | Reference audio file for voice cloning (GandalfAI:8004/voices/) |
 | CHATTERBOX_EXAGGERATION | float | 0.0–2.0 | 0.45 | Voice | Vocal expression intensity. 0=flat, 0.45=dry wit, 1.0=dramatic. |
 
@@ -72,11 +78,11 @@ Tier selection is automatic based on question complexity.
 | OLLAMA_MODEL_ADULT | string | — | iris | Gandalf AI | Ollama model name used in adult mode |
 | OLLAMA_MODEL_KIDS | string | — | iris-kids | Gandalf AI | Ollama model name used in kids mode |
 
-### Sleep / Display — Mouth (MAX7219)
+### Sleep / Display — Mouth (ILI9341 TFT)
 | Key | Type | Range | Default | Web UI Tab | Feature |
 |---|---|---|---|---|---|
-| MOUTH_INTENSITY_AWAKE | int | 0–15 | 8 | Sleep | MAX7219 backlight when IRIS is active |
-| MOUTH_INTENSITY_SLEEP | int | 0–15 | 1 | Sleep | MAX7219 backlight when IRIS is sleeping |
+| MOUTH_INTENSITY_AWAKE | int | 0–15 | 8 | Sleep | TFT brightness when IRIS is active |
+| MOUTH_INTENSITY_SLEEP | int | 0–15 | 1 | Sleep | TFT brightness when IRIS is sleeping |
 
 ### Sleep / Display — LEDs (APA102, Sleep)
 | Key | Type | Range | Default | Web UI Tab | Feature |
@@ -131,11 +137,11 @@ These require a code edit + deploy to change. Not exposed in the web UI.
 
 ---
 
-## GandalfAI — `C:\IRIS\chatterbox\config.yaml`
+## GandalfAI — `C:\IRIS\chatterbox\config.yaml` (Rollback reference only)
 
-These are **Chatterbox server defaults** for the Chatterbox Web UI (port 8004).
-IRIS pipeline does not use these directly — IRIS sends per-request parameters
-via `CHATTERBOX_EXAGGERATION` from iris_config.json.
+These are **Chatterbox server defaults**. Chatterbox was replaced by Kokoro S38.
+Kept here as rollback reference. IRIS does not send requests to Chatterbox unless
+`restore_chatterbox.ps1` is run and CHATTERBOX_ENABLED is set.
 
 | Key | Value | Feature |
 |---|---|---|
@@ -196,7 +202,7 @@ Launched by `assistant.py`. Config split between iris_config.json and launch arg
 | Key | Location | Status |
 |---|---|---|
 | MOUTH_INTENSITY | iris_config.json (live) | Dead key — not in _OVERRIDABLE. Replace with MOUTH_INTENSITY_AWAKE/SLEEP via web UI save + persist. |
-| ELEVENLABS_ENABLED | iris_config.json (live) | Ignored — ElevenLabs not implemented. Safe to remove manually. |
+| ELEVENLABS_ENABLED | iris_config.json (live) | Removed — ElevenLabs dropped S20. Delete from iris_config.json if present. |
 | NUM_PREDICT | iris_config.json (if set) | Legacy. Superseded by tier system (SHORT/MEDIUM/LONG/MAX). Still applied as fallback if tier logic skips. |
 
 ---

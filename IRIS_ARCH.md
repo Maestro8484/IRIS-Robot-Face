@@ -203,15 +203,15 @@ On both rebooting simultaneously: GandalfAI must be up before assistant.py finis
 
 | System | IP | Credentials | Role |
 |---|---|---|---|
-| Pi4 (IRIS) | 192.168.1.200 | pi / ohs | Voice pipeline, LEDs, camera, Teensy serial |
-| GandalfAI | 192.168.1.3 | gandalf / 5309 | Ollama LLM, Whisper STT, Piper TTS, Chatterbox TTS, RTX 3090 |
-| Desktop PC | 192.168.1.103 | SuperMaster / ohs | PlatformIO firmware, VS Code, Claude Desktop. OpenSSH server enabled S29 - Claude can ssh_exec PowerShell commands and run git directly. |
+| Pi4 (IRIS) | 192.168.1.200 | pi / &lt;password&gt; | Voice pipeline, LEDs, camera, Teensy serial |
+| GandalfAI | 192.168.1.3 | gandalf / &lt;password&gt; | Ollama LLM, Whisper STT, Piper TTS, Kokoro TTS, RTX 3090 |
+| Desktop PC | 192.168.1.103 | SuperMaster / &lt;password&gt; | PlatformIO firmware, VS Code, Claude Desktop. OpenSSH server enabled S29 - Claude can ssh_exec PowerShell commands and run git directly. |
 | Teensy 4.1 | USB -> Desktop PC | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
-| Synology NAS | 192.168.1.102 | Master / Gateway!7007 | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
+| Synology NAS | 192.168.1.102 | Master / &lt;password&gt; | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
-**SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (SuperMaster 192.168.1.103, PowerShell). NAS SSH: port 2233, credentials Master/Gateway!7007 - connect via ssh MCP with explicit host override.
+**SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (SuperMaster 192.168.1.103, PowerShell). NAS SSH: port 2233 - connect via ssh MCP with explicit host override. Credentials in CLAUDE.md (user-level, not committed).
 **SSH auth Pi4:** Password auth only - key auth fails.
-**SSH auth GandalfAI:** `gandalf / 5309`
+**SSH auth GandalfAI:** see CLAUDE.md
 **GandalfAI:** Windows machine. No `df`, `head`, `grep` - use PowerShell / findstr / dir equivalents.
 **GandalfAI MCP scope:** filesystem MCP only covers `C:\Users\gandalf\`. All `C:\IRIS\`, `C:\docker\` via SSH sftp_write or ssh_exec.
 
@@ -390,7 +390,7 @@ LED_SLEEP_BRIGHT        = 0xFF
 { "OWW_THRESHOLD": 0.9, "CHATTERBOX_ENABLED": true, "NUM_PREDICT": 120 }
 ```
 
-Note: `ELEVENLABS_ENABLED` key may still exist - config loader silently ignores unknown keys.
+Note: `ELEVENLABS_ENABLED` was removed in S20 — if present in iris_config.json it is silently ignored and safe to delete.
 
 ### src/main.cpp key constants
 
@@ -560,7 +560,7 @@ curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris\",\"prompt\":\
 
 ### Pi4 - iris_config.json Override Behavior
 - Keys are only applied at runtime if they appear in `core/config.py`'s `_OVERRIDABLE` list.
-- Unknown keys (e.g. `ELEVENLABS_ENABLED`) are silently ignored -- no error, no effect.
+- Unknown keys are silently ignored -- no error, no effect. (`ELEVENLABS_ENABLED` was a legacy key removed S20.)
 
 ### Ollama - Model Name History
 - Models were renamed from `jarvis` / `jarvis-kids` (mistral-small3.2:24b) to `iris` / `iris-kids` (gemma3:12b) between S18-S22B.

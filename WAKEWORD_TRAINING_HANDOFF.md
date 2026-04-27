@@ -35,7 +35,7 @@ Claude Code does not expose token counts or cost to the running agent. To get ex
 - No Pi4 changes. No GitHub push. No IRIS config changes.
 
 ## Goal
-Produce `C:\IRIS\wakewords\hey_der_iris.onnx` and `real_quick_iris.onnx` on GandalfAI (192.168.1.3, gandalf/5309, Windows/PowerShell). Both files must be >50 KB. Do not touch Pi4, `config.py`, `wakeword.py`, or `assistant.py`. Do not push to GitHub.
+Produce `C:\IRIS\wakewords\hey_der_iris.onnx` and `real_quick_iris.onnx` on GandalfAI (192.168.1.3, gandalf/&lt;password&gt;, Windows/PowerShell). Both files must be >50 KB. Do not touch Pi4, `config.py`, `wakeword.py`, or `assistant.py`. Do not push to GitHub.
 
 ## Current State
 - **All training samples are generated** (on GandalfAI):

@@ -1,7 +1,7 @@
 # IRIS — Local AI Robot Face
 
 > Fully local interactive AI robot face. Voice-activated, emotion-driven,
-> runs entirely on your LAN. No cloud required except optional ElevenLabs TTS.
+> runs entirely on your LAN. No cloud services required.
 
 ---
 
@@ -31,9 +31,9 @@ per session. Camera input for visual Q&A. Deep space sleep display at night.
 | Wake word | `hey_jarvis` via OpenWakeWord |
 | Speech-to-text | Wyoming Whisper (GPU-accelerated, RTX 3090) |
 | LLM | Ollama `gemma3:27b` -- fully local, no data leaves LAN |
-| TTS | ElevenLabs Starter + Piper local fallback |
+| TTS | Kokoro (GandalfAI, local) → Piper fallback |
 | Eyes | Dual 1.28" round GC9A01A TFTs, 9 eye styles, Teensy 4.0 |
-| Mouth | MAX7219 32x8 LED matrix, 9 expressions + snore animation |
+| Mouth | ILI9341 2.8" TFT, 9 expressions + snore animation |
 | Emotion system | LLM tags drive eyes, mouth, and LEDs simultaneously |
 | Face tracking | I2C Person Sensor -- eyes follow detected faces |
 | Vision | Camera snapshot sent to LLM for visual Q&A |
@@ -50,10 +50,10 @@ per session. Camera input for visual Q&A. Deep space sleep display at night.
 | Component | Details |
 |---|---|
 | Raspberry Pi 4 | Voice pipeline, LEDs, camera, Teensy serial bridge |
-| Teensy 4.0 | Dual GC9A01A eyes + MAX7219 mouth matrix |
+| Teensy 4.1 | Dual GC9A01A eyes + ILI9341 2.8" TFT mouth |
 | ReSpeaker 2-Mic Pi HAT | Dual mic, WM8960 codec, 3x APA102 LEDs |
 | GC9A01A displays x2 | 1.28" round 240x240 TFT -- animated eyes |
-| MAX7219 32x8 LED matrix | 4-module chained mouth display |
+| ILI9341 2.8" TFT | SPI mouth display (Arduino_GFX SWSPI) |
 | APA102 LEDs x3 | Emotion status indicator |
 | Person Sensor (I2C) | Face detection and tracking |
 | Arducam IMX708 | Vision input for camera queries |
@@ -86,11 +86,11 @@ largest detected face, auto-wander when no face present.
 
 ---
 
-## Mouth Matrix
+## Mouth Display
 
-MAX7219 32x8 LED matrix (4-module chained PCB) driven by Teensy 4.0 via
-bit-bang SPI (pins 5/6/7). 9 static expression bitmaps mapped to the emotion
-system, plus a slow animated snore pattern during sleep mode.
+ILI9341 2.8" TFT driven by Teensy 4.1 via software SPI (Arduino_GFX SWSPI,
+pins 5/6/7). 9 static expression bitmaps mapped to the emotion system, plus
+a slow animated snore pattern during sleep mode.
 
 | Index | Expression | Emotion |
 |---|---|---|
@@ -113,7 +113,7 @@ before TTS and uses it to simultaneously drive:
 
 - Teensy eye parameters (pupil ratio, blink, gaze speed)
 - Teensy eye swap (flame for ANGRY, hypnoRed for CONFUSED)
-- MAX7219 mouth expression
+- TFT mouth expression
 - APA102 LED color and breathing animation
 
 | Emotion | Eyes | LED | Mouth |
@@ -131,14 +131,14 @@ before TTS and uses it to simultaneously drive:
 
 ## LLM Models
 
-Two Ollama modelfiles in `/ollama/`, both running `gemma3:27b`:
+Two Ollama modelfiles in `/ollama/`, both running `gemma3:27b-it-qat`:
 
-**`jarvis` (adult mode)**
+**`iris` (adult mode)**
 Snarky British personality. Concise spoken answers, 3 sentences max, no
 markdown. Reciprocal conversational tone. Emits `[EMOTION:X]` tags. Real-time
 date/time injected as system message on every call.
 
-**`jarvis-kids` (kids mode)**
+**`iris-kids` (kids mode)**
 Encouraging, patient, age-appropriate vocabulary. Reciprocal and engaging for
 children. Extended recording/silence thresholds (14s record, 3.5s silence).
 APA102 shows yellow breathe while active.
@@ -154,7 +154,7 @@ Context history clears on mode switch.
 - Both TFT displays render a deep space scene: crescent moon with slow drift,
   3-depth star field with twinkling, nebula color washes, expanding pulse rings,
   shooting stars, drifting ZZZ chain
-- MAX7219 mouth plays 12s snore animation at minimum brightness
+- TFT mouth plays 12s snore animation at minimum brightness
   (inhale -- flat line brightens, hold, exhale -- sine wave rolls left to right)
 - APA102 breathes dim indigo
 - Wakeword listener stays active -- `hey_jarvis` wakes GandalfAI via
@@ -170,9 +170,9 @@ hey_jarvis  (OpenWakeWord, port 10400)
   → Wake-on-LAN to GandalfAI if sleeping  (MAC: A4:BB:6D:CA:83:20)
   → Wyoming Whisper STT  (port 10300)
   → Person Sensor recognition  (background thread, cooldown 300s)
-  → Ollama gemma3:27b  (port 11434) -- jarvis or jarvis-kids
+  → Ollama gemma3:27b-it-qat  (port 11434) -- iris or iris-kids
   → Strip [EMOTION:X]  → drive eyes + mouth + LEDs simultaneously
-  → ElevenLabs TTS (Starter tier)  /  Piper fallback
+  → Kokoro TTS (GandalfAI, port 8004)  /  Piper fallback (port 10200)
   → play_pcm() 3x gain → wm8960 HAT → PAM8403 → 2x 3W speakers
 ```
 
@@ -210,7 +210,6 @@ Flask UI at `http://192.168.1.200:5000`:
 - Eye switcher (all 9 styles, live preview on hardware)
 - Emotion tester (fires both EMOTION:x and MOUTH:x simultaneously)
 - Mouth matrix expression tester (independent from emotion system)
-- ElevenLabs voice browser (audition and swap voices live)
 - Live assistant log tail
 - Chat interface (text input to LLM with optional spoken response)
 - Config editor (model names, thresholds, voice ID)
@@ -243,8 +242,8 @@ bigBlue (genall.py resets values from config.eye):
 
 **Rebuild Ollama models** (on GandalfAI after editing `/ollama/`):
 ```powershell
-ollama create jarvis -f "C:\Users\gandalf\jarvis_modelfile.txt"
-ollama create jarvis-kids -f "C:\Users\gandalf\jarvis-kids_modelfile.txt"
+ollama create iris -f "C:\Users\gandalf\iris_modelfile.txt"
+ollama create iris-kids -f "C:\Users\gandalf\iris-kids_modelfile.txt"
 ```
 
 ---

@@ -22,7 +22,7 @@ OLLAMA_MODEL_KIDS  = "iris-kids"
 WAKE_WORD      = "hey_jarvis"
 PIPER_VOICE    = "en_US-ryan-high"
 
-# ── Chatterbox TTS ────────────────────────────────────────────────────────────
+# ── Chatterbox TTS (rollback only — Kokoro is primary since S38) ──────────────
 CHATTERBOX_BASE_URL     = "http://192.168.1.3:8004"
 CHATTERBOX_VOICE        = "iris_voice.wav"
 CHATTERBOX_EXAGGERATION = 0.45
@@ -83,7 +83,7 @@ NUM_PREDICT_MEDIUM    = 350   # explanations, multi-step answers
 NUM_PREDICT_LONG      = 700   # stories, detailed how-to, lists, comparisons
 NUM_PREDICT_MAX       = 1200  # "tell me everything about", essays, code
 # ── TTS ───────────────────────────────────────────────────────────────────────
-TTS_MAX_CHARS         = 900   # Chatterbox hard-cap; ~5-8 spoken sentences
+TTS_MAX_CHARS         = 900   # TTS hard-cap; ~5-8 spoken sentences
 CONVERSATION_LOG      = "/home/pi/logs/conversations.jsonl"
 
 # ── Camera / Vision ───────────────────────────────────────────────────────────
@@ -139,8 +139,8 @@ WOL_POLL_INTERVAL = 5
 OWW_THRESHOLD  = 0.90
 OWW_DRAIN_SECS = 0.15   # audio drained after wakeword before recording starts
 
-# ── Mouth MAX7219 intensity ───────────────────────────────────────────────────
-MOUTH_INTENSITY_AWAKE = 8   # MAX7219 register 0x0A, range 0-15
+# ── Mouth TFT brightness ─────────────────────────────────────────────────────
+MOUTH_INTENSITY_AWAKE = 8   # ILI9341 TFT brightness, range 0-15
 MOUTH_INTENSITY_SLEEP = 1
 
 # ── Emotion ───────────────────────────────────────────────────────────────────

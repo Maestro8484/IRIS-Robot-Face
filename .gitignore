@@ -36,11 +36,13 @@ cmake-*
 __pycache__/
 *.pyc
 *.pyo
-# Snapshots (contain credentials in code blocks)
+# Snapshots (historical archives, contain credentials in code blocks)
+snapshots/
 # Local config files with credentials
 claude_desktop_config_UPDATED.json
 .env
 config.json
+iris_config.json
 iris_voice.wav
 
 # Generated runtime state — not committed

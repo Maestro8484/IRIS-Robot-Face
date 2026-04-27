@@ -1,5 +1,5 @@
 
-import json, threading, time, socket
+import json, threading, time, socket, os
 from datetime import datetime
 import paramiko
 import requests
@@ -10,7 +10,7 @@ app = Flask(__name__)
 PROMETHEUS = "http://localhost:9090"
 PI4_IP = "192.168.1.200"
 PI4_USER = "pi"
-PI4_PASS = "ohs"
+PI4_PASS = os.environ.get("PI4_PASS", "ohs")
 
 
 def prom_query(query):
