@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import logging.handlers
 import os
+import random
 import re
 import time
 from dataclasses import dataclass
@@ -139,6 +140,26 @@ except ImportError:
 _TIME_RE = re.compile(r"what time|what'?s the time|current time|tell me the time|time is it|what hour")
 _DATE_RE = re.compile(r"what day|what date|what'?s the date|today'?s date|what month|what year|day is it|date is it")
 
+# Random number request patterns
+_RANDOM_RE = re.compile(
+    r"\b(pick|choose|give|tell|generate|select|get)\b.{0,30}\brandom\s+(number|integer|digit|num)\b"
+    r"|\brandom\s+(number|integer|digit)\b"
+    r"|\bpick\s+a\s+number\b|\bgive\s+me\s+a\s+number\b"
+)
+_RANDOM_RANGE_RE = re.compile(r"\b(?:between|from)\s+([\d,]+)\s+(?:and|to)\s+([\d,]+)\b")
+
+
+def _random_number_reply(norm: str) -> str:
+    m = _RANDOM_RANGE_RE.search(norm)
+    if m:
+        lo = int(m.group(1).replace(",", ""))
+        hi = int(m.group(2).replace(",", ""))
+        if lo > hi:
+            lo, hi = hi, lo
+        return f"{random.randint(lo, hi)}."
+    return f"{random.randint(1, 100)}."
+
+
 _MATH_PREFIXES = ("what is ", "what's ", "calculate ", "compute ", "solve ", "evaluate ")
 _MATH_WORD_OPS = [
     ("multiplied by", "*"), ("divided by", "/"), ("times", "*"),
@@ -260,6 +281,11 @@ class IntentRouter:
 
     # ── Layer 2 ───────────────────────────────────────────────────────────────
     def _layer2_utility(self, norm: str) -> Optional[IntentResult]:
+        if _RANDOM_RE.search(norm):
+            return IntentResult(
+                ROUTE_UTILITY, "RANDOM_NUMBER", CONF_HIGH,
+                response=_random_number_reply(norm),
+            )
         # Vision before time/date to avoid false matches on "what is this"
         if _VISION_TRIGGERS and any(t in norm for t in _VISION_TRIGGERS):
             return IntentResult(ROUTE_UTILITY, "VISION", CONF_HIGH)

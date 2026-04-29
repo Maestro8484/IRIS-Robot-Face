@@ -137,11 +137,20 @@ def api_wake():
 def api_logs():
     try:
         out = subprocess.check_output(
-            ["journalctl","-u","assistant","-u","iris-web","-n","150","--no-pager","--output=short-iso"],
+            ["journalctl","-u","assistant","-u","iris-web","-n","200","--no-pager","--output=short-iso"],
             text=True, stderr=subprocess.DEVNULL)
-        lines = [l for l in out.strip().splitlines() if l][-120:]
-        return jsonify(lines=lines)
-    except Exception as e: return jsonify(lines=[f"[ERR] {e}"])
+        lines = [l for l in out.strip().splitlines() if l][-150:]
+    except Exception as e:
+        lines = [f"[ERR] journalctl: {e}"]
+    # Append recent intent routing log so the web UI shows route decisions
+    try:
+        with open("/home/pi/logs/iris_intent.log", encoding="utf-8") as f:
+            intent_lines = [l.rstrip() for l in f.readlines()[-40:]]
+        if intent_lines:
+            lines += ["", "── INTENT LOG ──────────────────────────────────────"] + intent_lines
+    except Exception:
+        pass
+    return jsonify(lines=lines)
 
 
 _KOKORO_FALLBACK_VOICES = [

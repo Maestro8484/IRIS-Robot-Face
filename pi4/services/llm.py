@@ -176,6 +176,8 @@ _SHORT_PATTERNS = (
     "turn on", "turn off", "set volume", "volume up", "volume down",
     "what's the weather", "what is the weather",
     "remind me", "set a timer", "set timer",
+    "random number", "pick a random", "tell me a random", "give me a random",
+    "choose a random", "generate a random", "pick a number", "give me a number",
 )
 
 # Patterns that signal a long response is appropriate
