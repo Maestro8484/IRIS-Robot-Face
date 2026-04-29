@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S43 | **Date:** 2026-04-27 | **Branch:** `main` | **Last commit:** 39247b4 fix: extend spoken_numbers() to handle thousands/millions for TTS
+**Session:** S44 | **Date:** 2026-04-28 | **Branch:** `main` | **Last commit:** 35d01ba S44: fix intent router RANDOM_NUMBER, follow-up short-reply filter, web UI logs
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -12,11 +12,11 @@
 | System | Status |
 |---|---|
 | SuperMaster Desktop | Canonical local repo. Claude Desktop, filesystem MCP, SSH MCP active. |
-| Pi4 192.168.1.200 | Operational. assistant.py + intent_router.py deployed, persisted, verified. |
+| Pi4 192.168.1.200 | Operational. assistant.py + intent_router.py + iris_web.py deployed, persisted, verified. |
 | GandalfAI 192.168.1.3 | Operational. iris model rebuilt with Batch 3-F modelfile (NEVER say block live). |
 | Teensy 4.1 | Operational. Eye movement suspended during TTS (S36). |
 | TTS | Kokoro primary (Docker, GandalfAI port 8004), Piper fallback (Wyoming port 10200). |
-| Web UI | Operational. Bench tab live. |
+| Web UI | Operational. Bench tab live. Logs tab now shows intent routing decisions. |
 
 ---
 
@@ -32,7 +32,7 @@
 
 ## Session Scope
 
-S43: TTS number verbalization fix — `spoken_numbers()` extended to handle thousands/millions. Deployed to Pi4. GandalfAI sync documented as standing operational hazard.
+S44: Intent router + follow-up loop + web UI log fixes. Three bugs confirmed from live Pi4 logs and fixed.
 
 ---
 
@@ -45,7 +45,14 @@ S43: TTS number verbalization fix — `spoken_numbers()` extended to handle thou
 
 ---
 
-## Last Session Changes (S43)
+## Last Session Changes (S44)
+
+- **`pi4/core/intent_router.py`** — Added `RANDOM_NUMBER` utility handler (Layer 2). `_RANDOM_RE` catches "pick/tell/give/choose/generate a random number"; `_RANDOM_RANGE_RE` parses optional "between X and Y" range. Answer generated locally via `random.randint` — no LLM, no GandalfAI roundtrip. Deployed + persisted to Pi4 (md5 verified).
+- **`pi4/assistant.py`** — Follow-up loop `< 3 words` gate replaced with `_WHISPER_HALLUCINATIONS` set check. Brief valid user replies ("Yes, 54.", "Seven.", "No.") no longer silently dropped after IRIS asks a follow-up question.
+- **`pi4/services/llm.py`** — Added `"random number"`, `"pick a random"`, `"tell me a random"`, `"give me a random"`, `"choose a random"`, `"generate a random"`, `"pick a number"`, `"give me a number"` to `_SHORT_PATTERNS`. Ensures SHORT token tier if any variant bypasses the router.
+- **`pi4/iris_web.py`** — `/api/logs` now appends last 40 lines of `/home/pi/logs/iris_intent.log` below a separator. Web UI Logs tab shows intent route decisions (`intent=LLM|RANDOM_NUMBER|MATH etc.`) alongside journalctl. Line limit raised from 120 to 150.
+
+## Previous Session Changes (S43)
 
 - **`pi4/services/tts.py`** — `spoken_numbers()` / `_int_to_words()` extended to handle thousands (< 1M) and millions (< 1B). Removed `<= 999` bailout in catch-all regex. "4210" → "four thousand two hundred ten". Deployed + persisted to Pi4 (md5 verified).
 - **Standing rule documented** — LLM personality drift = GandalfAI model stale. Always run `ollama show iris --modelfile` on GandalfAI and compare to repo before adding persona fixes. Three-way desync: SuperMaster / GitHub / GandalfAI running model. Memory updated: `project_gandalf_modelfile_sync.md`.

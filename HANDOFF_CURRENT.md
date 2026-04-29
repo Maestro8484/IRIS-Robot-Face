@@ -181,6 +181,19 @@ Candidate scope:
 - ACK/NACK protocol only if justified.
 - Any Teensy 4.1 firmware changes must be separate from Pi Python runtime changes.
 
+### S44 - Intent Router + Follow-up Loop + Web UI Log Fixes
+
+Status:
+
+Complete (commit 35d01ba, 2026-04-28).
+
+Implemented:
+
+- `pi4/core/intent_router.py`: `RANDOM_NUMBER` utility handler added to Layer 2. Catches "pick/tell/give/choose/generate a random number" with optional "between X and Y" range. Answered locally via `random.randint` — zero LLM latency.
+- `pi4/assistant.py`: Follow-up loop `< 3 words` gate removed. Replaced with `_WHISPER_HALLUCINATIONS` set check. Brief valid replies ("Yes, 54.", "No.", "Seven.") now pass through correctly.
+- `pi4/services/llm.py`: Random-number phrases added to `_SHORT_PATTERNS` as LLM-path fallback tier.
+- `pi4/iris_web.py`: `/api/logs` appends last 40 lines of `iris_intent.log` so web UI Logs tab shows per-request routing decisions.
+
 ### Batch 3 - GandalfAI Personality/Pipeline Pass
 
 Completed through S42:
