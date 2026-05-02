@@ -165,7 +165,7 @@ Stored in Ollama's internal model registry. Edit via `ollama create iris -f Mode
 | Parameter | Current | VRAM constraint | Feature |
 |---|---|---|---|
 | System prompt | IRIS personality text | — | Tone, rules, persona, response style |
-| num_ctx | ≤4096 | Hard limit — RTX 3090 with Chatterbox loaded leaves <4GB headroom | Context window size |
+| num_ctx | ≤4096 | Hard limit — RTX 3090 with Kokoro loaded leaves ~7.9GB headroom | Context window size |
 | num_predict | model default | Overridden per-query by IRIS tier system | Max tokens per response |
 | temperature | model default | — | LLM creativity / randomness |
 | top_p / top_k | model default | — | Nucleus / top-k sampling |

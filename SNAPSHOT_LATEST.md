@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S44 | **Date:** 2026-04-28 | **Branch:** `main` | **Last commit:** 35d01ba S44: fix intent router RANDOM_NUMBER, follow-up short-reply filter, web UI logs
+**Session:** S45 | **Date:** 2026-05-02 | **Branch:** `main` | **Last commit:** 103cbcc S45: add docs/iris_issue_log.md -- structured issue/fix history S1-S44
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -23,16 +23,15 @@
 ## Active Issues
 
 - **HIGH: "stop" single-word STT failure** — Whisper hallucinates on short single-word utterances. "stop" → transcribed as "What are you doing?" Router classified correctly; STT is the failure point. Needs either (a) pre-STT RMS interrupt shortcut for very short post-wakeword audio or (b) local fast STT fallback for <2-word utterances.
-- **MED: LLM personality inconsistency** — Second insult-response in Loop 3 was gemma boilerplate. Root cause: GandalfAI model was stale (multiple batches behind). Model rebuilt S42. Re-test before adding persona work. **Standing rule: any LLM drift = check GandalfAI sync first** (`ollama show iris --modelfile` vs repo). See memory: project_gandalf_modelfile_sync.md.
-- **MED: Piper sleep routing** — local `/usr/local/bin/piper` broken. Sleep wakeword greeting routes through Wyoming Piper on GandalfAI:10200. LOW-LOW priority.
-- **MED: Volume persistence** — SPEAKER_VOLUME may reset on reboot (Batch 1C).
+- **HIGH: AMUSED emotion — full project removal needed** — AMUSED exists in `ollama/iris_modelfile.txt` valid-values line but is absent from `core/config.py` VALID_EMOTIONS, `hardware/led.py` _EMOTION_LED, and firmware EmotionID enum. LLM emitting [EMOTION:AMUSED] silently falls back to NEUTRAL throughout the stack. Decision: remove AMUSED from modelfile + all code/firmware. Batch D functional task.
+- **MED: LLM personality inconsistency** — Standing rule: any LLM drift = check GandalfAI sync first (`ollama show iris --modelfile` vs repo). See memory: project_gandalf_modelfile_sync.md.
 - **LOW: root-level stale sleep log** — /home/pi/iris_sleep.log may duplicate /home/pi/logs/iris_sleep.log.
 
 ---
 
 ## Session Scope
 
-S44: Intent router + follow-up loop + web UI log fixes. Three bugs confirmed from live Pi4 logs and fixed.
+S45: Docs cleanup pass (Batch A). No code changes. 7 doc files updated: Chatterbox→Kokoro primary throughout, gemma3:27b-it-qat references, Teensy 4.1, 7-eye system, Batch 1C closed, SPEAKER_VOLUME resolved, AMUSED removal tracked as Batch D task.
 
 ---
 
@@ -45,12 +44,24 @@ S44: Intent router + follow-up loop + web UI log fixes. Three bugs confirmed fro
 
 ---
 
-## Last Session Changes (S44)
+## Last Session Changes (S45)
 
-- **`pi4/core/intent_router.py`** — Added `RANDOM_NUMBER` utility handler (Layer 2). `_RANDOM_RE` catches "pick/tell/give/choose/generate a random number"; `_RANDOM_RANGE_RE` parses optional "between X and Y" range. Answer generated locally via `random.randint` — no LLM, no GandalfAI roundtrip. Deployed + persisted to Pi4 (md5 verified).
-- **`pi4/assistant.py`** — Follow-up loop `< 3 words` gate replaced with `_WHISPER_HALLUCINATIONS` set check. Brief valid user replies ("Yes, 54.", "Seven.", "No.") no longer silently dropped after IRIS asks a follow-up question.
-- **`pi4/services/llm.py`** — Added `"random number"`, `"pick a random"`, `"tell me a random"`, `"give me a random"`, `"choose a random"`, `"generate a random"`, `"pick a number"`, `"give me a number"` to `_SHORT_PATTERNS`. Ensures SHORT token tier if any variant bypasses the router.
-- **`pi4/iris_web.py`** — `/api/logs` now appends last 40 lines of `/home/pi/logs/iris_intent.log` below a separator. Web UI Logs tab shows intent route decisions (`intent=LLM|RANDOM_NUMBER|MATH etc.`) alongside journalctl. Line limit raised from 120 to 150.
+Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
+
+- **`IRIS_ARCH.md`** — Chatterbox→Kokoro primary throughout; Batch 1C marked Complete; gemma3:27b-it-qat in repo structure; "as of S45" label; reboot checklist updated; Chatterbox section relabeled rollback reference.
+- **`README.md`** — Teensy 4.1 (was 4.0); 7-eye table corrected (EYE:0–6, dragon at 5, bigBlue at 6; leopard/snake noted as pending compile); gemma3:27b-it-qat; PROG button note removed (enclosure-mounted); mouth driver corrected to KurtE/ILI9341_t3n hardware SPI2.
+- **`CLAUDE.md`** — GandalfAI role updated: Kokoro primary, Piper fallback, Chatterbox rollback only; VRAM numbers updated to Kokoro+gemma3:27b-it-qat baseline.
+- **`SNAPSHOT_LATEST.md`** — Updated to S45; Piper routing + Volume persistence removed from active issues (deferred/done); AMUSED gap added as HIGH active issue.
+- **`HANDOFF_CURRENT.md`** — Batch 1C marked fully closed; SPEAKER_VOLUME marked DONE; ACK/NACK removed from Batch 2; AMUSED removal added as tracked Batch D task.
+- **`docs/iris_issue_log.md`** — SPEAKER_VOLUME marked Fixed; Piper routing updated to Deferred/Closed.
+- **`IRIS_CONFIG_MAP.md`** — num_ctx VRAM note updated: Chatterbox→Kokoro, headroom numbers corrected.
+
+## Previous Session Changes (S44)
+
+- **`pi4/core/intent_router.py`** — Added `RANDOM_NUMBER` utility handler (Layer 2).
+- **`pi4/assistant.py`** — Follow-up loop `< 3 words` gate replaced with `_WHISPER_HALLUCINATIONS` set check.
+- **`pi4/services/llm.py`** — Random-number phrases added to `_SHORT_PATTERNS`.
+- **`pi4/iris_web.py`** — `/api/logs` now appends last 40 lines of `iris_intent.log`.
 
 ## Previous Session Changes (S43)
 
@@ -68,8 +79,9 @@ S44: Intent router + follow-up loop + web UI log fixes. Three bugs confirmed fro
 
 ## Known TODO
 
-- **NEXT — stop shortcut**: investigate pre-STT intercept for very short RMS bursts post-wakeword (< 0.5s audio = likely a single command word). Route directly without Whisper for known short-command RMS signatures, OR add "stop" and close variants to a local keyword list checked before STT.
+- **NEXT — stop shortcut (Batch D)**: pre-STT intercept for very short RMS bursts post-wakeword (< 0.5s audio). Route "stop"/"quiet" directly without Whisper.
+- **NEXT — AMUSED removal (Batch D)**: Remove AMUSED from `ollama/iris_modelfile.txt` valid-values line, `pi4/core/config.py` VALID_EMOTIONS, `pi4/hardware/led.py` _EMOTION_LED, and firmware `EmotionID` enum in `src/main.cpp`. Then `ollama create iris` on GandalfAI (requires DEPLOY).
 - **LLM personality re-test:** Say an insult; confirm IRIS responds in character. If boilerplate, check GandalfAI sync before any persona changes.
-- **Batch 1C:** Volume persistence, Piper sleep routing (LOW-LOW).
+- **Batch 1C:** CLOSED — all items done or deferred.
 - **Batch 2:** Teensy hardware/firmware pass — only after Pi runtime stable.
 - **Batch 3 remaining:** Inference settings review.

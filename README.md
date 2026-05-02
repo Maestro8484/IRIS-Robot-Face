@@ -8,7 +8,7 @@
 ## What Is IRIS?
 
 IRIS is a conversational AI robot face built from scratch on a Raspberry Pi 4
-and Teensy 4.0. It listens for a wake word, processes speech, queries a local
+and Teensy 4.1. It listens for a wake word, processes speech, queries a local
 LLM, speaks a response, and animates its eyes and mouth in real time based on
 the detected emotion -- all within a few seconds on consumer hardware.
 
@@ -30,9 +30,9 @@ per session. Camera input for visual Q&A. Deep space sleep display at night.
 |---|---|
 | Wake word | `hey_jarvis` via OpenWakeWord |
 | Speech-to-text | Wyoming Whisper (GPU-accelerated, RTX 3090) |
-| LLM | Ollama `gemma3:27b` -- fully local, no data leaves LAN |
+| LLM | Ollama `gemma3:27b-it-qat` -- fully local, no data leaves LAN |
 | TTS | Kokoro (GandalfAI, local) → Piper fallback |
-| Eyes | Dual 1.28" round GC9A01A TFTs, 9 eye styles, Teensy 4.0 |
+| Eyes | Dual 1.28" round GC9A01A TFTs, 7 eye styles (EYE:0–6), Teensy 4.1 |
 | Mouth | ILI9341 2.8" TFT, 9 expressions + snore animation |
 | Emotion system | LLM tags drive eyes, mouth, and LEDs simultaneously |
 | Face tracking | I2C Person Sensor -- eyes follow detected faces |
@@ -53,7 +53,7 @@ per session. Camera input for visual Q&A. Deep space sleep display at night.
 | Teensy 4.1 | Dual GC9A01A eyes + ILI9341 2.8" TFT mouth |
 | ReSpeaker 2-Mic Pi HAT | Dual mic, WM8960 codec, 3x APA102 LEDs |
 | GC9A01A displays x2 | 1.28" round 240x240 TFT -- animated eyes |
-| ILI9341 2.8" TFT | SPI mouth display (Arduino_GFX SWSPI) |
+| ILI9341 2.8" TFT | SPI mouth display (KurtE/ILI9341_t3n hardware SPI2) |
 | APA102 LEDs x3 | Emotion status indicator |
 | Person Sensor (I2C) | Face detection and tracking |
 | Arducam IMX708 | Vision input for camera queries |
@@ -65,7 +65,7 @@ per session. Camera input for visual Q&A. Deep space sleep display at night.
 ## Eye System
 
 Built on [chrismiller's TeensyEyes](https://github.com/chrismiller/TeensyEyes)
-for Teensy 4.x with GC9A01A displays. 9 eye definitions compiled in,
+for Teensy 4.x with GC9A01A displays. 7 eye definitions compiled in (EYE:0–6),
 switchable at runtime via serial command or web UI.
 
 | Index | Name | Trigger |
@@ -75,10 +75,10 @@ switchable at runtime via serial command or web UI.
 | 2 | hypnoRed | CONFUSED emotion (auto-reverts 7s) |
 | 3 | hazel | Web UI / EYE:3 |
 | 4 | blueFlame1 | Web UI / EYE:4 |
-| 5 | leopard | Web UI / EYE:5 |
-| 6 | snake | Web UI / EYE:6 |
-| 7 | dragon | Web UI / EYE:7 |
-| 8 | bigBlue | Web UI / EYE:8 |
+| 5 | dragon | Web UI / EYE:5 |
+| 6 | bigBlue | Web UI / EYE:6 |
+
+> leopard and snake eye assets exist in `src/eyes/240x240/` but are not compiled into `src/config.h` eyeDefinitions. EYE:5 and EYE:6 are dragon and bigBlue respectively.
 
 Eye parameters (pupil size, blink rate, gaze speed) adjust per detected
 emotion. Face tracking via Person Sensor is always active -- eyes follow the
@@ -88,8 +88,7 @@ largest detected face, auto-wander when no face present.
 
 ## Mouth Display
 
-ILI9341 2.8" TFT driven by Teensy 4.1 via software SPI (Arduino_GFX SWSPI,
-pins 5/6/7). 9 static expression bitmaps mapped to the emotion system, plus
+ILI9341 2.8" TFT driven by Teensy 4.1 via hardware SPI2 (KurtE/ILI9341_t3n). 9 static expression bitmaps mapped to the emotion system, plus
 a slow animated snore pattern during sleep mode.
 
 | Index | Expression | Emotion |
@@ -190,7 +189,7 @@ hey_jarvis  (OpenWakeWord, port 10400)
 EMOTION:NEUTRAL / HAPPY / CURIOUS / ANGRY / SLEEPY / SURPRISED / SAD / CONFUSED
 EYES:SLEEP    -- enter sleep display (space scene + snore mouth)
 EYES:WAKE     -- restore current eye + neutral mouth
-EYE:n         -- switch default eye index (0-8)
+EYE:n         -- switch default eye index (0-6)
 MOUTH:n       -- set mouth expression directly (0-8)
 ```
 
@@ -224,8 +223,8 @@ Requires [PlatformIO](https://platformio.org/) and
 ```powershell
 # Build and upload
 pio run -t upload
-# Then press PROG button on Teensy to complete flash
 ```
+> Teensy 4.1 is enclosure-mounted — PROG button is not accessible. PlatformIO triggers the HalfKay bootloader automatically via the serial reset sequence. Do not press any physical button.
 
 **Eye generation** (after editing `resources/eyes/240x240/<eye>/config.eye`):
 ```powershell

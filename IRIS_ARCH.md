@@ -69,7 +69,7 @@ Final authority belongs to the human operator.
 |---|---|
 | SuperMaster Desktop | Command/control node, Claude Desktop, local repo, VS Code, PlatformIO, git |
 | Pi4 | Voice pipeline orchestration, wakeword, mic/audio, LEDs, camera, web UI, cron sleep/wake, Teensy serial bridge |
-| GandalfAI | Ollama LLM, Modelfiles, Whisper STT, Piper TTS, Chatterbox TTS, RTX 3090 inference |
+| GandalfAI | Ollama LLM, Modelfiles, Whisper STT, Kokoro TTS (primary), Piper TTS (fallback), Chatterbox (rollback only), RTX 3090 inference |
 | Teensy 4.1 | Embedded controller for eyes, mouth, sleep renderer, person sensor integration, serial protocol |
 | GitHub | Secondary mirror, backup, version history, sharing remote |
 
@@ -96,7 +96,7 @@ LLM:
 Pi4 sends prompt/context to Ollama on GandalfAI
 
 TTS:
-Pi4 requests Chatterbox primary or Piper fallback on GandalfAI
+Pi4 requests Kokoro TTS (primary) or Piper fallback on GandalfAI
 
 Playback:
 Pi4 plays PCM through wm8960 audio output
@@ -148,15 +148,15 @@ Wakeword runtime survival and anti-hang hardening.
 ### Batch 1B - Complete
 Sleep/wake authority unification.
 
-### Batch 1C - Next
-Reliability hygiene:
-- sleep greeting through Wyoming Piper
-- volume persistence
-- TTS hard-cap
-- config validation
-- safe temp files
-- LLM stream warning
-- dead-code cleanup only if verified
+### Batch 1C - Complete
+Reliability hygiene (all items closed):
+- SPEAKER_VOLUME persistence — done via web UI + alsactl store
+- TTS hard-cap at sentence boundary
+- Config validation/coercion for iris_config.json
+- Safe temp files (mkstemp)
+- LLM stream warning (rate-limited)
+- Dynamic response-length classification: SHORT/MEDIUM/LONG/MAX tiers
+- Sleep greeting via Piper routing — deferred (LOW-LOW priority; Kokoro is primary)
 
 ### Batch 2
 Teensy hardware/firmware hardening.
@@ -184,17 +184,17 @@ GandalfAI personality/pipeline/model behavior.
 |---|---|---|
 | Wake word (hey_jarvis) | **WORKING** - confirmed S23 2026-04-18 | OWW score=1.000, full pipeline fires |
 | Mic capture (wm8960 LINPUT1) | **WORKING** - confirmed S23 | Input boost switches required; now in alsa-init.sh |
-| STT -> LLM -> TTS -> audio output | **WORKING** - confirmed S23 | Full pipeline: Whisper->Ollama iris->Chatterbox->speakers |
+| STT -> LLM -> TTS -> audio output | **WORKING** - confirmed S23 | Full pipeline: Whisper->Ollama iris->Kokoro->speakers |
 | Mouth TFT animation | **WORKING** - confirmed S29 | MOUTH:0-8 cycling during speech. BL on GPIO 5, web UI intensity control working. |
 | Sleep/wake cron (9PM/7:30AM) | Working but **REBOOT-FRAGILE** | Piper missing at /usr/local/bin/piper - sleep wakeword says nothing |
 | ALSA state on reboot | **HARDENED S23** | alsa-init.sh now sets all 6 critical switches explicitly |
-| GandalfAI reboot | **FRAGILE** | Chatterbox docker must be started manually after reboot (`docker compose up -d`) |
+| GandalfAI reboot | **FRAGILE** | Kokoro docker must be started manually after reboot (`docker compose up -d`) |
 | Teensy flash (mouthSleepFrame) | **DONE** - confirmed by user, S27 | /dev/ttyACM0 present, firmware live |
 | Mouth smoke test | **DONE** - confirmed by user, S27 | MOUTH:0-8 via UDP 127.0.0.1:10500 confirmed |
 
 ### Reboot survival checklist
 On Pi4 reboot: alsa-init.sh runs automatically (hardened S23) - mic + speakers restore without manual intervention.
-On GandalfAI reboot: run `docker compose -f C:\IRIS\docker\docker-compose.yml up -d` manually - Chatterbox does not auto-start.
+On GandalfAI reboot: run `docker compose -f C:\IRIS\docker\docker-compose.yml up -d` manually - Kokoro does not auto-start.
 On both rebooting simultaneously: GandalfAI must be up before assistant.py finishes boot or it will WoL-wait.
 
 ---
@@ -222,7 +222,7 @@ On both rebooting simultaneously: GandalfAI must be up before assistant.py finis
 ```
 C:\IRIS\
   docker\
-    docker-compose.yml          -- iris stack (pipeline: whisper, piper, chatterbox)
+    docker-compose.yml          -- iris stack (pipeline: whisper, piper, kokoro)
     docker-compose.gandalf.yml  -- gandalf stack (utility: open-webui, watchtower)
     whisper\                    -- whisper model cache
     piper\                      -- piper data
@@ -301,7 +301,7 @@ IRIS-Robot-Face/
     mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (KurtE/ILI9341_t3n, SPI2)
   pi4/                          -- mirrors /home/pi/ on Pi4
     assistant.py                -- THIN orchestrator (~340 lines)
-    services/tts.py             -- Chatterbox->Piper only (ElevenLabs removed S20)
+    services/tts.py             -- Kokoro->Piper routing (Chatterbox rollback only; ElevenLabs removed S20)
     services/stt.py             -- Wyoming Whisper STT (data_length payload parser)
     services/vision.py          -- camera capture + vision query
     services/llm.py             -- stream_ollama(), ask_ollama(), emotion extraction, reply cleaning
@@ -317,8 +317,8 @@ IRIS-Robot-Face/
     iris_sleep.py               -- cron sleep script
     iris_wake.py                -- cron wake script
   ollama/
-    iris_modelfile.txt          -- adult IRIS persona (gemma3:12b) -- canonical
-    iris-kids_modelfile.txt     -- kids IRIS persona (gemma3:12b) -- canonical
+    iris_modelfile.txt          -- adult IRIS persona (gemma3:27b-it-qat) -- canonical
+    iris-kids_modelfile.txt     -- kids IRIS persona (gemma3:27b-it-qat) -- canonical
 ```
 
 ---
@@ -366,7 +366,7 @@ lib_deps =
 
 ## Key Constants
 
-### core/config.py (as of S20)
+### core/config.py (as of S45 — TTS stack changed from Chatterbox to Kokoro primary at S38)
 
 ```python
 OLLAMA_MODEL_ADULT      = "iris"
@@ -537,7 +537,7 @@ curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris\",\"prompt\":\
 - Pattern: write a Python script via `sftp_write`, execute it via `ssh_exec`, then restart the service.
 - Inline PS string handling of `&` in URLs causes silent failures.
 
-### GandalfAI - Chatterbox Parameters (Baseline)
+### GandalfAI - Chatterbox Parameters (Rollback Reference — Kokoro is primary since S38)
 - `speed_factor=1.0`, `temperature=0.8`
 - Values of `speed_factor=1.05` / `temperature=0.89` caused muffled output -- revert immediately if degradation observed.
 - Reference audio: `C:\IRIS\chatterbox\reference_audio\iris_voice.wav`

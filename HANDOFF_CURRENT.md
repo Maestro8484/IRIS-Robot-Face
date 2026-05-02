@@ -70,6 +70,7 @@ This applies to all modelfile edits, persona descriptions, handoff docs, and any
 - Teensy 4.1 operational.
 - GandalfAI: Kokoro TTS (Docker), Ollama gemma3:27b-it-qat, iris model current.
 - Dynamic response-length classification live and verified.
+- S45 complete: Batch A docs cleanup (7 files, no code changes).
 
 ---
 
@@ -164,10 +165,10 @@ Completed items:
 - Rate-limited malformed JSON stream warning in llm.py.
 - Dynamic response-length classification: SHORT/MEDIUM/LONG/MAX tiers.
 
-Remaining Batch 1C items:
+Batch 1C status: **FULLY CLOSED**
 
-- Persist `SPEAKER_VOLUME` across reboot via `iris_config.json` plus ALSA state workflow.
-- ~~Route sleep wakeword greeting through Wyoming Piper~~ — LOW-LOW PRIORITY. Kokoro is primary TTS. Piper is fallback only. Sleep greeting edge case not worth the effort until Piper routing becomes a real problem.
+- ~~Persist `SPEAKER_VOLUME`~~ — DONE. Web UI volume API calls `alsactl store` + writes `SPEAKER_VOLUME` to `iris_config.json` on every change.
+- ~~Route sleep wakeword greeting through Wyoming Piper~~ — DEFERRED/CLOSED. LOW-LOW priority. Kokoro is primary; local Piper binary broken but not worth fixing.
 
 ### Batch 2 - Teensy Hardware/Firmware Pass
 
@@ -178,7 +179,6 @@ Candidate scope:
 - Sleep render pointer guards.
 - Serial overflow discard-and-log behavior.
 - Gate mouth commands during sleep if still needed.
-- ACK/NACK protocol only if justified.
 - Any Teensy 4.1 firmware changes must be separate from Pi Python runtime changes.
 
 ### S44 - Intent Router + Follow-up Loop + Web UI Log Fixes
@@ -210,6 +210,14 @@ Remaining:
 - Batch 3-F: CLOSED (S42). Router live on Pi4, model rebuilt on GandalfAI.
 - Inference settings review (next).
 - Known: Whisper single-word STT misrecognition ("stop" → hallucination). Pre-existing Whisper limitation; not addressable in current pipeline without a local STT option.
+
+### Batch D — Functional Fixes (Future Sessions)
+
+Tracked items requiring code changes and/or GandalfAI DEPLOY:
+
+- **AMUSED full-project removal**: AMUSED exists in `ollama/iris_modelfile.txt` valid-values line but is absent from `pi4/core/config.py` VALID_EMOTIONS, `pi4/hardware/led.py` _EMOTION_LED, and firmware `src/main.cpp` EmotionID enum. LLM emitting [EMOTION:AMUSED] silently falls through to NEUTRAL everywhere. Decision: remove AMUSED from modelfile valid-values line, remove from all code/firmware, then `ollama create iris` on GandalfAI. Requires DEPLOY authorization.
+- **"stop" pre-STT intercept**: For post-wakeword audio < ~0.5s, route directly to local keyword match ("stop", "quiet", "cancel") without invoking Whisper. Addresses high hallucination rate on single-word utterances.
+- **Duplicate sleep log cleanup**: `/home/pi/iris_sleep.log` (root level) may duplicate `/home/pi/logs/iris_sleep.log`. Cleanup requires Pi4 DEPLOY.
 
 ### S36 - Suspend Eye Movement During TTS
 

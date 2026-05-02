@@ -279,12 +279,13 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 
 ---
 
-## open | Pi4 / Volume
+## 2026-05-02 | S45 | Pi4 / Volume
 
 **Symptom:** `SPEAKER_VOLUME` may reset to ALSA default on reboot. User-configured volume level lost.
 **Root cause:** Volume set at runtime via `amixer` is not guaranteed to survive overlayfs reboot unless `alsactl store` and SD persistence both complete correctly.
-**Proposed fix:** Persist `SPEAKER_VOLUME` to `iris_config.json` on every change + ensure ALSA state file is written to SD layer.
-**Status:** Open — MED priority (Batch 1C remainder)
+**Fix:** `pi4/iris_web.py` volume API route calls `alsactl store` and writes `SPEAKER_VOLUME` to `iris_config.json` on every volume change. `api_persist_config` route copies ALSA state file to SD layer alongside iris_config.json.
+**File:** `pi4/iris_web.py` (lines 258-260, 233-240)
+**Status:** Fixed
 
 ---
 
@@ -292,7 +293,7 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 
 **Symptom:** Sleep wakeword greeting routed through Wyoming Piper on GandalfAI:10200 instead of local Piper. Local `/usr/local/bin/piper` binary broken.
 **Root cause:** Local Piper install corrupted or missing dependency. Kokoro is primary TTS — this only affects the specific sleep-wakeword greeting path.
-**Status:** Deferred — LOW-LOW priority. Not worth fixing until Kokoro primary fails.
+**Status:** Deferred/Closed — LOCAL-PIPER BROKEN, LOW-LOW priority. Not worth fixing until Kokoro primary fails. Closing from active tracking.
 
 ---
 

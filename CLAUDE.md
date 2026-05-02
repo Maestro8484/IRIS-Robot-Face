@@ -105,7 +105,7 @@ Do not touch unless explicitly requested:
 |---|---|---|---|
 | SuperMaster Desktop | 192.168.1.103 | SuperMaster/ohs | Control node, Claude Desktop, local repo, VS Code, PlatformIO, git |
 | Pi4 | 192.168.1.200 | pi/ohs | Runtime orchestration, wakeword, audio, web UI, cron, serial bridge - ssh-pi4 MCP |
-| GandalfAI | 192.168.1.3 | gandalf/5309 | Ollama, Whisper, Piper, Chatterbox, RTX 3090 inference - ssh-gandalf MCP |
+| GandalfAI | 192.168.1.3 | gandalf/5309 | Ollama, Whisper, Kokoro TTS (primary), Piper TTS (fallback), Chatterbox (rollback only), RTX 3090 inference - ssh-gandalf MCP |
 | Teensy 4.1 | USB via SuperMaster/Pi context | N/A | Embedded display controller |
 
 Pi4 live mirror:
@@ -122,7 +122,7 @@ Claude may run `pio run`. User performs PlatformIO upload unless explicitly dire
 
 ## VRAM (GandalfAI)
 
-gemma3:12b ~7GB + Chatterbox ~4.5GB = ~11.5GB. RTX 3090 = 24GB. Headroom <4GB = inference stalls.
+Kokoro ~2GB + gemma3:27b-it-qat ~14.1GB = ~16.1GB. RTX 3090 = 24GB. Headroom ~7.9GB.
 - Do not raise `num_ctx` above 4096.
 - Close Chrome and Claude Desktop during inference-heavy sessions.
 
