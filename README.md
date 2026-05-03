@@ -241,8 +241,10 @@ bigBlue (genall.py resets values from config.eye):
 
 **Rebuild Ollama models** (on GandalfAI after editing `/ollama/`):
 ```powershell
-ollama create iris -f "C:\Users\gandalf\iris_modelfile.txt"
-ollama create iris-kids -f "C:\Users\gandalf\iris-kids_modelfile.txt"
+cd C:\IRIS\IRIS-Robot-Face
+git pull origin main
+ollama create iris -f "C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt"
+ollama create iris-kids -f "C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt"
 ```
 
 ---

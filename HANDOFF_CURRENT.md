@@ -61,7 +61,7 @@ RD-001 (STOP pre-STT intercept): open, next after PT-001 closes. See `ROADMAP.md
 **Rollback (iris_modelfile.txt):**
 ```bash
 git checkout -- ollama/iris_modelfile.txt
-# Then rebuild: ollama create iris -f C:\Users\gandalf\iris_modelfile.txt
+# Then rebuild: cd C:\IRIS\IRIS-Robot-Face && git pull && ollama create iris -f "C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt"
 ```
 
 ---

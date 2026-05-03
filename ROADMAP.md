@@ -19,7 +19,7 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 - `ollama/iris-kids_modelfile.txt` — Needs kid-appropriate version: same AMUSED structure but warmer tone with playful redirect (not dry economy). Assessment complete; edit awaiting user approval.
 - Model rebuild on GandalfAI: `ollama create iris` and `ollama create iris-kids` after kids edit approved.
 
-**Deployment gate:** GandalfAI — requires explicit `DEPLOY`. Files must be synced to `C:\Users\gandalf\` before `ollama create` runs.
+**Deployment gate:** GandalfAI — requires explicit `DEPLOY`. Run `git pull` on GandalfAI repo at `C:\IRIS\IRIS-Robot-Face\`, then `ollama create` from that path.
 
 **Rollback:**
 ```bash

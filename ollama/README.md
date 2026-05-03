@@ -13,13 +13,14 @@ live models are built from these files.
 
 ## Rebuild (run on GandalfAI)
 
-After editing a modelfile locally, copy to GandalfAI and rebuild:
+After editing a modelfile locally and pushing to GitHub, rebuild on GandalfAI:
 
 ```powershell
-# Copy from SuperMaster to GandalfAI (or edit in place on GandalfAI)
-# Then on GandalfAI:
-ollama create iris -f "C:\Users\gandalf\iris_modelfile.txt"
-ollama create iris-kids -f "C:\Users\gandalf\iris-kids_modelfile.txt"
+# On GandalfAI — pull repo then rebuild from it
+cd C:\IRIS\IRIS-Robot-Face
+git pull origin main
+ollama create iris -f "C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt"
+ollama create iris-kids -f "C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt"
 ```
 
 Verify after rebuild:
@@ -30,10 +31,10 @@ ollama run iris "say hello briefly"
 
 ## Sync check
 
-The live GandalfAI modelfiles live at `C:\Users\gandalf\iris_modelfile.txt` and
-`C:\Users\gandalf\iris-kids_modelfile.txt`. Keep these in sync with this directory.
-When editing via Claude, always write the local repo copy first, then deploy to GandalfAI
-with explicit `DEPLOY` authorization.
+GandalfAI has the repo cloned at `C:\IRIS\IRIS-Robot-Face\`. Modelfiles are at
+`C:\IRIS\IRIS-Robot-Face\ollama\`. After a push from SuperMaster, run `git pull` on
+GandalfAI and then `ollama create` from the repo clone. No manual file copying needed.
+Always write the local repo copy first, then deploy to GandalfAI with explicit `DEPLOY` authorization.
 
 ## VRAM notes
 
