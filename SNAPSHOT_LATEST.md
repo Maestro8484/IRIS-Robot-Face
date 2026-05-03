@@ -31,7 +31,7 @@
 
 ## Session Scope
 
-S46: UX improvement — WoL acknowledgement beep. When GandalfAI is offline and IRIS sends a Wake-on-LAN packet, a distinctive ascending 2-tone beep (660 Hz → 880 Hz, ~360 ms) now plays immediately so the user knows IRIS acknowledged the wakeword and is waiting for GandalfAI. No change when GandalfAI is already up. 2 files changed, ~15 lines added.
+S46: UX improvement — WoL acknowledgement beep. When GandalfAI is offline and IRIS sends a Wake-on-LAN packet, a distinctive ascending 2-tone beep (660 Hz → 880 Hz, ~360 ms) now plays immediately so the user knows IRIS acknowledged the wakeword and is waiting for GandalfAI. No change when GandalfAI is already up. 2 files changed, ~15 lines added. Deployed and verified on Pi4.
 
 ---
 
@@ -51,6 +51,8 @@ WoL acknowledgement beep. Code only. No deploy, no Pi4/GandalfAI mutations.
 - **`pi4/hardware/audio_io.py`** — Added `play_wol_beep(pa)`: ascending 2-tone 660→880 Hz, ~360 ms, exported.
 - **`pi4/assistant.py`** — Imported `play_wol_beep`; added `pa=None` param to `ensure_gandalf_up`; beep fires inside function immediately after WoL send; both call sites updated to pass `pa`.
 - **`docs/plans/PLAN_WOL_ACK_BEEP.md`** — Plan document created (pre-implementation audit trail).
+- **`HANDOFF_CURRENT.md`** — S46 deploy record added with rollback commands.
+- **`docs/iris_issue_log.md`** — S46 entry status updated to "Fixed and deployed".
 
 ## Previous Session Changes (S45)
 

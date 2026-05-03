@@ -303,7 +303,7 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Root cause:** `play_beep(pa)` fires only *after* `ensure_gandalf_up` returns. During the entire WoL boot wait, the only user-visible signal was an orange LED pulse animation.
 **Fix:** Added `play_wol_beep(pa)` (ascending 660 Hz → 880 Hz, ~360 ms) to `audio_io.py`. `ensure_gandalf_up` accepts optional `pa` parameter; beep fires immediately after WoL packet is sent. Both call sites (sleep path + normal path) updated to pass `pa`. No beep when GandalfAI is already up.
 **Files:** `pi4/hardware/audio_io.py`, `pi4/assistant.py`
-**Status:** Fixed — needs deploy to Pi4
+**Status:** Fixed and deployed to Pi4 (S46)
 
 ## open | Pi4 / Logging
 

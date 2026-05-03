@@ -44,6 +44,37 @@ Batch D — AMUSED removal remains open. RD-001 Option 1 STOP phrase gate is dep
 
 ---
 
+## S46 — WoL Acknowledgement Beep — Deployed
+
+**Status:** Complete and deployed to Pi4.
+
+**Commit:** `2e96703` — S46: Add WoL acknowledgement beep (play_wol_beep)
+
+**Deployment:**
+- `pi4/assistant.py` copied to `/home/pi/assistant.py`, persisted to `/media/root-ro/home/pi/assistant.py`
+- `pi4/hardware/audio_io.py` copied to `/home/pi/hardware/audio_io.py`, persisted to `/media/root-ro/home/pi/hardware/audio_io.py`
+- MD5 verified: RAM and SD layers match for both files
+- `assistant` service restarted — `active (running)`, `[INFO] Ready.` confirmed
+
+**Behavior added:**
+- When GandalfAI is offline and a WoL packet is sent, an ascending 2-tone beep (660 Hz → 880 Hz, ~360 ms) plays immediately on Pi4 speakers
+- No beep when GandalfAI is already up
+- `ensure_gandalf_up` gains optional `pa=None` parameter; both call sites pass `pa`
+
+**Rollback:**
+```bash
+sudo cp /home/pi/assistant.py.s46bak /home/pi/assistant.py
+sudo cp /home/pi/hardware/audio_io.py.s46bak /home/pi/hardware/audio_io.py
+sudo mount -o remount,rw /media/root-ro
+sudo cp /home/pi/assistant.py /media/root-ro/home/pi/assistant.py
+sudo cp /home/pi/hardware/audio_io.py /media/root-ro/home/pi/hardware/audio_io.py
+sudo chown pi:pi /media/root-ro/home/pi/assistant.py /media/root-ro/home/pi/hardware/audio_io.py
+sync && sudo mount -o remount,ro /media/root-ro
+sudo systemctl restart assistant
+```
+
+---
+
 ## RD-001 Option 1 — Deployed
 
 **Status:** Complete and deployed to Pi4.
