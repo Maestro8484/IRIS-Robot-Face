@@ -40,4 +40,54 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-Batch D — AMUSED removal and "stop" pre-STT intercept. See `ROADMAP.md` (RD-001, RD-002).
+Batch D — AMUSED removal remains open. RD-001 Option 1 STOP phrase gate is deployed, but true pre-STT stop/cancel handling remains unresolved and requires a future local keyword spotting/lightweight local ASR task. See `ROADMAP.md` (RD-001, RD-002).
+
+---
+
+## RD-001 Option 1 — Deployed
+
+**Status:** Complete and deployed to Pi4.
+
+**Commit:** `54d576c` — Add main-loop STOP phrase gate
+
+**Deployment:**
+- `pi4/assistant.py` was copied to Pi4 runtime path: `/home/pi/assistant.py`
+- File was persisted to SD via: `/media/root-ro/home/pi/assistant.py`
+- MD5 verification confirmed runtime and persisted copies matched.
+- `assistant` service was restarted.
+- Runtime file confirmed to contain "Main-loop STOP phrase".
+
+**Behavior added:**
+- Main loop now checks `STOP_PHRASES` after Whisper transcript normalization and before router/hallucination handling.
+- Matching is boundary-aware:
+  - exact STOP phrase match, or
+  - STOP phrase followed by a space
+- Avoids false matches such as "stopwatch", "quietly", and "cancelled".
+
+**Known limitation:**
+- This does not fix cases where Whisper hallucinates "stop" into unrelated text.
+- True pre-STT abort handling still requires a future local keyword spotting/lightweight local ASR task.
+
+**Runtime status:**
+- Pi4 is live on `assistant.py` from commit `54d576c`.
+- Verbal testing still pending.
+
+**Test checklist:**
+- wakeword -> "stop" should return to idle
+- wakeword -> "stop talking" should return to idle
+- wakeword -> "quiet please" should return to idle
+- wakeword -> "cancel that" should return to idle
+- wakeword -> "stopwatch" should NOT trigger STOP gate
+- wakeword -> "turn red" should continue normal routing
+- wakeword -> "tell me a joke" should continue normal routing
+
+**Rollback:**
+```bash
+sudo cp /tmp/assistant.py.bak /home/pi/assistant.py
+sudo mount -o remount,rw /media/root-ro
+sudo cp /home/pi/assistant.py /media/root-ro/home/pi/assistant.py
+sudo chown pi:pi /media/root-ro/home/pi/assistant.py
+sudo chmod 644 /media/root-ro/home/pi/assistant.py
+sync && sudo mount -o remount,ro /media/root-ro
+sudo systemctl restart assistant
+```
