@@ -1,319 +1,43 @@
-# IRIS PROJECT - AUTHORITATIVE CURRENT STATE
+<!-- Short session-start handoff only. Do not expand. Operational rules are in CLAUDE.md. -->
 
-## Session Startup Context
+# IRIS Handoff — Current
 
-Primary environment:
+## Session Startup Order
 
-- SuperMaster Windows desktop is the primary control node.
-- Claude Desktop GUI runs on SuperMaster.
-- Claude has filesystem MCP access to the local IRIS repository.
-- Claude has SSH MCP access to Pi4 and GandalfAI.
-- Local git, VS Code, PlatformIO, and repo files are available on SuperMaster.
+1. `git status` — branch must be `main`; tree must be clean.
+2. Read `CLAUDE.md` — operating rules and hard constraints.
+3. Read `SNAPSHOT_LATEST.md` — verified machine state and active issues.
+4. Read this file — next-work pointer.
+5. Read `IRIS_ARCH.md` — only when architecture, pins, services, or deploy details are needed.
 
-When starting a new AI session, use this order:
+## Source of Truth
 
-1. Run `git status`.
-2. Read `CLAUDE.md`.
-3. Read `SNAPSHOT_LATEST.md`.
-4. Read `HANDOFF_CURRENT.md`.
-5. Read `IRIS_ARCH.md` only when architecture, deployment, pins, services, or environment details are needed.
+`C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face`
 
-Do not rely on prior chat memory. Use local repository files and live system checks as current truth.
+GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
----
+## Production Baseline
 
-## Authority Model
+| System | State |
+|---|---|
+| Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
+| GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model current. |
+| Teensy 4.1 | Operational — eye movement suspended during TTS. |
+| STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
+| Wakeword | `hey_jarvis` (production). Experimental wakewords require explicit user approval, live Pi4 state confirmation, clean process restart, and one-model-at-a-time testing. Failed experiment names are in `CHANGELOG.md`. |
 
-Canonical source of truth:
+## Navigation
 
-```text
-C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face
-```
+- `SNAPSHOT_LATEST.md` — current verified state, active issues, last session changes.
+- `ROADMAP.md` — all forward-looking tasks with full spec per item.
+- `CHANGELOG.md` — completed sessions and batches.
 
-Primary operator node:
+## Deployment Gates
 
-SuperMaster desktop with Claude Desktop, filesystem MCP, SSH MCP, local git, VS Code, and PlatformIO.
+- Pi4 and GandalfAI mutations require explicit user authorization.
+- GandalfAI model rebuilds require explicit `DEPLOY`.
+- Pi4 persistence: direct `/media/root-ro` remount only — see `CLAUDE.md`.
 
-Secondary mirror:
+## Next Work
 
-GitHub remote repository.
-
-GitHub is useful for backup, history, sharing, and recovery, but it may lag local state until explicitly committed and pushed. Local repo state on SuperMaster outranks GitHub unless proven stale.
-
----
-
-## Systems
-
-- Pi4 = runtime orchestration, assistant loop, wakeword handling, web UI, cron sleep/wake, LEDs, camera, and Teensy serial bridge.
-- GandalfAI = Ollama, Modelfiles, personality, Whisper STT, Piper TTS, Kokoro TTS, and pipeline behavior.
-- Teensy 4.1 = embedded display controller for eyes, mouth, sleep renderer, serial protocol, and face behavior.
-- SuperMaster desktop = source repository, Claude Desktop, VS Code, PlatformIO, git, and command/control workstation.
-
-## IRIS Identity — Standing Rule
-
-IRIS is male. Pronouns: he/him.
-
-This applies to all modelfile edits, persona descriptions, handoff docs, and any AI-generated text about IRIS's character. The name IRIS sounds female but is not. Do not use she/her in any context referring to IRIS's personality or behavior. The modelfile EMOTIONAL STATE block correctly uses he/him as of Batch 3-D (S39).
-
----
-
-## Current Status
-
-- Batch 1A complete.
-- Batch 1B complete.
-- Batch 1A, 1B complete. Batch 1C largely complete (one item remaining, one deprioritized).
-- S36 complete: eye movement suspended during TTS responses (`src/main.cpp`).
-- S37 complete: Batch 3-A — persona framing rewrite + temperature 0.82.
-- S38 complete: Batch 3-B — Kokoro TTS replaces Chatterbox (Docker, GandalfAI).
-- S39 complete: Batch 3-C — gemma3:12b → gemma3:27b-it-qat; Batch 3-D — full persona pass (AMUSED tag, vocal texture, insult examples, contradiction fix).
-- Pi4 operational. Wakeword: `hey_jarvis`.
-- Teensy 4.1 operational.
-- GandalfAI: Kokoro TTS (Docker), Ollama gemma3:27b-it-qat, iris model current.
-- Dynamic response-length classification live and verified.
-- S45 complete: Batch A docs cleanup (7 files, no code changes).
-
----
-
-## Wakeword Status
-
-Production wakeword:
-
-```text
-hey_jarvis
-```
-
-Custom wakeword experiment:
-
-- `hey_der_iris` failed real-world reliability.
-- `real_quick_iris` failed real-world reliability.
-- Both are experimental only.
-- Do not redeploy either without explicit user approval, real household voice samples, clean process restart, and one-model-at-a-time testing.
-
-Important:
-
-Wakeword baseline is stable. Batch 3-A initial pass complete (S37). Remaining Batch 3 items are next.
-
----
-
-## Completed Work
-
-### Batch 1A - Runtime Survival
-
-Goal:
-
-Harden wakeword runtime survival and prevent OpenWakeWord failures from crashing or hanging the assistant.
-
-Implemented:
-
-- OpenWakeWord startup retry/backoff.
-- Runtime restart if OpenWakeWord process dies.
-- Wakeword socket timeout.
-- Wakeword failures return `"error"` instead of silently hanging.
-- Main loop skips STT/LLM/TTS when wakeword error occurs.
-- Changes deployed, persisted, committed, and pushed.
-
-Do not re-plan or re-do Batch 1A unless explicitly instructed.
-
-### Batch 1B - Sleep/Wake Authority
-
-Goal:
-
-Centralize and harden sleep/wake state handling.
-
-Implemented:
-
-- Canonical `_do_sleep()`.
-- Canonical `_do_wake()`.
-- Unified sleep/wake entry paths in assistant command listener and wakeword-during-sleep path.
-- `/tmp/iris_sleep_mode` synchronized with runtime state.
-- `send_command()` and `send_emotion()` return bool status.
-- Web sleep/wake routes update mouth intensity.
-- `iris_wake.py` clears `/tmp/iris_sleep_mode`.
-
-Do not re-plan or re-do Batch 1B unless explicitly instructed.
-
----
-
-## Current Roadmap
-
-### S35 - Wakeword Baseline Restoration
-
-Status:
-
-Complete.
-
-Goal:
-
-Restore `hey_jarvis` as the stable production baseline after failed custom wakeword attempts.
-
-Rules (permanent):
-
-- Do not deploy `hey_der_iris`.
-- Do not deploy `real_quick_iris`.
-- Do not test both custom wakewords simultaneously.
-- Preserve scripts and notes as experimental history.
-- Confirm live Pi4 state before any future wakeword deployment.
-
-### Batch 1C - Reliability Hygiene
-
-Completed items:
-
-- Config validation/coercion for `iris_config.json`.
-- Graceful volume subprocess failure handling.
-- TTS hard-cap fallback at sentence boundary.
-- `mkstemp()` replacing unsafe `mktemp()` in vision.py.
-- Rate-limited malformed JSON stream warning in llm.py.
-- Dynamic response-length classification: SHORT/MEDIUM/LONG/MAX tiers.
-
-Batch 1C status: **FULLY CLOSED**
-
-- ~~Persist `SPEAKER_VOLUME`~~ — DONE. Web UI volume API calls `alsactl store` + writes `SPEAKER_VOLUME` to `iris_config.json` on every change.
-- ~~Route sleep wakeword greeting through Wyoming Piper~~ — DEFERRED/CLOSED. LOW-LOW priority. Kokoro is primary; local Piper binary broken but not worth fixing.
-
-### Batch 2 - Teensy Hardware/Firmware Pass
-
-Only after Pi runtime remains stable.
-
-Candidate scope:
-
-- Sleep render pointer guards.
-- Serial overflow discard-and-log behavior.
-- Gate mouth commands during sleep if still needed.
-- Any Teensy 4.1 firmware changes must be separate from Pi Python runtime changes.
-
-### S44 - Intent Router + Follow-up Loop + Web UI Log Fixes
-
-Status:
-
-Complete (commit 35d01ba, 2026-04-28).
-
-Implemented:
-
-- `pi4/core/intent_router.py`: `RANDOM_NUMBER` utility handler added to Layer 2. Catches "pick/tell/give/choose/generate a random number" with optional "between X and Y" range. Answered locally via `random.randint` — zero LLM latency.
-- `pi4/assistant.py`: Follow-up loop `< 3 words` gate removed. Replaced with `_WHISPER_HALLUCINATIONS` set check. Brief valid replies ("Yes, 54.", "No.", "Seven.") now pass through correctly.
-- `pi4/services/llm.py`: Random-number phrases added to `_SHORT_PATTERNS` as LLM-path fallback tier.
-- `pi4/iris_web.py`: `/api/logs` appends last 40 lines of `iris_intent.log` so web UI Logs tab shows per-request routing decisions.
-
-### Batch 3 - GandalfAI Personality/Pipeline Pass
-
-Completed through S42:
-
-- Batch 3-A: persona framing + temp 0.82 (S37).
-- Batch 3-B: Kokoro TTS (S38).
-- Batch 3-C: gemma3:27b-it-qat upgrade (S39).
-- Batch 3-D: full persona pass — AMUSED tag, vocal texture, insult examples, contradiction fix (S39).
-- Batch 3-E: vision prompt (S40).
-- Batch 3-F: pre-LLM intent router (S42). Loop 1 + Loop 2 passed. Loop 3 (Pi4 live) pending.
-
-Remaining:
-
-- Batch 3-F: CLOSED (S42). Router live on Pi4, model rebuilt on GandalfAI.
-- Inference settings review (next).
-- Known: Whisper single-word STT misrecognition ("stop" → hallucination). Pre-existing Whisper limitation; not addressable in current pipeline without a local STT option.
-
-### Batch D — Functional Fixes (Future Sessions)
-
-Tracked items requiring code changes and/or GandalfAI DEPLOY:
-
-- **AMUSED full-project removal**: AMUSED exists in `ollama/iris_modelfile.txt` valid-values line but is absent from `pi4/core/config.py` VALID_EMOTIONS, `pi4/hardware/led.py` _EMOTION_LED, and firmware `src/main.cpp` EmotionID enum. LLM emitting [EMOTION:AMUSED] silently falls through to NEUTRAL everywhere. Decision: remove AMUSED from modelfile valid-values line, remove from all code/firmware, then `ollama create iris` on GandalfAI. Requires DEPLOY authorization.
-- **"stop" pre-STT intercept**: For post-wakeword audio < ~0.5s, route directly to local keyword match ("stop", "quiet", "cancel") without invoking Whisper. Addresses high hallucination rate on single-word utterances.
-- **Duplicate sleep log cleanup**: `/home/pi/iris_sleep.log` (root level) may duplicate `/home/pi/logs/iris_sleep.log`. Cleanup requires Pi4 DEPLOY.
-
-### S36 - Suspend Eye Movement During TTS
-
-Status:
-
-Complete (commit c27517a).
-
-Implemented:
-
-- `src/main.cpp`: eye movement paused for duration of TTS audio playback, resumed on completion.
-
-### Batch 3-A - Personality: Emotional Volatility Handling
-
-Status:
-
-Initial pass complete (S37, commit 8bdf87e).
-
-Implemented:
-
-- `ollama/iris_modelfile.txt`: replaced explicit EMOTIONAL STATE AND EXPRESSION block with implicit thick-skin/fast-mouth character framing.
-- Temperature raised from 0.7 to 0.82.
-- Model rebuilt on GandalfAI. Smoke tests passed.
-
-Completed through S39:
-
-- Batch 3-A: persona framing + temp 0.82 (S37).
-- Batch 3-B: Kokoro TTS (S38).
-- Batch 3-C: gemma3:27b-it-qat upgrade (S39).
-- Batch 3-D: full persona pass — AMUSED tag, vocal texture, insult examples, contradiction fix (S39).
-
-Remaining Batch 3 items:
-
-- Vision prompt behavior (NEXT).
-- Inference settings review.
-- Model rebuilds as needed.
-
-Category:
-
-GandalfAI / Modelfile only. No Pi4 changes. No firmware changes.
-
-Important deployment gate:
-
-Editing `ollama/iris_modelfile.txt` is local repo work. Running `ollama create` on GandalfAI is a live GandalfAI mutation and requires explicit user authorization using the word `DEPLOY`.
-
----
-
-## Deployment Rule
-
-Pi4 persistence uses the direct `/media/root-ro` remount method only.
-
-Do not use `overlayroot-chroot` unless independently re-verified first.
-
-Canonical Pi4 persistence pattern:
-
-```bash
-sudo mount -o remount,rw /media/root-ro
-sudo cp /home/pi/<file> /media/root-ro/home/pi/<file>
-sudo chown pi:pi /media/root-ro/home/pi/<file>
-sudo chmod 644 /media/root-ro/home/pi/<file>
-sync
-sudo mount -o remount,ro /media/root-ro
-md5sum /home/pi/<file> /media/root-ro/home/pi/<file>
-```
-
-For executable scripts, use mode `755` instead of `644`.
-
----
-
-## Engineering Workflow
-
-MAD Loop = Multi-Agent Adversarial Dev Loop.
-
-Standard flow:
-
-1. Claude Chat plans or reviews.
-2. ChatGPT critiques and stress-tests the plan.
-3. Optional Codex repo-wide audit or dependency review.
-4. Human operator selects the safest scope.
-5. Claude Chat produces final implementation handoff.
-6. Claude Code implements one approved batch.
-7. Human validates on real hardware.
-8. Docs are updated.
-
-Final authority belongs to the human operator.
-
----
-
-## Working Rules
-
-- One batch at a time.
-- Minimal diffs.
-- No broad refactors during reliability hardening.
-- Preserve working behavior unless behavior is the bug.
-- Test before starting next batch.
-- Commit each batch separately.
-- Update docs after meaningful changes.
-- Full file outputs only when generating docs/config/code for manual replacement.
-- GitHub push is never automatic.
-- Pi4 and GandalfAI edits require explicit user authorization.
+Batch D — AMUSED removal and "stop" pre-STT intercept. See `ROADMAP.md` (RD-001, RD-002).

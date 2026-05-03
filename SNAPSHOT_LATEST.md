@@ -63,25 +63,6 @@ Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 - **`pi4/services/llm.py`** — Random-number phrases added to `_SHORT_PATTERNS`.
 - **`pi4/iris_web.py`** — `/api/logs` now appends last 40 lines of `iris_intent.log`.
 
-## Previous Session Changes (S43)
+## Next Work
 
-- **`pi4/services/tts.py`** — `spoken_numbers()` / `_int_to_words()` extended to handle thousands (< 1M) and millions (< 1B). Removed `<= 999` bailout in catch-all regex. "4210" → "four thousand two hundred ten". Deployed + persisted to Pi4 (md5 verified).
-- **Standing rule documented** — LLM personality drift = GandalfAI model stale. Always run `ollama show iris --modelfile` on GandalfAI and compare to repo before adding persona fixes. Three-way desync: SuperMaster / GitHub / GandalfAI running model. Memory updated: `project_gandalf_modelfile_sync.md`.
-
-## Previous Session Changes (S42)
-
-- `pi4/core/intent_router.py` — NEW. 5-layer REFLEX/COMMAND/UTILITY/AMBIGUOUS/LLM classifier. Fail-open on exception.
-- `pi4/assistant.py` — single `router.classify()` gate replaces all scattered inline checks.
-- `ollama/iris_modelfile.txt` — NEVER say forbidden phrase block appended to SYSTEM.
-- GandalfAI — `git pull` + `ollama create iris` run. Loop 3: 4/5 pass live.
-
----
-
-## Known TODO
-
-- **NEXT — stop shortcut (Batch D)**: pre-STT intercept for very short RMS bursts post-wakeword (< 0.5s audio). Route "stop"/"quiet" directly without Whisper.
-- **NEXT — AMUSED removal (Batch D)**: Remove AMUSED from `ollama/iris_modelfile.txt` valid-values line, `pi4/core/config.py` VALID_EMOTIONS, `pi4/hardware/led.py` _EMOTION_LED, and firmware `EmotionID` enum in `src/main.cpp`. Then `ollama create iris` on GandalfAI (requires DEPLOY).
-- **LLM personality re-test:** Say an insult; confirm IRIS responds in character. If boilerplate, check GandalfAI sync before any persona changes.
-- **Batch 1C:** CLOSED — all items done or deferred.
-- **Batch 2:** Teensy hardware/firmware pass — only after Pi runtime stable.
-- **Batch 3 remaining:** Inference settings review.
+See `ROADMAP.md` for full forward-looking task list and item specs.
