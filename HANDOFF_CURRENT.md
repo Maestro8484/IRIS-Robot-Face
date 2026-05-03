@@ -40,7 +40,31 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-Batch D — AMUSED removal remains open. RD-001 Option 1 STOP phrase gate is deployed, but true pre-STT stop/cancel handling remains unresolved and requires a future local keyword spotting/lightweight local ASR task. See `ROADMAP.md` (RD-001, RD-002).
+RD-002 (AMUSED) complete in local repo (S47). Pending: Pi4 deploy (config.py, led.py, iris_web.html) + firmware upload (src/main.cpp). RD-001 (STOP pre-STT intercept) remains open — next priority. See `ROADMAP.md`.
+
+---
+
+## S47 — RD-002 AMUSED Emotion — Local Repo Complete
+
+**Status:** Local repo complete. Pending Pi4 deploy + firmware upload.
+
+**Commit:** pending — awaiting human review
+
+**Changes (local only):**
+- `pi4/core/config.py` — AMUSED added to VALID_EMOTIONS and MOUTH_MAP (→ index 2, smirk)
+- `pi4/hardware/led.py` — AMUSED added to _EMOTION_LED: amber (10,5,0), 3.5s
+- `src/main.cpp` — AMUSED added to EmotionID enum, emotionTable, parseEmotion
+- `pi4/iris_web.html` — AMUSED button added to Emotion Test grid
+
+**Deploy when authorized:**
+- Copy `pi4/core/config.py`, `pi4/hardware/led.py`, `pi4/iris_web.html` to Pi4 RAM + SD layers; restart assistant service
+- Upload `src/main.cpp` firmware via PlatformIO (user action)
+
+**Rollback:**
+```bash
+git checkout -- pi4/core/config.py pi4/hardware/led.py pi4/iris_web.html src/main.cpp
+# Then redeploy previous Pi4 files and reflash prior firmware if already deployed/uploaded
+```
 
 ---
 

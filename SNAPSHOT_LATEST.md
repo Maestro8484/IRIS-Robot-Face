@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S46 | **Date:** 2026-05-03 | **Branch:** `main` | **Last commit:** S46: Add WoL acknowledgement beep (play_wol_beep)
+**Session:** S47 | **Date:** 2026-05-03 | **Branch:** `main` | **Last commit:** S47: RD-002 AMUSED emotion full implementation
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -23,7 +23,6 @@
 ## Active Issues
 
 - **HIGH: "stop" single-word STT failure** — Whisper hallucinates on short single-word utterances. "stop" → transcribed as "What are you doing?" Router classified correctly; STT is the failure point. Needs either (a) pre-STT RMS interrupt shortcut for very short post-wakeword audio or (b) local fast STT fallback for <2-word utterances.
-- **HIGH: AMUSED emotion — full project removal needed** — AMUSED exists in `ollama/iris_modelfile.txt` valid-values line but is absent from `core/config.py` VALID_EMOTIONS, `hardware/led.py` _EMOTION_LED, and firmware EmotionID enum. LLM emitting [EMOTION:AMUSED] silently falls back to NEUTRAL throughout the stack. Decision: remove AMUSED from modelfile + all code/firmware. Batch D functional task.
 - **MED: LLM personality inconsistency** — Standing rule: any LLM drift = check GandalfAI sync first (`ollama show iris --modelfile` vs repo). See memory: project_gandalf_modelfile_sync.md.
 - **LOW: root-level stale sleep log** — /home/pi/iris_sleep.log may duplicate /home/pi/logs/iris_sleep.log.
 
@@ -31,7 +30,7 @@
 
 ## Session Scope
 
-S46: UX improvement — WoL acknowledgement beep. When GandalfAI is offline and IRIS sends a Wake-on-LAN packet, a distinctive ascending 2-tone beep (660 Hz → 880 Hz, ~360 ms) now plays immediately so the user knows IRIS acknowledged the wakeword and is waiting for GandalfAI. No change when GandalfAI is already up. 2 files changed, ~15 lines added. Deployed and verified on Pi4.
+S47: RD-002 — AMUSED emotion fully implemented across local repo. Decision changed from removal to full implementation. AMUSED now accepted by Pi4 (VALID_EMOTIONS, MOUTH_MAP), drives amber LED animation, parsed and handled by Teensy firmware (EmotionID enum + emotionTable + parseEmotion), and testable via web UI Emotion Test button. 4 files changed. Local repo only — pending Pi4 deploy + firmware upload.
 
 ---
 
@@ -44,32 +43,30 @@ S46: UX improvement — WoL acknowledgement beep. When GandalfAI is offline and 
 
 ---
 
-## Last Session Changes (S46)
+## Last Session Changes (S47)
 
-WoL acknowledgement beep. Code only. No deploy, no Pi4/GandalfAI mutations.
+RD-002 AMUSED emotion full implementation. Local repo only. No deploy, no Pi4/GandalfAI mutations, no firmware upload.
+
+- **`pi4/core/config.py`** — Added "AMUSED" to `VALID_EMOTIONS`; added `"AMUSED": 2` to `MOUTH_MAP` (reuses CURIOUS/smirk expression).
+- **`pi4/hardware/led.py`** — Added "AMUSED" to `_EMOTION_LED`: warm amber (R=10, G=5, B=0), 3.5s pulse.
+- **`src/main.cpp`** — Added AMUSED to `EmotionID` enum; added `{0.55f, false, 3000}` entry to `emotionTable`; added AMUSED case to `parseEmotion`. No eye swap — falls to default `else` branch in `applyEmotion`.
+- **`pi4/iris_web.html`** — Added AMUSED button to Emotion Test grid (`sendEmotion('AMUSED', 2)`).
+- Docs updated: SNAPSHOT_LATEST.md, HANDOFF_CURRENT.md, ROADMAP.md, CHANGELOG.md, docs/iris_issue_log.md.
+
+## Previous Session Changes (S46)
+
+WoL acknowledgement beep. Code only. Deployed and verified on Pi4.
 
 - **`pi4/hardware/audio_io.py`** — Added `play_wol_beep(pa)`: ascending 2-tone 660→880 Hz, ~360 ms, exported.
 - **`pi4/assistant.py`** — Imported `play_wol_beep`; added `pa=None` param to `ensure_gandalf_up`; beep fires inside function immediately after WoL send; both call sites updated to pass `pa`.
-- **`docs/plans/PLAN_WOL_ACK_BEEP.md`** — Plan document created (pre-implementation audit trail).
-- **`HANDOFF_CURRENT.md`** — S46 deploy record added with rollback commands.
-- **`docs/iris_issue_log.md`** — S46 entry status updated to "Fixed and deployed".
 
 ## Previous Session Changes (S45)
 
 Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 
-- **`IRIS_ARCH.md`** — Chatterbox→Kokoro primary throughout; Batch 1C marked Complete; gemma3:27b-it-qat in repo structure; "as of S45" label; reboot checklist updated; Chatterbox section relabeled rollback reference.
-- **`README.md`** — Teensy 4.1 (was 4.0); 7-eye table corrected (EYE:0–6, dragon at 5, bigBlue at 6; leopard/snake noted as pending compile); gemma3:27b-it-qat; PROG button note removed (enclosure-mounted); mouth driver corrected to KurtE/ILI9341_t3n hardware SPI2.
-- **`CLAUDE.md`** — GandalfAI role updated: Kokoro primary, Piper fallback, Chatterbox rollback only; VRAM numbers updated to Kokoro+gemma3:27b-it-qat baseline.
-- **`HANDOFF_CURRENT.md`** — Batch 1C marked fully closed; SPEAKER_VOLUME marked DONE; ACK/NACK removed from Batch 2; AMUSED removal added as tracked Batch D task.
-- **`docs/iris_issue_log.md`** — SPEAKER_VOLUME marked Fixed; Piper routing updated to Deferred/Closed.
-
-## Previous Session Changes (S44)
-
-- **`pi4/core/intent_router.py`** — Added `RANDOM_NUMBER` utility handler (Layer 2).
-- **`pi4/assistant.py`** — Follow-up loop `< 3 words` gate replaced with `_WHISPER_HALLUCINATIONS` set check.
-- **`pi4/services/llm.py`** — Random-number phrases added to `_SHORT_PATTERNS`.
-- **`pi4/iris_web.py`** — `/api/logs` now appends last 40 lines of `iris_intent.log`.
+- **`IRIS_ARCH.md`** — Chatterbox→Kokoro primary; Batch 1C marked Complete; gemma3:27b-it-qat in repo structure.
+- **`README.md`** — Teensy 4.1; 7-eye table corrected; PROG button note removed.
+- **`CLAUDE.md`** — GandalfAI role updated: Kokoro primary, Piper fallback, Chatterbox rollback only.
 
 ## Next Work
 

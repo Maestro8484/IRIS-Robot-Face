@@ -161,6 +161,24 @@ Implemented:
 
 ---
 
+## S47 — RD-002 AMUSED Emotion Full Implementation
+
+**Status:** Complete in local repo (2026-05-03) — pending Pi4 deploy and firmware upload
+
+**Goal:** Fully implement AMUSED as a first-class emotion across the IRIS stack. Decision changed from removal (prior doc guidance) to full implementation. AMUSED = dry amusement at teasing, insults, or attempts to rattle IRIS — distinct from CONFUSED (genuinely unclear/contradictory input).
+
+Implemented:
+- `pi4/core/config.py` — AMUSED added to VALID_EMOTIONS and MOUTH_MAP (→ index 2, reuses CURIOUS/smirk expression). LLM emitting [EMOTION:AMUSED] now passes validation and routes correctly instead of falling back to NEUTRAL.
+- `pi4/hardware/led.py` — AMUSED added to _EMOTION_LED: warm amber (R=10, G=5, B=0), 3.5s pulse. Distinct from HAPPY (yellow), CURIOUS (cyan), CONFUSED (magenta).
+- `src/main.cpp` — AMUSED added to EmotionID enum (value 8, before EMOTION_COUNT). EmotionParams: {0.55f, false, 3000} — medium pupil, no blink, 3s gaze (dry, steady). AMUSED case added to parseEmotion. Falls to default else branch in applyEmotion — no eye swap, uses default eyes.
+- `pi4/iris_web.html` — AMUSED button added to Emotion Test grid.
+- PlatformIO build: SUCCESS.
+- Python syntax check: OK.
+- `ollama/iris_modelfile.txt` — no change; AMUSED already present and correctly described.
+- `ollama/iris-kids_modelfile.txt` — intentionally excludes AMUSED; no change.
+
+---
+
 ## S45 — Batch A Docs Cleanup
 
 **Status:** Complete (commit 13c1461, 2026-05-02)

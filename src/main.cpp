@@ -66,7 +66,7 @@ struct EmotionParams {
   uint32_t maxGazeMs;
 };
 
-enum EmotionID { NEUTRAL=0, HAPPY, CURIOUS, ANGRY, SLEEPY, SURPRISED, SAD, CONFUSED, EMOTION_COUNT };
+enum EmotionID { NEUTRAL=0, HAPPY, CURIOUS, ANGRY, SLEEPY, SURPRISED, SAD, CONFUSED, AMUSED, EMOTION_COUNT };
 
 static const EmotionParams emotionTable[EMOTION_COUNT] = {
   { 0.40f, false, 3000 }, // NEUTRAL
@@ -77,6 +77,7 @@ static const EmotionParams emotionTable[EMOTION_COUNT] = {
   { 0.95f, true,   600 }, // SURPRISED
   { 0.25f, true,  4000 }, // SAD
   { 0.70f, true,  2000 }, // CONFUSED
+  { 0.55f, false, 3000 }, // AMUSED
 };
 
 // ---------------------------------------------------------------------------
@@ -153,6 +154,7 @@ static EmotionID parseEmotion(const char *name) {
   if (strcmp(name, "SURPRISED") == 0) return SURPRISED;
   if (strcmp(name, "SAD")       == 0) return SAD;
   if (strcmp(name, "CONFUSED")  == 0) return CONFUSED;
+  if (strcmp(name, "AMUSED")    == 0) return AMUSED;
   return NEUTRAL;
 }
 

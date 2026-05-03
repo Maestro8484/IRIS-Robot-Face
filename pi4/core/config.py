@@ -144,7 +144,7 @@ MOUTH_INTENSITY_AWAKE = 8   # ILI9341 TFT brightness, range 0-15
 MOUTH_INTENSITY_SLEEP = 1
 
 # ── Emotion ───────────────────────────────────────────────────────────────────
-VALID_EMOTIONS = {"NEUTRAL", "HAPPY", "CURIOUS", "ANGRY", "SLEEPY", "SURPRISED", "SAD", "CONFUSED"}
+VALID_EMOTIONS = {"NEUTRAL", "HAPPY", "CURIOUS", "ANGRY", "SLEEPY", "SURPRISED", "SAD", "CONFUSED", "AMUSED"}
 MOUTH_MAP = {
     "NEUTRAL":   0,
     "HAPPY":     1,
@@ -154,6 +154,7 @@ MOUTH_MAP = {
     "SURPRISED": 5,
     "SAD":       6,
     "CONFUSED":  7,
+    "AMUSED":    2,  # reuses CURIOUS/smirk expression
 }
 EMOTION_TAG_RE = re.compile(r'^\[EMOTION:([A-Z]+)\]\s*', re.IGNORECASE)
 

@@ -65,6 +65,71 @@ Required pre-flight:
 5. Read task-relevant files in full before writing
 6. Output pre-flight summary
 7. Wait for user confirmation before edits
+8. Complete Session Close Report before ending session.
+
+---
+
+## Session Close Template
+
+**Session summary**:
+What changed, what now works, or what was decided? Write this for the human operator who may read it days later and need to remember what actually happened.
+
+**Token-efficiency report**:
+- Files read:
+- Files edited:
+- Commands run:
+- Files intentionally not read:
+- Large docs avoided:
+- IRIS_ARCH.md loaded? Y/N -- reason:
+- IRIS_CONFIG_MAP.md loaded? Y/N -- reason:
+
+**Documentation status** - updated / not updated / skipped with reason:
+- SNAPSHOT_LATEST.md:
+- HANDOFF_CURRENT.md:
+- ROADMAP.md:
+- CHANGELOG.md:
+- docs/iris_issue_log.md:
+- Task-specific plan/log files:
+
+**Commit / push status**:
+- Commit created? Y/N -- branch:
+- Push status:
+
+**Human follow-up needed**:
+
+---
+<!-- CONDITIONAL: Complete only if triggered. Mark N/A if not applicable. -->
+
+**Pi4 deploy** - N/A if no files were deployed to Pi4:
+- Direct /media/root-ro persistence completed: Y/N
+- Sync completed: Y/N
+- md5 verified: Y/N
+- Service restarted: Y/N
+- Logs checked post-restart: Y/N
+- Rollback position if revert needed:
+
+**High-risk changes** - N/A if none:
+Check all that changed and state which doc was updated, or why it was skipped:
+- [ ] Firmware
+- [ ] Ollama model / modelfile rebuild
+- [ ] Workflow rules
+- [ ] Architecture
+- [ ] Pin assignments
+- [ ] Source mapping / pi4 deploy mapping
+- [ ] Config mapping / IRIS_CONFIG_MAP.md
+Doc updated:
+Doc skipped -- reason:
+
+---
+
+Documentation rules for this report:
+- Future, active, queued, or unresolved work goes in ROADMAP.md.
+- Completed work goes in CHANGELOG.md.
+- Current verified system state and active issues go in SNAPSHOT_LATEST.md.
+- Short next-session startup/deploy/rollback handoff goes in HANDOFF_CURRENT.md.
+- Issue-specific status changes go in docs/iris_issue_log.md when relevant.
+- Do not claim any documentation file was updated unless it was actually edited this session.
+- Do not duplicate completed-history details into ROADMAP.md.
 
 ---
 

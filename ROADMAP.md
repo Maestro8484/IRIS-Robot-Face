@@ -26,23 +26,24 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 
 ---
 
-## RD-002 — AMUSED Emotion: Remove or Fully Implement
+## RD-002 — AMUSED Emotion: Full Implementation
 
-**Status:** Open — Batch D priority 2
+**Status:** Complete in local repo (S47, 2026-05-03) — pending Pi4 deploy + firmware upload
 
-**Problem:** AMUSED exists in `ollama/iris_modelfile.txt` valid-values line but is absent from `pi4/core/config.py` VALID_EMOTIONS, `pi4/hardware/led.py` _EMOTION_LED, and firmware `src/main.cpp` EmotionID enum. LLM emitting `[EMOTION:AMUSED]` silently falls back to NEUTRAL throughout the stack. The model is encouraged to emit an emotion the system cannot act on.
+**Decision:** Full implementation chosen over removal. AMUSED = dry amusement at teasing, insults, or identity challenges — distinct from CONFUSED (genuinely baffling input).
 
-**Goal:** Decision required: (a) Remove AMUSED from `iris_modelfile.txt` valid-values and any related prompt/persona references, then rebuild iris model on GandalfAI. OR (b) Fully implement AMUSED across Pi4 config, LED mapping, and Teensy firmware. Recommended path: removal - lowest risk, least scope.
+**Implemented (S47):**
+- `pi4/core/config.py` — AMUSED added to VALID_EMOTIONS; MOUTH_MAP → index 2 (smirk/CURIOUS expression)
+- `pi4/hardware/led.py` — AMUSED → warm amber LED (10,5,0), 3.5s pulse
+- `src/main.cpp` — AMUSED added to EmotionID enum (=8), emotionTable ({0.55f, false, 3000}), parseEmotion
+- `pi4/iris_web.html` — AMUSED button added to Emotion Test grid
+- `ollama/iris_modelfile.txt` — AMUSED already present and correctly described; no change needed
+- `ollama/iris-kids_modelfile.txt` — intentionally excludes AMUSED; no change needed
 
-**Impact:** Eliminates silent LLM-to-display mismatch. Ensures LLM emotional output can be acted on at every layer. Directly improves IRIS's emotional expressiveness reliability.
-
-**Risk:** Requires coordinated edit across modelfile, Pi4 config, Pi4 LED handler, and Teensy firmware. Firmware change requires PlatformIO build and manual upload. GandalfAI model rebuild requires DEPLOY.
-
-**Deployment gate:** GandalfAI — requires explicit `DEPLOY`. Pi4 — requires explicit user authorization. Firmware — user uploads via PlatformIO.
-
-**Rollback:** Revert each file to prior commit. Redeploy Pi4 files. Rebuild iris model on GandalfAI. Re-flash Teensy if firmware was changed.
-
-**Files:** `ollama/iris_modelfile.txt`, `pi4/core/config.py`, `pi4/hardware/led.py`, `src/main.cpp`
+**Remaining deploy steps (requires explicit authorization):**
+- Pi4: copy config.py, led.py, iris_web.html → persist + restart assistant
+- Firmware: PlatformIO upload (user action)
+- GandalfAI: no model rebuild needed — modelfile unchanged
 
 ---
 

@@ -164,6 +164,7 @@ class APA102:
         "SURPRISED": (12, 12,12, 0.3, True),   # white flash → cyan
         "SAD":       (0,   0, 6, 6.0, False),  # dim blue, 6s
         "CONFUSED":  (8,   0, 8, 2.5, False),  # pulsing magenta, 2.5s
+        "AMUSED":    (10,  5, 0, 3.5, False),  # warm amber, 3.5s
     }
 
     def show_emotion(self, emotion: str):
