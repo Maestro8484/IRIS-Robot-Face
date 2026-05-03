@@ -208,7 +208,7 @@ Implemented:
 
 ## S47 — RD-002 AMUSED Emotion Full Implementation
 
-**Status:** Pi4 DEPLOYED (config.py, led.py, iris_web.html — md5 verified, assistant active). Firmware upload pending (user PlatformIO action). iris-kids model rebuild pending (ollama create iris-kids on GandalfAI).
+**Status:** FULLY DEPLOYED (2026-05-03). Pi4: config.py, led.py, iris_web.html — md5 verified, assistant active. Teensy 4.1: firmware flashed by user. GandalfAI: iris-kids model rebuilt. Pending: live behavior verification.
 
 **Commits:** `734149a` (implementation, 2026-05-03), `287938d` (docs: add status terminology rule — S47 close activity, committed without S47 label)
 

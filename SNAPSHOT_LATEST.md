@@ -72,7 +72,7 @@ Model rebuild: DEPLOYED — iris and iris-kids rebuilt on GandalfAI (S48).
 
 ## Previous Session Changes (S47)
 
-RD-002 AMUSED emotion full implementation. Local repo only. No deploy, no Pi4/GandalfAI mutations, no firmware upload.
+RD-002 AMUSED emotion — FULLY DEPLOYED (2026-05-03). Pi4 live (md5 verified), Teensy 4.1 firmware flashed, iris-kids model rebuilt on GandalfAI.
 
 - **`pi4/core/config.py`** — Added "AMUSED" to `VALID_EMOTIONS`; added `"AMUSED": 2` to `MOUTH_MAP` (reuses CURIOUS/smirk expression).
 - **`pi4/hardware/led.py`** — AMUSED: sinusoidal breathe, amber [255,160,0], floor=10, peak=80, period=1.5s, gamma=1.8, duration=3s. Special case in show_emotion(); not in _EMOTION_LED dict.
@@ -98,8 +98,8 @@ Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 
 ## Next Work
 
-- PT-001 kids modelfile: approve/reject kids-specific AMUSED examples, then commit + model rebuild on GandalfAI (iris and iris-kids).
-- RD-002 AMUSED: Pi4 deploy (config.py, led.py, iris_web.html) + firmware upload still pending.
+- RD-002 AMUSED: FULLY DEPLOYED. Pending: live behavior verification.
+- PT-001: DEPLOYED. Pending: live adversarial testing.
 - RD-001 (STOP pre-STT intercept): next priority.
 
 See `ROADMAP.md` for full forward-looking task list and item specs.

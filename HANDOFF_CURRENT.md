@@ -41,7 +41,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 ## Next Work
 
 PT-001 DEPLOYED (S48): few-shot adversarial examples in iris_modelfile.txt + iris-kids_modelfile.txt. Both models rebuilt on GandalfAI. Verification (live adversarial testing) pending.
-RD-002 (AMUSED): Pi4 DEPLOYED — config.py, led.py, iris_web.html persisted + md5 verified, assistant restarted. Firmware upload (src/main.cpp) pending user PlatformIO action. iris-kids model rebuild pending (ollama create iris-kids on GandalfAI).
+RD-002 (AMUSED): FULLY DEPLOYED — Pi4 (config.py, led.py, iris_web.html, md5 verified), Teensy firmware flashed (2026-05-03), iris-kids model live on GandalfAI. Pending: live behavior verification.
 RD-001 (STOP pre-STT intercept): next priority. See `ROADMAP.md`.
 
 ---
@@ -64,22 +64,18 @@ git checkout -- ollama/iris_modelfile.txt
 
 ---
 
-## S47 — RD-002 AMUSED Emotion — Local Repo Complete
+## S47 — RD-002 AMUSED Emotion — FULLY DEPLOYED
 
-**Status:** Pi4 DEPLOYED (config.py, led.py, iris_web.html — md5 verified, assistant active). Firmware upload pending. iris-kids model rebuild pending.
+**Status:** DEPLOYED across all targets (2026-05-03). Pending: live behavior verification.
 
 **Commit:** 734149a (pushed 2026-05-03)
 
-**Changes (local only):**
-- `pi4/core/config.py` — AMUSED added to VALID_EMOTIONS and MOUTH_MAP (→ index 2, smirk)
-- `pi4/hardware/led.py` — AMUSED: sinusoidal breathe, amber [255,160,0], floor=10 peak=80 period=1.5s gamma=1.8 duration=3s (special case in show_emotion)
-- `src/main.cpp` — AMUSED added to EmotionID enum, emotionTable, parseEmotion
-- `pi4/iris_web.html` — AMUSED button added to Emotion Test grid
-- `ollama/iris-kids_modelfile.txt` — AMUSED added to valid emotion list
-
-**Deploy when authorized:**
-- Copy `pi4/core/config.py`, `pi4/hardware/led.py`, `pi4/iris_web.html` to Pi4 RAM + SD layers; restart assistant service
-- Upload `src/main.cpp` firmware via PlatformIO (user action)
+**Changes deployed:**
+- `pi4/core/config.py` — AMUSED added to VALID_EMOTIONS and MOUTH_MAP (→ index 2, smirk). Pi4 live, md5 verified.
+- `pi4/hardware/led.py` — AMUSED: sinusoidal breathe, amber [255,160,0], floor=10 peak=80 period=1.5s gamma=1.8 duration=3s. Pi4 live, md5 verified.
+- `src/main.cpp` — AMUSED added to EmotionID enum, emotionTable, parseEmotion. Firmware flashed to Teensy 4.1 (2026-05-03).
+- `pi4/iris_web.html` — AMUSED button added to Emotion Test grid. Pi4 live.
+- `ollama/iris-kids_modelfile.txt` — AMUSED added to valid emotion list. iris-kids model rebuilt on GandalfAI.
 
 **Rollback:**
 ```bash
