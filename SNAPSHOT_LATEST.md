@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S47 | **Date:** 2026-05-03 | **Branch:** `main` | **Last commit:** S47: RD-002 AMUSED emotion full implementation
+**Session:** S48 | **Date:** 2026-05-03 | **Branch:** `main` | **Last commit:** S47: RD-002 AMUSED emotion full implementation
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -55,11 +55,21 @@ Remaining steps before user-visible behavior changes:
 
 ## Session Scope
 
-S47: RD-002 — AMUSED emotion fully implemented across local repo. Decision changed from removal to full implementation. AMUSED now accepted by Pi4 (VALID_EMOTIONS, MOUTH_MAP), drives amber [255,160,0] sinusoidal breathe LED (floor=10 peak=80 period=1.5s gamma=1.8 duration=3s), parsed and handled by Teensy firmware (EmotionID=8, emotionTable, parseEmotion), testable via web UI Emotion Test button, and included in kids modelfile valid emotion list. 5 files changed. Local repo only — pending Pi4 deploy + firmware upload.
+S48: Two tasks. (1) NUM_PREDICT override removed from Pi4 iris_config.json — tiered classifier now controls response length (SHORT=120, MEDIUM=350, LONG=700, MAX=1200). DEPLOYED+VERIFIED. (2) PT-001 — few-shot adversarial examples added to iris_modelfile.txt (REPO-ONLY). Kids modelfile: assessment complete, edit pending user approval. Model rebuild pending explicit authorization.
 
 ---
 
-## Last Session Changes (S47)
+## Last Session Changes (S48)
+
+Two tasks completed. No firmware changes. No GandalfAI changes.
+
+- **`/home/pi/iris_config.json` (Pi4 live)** — `NUM_PREDICT: 200` key removed. SD persisted (md5 verified). assistant.py restarted — `[INFO] Ready.` confirmed. Tiered classifier (SHORT/MEDIUM/LONG/MAX) now controls LLM response length unconstrained.
+- **`ollama/iris_modelfile.txt`** — PT-001 few-shot adversarial block added after ANGRY emotion rule, before NEVER say. 8 user/IRIS pairs covering insults, identity challenges, and NEUTRAL deflection. REPO-ONLY.
+
+Kids modelfile (iris-kids_modelfile.txt): NOT edited. Assessment: kids modelfile needs warmer AMUSED + playful redirect examples, not dry economy. Awaiting user approval before edit.
+Model rebuild: NOT done. Awaiting explicit authorization.
+
+## Previous Session Changes (S47)
 
 RD-002 AMUSED emotion full implementation. Local repo only. No deploy, no Pi4/GandalfAI mutations, no firmware upload.
 
@@ -86,6 +96,10 @@ Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 - **`CLAUDE.md`** — GandalfAI role updated: Kokoro primary, Piper fallback, Chatterbox rollback only.
 
 ## Next Work
+
+- PT-001 kids modelfile: approve/reject kids-specific AMUSED examples, then commit + model rebuild on GandalfAI (iris and iris-kids).
+- RD-002 AMUSED: Pi4 deploy (config.py, led.py, iris_web.html) + firmware upload still pending.
+- RD-001 (STOP pre-STT intercept): next priority after PT-001 closes.
 
 See `ROADMAP.md` for full forward-looking task list and item specs.
 

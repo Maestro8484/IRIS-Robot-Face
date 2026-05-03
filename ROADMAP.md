@@ -6,6 +6,31 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 
 ---
 
+## PT-001 — Few-Shot Adversarial Examples in Modelfiles
+
+**Status:** Partial — iris_modelfile.txt REPO-ONLY (S48). Kids modelfile and model rebuild pending.
+
+**Goal:** Teach IRIS to handle negative-language inputs (insults, identity challenges, dismissals) with consistent AMUSED/NEUTRAL responses via few-shot examples. Examples provide concrete in-context demonstrations to reinforce the persona prose already in the EMOTIONAL STATE AND EXPRESSION section.
+
+**Implemented (S48):**
+- `ollama/iris_modelfile.txt` — 8 few-shot examples added after ANGRY emotion rule, before NEVER say block. Covers: direct insults (AMUSED + brief redirect), identity challenges ("You're ChatGPT", "You're just an AI" → AMUSED), dismissals ("Shut up", "Go away" → NEUTRAL + one-word hold).
+
+**Remaining (requires authorization):**
+- `ollama/iris-kids_modelfile.txt` — Needs kid-appropriate version: same AMUSED structure but warmer tone with playful redirect (not dry economy). Assessment complete; edit awaiting user approval.
+- Model rebuild on GandalfAI: `ollama create iris` and `ollama create iris-kids` after kids edit approved.
+
+**Deployment gate:** GandalfAI — requires explicit `DEPLOY`. Files must be synced to `C:\Users\gandalf\` before `ollama create` runs.
+
+**Rollback:**
+```bash
+git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
+# Rebuild from prior commit on GandalfAI if models already rebuilt.
+```
+
+**Files:** `ollama/iris_modelfile.txt`, `ollama/iris-kids_modelfile.txt`
+
+---
+
 ## RD-001 — Stop/Cancel Pre-STT Intercept
 
 **Status:** Open — Batch D priority 1
