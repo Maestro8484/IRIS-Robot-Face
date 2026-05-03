@@ -161,21 +161,56 @@ Implemented:
 
 ---
 
-## S48 — NUM_PREDICT Removal + PT-001 Few-Shot Adversarial Examples
+## S45 — Batch A Docs Cleanup
 
-**Status:** Task 1 DEPLOYED+VERIFIED. Task 2 REPO-ONLY.
+**Status:** Complete (commit 13c1461, 2026-05-02)
+
+Batch A docs-only cleanup. No code changes, no deploys, no Pi4 or GandalfAI changes. Seven files updated.
+
+- **`IRIS_ARCH.md`** — Chatterbox→Kokoro primary throughout; Batch 1C marked Complete; gemma3:27b-it-qat in repo structure; "as of S45" label; reboot checklist updated; Chatterbox section relabeled rollback reference.
+- **`README.md`** — Teensy 4.1 (was 4.0); 7-eye table corrected (EYE:0–6, dragon at 5, bigBlue at 6; leopard/snake noted pending compile); gemma3:27b-it-qat; PROG button note removed (enclosure-mounted); mouth driver corrected to KurtE/ILI9341_t3n hardware SPI2.
+- **`CLAUDE.md`** — GandalfAI role updated: Kokoro primary, Piper fallback, Chatterbox rollback only; VRAM numbers updated to Kokoro+gemma3:27b-it-qat baseline.
+- **`SNAPSHOT_LATEST.md`** — Updated to S45; Piper routing + Volume persistence removed from active issues; AMUSED gap added as HIGH active issue.
+- **`HANDOFF_CURRENT.md`** — Batch 1C marked fully closed; SPEAKER_VOLUME marked DONE; ACK/NACK removed from Batch 2; AMUSED removal added as tracked Batch D task.
+- **`docs/iris_issue_log.md`** — SPEAKER_VOLUME marked Fixed; Piper routing updated to Deferred/Closed.
+- **`IRIS_CONFIG_MAP.md`** — num_ctx VRAM note updated: Chatterbox→Kokoro, headroom numbers corrected.
+- **`docs/iris_issue_log.md`** (commit 103cbcc) — Created. Append-only structured log of all issues/fixes S1–S44, backfilled from git history.
+
+---
+
+## Unlabeled session — 2026-05-02 ~20:48–23:18 (RD-001 STOP phrase gate + doc restructure)
+
+**Status:** DEPLOYED to Pi4. No session number was assigned.
+
+**Commits:** `279adb9`, `b00dea9`, `54d576c`, `50b4e52` (retroactively documented S49)
+
+Note: doc commits `279adb9` and `b00dea9` landed ~70 minutes before the code commit `54d576c`. This session had no session close report.
+
+- **`279adb9`** — docs: split IRIS handoff, roadmap, snapshot, and changelog into separate files.
+- **`b00dea9`** — docs: organize audits and wakeword import plan.
+- **`54d576c`** — `pi4/assistant.py` — `STOP_PHRASES` gate added to main loop after Whisper transcript normalization, before router/hallucination handling. Boundary-aware matching (exact match or phrase-followed-by-space). Avoids false matches on "stopwatch", "quietly", "cancelled". Deployed and persisted to Pi4 (md5 verified). Does not fix Whisper hallucination of "stop" into unrelated text — pre-STT intercept is a future task (RD-001).
+- **`50b4e52`** — Update handoff for RD-001 deploy.
+
+---
+
+## S46 — WoL Acknowledgement Beep
+
+**Status:** DEPLOYED+VERIFIED (commit 08c7b60, 2026-05-03)
+
+Session boundary note: commit `abfdb7c` carries an S46 label but its message reads "pre-RD-002 state commit". It was made ~2.5 hours after the S46 deploy and describes setup for S47 (RD-002). The S46 label on that commit is an artifact — its content belongs to S47 prep.
 
 Implemented:
-- **Pi4 `iris_config.json`** — `NUM_PREDICT: 200` key removed. SD persisted (md5 verified). assistant.py restarted — `[INFO] Ready.` Tiered classifier (SHORT=120, MEDIUM=350, LONG=700, MAX=1200) now controls LLM response length.
-- **`ollama/iris_modelfile.txt`** — PT-001: 8 few-shot adversarial examples added (insults, identity challenges, NEUTRAL deflections). Inserted after ANGRY emotion rule, before NEVER say block.
-
-Both models rebuilt on GandalfAI. PT-001 DEPLOYED.
+- `pi4/assistant.py` — `play_wol_beep()` added. `ensure_gandalf_up()` gains optional `pa=None` parameter. Ascending 2-tone beep (660 Hz → 880 Hz, ~360 ms) plays on Pi4 speakers when WoL packet is sent and GandalfAI is offline. No beep when GandalfAI is already up.
+- `pi4/hardware/audio_io.py` — beep implementation.
+- Deployed and persisted to Pi4 (md5 verified). assistant.py restarted — `[INFO] Ready.` confirmed.
 
 ---
 
 ## S47 — RD-002 AMUSED Emotion Full Implementation
 
-**Status:** Complete in local repo (2026-05-03) — pending Pi4 deploy and firmware upload
+**Status:** Pi4 DEPLOYED (config.py, led.py, iris_web.html — md5 verified, assistant active). Firmware upload pending (user PlatformIO action). iris-kids model rebuild pending (ollama create iris-kids on GandalfAI).
+
+**Commits:** `734149a` (implementation, 2026-05-03), `287938d` (docs: add status terminology rule — S47 close activity, committed without S47 label)
 
 **Goal:** Fully implement AMUSED as a first-class emotion across the IRIS stack. Decision changed from removal (prior doc guidance) to full implementation. AMUSED = dry amusement at teasing, insults, or attempts to rattle IRIS — distinct from CONFUSED (genuinely unclear/contradictory input).
 
@@ -191,17 +226,12 @@ Implemented:
 
 ---
 
-## S45 — Batch A Docs Cleanup
+## S48 — NUM_PREDICT Removal + PT-001 Few-Shot Adversarial Examples
 
-**Status:** Complete (commit 13c1461, 2026-05-02)
+**Status:** Task 1 DEPLOYED+VERIFIED. Task 2 REPO-ONLY.
 
-Batch A docs-only cleanup. No code changes, no deploys, no Pi4 or GandalfAI changes. Seven files updated.
+Implemented:
+- **Pi4 `iris_config.json`** — `NUM_PREDICT: 200` key removed. SD persisted (md5 verified). assistant.py restarted — `[INFO] Ready.` Tiered classifier (SHORT=120, MEDIUM=350, LONG=700, MAX=1200) now controls LLM response length.
+- **`ollama/iris_modelfile.txt`** — PT-001: 8 few-shot adversarial examples added (insults, identity challenges, NEUTRAL deflections). Inserted after ANGRY emotion rule, before NEVER say block.
 
-- **`IRIS_ARCH.md`** — Chatterbox→Kokoro primary throughout; Batch 1C marked Complete; gemma3:27b-it-qat in repo structure; "as of S45" label; reboot checklist updated; Chatterbox section relabeled rollback reference.
-- **`README.md`** — Teensy 4.1 (was 4.0); 7-eye table corrected (EYE:0–6, dragon at 5, bigBlue at 6; leopard/snake noted pending compile); gemma3:27b-it-qat; PROG button note removed (enclosure-mounted); mouth driver corrected to KurtE/ILI9341_t3n hardware SPI2.
-- **`CLAUDE.md`** — GandalfAI role updated: Kokoro primary, Piper fallback, Chatterbox rollback only; VRAM numbers updated to Kokoro+gemma3:27b-it-qat baseline.
-- **`SNAPSHOT_LATEST.md`** — Updated to S45; Piper routing + Volume persistence removed from active issues; AMUSED gap added as HIGH active issue.
-- **`HANDOFF_CURRENT.md`** — Batch 1C marked fully closed; SPEAKER_VOLUME marked DONE; ACK/NACK removed from Batch 2; AMUSED removal added as tracked Batch D task.
-- **`docs/iris_issue_log.md`** — SPEAKER_VOLUME marked Fixed; Piper routing updated to Deferred/Closed.
-- **`IRIS_CONFIG_MAP.md`** — num_ctx VRAM note updated: Chatterbox→Kokoro, headroom numbers corrected.
-- **`docs/iris_issue_log.md`** (commit 103cbcc) — Created. Append-only structured log of all issues/fixes S1–S44, backfilled from git history.
+Both models rebuilt on GandalfAI. PT-001 DEPLOYED.

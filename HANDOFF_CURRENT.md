@@ -41,7 +41,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 ## Next Work
 
 PT-001 DEPLOYED (S48): few-shot adversarial examples in iris_modelfile.txt + iris-kids_modelfile.txt. Both models rebuilt on GandalfAI. Verification (live adversarial testing) pending.
-RD-002 (AMUSED): local repo complete (S47). Pi4 deploy (config.py, led.py, iris_web.html) + firmware upload (src/main.cpp) still pending.
+RD-002 (AMUSED): Pi4 DEPLOYED — config.py, led.py, iris_web.html persisted + md5 verified, assistant restarted. Firmware upload (src/main.cpp) pending user PlatformIO action. iris-kids model rebuild pending (ollama create iris-kids on GandalfAI).
 RD-001 (STOP pre-STT intercept): next priority. See `ROADMAP.md`.
 
 ---
@@ -66,9 +66,9 @@ git checkout -- ollama/iris_modelfile.txt
 
 ## S47 — RD-002 AMUSED Emotion — Local Repo Complete
 
-**Status:** Local repo complete. Pending Pi4 deploy + firmware upload.
+**Status:** Pi4 DEPLOYED (config.py, led.py, iris_web.html — md5 verified, assistant active). Firmware upload pending. iris-kids model rebuild pending.
 
-**Commit:** pending — awaiting human review
+**Commit:** 734149a (pushed 2026-05-03)
 
 **Changes (local only):**
 - `pi4/core/config.py` — AMUSED added to VALID_EMOTIONS and MOUTH_MAP (→ index 2, smirk)
