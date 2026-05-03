@@ -8,7 +8,7 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 
 ## PT-001 — Few-Shot Adversarial Examples in Modelfiles
 
-**Status:** Partial — iris_modelfile.txt REPO-ONLY (S48). Kids modelfile and model rebuild pending.
+**Status:** DEPLOYED (S48) — both modelfiles updated, both models rebuilt on GandalfAI. Verification (live adversarial testing) pending.
 
 **Goal:** Teach IRIS to handle negative-language inputs (insults, identity challenges, dismissals) with consistent AMUSED/NEUTRAL responses via few-shot examples. Examples provide concrete in-context demonstrations to reinforce the persona prose already in the EMOTIONAL STATE AND EXPRESSION section.
 

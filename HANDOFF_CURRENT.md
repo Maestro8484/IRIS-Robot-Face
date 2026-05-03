@@ -40,9 +40,9 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-PT-001 few-shot examples: iris_modelfile.txt updated (REPO-ONLY, S48). Kids modelfile edit awaiting user approval. Model rebuild (iris + iris-kids) awaiting explicit authorization.
-RD-002 (AMUSED): local repo complete (S47). Pi4 deploy (config.py, led.py, iris_web.html) + firmware upload (src/main.cpp) still pending. iris-kids_modelfile.txt changed S47 — model rebuild required.
-RD-001 (STOP pre-STT intercept): open, next after PT-001 closes. See `ROADMAP.md`.
+PT-001 DEPLOYED (S48): few-shot adversarial examples in iris_modelfile.txt + iris-kids_modelfile.txt. Both models rebuilt on GandalfAI. Verification (live adversarial testing) pending.
+RD-002 (AMUSED): local repo complete (S47). Pi4 deploy (config.py, led.py, iris_web.html) + firmware upload (src/main.cpp) still pending.
+RD-001 (STOP pre-STT intercept): next priority. See `ROADMAP.md`.
 
 ---
 
@@ -54,9 +54,7 @@ RD-001 (STOP pre-STT intercept): open, next after PT-001 closes. See `ROADMAP.md
 - `/home/pi/iris_config.json` — `NUM_PREDICT: 200` removed. Persisted to SD (md5 match). assistant.py restarted — `[INFO] Ready.` Tiered classifier now controls response length.
 - `ollama/iris_modelfile.txt` — PT-001 few-shot block (8 examples) added after ANGRY rule, before NEVER say block.
 
-**Pending (requires explicit authorization):**
-- Kids modelfile: user must approve kids-specific AMUSED examples before edit.
-- Model rebuild: `ollama create iris` and `ollama create iris-kids` on GandalfAI after kids edit approved.
+**Model rebuild:** DEPLOYED — iris and iris-kids rebuilt on GandalfAI.
 
 **Rollback (iris_modelfile.txt):**
 ```bash

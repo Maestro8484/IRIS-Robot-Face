@@ -13,7 +13,7 @@
 |---|---|
 | SuperMaster Desktop | Canonical local repo. Claude Desktop, filesystem MCP, SSH MCP active. |
 | Pi4 192.168.1.200 | Operational. assistant.py + intent_router.py + iris_web.py deployed, persisted, verified. |
-| GandalfAI 192.168.1.3 | Operational. iris model rebuilt with Batch 3-F modelfile (NEVER say block live). |
+| GandalfAI 192.168.1.3 | Operational. iris + iris-kids models rebuilt (S48) — PT-001 few-shot adversarial examples live. |
 | Teensy 4.1 | Operational. Eye movement suspended during TTS (S36). |
 | TTS | Kokoro primary (Docker, GandalfAI port 8004), Piper fallback (Wyoming port 10200). |
 | Web UI | Operational. Bench tab live. Logs tab now shows intent routing decisions. |
@@ -55,7 +55,7 @@ Remaining steps before user-visible behavior changes:
 
 ## Session Scope
 
-S48: Two tasks. (1) NUM_PREDICT override removed from Pi4 iris_config.json — tiered classifier now controls response length (SHORT=120, MEDIUM=350, LONG=700, MAX=1200). DEPLOYED+VERIFIED. (2) PT-001 — few-shot adversarial examples added to iris_modelfile.txt (REPO-ONLY). Kids modelfile: assessment complete, edit pending user approval. Model rebuild pending explicit authorization.
+S48: Two tasks. (1) NUM_PREDICT override removed from Pi4 iris_config.json — tiered classifier now controls response length (SHORT=120, MEDIUM=350, LONG=700, MAX=1200). DEPLOYED+VERIFIED. (2) PT-001 — few-shot adversarial examples added to iris_modelfile.txt and iris-kids_modelfile.txt. Both models rebuilt on GandalfAI. DEPLOYED.
 
 ---
 
@@ -64,10 +64,11 @@ S48: Two tasks. (1) NUM_PREDICT override removed from Pi4 iris_config.json — t
 Two tasks completed. No firmware changes. No GandalfAI changes.
 
 - **`/home/pi/iris_config.json` (Pi4 live)** — `NUM_PREDICT: 200` key removed. SD persisted (md5 verified). assistant.py restarted — `[INFO] Ready.` confirmed. Tiered classifier (SHORT/MEDIUM/LONG/MAX) now controls LLM response length unconstrained.
-- **`ollama/iris_modelfile.txt`** — PT-001 few-shot adversarial block added after ANGRY emotion rule, before NEVER say. 8 user/IRIS pairs covering insults, identity challenges, and NEUTRAL deflection. REPO-ONLY.
+- **`ollama/iris_modelfile.txt`** — PT-001: 8 few-shot adversarial examples added (insults, identity challenges, NEUTRAL deflections). DEPLOYED.
+- **`ollama/iris-kids_modelfile.txt`** — PT-001: 4 kid-appropriate AMUSED/NEUTRAL examples added (warm, playful redirect). DEPLOYED.
 
-Kids modelfile (iris-kids_modelfile.txt): NOT edited. Assessment: kids modelfile needs warmer AMUSED + playful redirect examples, not dry economy. Awaiting user approval before edit.
-Model rebuild: NOT done. Awaiting explicit authorization.
+Kids modelfile (iris-kids_modelfile.txt): edited — 4 kid-appropriate AMUSED/NEUTRAL examples added (warm, playful redirect).
+Model rebuild: DEPLOYED — iris and iris-kids rebuilt on GandalfAI (S48).
 
 ## Previous Session Changes (S47)
 
@@ -99,7 +100,7 @@ Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 
 - PT-001 kids modelfile: approve/reject kids-specific AMUSED examples, then commit + model rebuild on GandalfAI (iris and iris-kids).
 - RD-002 AMUSED: Pi4 deploy (config.py, led.py, iris_web.html) + firmware upload still pending.
-- RD-001 (STOP pre-STT intercept): next priority after PT-001 closes.
+- RD-001 (STOP pre-STT intercept): next priority.
 
 See `ROADMAP.md` for full forward-looking task list and item specs.
 

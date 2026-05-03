@@ -169,7 +169,7 @@ Implemented:
 - **Pi4 `iris_config.json`** — `NUM_PREDICT: 200` key removed. SD persisted (md5 verified). assistant.py restarted — `[INFO] Ready.` Tiered classifier (SHORT=120, MEDIUM=350, LONG=700, MAX=1200) now controls LLM response length.
 - **`ollama/iris_modelfile.txt`** — PT-001: 8 few-shot adversarial examples added (insults, identity challenges, NEUTRAL deflections). Inserted after ANGRY emotion rule, before NEVER say block.
 
-Pending: kids modelfile edit (user approval required) + iris/iris-kids model rebuild on GandalfAI (explicit authorization required).
+Both models rebuilt on GandalfAI. PT-001 DEPLOYED.
 
 ---
 
