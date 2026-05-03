@@ -473,6 +473,19 @@ def main():
             print(f"[BENCH] t={_t_stt:.3f} stage=stt_done dur_stt={_t_stt-_t_rec:.2f} transcript=\"{_snip}\"", flush=True)
 
             _text_norm = text.lower().strip().strip(".!?,;:")
+
+            # ── STOP phrase gate (pre-router; mirrors follow-up loop) ─────────────
+            # Exact match or phrase followed by space — avoids false matches on
+            # "stopwatch", "quietly", "cancelled", etc.
+            if any(_text_norm == phrase or _text_norm.startswith(phrase + " ")
+                   for phrase in STOP_PHRASES):
+                print(f"[STOP] Main-loop STOP phrase: '{text}'", flush=True)
+                _stop_playback.set()
+                emit_emotion(teensy, leds, "NEUTRAL")
+                show_idle_for_mode(leds)
+                print("[INFO] Ready.", flush=True)
+                continue
+
             _WHISPER_HALLUCINATIONS = {
                 "thank you", "thanks", "thank you very much", "thanks for watching",
                 "you", "the", "bye", "bye bye", "goodbye", "see you next time",
