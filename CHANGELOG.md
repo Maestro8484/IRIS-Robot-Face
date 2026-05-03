@@ -169,13 +169,13 @@ Implemented:
 
 Implemented:
 - `pi4/core/config.py` — AMUSED added to VALID_EMOTIONS and MOUTH_MAP (→ index 2, reuses CURIOUS/smirk expression). LLM emitting [EMOTION:AMUSED] now passes validation and routes correctly instead of falling back to NEUTRAL.
-- `pi4/hardware/led.py` — AMUSED added to _EMOTION_LED: warm amber (R=10, G=5, B=0), 3.5s pulse. Distinct from HAPPY (yellow), CURIOUS (cyan), CONFUSED (magenta).
+- `pi4/hardware/led.py` — AMUSED: sinusoidal breathe, amber [255,160,0], floor=10, peak=80, period=1.5s, gamma=1.8, duration=3s. Handled as a special case in show_emotion() (not via _EMOTION_LED dict). Livelier than HAPPY/CURIOUS; distinct from ANGRY.
 - `src/main.cpp` — AMUSED added to EmotionID enum (value 8, before EMOTION_COUNT). EmotionParams: {0.55f, false, 3000} — medium pupil, no blink, 3s gaze (dry, steady). AMUSED case added to parseEmotion. Falls to default else branch in applyEmotion — no eye swap, uses default eyes.
 - `pi4/iris_web.html` — AMUSED button added to Emotion Test grid.
 - PlatformIO build: SUCCESS.
 - Python syntax check: OK.
 - `ollama/iris_modelfile.txt` — no change; AMUSED already present and correctly described.
-- `ollama/iris-kids_modelfile.txt` — intentionally excludes AMUSED; no change.
+- `ollama/iris-kids_modelfile.txt` — AMUSED added to valid emotion list.
 
 ---
 

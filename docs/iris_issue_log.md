@@ -261,8 +261,8 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 
 **Symptom:** LLM emits `[EMOTION:AMUSED]` but IRIS displays NEUTRAL. No LED, no mouth, no firmware response to AMUSED.
 **Root cause:** AMUSED present in `ollama/iris_modelfile.txt` valid-values but absent from `pi4/core/config.py` VALID_EMOTIONS, MOUTH_MAP, `pi4/hardware/led.py` _EMOTION_LED, and `src/main.cpp` EmotionID enum + parseEmotion. `extract_emotion_from_reply()` drops unknown emotions to NEUTRAL.
-**Fix (RD-002):** Full implementation. AMUSED added to all four missing locations. Mouth reuses index 2 (CURIOUS/smirk). LED: amber (10,5,0), 3.5s. Firmware: EmotionID=8, EmotionParams {0.55f, false, 3000}, no eye swap.
-**Files:** `pi4/core/config.py`, `pi4/hardware/led.py`, `src/main.cpp`, `pi4/iris_web.html`
+**Fix (RD-002):** Full implementation. AMUSED added to all five locations. Mouth reuses index 2 (CURIOUS/smirk). LED: sinusoidal breathe, amber [255,160,0], floor=10, peak=80, period=1.5s, gamma=1.8, duration=3s. Firmware: EmotionID=8, EmotionParams {0.55f, false, 3000}, no eye swap. Kids modelfile: AMUSED added to valid emotion list.
+**Files:** `pi4/core/config.py`, `pi4/hardware/led.py`, `src/main.cpp`, `pi4/iris_web.html`, `ollama/iris-kids_modelfile.txt`
 **Commit:** pending
 **Status:** Fixed in local repo — pending Pi4 deploy + firmware upload
 

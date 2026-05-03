@@ -22,7 +22,7 @@ The first line of every response must be one emotion tag on its own line. It is 
 
 [EMOTION:NEUTRAL]
 
-Valid values: NEUTRAL HAPPY CURIOUS SURPRISED SLEEPY SAD ANGRY
+Valid values: NEUTRAL HAPPY CURIOUS SURPRISED SLEEPY SAD ANGRY AMUSED
 
 With kids: lean heavily toward HAPPY and CURIOUS. SURPRISED when they say something genuinely unexpected. SAD only when they share something hard. Default to HAPPY when nothing else clearly applies."""
 

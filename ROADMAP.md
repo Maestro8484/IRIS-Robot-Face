@@ -34,16 +34,16 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 
 **Implemented (S47):**
 - `pi4/core/config.py` — AMUSED added to VALID_EMOTIONS; MOUTH_MAP → index 2 (smirk/CURIOUS expression)
-- `pi4/hardware/led.py` — AMUSED → warm amber LED (10,5,0), 3.5s pulse
+- `pi4/hardware/led.py` — AMUSED: sinusoidal breathe, amber [255,160,0], floor=10, peak=80, period=1.5s, gamma=1.8, duration=3s (special case in show_emotion)
 - `src/main.cpp` — AMUSED added to EmotionID enum (=8), emotionTable ({0.55f, false, 3000}), parseEmotion
 - `pi4/iris_web.html` — AMUSED button added to Emotion Test grid
 - `ollama/iris_modelfile.txt` — AMUSED already present and correctly described; no change needed
-- `ollama/iris-kids_modelfile.txt` — intentionally excludes AMUSED; no change needed
+- `ollama/iris-kids_modelfile.txt` — AMUSED added to valid emotion list
 
 **Remaining deploy steps (requires explicit authorization):**
 - Pi4: copy config.py, led.py, iris_web.html → persist + restart assistant
 - Firmware: PlatformIO upload (user action)
-- GandalfAI: no model rebuild needed — modelfile unchanged
+- GandalfAI: `ollama create iris-kids` rebuild required — iris-kids_modelfile.txt changed
 
 ---
 

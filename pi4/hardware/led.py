@@ -164,10 +164,27 @@ class APA102:
         "SURPRISED": (12, 12,12, 0.3, True),   # white flash → cyan
         "SAD":       (0,   0, 6, 6.0, False),  # dim blue, 6s
         "CONFUSED":  (8,   0, 8, 2.5, False),  # pulsing magenta, 2.5s
-        "AMUSED":    (10,  5, 0, 3.5, False),  # warm amber, 3.5s
     }
 
     def show_emotion(self, emotion: str):
+        # AMUSED: amber [255,160,0], sinusoidal breathe, floor=10 peak=80 period=1.5s gamma=1.8 duration=3s
+        if emotion.upper() == "AMUSED":
+            def anim():
+                floor_ = 10; peak_ = 80; period_ = 1.5; gamma_ = 1.8; duration_ = 3.0
+                dt = 0.04
+                elapsed = 0.0
+                while not self._stop_anim.is_set() and elapsed < duration_:
+                    t = (elapsed % period_) / period_
+                    s = (math.sin(2 * math.pi * t - math.pi / 2) + 1) / 2
+                    v = int(floor_ + (peak_ - floor_) * (s ** gamma_))
+                    self._write([(v, v * 160 // 255, 0)] * self.n)
+                    time.sleep(dt)
+                    elapsed += dt
+                if not self._stop_anim.is_set():
+                    self._write([(0, 0, 0)] * self.n)
+            self._run_anim(anim)
+            return
+
         cfg = self._EMOTION_LED.get(emotion.upper(), self._EMOTION_LED["NEUTRAL"])
         r, g, b, period, flash = cfg
 

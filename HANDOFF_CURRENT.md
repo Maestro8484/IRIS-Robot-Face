@@ -40,7 +40,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-RD-002 (AMUSED) complete in local repo (S47). Pending: Pi4 deploy (config.py, led.py, iris_web.html) + firmware upload (src/main.cpp). RD-001 (STOP pre-STT intercept) remains open — next priority. See `ROADMAP.md`.
+RD-002 (AMUSED) complete in local repo (S47). Pending: Pi4 deploy (config.py, led.py, iris_web.html) + firmware upload (src/main.cpp) + model rebuild on GandalfAI (iris-kids_modelfile.txt). RD-001 (STOP pre-STT intercept) remains open — next priority. See `ROADMAP.md`.
 
 ---
 
@@ -52,9 +52,10 @@ RD-002 (AMUSED) complete in local repo (S47). Pending: Pi4 deploy (config.py, le
 
 **Changes (local only):**
 - `pi4/core/config.py` — AMUSED added to VALID_EMOTIONS and MOUTH_MAP (→ index 2, smirk)
-- `pi4/hardware/led.py` — AMUSED added to _EMOTION_LED: amber (10,5,0), 3.5s
+- `pi4/hardware/led.py` — AMUSED: sinusoidal breathe, amber [255,160,0], floor=10 peak=80 period=1.5s gamma=1.8 duration=3s (special case in show_emotion)
 - `src/main.cpp` — AMUSED added to EmotionID enum, emotionTable, parseEmotion
 - `pi4/iris_web.html` — AMUSED button added to Emotion Test grid
+- `ollama/iris-kids_modelfile.txt` — AMUSED added to valid emotion list
 
 **Deploy when authorized:**
 - Copy `pi4/core/config.py`, `pi4/hardware/led.py`, `pi4/iris_web.html` to Pi4 RAM + SD layers; restart assistant service
