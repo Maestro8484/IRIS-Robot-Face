@@ -20,6 +20,31 @@
 
 ---
 
+## Workflow Rule: Status Terminology (adopted S47)
+
+Status words are strictly defined. Claude Code must use only these terms:
+
+- REPO-ONLY: files changed/committed locally, live IRIS unchanged.
+- PUSHED: changes on GitHub, live IRIS may still be unchanged.
+- DEPLOYED: changes copied/rebuilt/flashed to relevant live system.
+- VERIFIED: behavior tested on live IRIS and confirmed.
+
+No change is "done," "complete," "implemented," or "working" until VERIFIED.
+
+Every session close must include this block, fully filled out:
+
+```text
+Repo status:
+GitHub status:
+Pi4 live status:
+Teensy firmware status:
+GandalfAI model status:
+Live IRIS behavior right now:
+Remaining steps before user-visible behavior changes:
+```
+
+---
+
 ## Active Issues
 
 - **HIGH: "stop" single-word STT failure** — Whisper hallucinates on short single-word utterances. "stop" → transcribed as "What are you doing?" Router classified correctly; STT is the failure point. Needs either (a) pre-STT RMS interrupt shortcut for very short post-wakeword audio or (b) local fast STT fallback for <2-word utterances.
@@ -31,15 +56,6 @@
 ## Session Scope
 
 S47: RD-002 — AMUSED emotion fully implemented across local repo. Decision changed from removal to full implementation. AMUSED now accepted by Pi4 (VALID_EMOTIONS, MOUTH_MAP), drives amber [255,160,0] sinusoidal breathe LED (floor=10 peak=80 period=1.5s gamma=1.8 duration=3s), parsed and handled by Teensy firmware (EmotionID=8, emotionTable, parseEmotion), testable via web UI Emotion Test button, and included in kids modelfile valid emotion list. 5 files changed. Local repo only — pending Pi4 deploy + firmware upload.
-
----
-
-## Do Not Touch Without Explicit Instruction
-
-- `iris_config.json`
-- `alsa-init.sh`
-- `src/TeensyEyes.ino`
-- `src/eyes/EyeController.h`
 
 ---
 
@@ -72,3 +88,12 @@ Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 ## Next Work
 
 See `ROADMAP.md` for full forward-looking task list and item specs.
+
+---
+
+## Do Not Touch Without Explicit Instruction
+
+- `iris_config.json`
+- `alsa-init.sh`
+- `src/TeensyEyes.ino`
+- `src/eyes/EyeController.h`

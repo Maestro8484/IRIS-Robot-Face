@@ -154,6 +154,34 @@ Documentation rules for this report:
 
 ---
 
+## Status Terminology Rule
+
+Do not call a change "done," "implemented," "complete," or "working" unless it
+has been deployed to the relevant live target and verified.
+
+Use these exact status words only:
+
+- REPO-ONLY: files changed/committed locally, but live IRIS is unchanged.
+- PUSHED: changes are on GitHub, but live IRIS may still be unchanged.
+- DEPLOYED: changes copied/rebuilt/flashed to the relevant live system.
+- VERIFIED: behavior tested on live IRIS and confirmed.
+
+## Required Session Close Status Block
+
+Every session must end with this block, fully filled out:
+
+```text
+Repo status:
+GitHub status:
+Pi4 live status:
+Teensy firmware status:
+GandalfAI model status:
+Live IRIS behavior right now:
+Remaining steps before user-visible behavior changes:
+```
+
+---
+
 ## Protected Files
 
 Do not touch unless explicitly requested:
