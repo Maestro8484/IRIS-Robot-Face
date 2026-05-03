@@ -22,7 +22,7 @@ from hardware.led import APA102
 from hardware.io import setup_button, button_pressed, gpio_cleanup
 from hardware.audio_io import (
     _find_mic_device_index, get_volume, set_volume, handle_volume_command,
-    play_pcm, play_pcm_speaking, play_beep, play_double_beep,
+    play_pcm, play_pcm_speaking, play_beep, play_double_beep, play_wol_beep,
     record_command, _stop_playback, STOP_PHRASES, FOLLOWUP_DISMISSALS,
 )
 from services.wyoming import wy_send, read_line
@@ -101,11 +101,13 @@ def gandalf_is_up() -> bool:
         return False
 
 
-def ensure_gandalf_up(leds) -> bool:
+def ensure_gandalf_up(leds, pa=None) -> bool:
     if gandalf_is_up():
         return True
     print("[WOL]  GandalfAI is offline -- sending Wake-on-LAN...", flush=True)
     send_wol(GANDALF_MAC, GANDALF_WOL_IP, GANDALF_WOL_PORT)
+    if pa is not None:
+        play_wol_beep(pa)
 
     def waking_anim(stop_evt):
         while not stop_evt.is_set():
@@ -423,7 +425,7 @@ def main():
             if os.path.exists('/tmp/iris_sleep_mode'):
                 print('[SLEEP] Wakeword during sleep -- waking IRIS', flush=True)
                 _do_wake(teensy, leds)
-                if not ensure_gandalf_up(leds):
+                if not ensure_gandalf_up(leds, pa):
                     leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
                 try:
                     hour = time.localtime().tm_hour
@@ -435,7 +437,7 @@ def main():
                     print(f"[SLEEP] Wake greeting failed: {_e}", flush=True)
                 show_idle_for_mode(leds); continue
 
-            if not ensure_gandalf_up(leds):
+            if not ensure_gandalf_up(leds, pa):
                 leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
 
             play_beep(pa)

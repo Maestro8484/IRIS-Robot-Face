@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S45 | **Date:** 2026-05-02 | **Branch:** `main` | **Last commit:** 103cbcc S45: add docs/iris_issue_log.md -- structured issue/fix history S1-S44
+**Session:** S46 | **Date:** 2026-05-03 | **Branch:** `main` | **Last commit:** S46: Add WoL acknowledgement beep (play_wol_beep)
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -31,7 +31,7 @@
 
 ## Session Scope
 
-S45: Docs cleanup pass (Batch A). No code changes. 7 doc files updated: Chatterbox→Kokoro primary throughout, gemma3:27b-it-qat references, Teensy 4.1, 7-eye system, Batch 1C closed, SPEAKER_VOLUME resolved, AMUSED removal tracked as Batch D task.
+S46: UX improvement — WoL acknowledgement beep. When GandalfAI is offline and IRIS sends a Wake-on-LAN packet, a distinctive ascending 2-tone beep (660 Hz → 880 Hz, ~360 ms) now plays immediately so the user knows IRIS acknowledged the wakeword and is waiting for GandalfAI. No change when GandalfAI is already up. 2 files changed, ~15 lines added.
 
 ---
 
@@ -44,17 +44,23 @@ S45: Docs cleanup pass (Batch A). No code changes. 7 doc files updated: Chatterb
 
 ---
 
-## Last Session Changes (S45)
+## Last Session Changes (S46)
+
+WoL acknowledgement beep. Code only. No deploy, no Pi4/GandalfAI mutations.
+
+- **`pi4/hardware/audio_io.py`** — Added `play_wol_beep(pa)`: ascending 2-tone 660→880 Hz, ~360 ms, exported.
+- **`pi4/assistant.py`** — Imported `play_wol_beep`; added `pa=None` param to `ensure_gandalf_up`; beep fires inside function immediately after WoL send; both call sites updated to pass `pa`.
+- **`docs/plans/PLAN_WOL_ACK_BEEP.md`** — Plan document created (pre-implementation audit trail).
+
+## Previous Session Changes (S45)
 
 Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 
 - **`IRIS_ARCH.md`** — Chatterbox→Kokoro primary throughout; Batch 1C marked Complete; gemma3:27b-it-qat in repo structure; "as of S45" label; reboot checklist updated; Chatterbox section relabeled rollback reference.
 - **`README.md`** — Teensy 4.1 (was 4.0); 7-eye table corrected (EYE:0–6, dragon at 5, bigBlue at 6; leopard/snake noted as pending compile); gemma3:27b-it-qat; PROG button note removed (enclosure-mounted); mouth driver corrected to KurtE/ILI9341_t3n hardware SPI2.
 - **`CLAUDE.md`** — GandalfAI role updated: Kokoro primary, Piper fallback, Chatterbox rollback only; VRAM numbers updated to Kokoro+gemma3:27b-it-qat baseline.
-- **`SNAPSHOT_LATEST.md`** — Updated to S45; Piper routing + Volume persistence removed from active issues (deferred/done); AMUSED gap added as HIGH active issue.
 - **`HANDOFF_CURRENT.md`** — Batch 1C marked fully closed; SPEAKER_VOLUME marked DONE; ACK/NACK removed from Batch 2; AMUSED removal added as tracked Batch D task.
 - **`docs/iris_issue_log.md`** — SPEAKER_VOLUME marked Fixed; Piper routing updated to Deferred/Closed.
-- **`IRIS_CONFIG_MAP.md`** — num_ctx VRAM note updated: Chatterbox→Kokoro, headroom numbers corrected.
 
 ## Previous Session Changes (S44)
 

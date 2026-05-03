@@ -341,6 +341,22 @@ def play_double_beep(pa):
     stream.close()
 
 
+def play_wol_beep(pa):
+    # Ascending 2-tone: 660 Hz -> 880 Hz. Signals GandalfAI wake in progress.
+    rate = 48000
+    t1 = np.linspace(0, 0.15, int(rate * 0.15), False)
+    t2 = np.linspace(0, 0.15, int(rate * 0.15), False)
+    tone1 = (np.sin(2 * np.pi * 660 * t1) * 6000).astype(np.int16)
+    gap   = np.zeros(int(rate * 0.06), dtype=np.int16)
+    tone2 = (np.sin(2 * np.pi * 880 * t2) * 6000).astype(np.int16)
+    sequence = np.concatenate([tone1, gap, tone2])
+    stereo = np.column_stack([sequence, sequence]).flatten()
+    stream = pa.open(format=pyaudio.paInt16, channels=2, rate=rate, output=True)
+    stream.write(stereo.tobytes())
+    stream.stop_stream()
+    stream.close()
+
+
 # ── Record ────────────────────────────────────────────────────────────────────
 
 def record_command(mic, ptt_mode: bool = False, kids_mode: bool = False) -> bytes:

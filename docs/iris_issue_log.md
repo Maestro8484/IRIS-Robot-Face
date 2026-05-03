@@ -297,6 +297,14 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 
 ---
 
+## 2026-05-03 | S46 | Pi4 / UX — GandalfAI wake acknowledgement
+
+**Symptom:** When GandalfAI is offline and IRIS hears the wakeword, the system silently waits 60–120 s for WoL boot with no audio feedback. Indistinguishable from a crash or ignored wakeword.
+**Root cause:** `play_beep(pa)` fires only *after* `ensure_gandalf_up` returns. During the entire WoL boot wait, the only user-visible signal was an orange LED pulse animation.
+**Fix:** Added `play_wol_beep(pa)` (ascending 660 Hz → 880 Hz, ~360 ms) to `audio_io.py`. `ensure_gandalf_up` accepts optional `pa` parameter; beep fires immediately after WoL packet is sent. Both call sites (sleep path + normal path) updated to pass `pa`. No beep when GandalfAI is already up.
+**Files:** `pi4/hardware/audio_io.py`, `pi4/assistant.py`
+**Status:** Fixed — needs deploy to Pi4
+
 ## open | Pi4 / Logging
 
 **Symptom:** `/home/pi/iris_sleep.log` (root level) may duplicate `/home/pi/logs/iris_sleep.log`. Two log files for same events.
