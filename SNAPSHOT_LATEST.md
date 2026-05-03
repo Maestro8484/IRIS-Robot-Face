@@ -47,7 +47,7 @@ Remaining steps before user-visible behavior changes:
 
 ## Active Issues
 
-- **HIGH: "stop" single-word STT failure** — Whisper hallucinates on short single-word utterances. "stop" → transcribed as "What are you doing?" Router classified correctly; STT is the failure point. Needs either (a) pre-STT RMS interrupt shortcut for very short post-wakeword audio or (b) local fast STT fallback for <2-word utterances.
+- **LOW: "stop" Whisper hallucination** — RD-001 Option 1 (post-STT STOP phrase gate) deployed and handles most cases. Residual: Whisper may hallucinate "stop" into unrelated text before the gate sees it. Pre-STT RMS intercept deferred as not required.
 - **MED: LLM personality inconsistency** — Standing rule: any LLM drift = check GandalfAI sync first (`ollama show iris --modelfile` vs repo). See memory: project_gandalf_modelfile_sync.md.
 - **LOW: root-level stale sleep log** — /home/pi/iris_sleep.log may duplicate /home/pi/logs/iris_sleep.log.
 
@@ -100,7 +100,7 @@ Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 
 - RD-002 AMUSED: FULLY DEPLOYED. Pending: live behavior verification.
 - PT-001: DEPLOYED. Pending: live adversarial testing.
-- RD-001 (STOP pre-STT intercept): next priority.
+- RD-001: COMPLETE. RD-003 (duplicate sleep log) is next low-priority item.
 
 See `ROADMAP.md` for full forward-looking task list and item specs.
 

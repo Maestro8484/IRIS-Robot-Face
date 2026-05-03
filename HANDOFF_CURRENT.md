@@ -42,7 +42,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 PT-001 DEPLOYED (S48): few-shot adversarial examples in iris_modelfile.txt + iris-kids_modelfile.txt. Both models rebuilt on GandalfAI. Verification (live adversarial testing) pending.
 RD-002 (AMUSED): FULLY DEPLOYED — Pi4 (config.py, led.py, iris_web.html, md5 verified), Teensy firmware flashed (2026-05-03), iris-kids model live on GandalfAI. Pending: live behavior verification.
-RD-001 (STOP pre-STT intercept): next priority. See `ROADMAP.md`.
+RD-001: COMPLETE (Option 1 deployed, 54d576c). RD-003 (duplicate sleep log) is next low-priority item.
 
 ---
 

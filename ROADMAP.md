@@ -33,7 +33,7 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 
 ## RD-001 — Stop/Cancel Pre-STT Intercept
 
-**Status:** Open — Batch D priority 1
+**Status:** Complete — Option 1 (post-STT STOP phrase gate) deployed to Pi4 (commit 54d576c, 2026-05-02). Pre-STT RMS intercept (Option 2) deferred — not required.
 
 **Problem:** Whisper hallucinates on very short post-wakeword audio (< ~0.5s). Single-word utterances like "stop" are transcribed as unrelated phrases. The intent router then classifies the hallucinated text rather than the intended command, causing IRIS to respond incorrectly instead of aborting.
 
@@ -53,7 +53,7 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 
 ## RD-002 — AMUSED Emotion: Full Implementation
 
-**Status:** Complete in local repo (S47, 2026-05-03) — pending Pi4 deploy + firmware upload
+**Status:** FULLY DEPLOYED (2026-05-03) — Pi4, Teensy 4.1, GandalfAI iris-kids all live.
 
 **Decision:** Full implementation chosen over removal. AMUSED = dry amusement at teasing, insults, or identity challenges — distinct from CONFUSED (genuinely baffling input).
 
@@ -64,11 +64,6 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 - `pi4/iris_web.html` — AMUSED button added to Emotion Test grid
 - `ollama/iris_modelfile.txt` — AMUSED already present and correctly described; no change needed
 - `ollama/iris-kids_modelfile.txt` — AMUSED added to valid emotion list
-
-**Remaining deploy steps (requires explicit authorization):**
-- Pi4: copy config.py, led.py, iris_web.html → persist + restart assistant
-- Firmware: PlatformIO upload (user action)
-- GandalfAI: `ollama create iris-kids` rebuild required — iris-kids_modelfile.txt changed
 
 ---
 
