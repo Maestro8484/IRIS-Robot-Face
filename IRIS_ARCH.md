@@ -566,3 +566,133 @@ curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris\",\"prompt\":\
 - Models were renamed from `jarvis` / `jarvis-kids` (mistral-small3.2:24b) to `iris` / `iris-kids` (gemma3:12b) between S18-S22B.
 - Always confirm current model names via `ollama list` before any Ollama work. Never assume from memory.
 - Any modelfile referencing old household names or lacking paralinguistic tags is stale -- delete, do not edit.
+
+---
+
+## Operational Reference (moved from CLAUDE.md)
+
+### Environment Quick Reference
+
+| Machine | IP | Auth | Role |
+|---|---|---|---|
+| SuperMaster Desktop | 192.168.1.103 | SuperMaster/ohs | Control node, Claude Desktop, local repo, VS Code, PlatformIO, git |
+| Pi4 | 192.168.1.200 | pi/ohs | Runtime orchestration, wakeword, audio, web UI, cron, serial bridge - ssh-pi4 MCP |
+| GandalfAI | 192.168.1.3 | gandalf/5309 | Ollama, Whisper, Kokoro TTS (primary), Piper TTS (fallback), Chatterbox (rollback only), RTX 3090 inference - ssh-gandalf MCP |
+| Teensy 4.1 | USB via SuperMaster/Pi context | N/A | Embedded display controller |
+
+Pi4 live mirror:
+`pi4/` in repo maps to `/home/pi/` on Pi4.
+
+GandalfAI:
+Use PowerShell syntax. No bash, grep, df, or head. Use PowerShell equivalents.
+Filesystem MCP scope: `C:\Users\gandalf\` only. `C:\IRIS\` and `C:\docker\` via ssh_exec or sftp_write.
+
+Firmware:
+Claude may run `pio run`. User performs PlatformIO upload unless explicitly directed otherwise. Never remote flash unless an approved workflow says so.
+
+---
+
+### VRAM (GandalfAI)
+
+Kokoro ~2GB + gemma3:27b-it-qat ~14.1GB = ~16.1GB. RTX 3090 = 24GB. Headroom ~7.9GB.
+- Do not raise `num_ctx` above 4096.
+- Close Chrome and Claude Desktop during inference-heavy sessions.
+
+---
+
+### Pi4 Persistence
+
+Pi4 uses overlayfs. Writes go to RAM layer unless persisted to SD.
+
+Use direct `/media/root-ro` remount method only.
+
+Do not use `overlayroot-chroot` unless explicitly re-verified.
+
+Canonical persistence pattern:
+```bash
+sudo mount -o remount,rw /media/root-ro
+sudo cp /home/pi/<file> /media/root-ro/home/pi/<file>
+sudo chown pi:pi /media/root-ro/home/pi/<file>
+sudo chmod 644 /media/root-ro/home/pi/<file>
+sync
+sudo mount -o remount,ro /media/root-ro
+md5sum /home/pi/<file> /media/root-ro/home/pi/<file>
+```
+
+For executable scripts:
+```bash
+sudo chmod 755 /media/root-ro/home/pi/<script>.py
+```
+
+Every Pi4 file write must include:
+- RAM layer update
+- SD layer persistence
+- md5 verification
+- service restart if needed
+- log check
+
+No exceptions.
+
+---
+
+### Git / Snapshot Rules (Condensed)
+
+`main` only. GitHub is secondary mirror. Claude never pushes unless explicitly authorized. `SNAPSHOT_LATEST.md` records current machine status and issues. `HANDOFF_CURRENT.md` records authoritative workflow and roadmap.
+
+---
+
+### MAD Loop - Required Change Workflow
+
+MAD Loop = Multi-Agent Adversarial Dev Loop.
+
+Use for all non-trivial changes:
+
+Plan -> ChatGPT Review -> Optional Codex Audit -> Final Handoff -> Claude Code Implementation -> Human Validation -> Documentation Update
+
+Rules:
+- One batch per session.
+- Minimal diffs.
+- Preserve working behavior unless behavior is the bug.
+- Include rollback steps.
+- Test before next batch.
+- Do not stack unverified changes.
+- Human operator has final authority.
+
+---
+
+### Batch Model
+
+Current hardening sequence:
+- Batch 1A = runtime survival / wakeword anti-crash and anti-hang
+- Batch 1B = sleep/wake authority and state consistency
+- Batch 1C = reliability hygiene and diagnostics
+- Batch 2 = Teensy hardware/firmware pass
+- Batch 3 = GandalfAI personality/pipeline pass
+
+Future batches may supersede this order only after review.
+
+---
+
+### Handoff Template
+
+```text
+Task: [one sentence]
+Environment: Pi4 | GandalfAI | Firmware | SuperMaster
+Files: [only files read or modified]
+Issue ref: [from Active Issues or HANDOFF_CURRENT]
+
+Change spec:
+[file]: [specific change]
+
+Verify:
+[one pass/fail outcome]
+
+Rollback:
+[exact revert method]
+
+Commit:
+"[message]"
+
+After commit:
+run snapshot/docs update if required, then print push command for user.
+```
