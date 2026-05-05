@@ -281,12 +281,14 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 
 ---
 
-## open | GandalfAI / Ollama model
+## open | GandalfAI / Ollama model — RECURRING
 
-**Symptom:** IRIS personality drifts — boilerplate LLM responses instead of in-character behavior. Re-testing sometimes shows regression after sessions where no modelfile changes were made.
-**Root cause:** Three-way desync: SuperMaster repo / GitHub / GandalfAI running model. `ollama create iris` must be run on GandalfAI after every modelfile commit. GandalfAI clone at `C:\IRIS\IRIS-Robot-Face\` does not auto-pull.
-**Standing rule:** Any LLM drift → run `ollama show iris --modelfile` on GandalfAI and compare to `ollama/iris_modelfile.txt` in repo before any persona changes.
-**Status:** Open — standing operational hazard (documented, not a code fix)
+**Symptom:** IRIS personality drifts — robotic/formal responses, flat affect, or adversarial inputs not handled in character. May occur even when NEVER-say block is present in running model.
+**Root cause:** Three-way desync: SuperMaster repo / GitHub / GandalfAI running model. `ollama create iris` must be run on GandalfAI after every modelfile commit. GandalfAI clone at `C:\IRIS\IRIS-Robot-Face\` does not auto-pull. Local edits to modelfiles on the GandalfAI clone can also accumulate silently and block `git pull`.
+**Confirmed incident (S49 / 2026-05-04):** GandalfAI clone had local uncommitted changes to both `iris_modelfile.txt` and `iris-kids_modelfile.txt` blocking pull. NEVER-say block was present in running model but PT-001 few-shot adversarial examples and/or AMUSED guidance were likely absent or diverged. Resolved via `git reset --hard origin/main` + `ollama create` for both models.
+**Pattern:** Personality drift that survives NEVER-say verification but still produces flat/formal affect or poor adversarial handling → suspect PT-001 few-shot block missing from running model.
+**Standing rule:** Any LLM drift → run `ollama show iris --modelfile` on GandalfAI. Check for PT-001 few-shot block ("You're dumb." / "Bold start.") in addition to NEVER-say. Compare full SYSTEM block to repo before any persona changes.
+**Status:** Open — recurring operational hazard. Expect recurrence. No code fix planned; mitigation is procedural.
 
 ---
 
