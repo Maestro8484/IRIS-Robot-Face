@@ -71,7 +71,7 @@ def _speak_worker(text: str, cfg: dict):
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
                 wav_path = f.name
             with wave.open(wav_path, "wb") as wf:
-                wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(22050)
+                wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(48000)
                 wf.writeframes(pcm)
             subprocess.run(["aplay", "-q", wav_path])
             os.unlink(wav_path)
