@@ -187,7 +187,7 @@ def api_vram():
         return jsonify(r.json())
     except Exception as e: return jsonify(error=str(e)), 503
 
-@app.route("/api/chat", methods=["POST"])
+@app.route("/api/generate", methods=["POST"])
 def api_chat():
     data  = request.get_json(force=True)
     text  = data.get("text","").strip()
@@ -195,18 +195,19 @@ def api_chat():
     mode  = data.get("mode", "adult")
     if not text: return jsonify(error="empty"), 400
     cfg   = read_cfg()
-    model = cfg.get("OLLAMA_MODEL_KIDS" if mode == "kids" else "OLLAMA_MODEL_ADULT", "jarvis")
+    model = cfg.get("OLLAMA_MODEL_KIDS" if mode == "kids" else "OLLAMA_MODEL_ADULT", "iris")
     try:
         import datetime as _dt
         _now = _dt.datetime.now()
         _sys = f"Current date and time: {_now.strftime('%A, %B %d %Y, %I:%M %p')} Mountain Time."
-        r = requests.post(f"http://{GANDALF}:{OLLAMA_PORT}/api/chat",
+        r = requests.post(f"http://{GANDALF}:{OLLAMA_PORT}/api/generate",
             json={"model": model,
-                  "messages": [{"role":"system","content":_sys},{"role":"user","content":text}],
+                  "prompt": text,
+                  "system": _sys,
                   "stream": False},
             timeout=90)
         r.raise_for_status()
-        reply = r.json().get("message",{}).get("content","").strip()
+        reply = r.json().get("response","").strip()
         if speak and reply:
             speak_async(reply, cfg)
         return jsonify(reply=reply, spoken=speak and bool(reply))
