@@ -87,6 +87,33 @@ select:focus{outline:none;border-color:var(--blue)}
 .bench-wrap{overflow-x:auto;margin-top:4px}
 .levers-row{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;font-family:'Courier New',monospace;margin-top:4px;color:var(--muted)}
 .levers-row span{color:var(--text)}
+/* Log event panel */
+.log-events{background:#0a0a0c;border:1px solid var(--border);border-radius:6px;padding:8px;height:460px;overflow-y:auto}
+.log-event{display:flex;gap:8px;padding:3px 6px;border-radius:3px;margin-bottom:1px;font-family:'Courier New',monospace;font-size:11px;line-height:1.5;align-items:baseline}
+.log-event:hover{background:#1a1a22}
+.log-ts{color:var(--muted);flex-shrink:0;width:66px}
+.log-cat{flex-shrink:0;width:76px;font-weight:700;font-size:10px}
+.log-msg{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-detail{color:var(--muted);font-size:10px;flex-shrink:0;margin-left:6px}
+.log-event.cat-wakeword .log-cat{color:var(--blue)}
+.log-event.cat-stt .log-cat{color:#22d3ee}
+.log-event.cat-route .log-cat{color:var(--amber)}
+.log-event.cat-llm .log-cat{color:var(--green)}
+.log-event.cat-tts .log-cat{color:var(--indigo)}
+.log-event.cat-stop .log-cat{color:var(--red)}
+.log-event.cat-stop{background:#1a0500}
+.log-event.cat-drift{background:#1c0a00}
+.log-event.cat-drift .log-cat{color:#f97316}
+.log-event.cat-drift .log-msg{color:#fb923c}
+.log-event.cat-error .log-cat{color:var(--red)}
+.log-event.cat-info .log-cat{color:var(--muted)}
+.log-filter-bar{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.btn-filter{background:var(--input-bg);border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px;transition:all .15s}
+.btn-filter:hover{color:var(--text)}
+.btn-filter.active{border-color:var(--blue);color:var(--blue);background:#0f1a30}
+.btn-filter.f-stop.active{border-color:var(--red);color:var(--red);background:#1a0500}
+.btn-filter.f-drift.active{border-color:#f97316;color:#f97316;background:#1c0a00}
+.btn-filter.f-error.active{border-color:var(--red);color:var(--red);background:#1a0500}
 </style>
 </head>
 <body>
@@ -335,12 +362,29 @@ select:focus{outline:none;border-color:var(--blue)}
 <!-- LOGS -->
 <div class="section" id="sec-logs">
   <div class="card">
-    <h2>Assistant Logs</h2>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
+    <h2>IRIS Event Log</h2>
+    <p class="hint" style="margin-bottom:10px">Structured pipeline events. <span style="color:#f97316">DRIFT</span> = boilerplate/formal opener detected in LLM output. <span style="color:var(--red)">STOP</span> = STOP-phrase gate events. False wakewords appear as WAKE with no following HEARD.</p>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
       <button class="btn btn-sm" style="background:var(--input-bg);border:1px solid var(--border);color:var(--text)" onclick="fetchLogs()">Refresh</button>
-      <button class="btn btn-sm" style="background:var(--input-bg);border:1px solid var(--border);color:var(--muted)" onclick="document.getElementById('log-box').textContent=''">Clear</button>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" id="logs-auto" onchange="toggleLogsAuto(this)"> auto 15s
+      </label>
+      <span id="log-count" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
     </div>
-    <div class="log-box" id="log-box">Loading...</div>
+    <div class="log-filter-bar">
+      <button class="btn-filter active" data-cat="all"      onclick="setLogFilter('all',this)">All</button>
+      <button class="btn-filter"         data-cat="wakeword" onclick="setLogFilter('wakeword',this)">Wakeword</button>
+      <button class="btn-filter"         data-cat="stt"      onclick="setLogFilter('stt',this)">Heard</button>
+      <button class="btn-filter"         data-cat="route"    onclick="setLogFilter('route',this)">Route</button>
+      <button class="btn-filter"         data-cat="llm"      onclick="setLogFilter('llm',this)">LLM</button>
+      <button class="btn-filter"         data-cat="tts"      onclick="setLogFilter('tts',this)">Spoken</button>
+      <button class="btn-filter f-stop"  data-cat="stop"     onclick="setLogFilter('stop',this)">STOP</button>
+      <button class="btn-filter f-drift" data-cat="drift"    onclick="setLogFilter('drift',this)">Drift</button>
+      <button class="btn-filter f-error" data-cat="error"    onclick="setLogFilter('error',this)">Errors</button>
+    </div>
+    <div class="log-events" id="log-events">
+      <div style="color:var(--muted);padding:16px;text-align:center">Click Refresh to load</div>
+    </div>
   </div>
 </div>
 
@@ -392,19 +436,22 @@ select:focus{outline:none;border-color:var(--blue)}
 <div class="section" id="sec-chat">
   <div class="card">
     <h2>Text Chat with IRIS</h2>
-    <p class="hint" style="margin-bottom:10px">Send text to IRIS. Response can be shown in chat only, or also spoken aloud through IRIS's speakers.</p>
-    <div style="display:flex;gap:16px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-      <div style="display:flex;gap:6px;align-items:center">
-        <span style="color:var(--muted);font-size:12px;margin-right:4px">Response:</span>
+    <p class="hint" style="margin-bottom:10px">Send text to IRIS, or use <strong style="color:var(--amber)">Speak verbatim</strong> to puppet IRIS's voice directly — no LLM involved.</p>
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <span style="color:var(--muted);font-size:12px;margin-right:4px">Mode:</span>
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">
           <input type="radio" name="chat-mode" value="silent" checked onchange="updateChatMode(this)"> Text only
         </label>
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">
-          <input type="radio" name="chat-mode" value="speak" onchange="updateChatMode(this)"> Speak + Text
+          <input type="radio" name="chat-mode" value="speak" onchange="updateChatMode(this)"> LLM + Speak
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">
+          <input type="radio" name="chat-mode" value="verbatim" onchange="updateChatMode(this)"> <span style="color:var(--amber)">Speak verbatim</span>
         </label>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
-        <span style="color:var(--muted);font-size:12px;margin-right:4px">Mode:</span>
+        <span style="color:var(--muted);font-size:12px;margin-right:4px">Persona:</span>
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">
           <input type="radio" name="chat-persona" value="adult" checked> Adult
         </label>
@@ -412,16 +459,17 @@ select:focus{outline:none;border-color:var(--blue)}
           <input type="radio" name="chat-persona" value="kids"> Kids
         </label>
       </div>
-      <span id="chat-speak-status" style="font-size:11px;color:var(--muted);margin-left:auto"></span>
     </div>
+    <div id="chat-mode-hint" style="font-size:12px;color:var(--muted);margin-bottom:10px;min-height:16px"></div>
     <div class="chat-box" id="chat-box"></div>
     <div class="chat-input">
-      <textarea id="chat-input" placeholder="Ask IRIS anything..." onkeydown="if(event.ctrlKey&&event.key==='Enter')sendChat()"></textarea>
+      <textarea id="chat-input" placeholder="Ask IRIS anything, or type text to speak verbatim..." onkeydown="if(event.ctrlKey&&event.key==='Enter')sendChat()"></textarea>
       <div style="display:flex;flex-direction:column;gap:6px">
         <button class="btn btn-primary" onclick="sendChat()">Send <span style="font-size:11px;opacity:0.7">(Ctrl+Enter)</span></button>
         <button class="btn btn-sm" style="background:var(--input-bg);border:1px solid var(--border);color:var(--muted)" onclick="clearChat()">Clear</button>
       </div>
     </div>
+    <p class="hint" style="margin-top:8px;color:#6b7280">Note: "LLM + Speak" and voice pipeline TTS can overlap if both are active simultaneously. Use <strong>Speak verbatim</strong> when IRIS is idle to avoid conflicts.</p>
   </div>
 </div>
 
@@ -681,13 +729,65 @@ async function saveMouthIntensity() {
 }
 
 // ── Logs ───────────────────────────────────────────────────────────────────────
-async function fetchLogs() {
-  const box = document.getElementById('log-box');
-  box.textContent = 'Loading...';
-  const r = await fetch('/api/logs');
-  const j = await r.json();
-  box.textContent = j.lines.join('\n');
+let _logFilter = 'all';
+let _logAutoTimer = null;
+let _logEvents = [];
+
+const _CAT_LABELS = {
+  wakeword:'WAKE', stt:'HEARD', route:'ROUTE', llm:'LLM',
+  tts:'SPOKEN', stop:'STOP', drift:'DRIFT', error:'ERR',
+  info:'INFO', cmd:'CMD', warn:'WARN'
+};
+
+function _esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function setLogFilter(cat, btn) {
+  _logFilter = cat;
+  document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLogEvents();
+}
+
+function renderLogEvents() {
+  const box = document.getElementById('log-events');
+  const cnt = document.getElementById('log-count');
+  const evs = _logFilter === 'all' ? _logEvents
+             : _logEvents.filter(e => e.cat === _logFilter);
+  if (cnt) cnt.textContent = evs.length + ' event' + (evs.length !== 1 ? 's' : '');
+  if (!evs.length) {
+    box.innerHTML = '<div style="color:var(--muted);padding:16px;text-align:center">No events in this category</div>';
+    return;
+  }
+  box.innerHTML = evs.map(e => {
+    const label  = _CAT_LABELS[e.cat] || (e.cat||'?').toUpperCase();
+    const detail = e.detail ? `<span class="log-detail">${_esc(e.detail)}</span>` : '';
+    return `<div class="log-event cat-${_esc(e.cat||'info')}">` +
+           `<span class="log-ts">${_esc(e.ts)}</span>` +
+           `<span class="log-cat">[${label}]</span>` +
+           `<span class="log-msg" title="${_esc(e.msg)}">${_esc(e.msg)}</span>` +
+           `${detail}</div>`;
+  }).join('');
   box.scrollTop = box.scrollHeight;
+}
+
+async function fetchLogs() {
+  const box = document.getElementById('log-events');
+  box.innerHTML = '<div style="color:var(--muted);padding:16px;text-align:center">Loading...</div>';
+  try {
+    const r = await fetch('/api/logs');
+    const j = await r.json();
+    _logEvents = j.events || [];
+    renderLogEvents();
+  } catch(e) {
+    box.innerHTML = `<div style="color:var(--red);padding:12px">Error: ${_esc(String(e))}</div>`;
+  }
+}
+
+function toggleLogsAuto(cb) {
+  if (_logAutoTimer) { clearInterval(_logAutoTimer); _logAutoTimer = null; }
+  if (cb.checked) _logAutoTimer = setInterval(fetchLogs, 15000);
 }
 
 // ── Status ─────────────────────────────────────────────────────────────────────
@@ -732,40 +832,68 @@ async function loadVram() {
 }
 
 // ── Chat ───────────────────────────────────────────────────────────────────────
-let _chatSpeak = false;
+let _chatMode    = 'silent';   // 'silent' | 'speak' | 'verbatim'
 let _chatPersona = 'adult';
 
+const _CHAT_MODE_HINTS = {
+  silent:   '',
+  speak:    'IRIS will generate a response via LLM and speak it aloud. May conflict with active voice pipeline.',
+  verbatim: 'IRIS will speak your exact text through TTS — no LLM. Use when voice pipeline is idle.'
+};
+
 function updateChatMode(radio) {
-  _chatSpeak = (radio.value === 'speak');
-  const status = document.getElementById('chat-speak-status');
-  if (status) status.textContent = _chatSpeak ? 'Will speak responses aloud' : '';
+  _chatMode = radio.value;
+  const hint = document.getElementById('chat-mode-hint');
+  if (hint) hint.textContent = _CHAT_MODE_HINTS[_chatMode] || '';
 }
 
 async function sendChat() {
-  const inp = document.getElementById('chat-input');
-  const box = document.getElementById('chat-box');
+  const inp  = document.getElementById('chat-input');
+  const box  = document.getElementById('chat-box');
   const text = inp.value.trim();
   if (!text) return;
   const persona = document.querySelector('input[name="chat-persona"]:checked');
   _chatPersona = persona ? persona.value : 'adult';
   inp.value = '';
+
   const userMsg = document.createElement('div');
   userMsg.className = 'chat-msg user';
   userMsg.textContent = 'You: ' + text;
   box.appendChild(userMsg);
   box.scrollTop = box.scrollHeight;
+
+  if (_chatMode === 'verbatim') {
+    const out = document.createElement('div');
+    out.className = 'chat-msg iris';
+    out.textContent = 'IRIS [verbatim]: ' + text;
+    box.appendChild(out);
+    box.scrollTop = box.scrollHeight;
+    try {
+      const r = await fetch('/api/speak', {method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({text})});
+      const j = await r.json();
+      if (!j.ok) { out.className = 'chat-msg err'; out.textContent = 'Speak error: ' + (j.error||'unknown'); }
+    } catch(e) {
+      out.className = 'chat-msg err';
+      out.textContent = 'Speak error: ' + e;
+    }
+    return;
+  }
+
   const thinking = document.createElement('div');
   thinking.className = 'chat-msg iris';
-  thinking.textContent = _chatSpeak ? 'IRIS: thinking (will speak)...' : 'IRIS: thinking...';
+  thinking.textContent = _chatMode === 'speak' ? 'IRIS: thinking (will speak)...' : 'IRIS: thinking...';
   box.appendChild(thinking);
   try {
     const r = await fetch('/api/chat', {method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({text, speak: _chatSpeak, mode: _chatPersona})});
+      body: JSON.stringify({text, speak: _chatMode === 'speak', mode: _chatPersona})});
     const j = await r.json();
     if (j.reply) {
-      const icon = j.spoken ? ' [spoken]' : '';
-      thinking.textContent = 'IRIS' + icon + ': ' + j.reply;
+      const spokenTag  = j.spoken  ? ' [spoken]'           : '';
+      const emotionTag = j.emotion ? ` {${j.emotion}}`     : '';
+      thinking.textContent = 'IRIS' + spokenTag + emotionTag + ': ' + j.reply;
     } else {
       thinking.className = 'chat-msg err';
       thinking.textContent = 'Error: ' + (j.error || 'unknown');
