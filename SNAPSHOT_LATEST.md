@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S48 | **Date:** 2026-05-03 | **Branch:** `main` | **Last commit:** S47: RD-002 AMUSED emotion full implementation
+**Session:** S49 | **Date:** 2026-05-06 | **Branch:** `main` | **Last commit:** S49: Log rework, chat verbatim mode, response cleaning, TTS conflict fix
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -16,7 +16,7 @@
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models rebuilt (S48) — PT-001 few-shot adversarial examples live. |
 | Teensy 4.1 | Operational. Eye movement suspended during TTS (S36). |
 | TTS | Kokoro primary (Docker, GandalfAI port 8004), Piper fallback (Wyoming port 10200). |
-| Web UI | Operational. Bench tab live. Logs tab now shows intent routing decisions. |
+| Web UI | Operational. S49: Log tab reworked (structured events, filter bar), chat verbatim mode added, response cleaning wired, /api/chat route fixed. |
 
 ---
 
@@ -55,20 +55,25 @@ Remaining steps before user-visible behavior changes:
 
 ## Session Scope
 
-S48: Two tasks. (1) NUM_PREDICT override removed from Pi4 iris_config.json — tiered classifier now controls response length (SHORT=120, MEDIUM=350, LONG=700, MAX=1200). DEPLOYED+VERIFIED. (2) PT-001 — few-shot adversarial examples added to iris_modelfile.txt and iris-kids_modelfile.txt. Both models rebuilt on GandalfAI. DEPLOYED.
+S49: Web UI rework. Four bugs fixed in iris_web.py + iris_web.html. DEPLOYED to Pi4. Pending live verification.
 
 ---
 
-## Last Session Changes (S48)
+## Last Session Changes (S49)
+
+Web UI fixes only. No firmware, no GandalfAI, no assistant.py changes.
+
+- **`pi4/iris_web.py`** — `/api/generate` route renamed to `/api/chat` (was causing 404 on all chat sends). Response cleaning added in `api_chat()`: `extract_emotion_from_reply()` + `clean_llm_reply()` now called before TTS — emotion tags and markdown no longer spoken aloud. New `/api/speak` endpoint for verbatim TTS (bypasses LLM). `/api/logs` rewritten to return structured `{events: [...]}` JSON with category, timestamp, message, detail fields.
+- **`pi4/iris_web.html`** — Log tab: replaced raw journalctl dump with categorized event panel + filter bar (All / Wakeword / Heard / Route / LLM / Spoken / STOP / Drift / Errors). Chat tab: verbatim speak mode added (sends to `/api/speak` directly, no LLM). Chat response now displays emotion tag inline. TTS conflict warning note added to UI.
+- Commit: `6509cca`. Pi4 DEPLOYED, SD persisted, md5 verified, iris-web restarted active.
+
+## Previous Session Changes (S48)
 
 Two tasks completed. No firmware changes. No GandalfAI changes.
 
 - **`/home/pi/iris_config.json` (Pi4 live)** — `NUM_PREDICT: 200` key removed. SD persisted (md5 verified). assistant.py restarted — `[INFO] Ready.` confirmed. Tiered classifier (SHORT/MEDIUM/LONG/MAX) now controls LLM response length unconstrained.
 - **`ollama/iris_modelfile.txt`** — PT-001: 8 few-shot adversarial examples added (insults, identity challenges, NEUTRAL deflections). DEPLOYED.
 - **`ollama/iris-kids_modelfile.txt`** — PT-001: 4 kid-appropriate AMUSED/NEUTRAL examples added (warm, playful redirect). DEPLOYED.
-
-Kids modelfile (iris-kids_modelfile.txt): edited — 4 kid-appropriate AMUSED/NEUTRAL examples added (warm, playful redirect).
-Model rebuild: DEPLOYED — iris and iris-kids rebuilt on GandalfAI (S48).
 
 ## Previous Session Changes (S47)
 

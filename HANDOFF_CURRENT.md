@@ -40,6 +40,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
+S49 DEPLOYED (6509cca): iris_web.py + iris_web.html. Log tab rework, chat verbatim mode, /api/chat fix, response cleaning. Pending: live behavior verification via browser at http://192.168.1.200:5000/.
 PT-001 DEPLOYED (S48): few-shot adversarial examples in iris_modelfile.txt + iris-kids_modelfile.txt. Both models rebuilt on GandalfAI. Verification (live adversarial testing) pending.
 RD-002 (AMUSED): FULLY DEPLOYED — Pi4 (config.py, led.py, iris_web.html, md5 verified), Teensy firmware flashed (2026-05-03), iris-kids model live on GandalfAI. Pending: live behavior verification.
 RD-001: COMPLETE (Option 1 deployed, 54d576c). RD-003 (duplicate sleep log) is next low-priority item.
