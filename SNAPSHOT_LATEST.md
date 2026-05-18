@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S49 | **Date:** 2026-05-06 | **Branch:** `main` | **Last commit:** S49: Log rework, chat verbatim mode, response cleaning, TTS conflict fix
+**Session:** S50 | **Date:** 2026-05-18 | **Branch:** `main` | **Last commit:** S50: Latency observability + KOKORO_SPEED + journald retention
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -12,7 +12,7 @@
 | System | Status |
 |---|---|
 | SuperMaster Desktop | Canonical local repo. Claude Desktop, filesystem MCP, SSH MCP active. |
-| Pi4 192.168.1.200 | Operational. assistant.py + intent_router.py + iris_web.py deployed, persisted, verified. |
+| Pi4 192.168.1.200 | Operational. S50: assistant.py + config.py + tts.py + intent_router.py + journald conf deployed, md5 verified, service restarted — [INFO] Ready. confirmed. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models rebuilt (S48) — PT-001 few-shot adversarial examples live. |
 | Teensy 4.1 | Operational. Eye movement suspended during TTS (S36). |
 | TTS | Kokoro primary (Docker, GandalfAI port 8004), Piper fallback (Wyoming port 10200). |
@@ -50,17 +50,28 @@ Remaining steps before user-visible behavior changes:
 - **LOW: "stop" Whisper hallucination** — RD-001 Option 1 (post-STT STOP phrase gate) deployed and handles most cases. Residual: Whisper may hallucinate "stop" into unrelated text before the gate sees it. Pre-STT RMS intercept deferred as not required.
 - **MED: LLM personality inconsistency** — Standing rule: any LLM drift = check GandalfAI sync first (`ollama show iris --modelfile` vs repo). See memory: project_gandalf_modelfile_sync.md.
 - **LOW: root-level stale sleep log** — /home/pi/iris_sleep.log may duplicate /home/pi/logs/iris_sleep.log.
-- **MED: Perceived wake-to-response latency (30-40s on slow turns)** — INSTRUMENTED (S50). Structured JSONL bench log added (`/home/pi/logs/iris_bench.jsonl`). Suspected causes: GandalfAI cold WoL boot, Ollama model unload after idle, 1.5s SILENCE_SECS grace. Status: REPO-ONLY pending deploy. After ~1 week of use, `cat /home/pi/logs/iris_bench.jsonl` will show which stage dominates. Separately: user must set `OLLAMA_KEEP_ALIVE=30m` env var on GandalfAI (Windows machine-level) and restart Ollama service to prevent model unload.
+- **MED: Perceived wake-to-response latency (30-40s on slow turns)** — INSTRUMENTED + DEPLOYED (S50). Bench timing in all stages live on Pi4. JSONL log at `/home/pi/logs/iris_bench.jsonl` — fills after first voice turn. After ~1 week of use, review to identify dominant stage. Pending user action: set `OLLAMA_KEEP_ALIVE=30m` on GandalfAI (Windows machine env var + restart Ollama service). KOKORO_SPEED slider live in Web UI Voice tab — set to 1.15 and persist to SD for faster TTS.
 
 ---
 
 ## Session Scope
 
-S50: Latency hardening + observability. KOKORO_SPEED config param, complete bench timing instrumentation (new stages + JSONL log), journald retention (500MB/1yr), intent log retention (365 days). REPO-ONLY — pending deploy checklist in HANDOFF_CURRENT.md.
+S50: Latency hardening + observability. KOKORO_SPEED config param, complete bench timing instrumentation (new stages + JSONL log), journald retention (500MB/1yr), intent log retention (365 days). DEPLOYED — assistant active, [INFO] Ready. confirmed. Pending: user voice verification + OLLAMA_KEEP_ALIVE + KOKORO_SPEED dial-in via Web UI.
 
 ---
 
-## Last Session Changes (S49)
+## Last Session Changes (S50)
+
+Pi4 code deploy + journald config install. No firmware, no GandalfAI, no iris_web changes.
+
+- **`pi4/assistant.py`** — `_bench_write()` helper. Full bench stage coverage with `time.monotonic()`: `wake_to_record_start_ms`, `record_duration_ms`, `stt_ms`, `router_ms`, `llm_first_token_ms`, `llm_total_ms`, `tts_ms`, `play_start_ms`. JSONL written to `/home/pi/logs/iris_bench.jsonl` on every turn. All bench logging guarded in try/except.
+- **`pi4/core/config.py`** — `KOKORO_SPEED = 1.0` added; registered in `_OVERRIDABLE` and `_TYPE_COERCE` (float, 0.5–2.0). Web UI can override without restart.
+- **`pi4/services/tts.py`** — `_synthesize_kokoro()` lazy-imports `KOKORO_SPEED` per call; passes `"speed"` to Kokoro-FastAPI payload.
+- **`pi4/core/intent_router.py`** — `backupCount` 7 → 365 days.
+- **`pi4/etc/journald.iris.conf`** + **`pi4/scripts/install_journald.sh`** (new) — 500MB/1yr journald retention. Conf installed to `/etc/systemd/journald.conf.d/iris.conf`, persisted to SD.
+- Commit: `bae8da0`. Pi4 DEPLOYED, all 6 files md5 verified, assistant restarted — `[INFO] Ready.` confirmed.
+
+## Previous Session Changes (S49)
 
 Web UI fixes only. No firmware, no GandalfAI, no assistant.py changes.
 
