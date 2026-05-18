@@ -250,7 +250,7 @@ Implemented:
 
 ## S50 — Perceived Latency Hardening + Observability + Kokoro Speed Control
 
-**Status:** REPO-ONLY (2026-05-18). No Pi4 deploy. Pending full post-deploy checklist.
+**Status:** DEPLOYED (commit `bae8da0`, 2026-05-18). Pi4 live, md5 verified, assistant restarted — `[INFO] Ready.` confirmed. Pending: user voice verification + manual post-deploy steps (KOKORO_SPEED dial-in, SILENCE_SECS, OLLAMA_KEEP_ALIVE on GandalfAI).
 
 Goal: Add configurable Kokoro speed, complete bench timing instrumentation, long-retention JSONL bench log, journald retention bump, and intent log retention bump.
 
@@ -263,3 +263,25 @@ Implemented:
 - **`pi4/scripts/install_journald.sh`** (new) — Copies conf to `/etc/systemd/journald.conf.d/iris.conf` and restarts journald. Must be run once after deploy and persisted via overlayfs.
 - **`IRIS_CONFIG_MAP.md`** — `KOKORO_SPEED` row added to Kokoro table.
 - **`ROADMAP.md`** — RD-007 stub added (bench trend viewer in iris_web).
+
+
+---
+
+## S51 — Intent Router Regex Hardening
+
+**Status:** DEPLOYED (2026-05-18). Pi4 live, md5 `184e38ae685ce03f00e05cf29b3c0adf` verified at both `/home/pi/core/intent_router.py` and `/media/root-rw/overlay/home/pi/core/intent_router.py`. assistant.py restarted — service active.
+
+**Goal:** Fix 4 false positives in `intent_router.py` identified in `review/findings_session_4_router.md` (Opus 4.7 audit). Primary fix: `_DATE_RE` false positive routing historical year questions to the date handler.
+
+**Changes to `pi4/core/intent_router.py`:**
+
+1. **`_TIME_RE` tightened** — Negative lookahead blocks `(did|was|were|happened)` after `what time` and `what hour`. Also blocks `current time travel`.
+2. **`_DATE_RE` tightened** (primary fix) — Negative lookahead blocks `(did|was|were|happened|built|born|died|founded|invented|started|ended)` after `what (year|month|day|date)`. "What year did the Civil War end?" now routes to LLM; "What year is it?" still routes to DATE.
+3. **`_KIDS_OFF_RE` tightened** — Removed bare `adult mode` and `normal mode` alternatives (too generic; matched casual speech with no kids-mode intent).
+4. **`_random_number_reply`** — `digit` keyword now returns 0–9 range instead of 1–100.
+5. **`_layer2_utility` RANDOM_NUMBER** — `payload={"result": reply.rstrip(".")}` added; result now logged in intent log.
+
+**Findings applied:** 4.5 (MED: _DATE_RE historical false positive), 4.7 (LOW: KIDS_OFF bare adult/normal mode), 4.9 (LOW: random number log missing result), 4.10 (LOW: digit range).
+**Findings not applied:** 4.6 (volume patterns — too risky without live testing), 4.1/4.2/4.3/4.4/4.8 (out of scope).
+
+**Deploy note:** sftp_write truncates overlayfs writes to `/home/pi/core/` directly. Workaround: sftp_write base64 to `/tmp/` then `mv`. Both `/home/pi/core/` and `/media/root-rw/overlay/home/pi/core/` are the same inode — no separate SD copy step needed after `mv`.

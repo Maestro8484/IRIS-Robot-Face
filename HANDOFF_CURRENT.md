@@ -40,6 +40,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
+S51 DEPLOYED (2026-05-18): intent_router.py regex hardening — 4 false positive fixes, md5 `184e38ae685ce03f00e05cf29b3c0adf` verified, assistant restarted active.
 S50 DEPLOYED (bae8da0): All Pi4 files deployed, md5 verified, assistant restarted — `[INFO] Ready.` confirmed 2026-05-18.
 Pending user actions for S50:
   - [ ] Web UI Voice tab → `KOKORO_SPEED` → set `1.15` → Save → Persist to SD

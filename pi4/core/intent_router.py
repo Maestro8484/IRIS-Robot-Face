@@ -121,7 +121,7 @@ _KIDS_ON_RE = re.compile(
 )
 _KIDS_OFF_RE = re.compile(
     r"kids mode off|disable kids mode|turn off kids mode|switch to adult mode|"
-    r"adult mode|deactivate kids mode|kid mode off|normal mode"
+    r"deactivate kids mode|kid mode off"
 )
 
 # Eye control: pulled from core.config at import time to stay in sync
@@ -137,8 +137,16 @@ except ImportError:
 
 # ── Layer 2: UTILITY ──────────────────────────────────────────────────────────
 
-_TIME_RE = re.compile(r"what time|what'?s the time|current time|tell me the time|time is it|what hour")
-_DATE_RE = re.compile(r"what day|what date|what'?s the date|today'?s date|what month|what year|day is it|date is it")
+_TIME_RE = re.compile(
+    r"what'?s the time|tell me the time|time is it"
+    r"|current time\b(?!\s+travel)"
+    r"|what time\b(?!\s+(?:did|was|were|happened)\b)"
+    r"|what hour\b(?!\s+(?:did|was|were|happened)\b)"
+)
+_DATE_RE = re.compile(
+    r"what'?s the date|today'?s date|day is it|date is it"
+    r"|what\s+(?:year|month|day|date)\b(?!\s+(?:did|was|were|happened|built|born|died|founded|invented|started|ended)\b)"
+)
 
 # Random number request patterns
 _RANDOM_RE = re.compile(
@@ -157,6 +165,8 @@ def _random_number_reply(norm: str) -> str:
         if lo > hi:
             lo, hi = hi, lo
         return f"{random.randint(lo, hi)}."
+    if re.search(r"\bdigit\b", norm):
+        return f"{random.randint(0, 9)}."
     return f"{random.randint(1, 100)}."
 
 
@@ -282,9 +292,11 @@ class IntentRouter:
     # ── Layer 2 ───────────────────────────────────────────────────────────────
     def _layer2_utility(self, norm: str) -> Optional[IntentResult]:
         if _RANDOM_RE.search(norm):
+            reply = _random_number_reply(norm)
             return IntentResult(
                 ROUTE_UTILITY, "RANDOM_NUMBER", CONF_HIGH,
-                response=_random_number_reply(norm),
+                response=reply,
+                payload={"result": reply.rstrip(".")},
             )
         # Vision before time/date to avoid false matches on "what is this"
         if _VISION_TRIGGERS and any(t in norm for t in _VISION_TRIGGERS):

@@ -60,7 +60,14 @@ S50: Latency hardening + observability. KOKORO_SPEED config param, complete benc
 
 ---
 
-## Last Session Changes (S50)
+## Last Session Changes (S51)
+
+Intent router regex hardening. No firmware, no GandalfAI, no assistant.py changes.
+
+- **`pi4/core/intent_router.py`** — 5 changes: `_DATE_RE` + `_TIME_RE` negative lookaheads blocking historical context words; `_KIDS_OFF_RE` bare adult/normal mode removed; `digit` range fixed 1–100 → 0–9; RANDOM_NUMBER payload logs result. Commit: TBD. Pi4 DEPLOYED, md5 `184e38ae685ce03f00e05cf29b3c0adf` verified, assistant restarted active.
+- **Deploy note:** Overlayfs direct-write truncation workaround confirmed — sftp_write to `/tmp/`, then `mv`. Both overlay paths are same inode.
+
+## Previous Session Changes (S50)
 
 Pi4 code deploy + journald config install. No firmware, no GandalfAI, no iris_web changes.
 
@@ -115,6 +122,9 @@ Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 
 ## Next Work
 
+- S51 DEPLOYED: intent_router.py regex hardening — all 4 findings applied, md5 verified, service restarted.
+- S50 pending user actions: KOKORO_SPEED dial-in, SILENCE_SECS, OLLAMA_KEEP_ALIVE on GandalfAI, bench log verification.
+- S49 DEPLOYED: live browser verification still pending.
 - RD-002 AMUSED: FULLY DEPLOYED. Pending: live behavior verification.
 - PT-001: DEPLOYED. Pending: live adversarial testing.
 - RD-001: COMPLETE. RD-003 (duplicate sleep log) is next low-priority item.
