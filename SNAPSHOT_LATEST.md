@@ -50,12 +50,13 @@ Remaining steps before user-visible behavior changes:
 - **LOW: "stop" Whisper hallucination** — RD-001 Option 1 (post-STT STOP phrase gate) deployed and handles most cases. Residual: Whisper may hallucinate "stop" into unrelated text before the gate sees it. Pre-STT RMS intercept deferred as not required.
 - **MED: LLM personality inconsistency** — Standing rule: any LLM drift = check GandalfAI sync first (`ollama show iris --modelfile` vs repo). See memory: project_gandalf_modelfile_sync.md.
 - **LOW: root-level stale sleep log** — /home/pi/iris_sleep.log may duplicate /home/pi/logs/iris_sleep.log.
+- **MED: Perceived wake-to-response latency (30-40s on slow turns)** — INSTRUMENTED (S50). Structured JSONL bench log added (`/home/pi/logs/iris_bench.jsonl`). Suspected causes: GandalfAI cold WoL boot, Ollama model unload after idle, 1.5s SILENCE_SECS grace. Status: REPO-ONLY pending deploy. After ~1 week of use, `cat /home/pi/logs/iris_bench.jsonl` will show which stage dominates. Separately: user must set `OLLAMA_KEEP_ALIVE=30m` env var on GandalfAI (Windows machine-level) and restart Ollama service to prevent model unload.
 
 ---
 
 ## Session Scope
 
-S49: Web UI rework. Four bugs fixed in iris_web.py + iris_web.html. DEPLOYED to Pi4. Pending live verification.
+S50: Latency hardening + observability. KOKORO_SPEED config param, complete bench timing instrumentation (new stages + JSONL log), journald retention (500MB/1yr), intent log retention (365 days). REPO-ONLY — pending deploy checklist in HANDOFF_CURRENT.md.
 
 ---
 

@@ -40,10 +40,74 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
+S50 REPO-ONLY: Latency hardening + observability. Full post-deploy checklist below.
 S49 DEPLOYED (6509cca): iris_web.py + iris_web.html. Log tab rework, chat verbatim mode, /api/chat fix, response cleaning. Pending: live behavior verification via browser at http://192.168.1.200:5000/.
 PT-001 DEPLOYED (S48): few-shot adversarial examples in iris_modelfile.txt + iris-kids_modelfile.txt. Both models rebuilt on GandalfAI. Verification (live adversarial testing) pending.
 RD-002 (AMUSED): FULLY DEPLOYED — Pi4 (config.py, led.py, iris_web.html, md5 verified), Teensy firmware flashed (2026-05-03), iris-kids model live on GandalfAI. Pending: live behavior verification.
 RD-001: COMPLETE (Option 1 deployed, 54d576c). RD-003 (duplicate sleep log) is next low-priority item.
+
+---
+
+## S50 — Latency Hardening + Observability + Kokoro Speed Control
+
+**Status:** REPO-ONLY. All changes committed locally. No Pi4 deploy yet.
+
+**Changes:**
+- `pi4/core/config.py` — `KOKORO_SPEED = 1.0` added; registered in `_OVERRIDABLE` + `_TYPE_COERCE` (float, 0.5–2.0).
+- `pi4/services/tts.py` — `_synthesize_kokoro()` lazy-imports `KOKORO_SPEED` per call; passes `"speed"` field to Kokoro-FastAPI.
+- `pi4/assistant.py` — `_bench_write()` helper. Full bench stage coverage: `wake_to_record_start_ms`, `record_duration_ms`, `stt_ms`, `router_ms`, `llm_first_token_ms`, `llm_total_ms`, `tts_ms`, `play_start_ms`, `total_ms`, `gandalf_was_cold`, `model`. JSONL written to `/home/pi/logs/iris_bench.jsonl` on every turn that reaches `play_pcm_speaking`. All bench logging guarded in try/except. Engine label fixed (was "chatterbox", now "kokoro").
+- `pi4/core/intent_router.py` — `backupCount` 7 → 365 days.
+- `pi4/etc/journald.iris.conf` (new) — `SystemMaxUse=500M`, `MaxRetentionSec=1year`.
+- `pi4/scripts/install_journald.sh` (new) — Installs journald conf and restarts journald. Run once after deploy; conf file must be persisted separately via `/media/root-ro`.
+- `IRIS_CONFIG_MAP.md` — `KOKORO_SPEED` row added.
+- `ROADMAP.md` — RD-007 stub added (bench trend viewer).
+
+**Post-deploy checklist (in order):**
+
+a) Deploy files to Pi4 (standard `/media/root-ro` pattern):
+   - `pi4/core/config.py` → `/home/pi/core/config.py`
+   - `pi4/services/tts.py` → `/home/pi/services/tts.py`
+   - `pi4/assistant.py` → `/home/pi/assistant.py`
+   - `pi4/core/intent_router.py` → `/home/pi/core/intent_router.py`
+   - `pi4/etc/journald.iris.conf` → `/home/pi/etc/journald.iris.conf`
+   - `pi4/scripts/install_journald.sh` → `/home/pi/scripts/install_journald.sh`
+   Persist all to SD. md5 verify. Restart assistant service.
+
+b) Web UI → Voice tab → `KOKORO_SPEED` → set `1.15` → Save → **Persist to SD**.
+   (Default 1.0 is in code; user dials in preferred speed via web UI.)
+
+c) SSH Pi4: `sudo bash /home/pi/scripts/install_journald.sh`
+   Then persist the conf file to overlayfs:
+   ```bash
+   sudo mount -o remount,rw /media/root-ro
+   sudo mkdir -p /media/root-ro/etc/systemd/journald.conf.d
+   sudo cp /etc/systemd/journald.conf.d/iris.conf /media/root-ro/etc/systemd/journald.conf.d/iris.conf
+   sync && sudo mount -o remount,ro /media/root-ro
+   ```
+
+d) Web UI → Audio tab → "Wait after silence" (SILENCE_SECS) → `0.7` → Save → **Persist to SD**.
+   (Saves 0.8s on every turn. This is a user-action config change, not a code change.)
+
+e) On GandalfAI (Windows machine-level, NOT part of this PR — user does manually):
+   - Open System Properties → Environment Variables → System Variables → New
+   - `OLLAMA_KEEP_ALIVE` = `30m`
+   - Restart Ollama service (Services app or: `net stop Ollama && net start Ollama`)
+   - This prevents model unload after idle and eliminates the largest source of cold-start latency.
+
+f) Restart assistant (if not already done in step a). Confirm `[INFO] Ready.` in logs.
+
+g) Trigger one full LLM turn. Verify `/home/pi/logs/iris_bench.jsonl` receives an entry:
+   ```bash
+   tail -1 /home/pi/logs/iris_bench.jsonl | python3 -m json.tool
+   ```
+   Confirm all stage_ms fields are non-null for the LLM path.
+
+**Rollback:**
+```bash
+git checkout -- pi4/services/tts.py pi4/core/config.py pi4/assistant.py pi4/core/intent_router.py
+rm -f pi4/etc/journald.iris.conf pi4/scripts/install_journald.sh
+# Re-deploy reverted files to Pi4. No GandalfAI or Teensy changes needed.
+```
 
 ---
 

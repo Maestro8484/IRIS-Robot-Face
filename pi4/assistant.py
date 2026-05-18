@@ -301,6 +301,29 @@ def return_to_sleep(teensy, st) -> None:
     print("[SLEEP] Returned to sleep (sleep window active)", flush=True)
 
 
+def _bench_write(stages, transcript, reply_chars, model, gandalf_was_cold, route, interrupted):
+    """Append one structured JSON record to iris_bench.jsonl. Never raises."""
+    import datetime
+    try:
+        os.makedirs("/home/pi/logs", exist_ok=True)
+        record = {
+            "ts":               datetime.datetime.now().isoformat(timespec="seconds"),
+            "stages":           stages,
+            "total_ms":         stages.get("play_start_ms"),
+            "transcript":       transcript,
+            "reply_chars":      reply_chars,
+            "model":            model,
+            "gandalf_was_cold": gandalf_was_cold,
+            "route":            route,
+            "interrupted":      interrupted,
+        }
+        with open("/home/pi/logs/iris_bench.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            f.flush()
+    except Exception as e:
+        print(f"[BENCH] JSONL write failed: {e}", flush=True)
+
+
 def _do_sleep(teensy, leds):
     teensy.send_command("EYES:SLEEP")
     teensy.send_command("MOUTH:8")
@@ -417,6 +440,17 @@ def main():
                 leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
 
             ptt_mode = (trigger == "button")
+            _t_mono_wake = 0.0
+            _gandalf_was_cold = False
+            _bench_stages = {
+                "wake_to_record_start_ms": None, "record_duration_ms": None,
+                "stt_ms": None, "router_ms": None, "llm_first_token_ms": None,
+                "llm_total_ms": None, "tts_ms": None, "play_start_ms": None,
+            }
+            _bench_transcript = ""
+            _bench_reply_chars = 0
+            _bench_route = ROUTE_LLM
+            _bench_interrupted = False
 
             if ptt_mode: print("\n[PTT]  Button pressed", flush=True); leds.show_ptt()
             else: print("\n[WAKE] Wake word detected", flush=True); leds.show_wake()
@@ -437,24 +471,39 @@ def main():
                     print(f"[SLEEP] Wake greeting failed: {_e}", flush=True)
                 show_idle_for_mode(leds); continue
 
+            try:
+                _gandalf_was_cold = not gandalf_is_up()
+            except Exception:
+                pass
             if not ensure_gandalf_up(leds, pa):
                 leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
 
             play_beep(pa)
             _t_wake = time.time()
-            print(f"[BENCH] t={_t_wake:.3f} stage=wake_detected trigger={'ptt' if ptt_mode else 'wake'}", flush=True)
+            _t_mono_wake = time.monotonic()
+            try:
+                print(f"[BENCH] t={_t_wake:.3f} stage=wake_detected trigger={'ptt' if ptt_mode else 'wake'} gandalf_was_cold={str(_gandalf_was_cold).lower()}", flush=True)
+            except Exception:
+                pass
             _drain_n = int(SAMPLE_RATE / CHUNK * OWW_DRAIN_SECS)
             _pre_buf = []
             for _ in range(_drain_n):
                 try: _pre_buf.append(mic.read(CHUNK, exception_on_overflow=False))
                 except Exception: break
             leds.show_recording(); print("[REC]  Listening...", flush=True)
+            _t_mono_rec_start = time.monotonic()
             raw = b"".join(_pre_buf) + record_command(mic, ptt_mode=ptt_mode, kids_mode=state.kids_mode)
+            _t_mono_rec = time.monotonic()
             arr = np.frombuffer(raw, dtype=np.int16).astype(float)
             rms = np.sqrt(np.mean(arr**2))
             print(f"[REC]  {len(raw)/2/SAMPLE_RATE:.1f}s  RMS={rms:.0f}", flush=True)
             _t_rec = time.time()
-            print(f"[BENCH] t={_t_rec:.3f} stage=rec_done dur_rec={_t_rec-_t_wake:.2f} rms={rms:.0f}", flush=True)
+            try:
+                _bench_stages["wake_to_record_start_ms"] = round((_t_mono_rec_start - _t_mono_wake) * 1000)
+                _bench_stages["record_duration_ms"] = round((_t_mono_rec - _t_mono_rec_start) * 1000)
+                print(f"[BENCH] t={_t_rec:.3f} stage=rec_done dur_rec={_t_rec-_t_wake:.2f} wake_to_rec_start_ms={_bench_stages['wake_to_record_start_ms']} record_duration_ms={_bench_stages['record_duration_ms']} rms={rms:.0f}", flush=True)
+            except Exception:
+                print(f"[BENCH] t={_t_rec:.3f} stage=rec_done dur_rec={_t_rec-_t_wake:.2f} rms={rms:.0f}", flush=True)
 
             # ── RMS gate + Whisper hallucination filter ────────────────────────
             if rms < 300:
@@ -471,8 +520,14 @@ def main():
                 print("[STT]  Empty transcript", flush=True); show_idle_for_mode(leds); continue
             print(f"[STT]  '{text}'", flush=True)
             _t_stt = time.time()
+            _t_mono_stt = time.monotonic()
+            _bench_transcript = text
             _snip = text[:30].replace('"', "'")
-            print(f"[BENCH] t={_t_stt:.3f} stage=stt_done dur_stt={_t_stt-_t_rec:.2f} transcript=\"{_snip}\"", flush=True)
+            try:
+                _bench_stages["stt_ms"] = round((_t_mono_stt - _t_mono_rec) * 1000)
+                print(f"[BENCH] t={_t_stt:.3f} stage=stt_done dur_stt={_t_stt-_t_rec:.2f} stt_ms={_bench_stages['stt_ms']} transcript=\"{_snip}\"", flush=True)
+            except Exception:
+                print(f"[BENCH] t={_t_stt:.3f} stage=stt_done dur_stt={_t_stt-_t_rec:.2f} transcript=\"{_snip}\"", flush=True)
 
             _text_norm = text.lower().strip().strip(".!?,;:")
 
@@ -505,7 +560,14 @@ def main():
             # ── Intent routing ────────────────────────────────────────────────
             _result = router.classify(text, state)
             _route  = _result.route
+            _bench_route = _route
+            _t_mono_router = time.monotonic()
             print(f"[ROUTE] {_route}/{_result.action} conf={_result.confidence}", flush=True)
+            try:
+                _bench_stages["router_ms"] = round((_t_mono_router - _t_mono_stt) * 1000)
+                print(f"[BENCH] stage=router_done router_ms={_bench_stages['router_ms']} route={_route}", flush=True)
+            except Exception:
+                pass
 
             # Auto-wake eyes for any route that requires interaction (not sleep/stop)
             _needs_eye_wake = (
@@ -525,7 +587,11 @@ def main():
                         try:
                             pcm_data = synthesize(_result.response)
                             leds.show_speaking(); mic.stop_stream()
+                            _t_mono_play = time.monotonic()
+                            try: _bench_stages["play_start_ms"] = round((_t_mono_play - _t_mono_wake) * 1000)
+                            except Exception: pass
                             play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                            _bench_write(_bench_stages, _bench_transcript, 0, get_model(), _gandalf_was_cold, ROUTE_REFLEX, False)
                         except Exception as e:
                             print(f"[ERR]  TTS reflex sleep: {e}", flush=True)
                     show_idle_for_mode(leds); print("[INFO] Ready.", flush=True); continue
@@ -561,7 +627,11 @@ def main():
                         try:
                             pcm_data = synthesize(kids_reply)
                             leds.show_speaking(); mic.stop_stream()
+                            _t_mono_play = time.monotonic()
+                            try: _bench_stages["play_start_ms"] = round((_t_mono_play - _t_mono_wake) * 1000)
+                            except Exception: pass
                             play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                            _bench_write(_bench_stages, _bench_transcript, 0, get_model(), _gandalf_was_cold, ROUTE_COMMAND, False)
                         except Exception as e:
                             print(f"[ERR]  TTS mode switch: {e}", flush=True)
                     emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
@@ -574,7 +644,11 @@ def main():
                         try:
                             pcm_data = synthesize(vol_reply)
                             leds.show_speaking(); mic.stop_stream()
+                            _t_mono_play = time.monotonic()
+                            try: _bench_stages["play_start_ms"] = round((_t_mono_play - _t_mono_wake) * 1000)
+                            except Exception: pass
                             play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                            _bench_write(_bench_stages, _bench_transcript, 0, get_model(), _gandalf_was_cold, ROUTE_COMMAND, False)
                         except Exception as e:
                             print(f"[ERR]  TTS vol: {e}", flush=True)
                         emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
@@ -599,7 +673,11 @@ def main():
                         try:
                             pcm_data = synthesize(reply)
                             leds.show_speaking(); mic.stop_stream()
+                            _t_mono_play = time.monotonic()
+                            try: _bench_stages["play_start_ms"] = round((_t_mono_play - _t_mono_wake) * 1000)
+                            except Exception: pass
                             play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                            _bench_write(_bench_stages, _bench_transcript, len(reply), get_model(), _gandalf_was_cold, ROUTE_UTILITY, False)
                         except Exception as e:
                             print(f"[ERR]  TTS vision: {e}", flush=True)
                         emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
@@ -609,7 +687,11 @@ def main():
                     try:
                         pcm_data = synthesize(_result.response)
                         leds.show_speaking(); mic.stop_stream()
+                        _t_mono_play = time.monotonic()
+                        try: _bench_stages["play_start_ms"] = round((_t_mono_play - _t_mono_wake) * 1000)
+                        except Exception: pass
                         play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                        _bench_write(_bench_stages, _bench_transcript, len(_result.response), get_model(), _gandalf_was_cold, ROUTE_UTILITY, False)
                     except Exception as e:
                         print(f"[ERR]  TTS utility: {e}", flush=True)
                     emit_emotion(teensy, leds, "NEUTRAL"); show_idle_for_mode(leds)
@@ -626,7 +708,11 @@ def main():
                         try:
                             pcm_data = synthesize(_result.response)
                             leds.show_speaking(); mic.stop_stream()
+                            _t_mono_play = time.monotonic()
+                            try: _bench_stages["play_start_ms"] = round((_t_mono_play - _t_mono_wake) * 1000)
+                            except Exception: pass
                             play_pcm_speaking(pcm_data, pa, teensy); mic.start_stream()
+                            _bench_write(_bench_stages, _bench_transcript, 0, get_model(), _gandalf_was_cold, ROUTE_AMBIGUOUS, False)
                         except Exception as e:
                             print(f"[ERR]  TTS ambiguous sleep: {e}", flush=True)
                     show_idle_for_mode(leds); print("[INFO] Ready.", flush=True); continue
@@ -638,7 +724,11 @@ def main():
                      NUM_PREDICT_LONG: "LONG", NUM_PREDICT_MAX: "MAX"}.get(_num_predict, "CUSTOM")
             print(f"[LLM]  Streaming... (model={get_model()}, num_predict={_num_predict})", flush=True)
             _t_llm0 = time.time()
-            print(f"[BENCH] t={_t_llm0:.3f} stage=llm_start tier={_tier} num_predict={_num_predict}", flush=True)
+            _t_mono_llm0 = time.monotonic()
+            try:
+                print(f"[BENCH] t={_t_llm0:.3f} stage=llm_start tier={_tier} num_predict={_num_predict} model={get_model()} gandalf_was_cold={str(_gandalf_was_cold).lower()}", flush=True)
+            except Exception:
+                pass
             state.last_interaction = time.time()
             state.conversation_history.append({"role": "user", "content": text})
 
@@ -656,7 +746,12 @@ def main():
                         _emotion_set = True
                     if _bench_first_chunk:
                         _t_llm_first = time.time()
-                        print(f"[BENCH] t={_t_llm_first:.3f} stage=llm_first_chunk dur_ttfc={_t_llm_first-_t_llm0:.2f}", flush=True)
+                        _t_mono_llm_first = time.monotonic()
+                        try:
+                            _bench_stages["llm_first_token_ms"] = round((_t_mono_llm_first - _t_mono_llm0) * 1000)
+                            print(f"[BENCH] t={_t_llm_first:.3f} stage=llm_first_chunk dur_ttfc={_t_llm_first-_t_llm0:.2f} llm_first_token_ms={_bench_stages['llm_first_token_ms']}", flush=True)
+                        except Exception:
+                            print(f"[BENCH] t={_t_llm_first:.3f} stage=llm_first_chunk dur_ttfc={_t_llm_first-_t_llm0:.2f}", flush=True)
                         _bench_first_chunk = False
                     reply_parts.append(chunk)
             except Exception as e:
@@ -670,23 +765,44 @@ def main():
             reply = " ".join(reply_parts).strip()
             print(f"[LLM]  '{reply}'", flush=True)
             _t_llm1 = time.time()
-            print(f"[BENCH] t={_t_llm1:.3f} stage=llm_done dur_llm={_t_llm1-_t_llm0:.2f} reply_chars={len(reply)}", flush=True)
+            _t_mono_llm1 = time.monotonic()
+            try:
+                _bench_stages["llm_total_ms"] = round((_t_mono_llm1 - _t_mono_llm0) * 1000)
+                print(f"[BENCH] t={_t_llm1:.3f} stage=llm_done dur_llm={_t_llm1-_t_llm0:.2f} llm_total_ms={_bench_stages['llm_total_ms']} reply_chars={len(reply)}", flush=True)
+            except Exception:
+                print(f"[BENCH] t={_t_llm1:.3f} stage=llm_done dur_llm={_t_llm1-_t_llm0:.2f} reply_chars={len(reply)}", flush=True)
 
             print("[TTS]  Synthesizing...", flush=True)
             try:
                 pcm_data = synthesize(reply)
                 _t_tts = time.time()
-                _tts_eng = "chatterbox" if CHATTERBOX_ENABLED else "piper"
-                print(f"[BENCH] t={_t_tts:.3f} stage=tts_done dur_tts={_t_tts-_t_llm1:.2f} reply_chars={len(reply)} engine={_tts_eng}", flush=True)
+                _t_mono_tts = time.monotonic()
+                _tts_eng = "kokoro" if KOKORO_ENABLED else "piper"
+                try:
+                    _bench_stages["tts_ms"] = round((_t_mono_tts - _t_mono_llm1) * 1000)
+                    print(f"[BENCH] t={_t_tts:.3f} stage=tts_done dur_tts={_t_tts-_t_llm1:.2f} tts_ms={_bench_stages['tts_ms']} reply_chars={len(reply)} engine={_tts_eng}", flush=True)
+                except Exception:
+                    print(f"[BENCH] t={_t_tts:.3f} stage=tts_done dur_tts={_t_tts-_t_llm1:.2f} reply_chars={len(reply)} engine={_tts_eng}", flush=True)
             except Exception as e:
                 print(f"[ERR]  TTS: {e}", flush=True)
                 leds.show_error(); time.sleep(1)
                 show_idle_for_mode(leds); continue
 
             leds.show_speaking(); mic.stop_stream()
+            _t_mono_play = time.monotonic()
+            try:
+                _bench_stages["play_start_ms"] = round((_t_mono_play - _t_mono_wake) * 1000)
+                print(f"[BENCH] stage=play_start play_start_ms={_bench_stages['play_start_ms']} total_ms={_bench_stages['play_start_ms']}", flush=True)
+            except Exception:
+                pass
             _interrupted = play_pcm_speaking(pcm_data, pa, teensy)
-            _t_audio = time.time()
-            print(f"[BENCH] t={_t_audio:.3f} stage=audio_done dur_audio={_t_audio-_t_tts:.2f} dur_total={_t_audio-_t_wake:.2f}", flush=True)
+            _bench_interrupted = _interrupted
+            try:
+                _t_audio = time.time()
+                print(f"[BENCH] t={_t_audio:.3f} stage=audio_done dur_audio={_t_audio-_t_tts:.2f} dur_total={_t_audio-_t_wake:.2f}", flush=True)
+            except Exception:
+                pass
+            _bench_write(_bench_stages, _bench_transcript, len(reply), get_model(), _gandalf_was_cold, _bench_route, _interrupted)
 
             state.conversation_history.append({"role": "assistant", "content": reply})
             if len(state.conversation_history) > 20:

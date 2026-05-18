@@ -44,6 +44,7 @@ from `iris_config.json`. The web UI reads and writes `iris_config.json` only.
 |---|---|---|---|---|---|
 | KOKORO_ENABLED | bool | — | true | Voice | Use Kokoro. False falls through to Piper. |
 | KOKORO_VOICE | string | — | bm_lewis | Voice | Kokoro preset voice. bm_lewis=primary British male; blend: bm_lewis:0.7+bm_george:0.3 |
+| KOKORO_SPEED | float | 0.5–2.0 | 1.0 | Voice | Speech rate multiplier. 1.0=normal, 1.15=slightly faster; re-read per call without assistant restart. |
 
 ### Voice / TTS — Chatterbox (Rollback only — replaced by Kokoro S38)
 | Key | Type | Range | Default | Web UI Tab | Feature |

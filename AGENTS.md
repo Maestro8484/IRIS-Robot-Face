@@ -19,10 +19,9 @@
 
 1. Reliability
 2. Recoverability
-3. Sleep/wake consistency
-4. Hardware compatibility
-5. Minimal diffs
-6. Clear rollback path
+3. Hardware compatibility
+4. Minimal diffs
+5. Clear rollback path
 
 ---
 

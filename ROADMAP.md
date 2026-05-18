@@ -144,3 +144,23 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 **Rollback:** Restore `hey_jarvis` configuration on Pi4 and restart wakeword service.
 
 **Files:** Pi4 wakeword configuration scripts. `iris_config.json` is protected — do not touch without explicit instruction.
+
+---
+
+## RD-007 — Bench Trend Viewer in iris_web
+
+**Status:** Open — deferred, blocked on JSONL data accumulation (deploy S50 first)
+
+**Problem:** `iris_bench.jsonl` (added S50) stores per-turn timing data but is only readable via SSH. The existing Bench tab in the web UI shows current-session timings from journald only. No trend view exists.
+
+**Goal:** Add a new panel or sub-tab in the Bench page that reads `iris_bench.jsonl`, parses all records, and displays a trend chart (e.g., `total_ms` over time, with `gandalf_was_cold` flagged). Allow filtering by route, date range. Minimum viable: table view of last 25 records with stage columns.
+
+**Impact:** User can identify latency trends and outliers without SSH. Can compare slow-turn data across days/weeks.
+
+**Risk:** iris_web.py runs as root on Pi4 overlayfs. Reading a log file is low-risk. Chart rendering likely needs a JS library (Chart.js) loaded from CDN or bundled.
+
+**Blocked on:** S50 deploy so `iris_bench.jsonl` has data to read. At least ~1 week of normal use (~25-35 turns) recommended before building the viewer.
+
+**Deployment gate:** Pi4 — iris_web.py + iris_web.html. Standard `/media/root-ro` persist pattern.
+
+**Files:** `pi4/iris_web.py` (`/api/bench_jsonl` endpoint), `pi4/iris_web.html` (Bench tab panel).

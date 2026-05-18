@@ -48,7 +48,7 @@ def _build_logger() -> logging.Logger:
     try:
         os.makedirs(os.path.dirname(_INTENT_LOG_PATH), exist_ok=True)
         h = logging.handlers.TimedRotatingFileHandler(
-            _INTENT_LOG_PATH, when="midnight", backupCount=7, encoding="utf-8"
+            _INTENT_LOG_PATH, when="midnight", backupCount=365, encoding="utf-8"
         )
         h.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(h)

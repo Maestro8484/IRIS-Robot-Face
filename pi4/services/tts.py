@@ -25,12 +25,14 @@ from services.wyoming import wy_send, read_line
 def _synthesize_kokoro(text: str) -> bytes:
     """Kokoro-FastAPI /v1/audio/speech endpoint. Returns s16le PCM at 48000 Hz."""
     import miniaudio
+    from core.config import KOKORO_SPEED
     url = f"{KOKORO_BASE_URL}/v1/audio/speech"
     payload = {
         "model": "kokoro",
         "input": text,
         "voice": KOKORO_VOICE,
         "response_format": "wav",
+        "speed": KOKORO_SPEED,
     }
     resp = requests.post(url, json=payload, timeout=30)
     resp.raise_for_status()

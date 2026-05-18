@@ -235,3 +235,31 @@ Implemented:
 - **`ollama/iris_modelfile.txt`** — PT-001: 8 few-shot adversarial examples added (insults, identity challenges, NEUTRAL deflections). Inserted after ANGRY emotion rule, before NEVER say block.
 
 Both models rebuilt on GandalfAI. PT-001 DEPLOYED.
+
+---
+
+## S49 — Web UI Rework
+
+**Status:** DEPLOYED to Pi4 (commit `6509cca`, 2026-05-06). Pending: live verification in browser.
+
+Implemented:
+- **`pi4/iris_web.py`** — `/api/generate` renamed to `/api/chat` (fixed 404 on all chat sends). `api_chat()` now calls `extract_emotion_from_reply()` + `clean_llm_reply()` before TTS — emotion tags and markdown no longer spoken aloud. New `/api/speak` endpoint for verbatim TTS (bypasses LLM). `/api/logs` rewritten to return structured `{events: [...]}` JSON with category, timestamp, message, detail fields.
+- **`pi4/iris_web.html`** — Log tab: raw journalctl dump replaced with categorized event panel + filter bar (All / Wakeword / Heard / Route / LLM / Spoken / STOP / Drift / Errors). Chat tab: verbatim speak mode added. Emotion tag displayed inline. TTS conflict warning note added.
+
+---
+
+## S50 — Perceived Latency Hardening + Observability + Kokoro Speed Control
+
+**Status:** REPO-ONLY (2026-05-18). No Pi4 deploy. Pending full post-deploy checklist.
+
+Goal: Add configurable Kokoro speed, complete bench timing instrumentation, long-retention JSONL bench log, journald retention bump, and intent log retention bump.
+
+Implemented:
+- **`pi4/core/config.py`** — `KOKORO_SPEED = 1.0` added; registered in `_OVERRIDABLE` and `_TYPE_COERCE` (float, 0.5–2.0). Web UI can set speed without assistant restart.
+- **`pi4/services/tts.py`** — `_synthesize_kokoro()` lazy-imports `KOKORO_SPEED` per call and passes `"speed": KOKORO_SPEED` to Kokoro-FastAPI payload. Re-read on every TTS call — no restart needed after web UI change.
+- **`pi4/assistant.py`** — `_bench_write()` helper added. Every turn (REFLEX/COMMAND/UTILITY/LLM) that reaches `play_pcm_speaking` now appends one JSON record to `/home/pi/logs/iris_bench.jsonl`. New bench stages: `wake_to_record_start_ms`, `record_duration_ms`, `router_ms`, `play_start_ms`, `total_ms`, `gandalf_was_cold`, `model`. All existing `[BENCH]` lines supplemented with new `_ms` fields; engine label corrected from "chatterbox" → "kokoro". All bench logging wrapped in try/except.
+- **`pi4/core/intent_router.py`** — `backupCount` bumped from 7 to 365 days.
+- **`pi4/etc/journald.iris.conf`** (new) — `SystemMaxUse=500M`, `MaxRetentionSec=1year`.
+- **`pi4/scripts/install_journald.sh`** (new) — Copies conf to `/etc/systemd/journald.conf.d/iris.conf` and restarts journald. Must be run once after deploy and persisted via overlayfs.
+- **`IRIS_CONFIG_MAP.md`** — `KOKORO_SPEED` row added to Kokoro table.
+- **`ROADMAP.md`** — RD-007 stub added (bench trend viewer in iris_web).

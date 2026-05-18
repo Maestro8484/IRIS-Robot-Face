@@ -32,6 +32,7 @@ CHATTERBOX_ENABLED      = True
 KOKORO_BASE_URL  = "http://192.168.1.3:8004"
 KOKORO_VOICE     = "bm_lewis"
 KOKORO_ENABLED   = True
+KOKORO_SPEED     = 1.0
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
 SAMPLE_RATE    = 16000
@@ -165,7 +166,7 @@ _OVERRIDABLE = {
     "OWW_THRESHOLD", "FOLLOWUP_TIMEOUT", "KIDS_FOLLOWUP_TIMEOUT",
     "FOLLOWUP_MAX_TURNS", "CONTEXT_TIMEOUT_SECS", "NUM_PREDICT", "NUM_PREDICT_SHORT", "NUM_PREDICT_MEDIUM", "NUM_PREDICT_LONG", "NUM_PREDICT_MAX", "TTS_MAX_CHARS",
     "CHATTERBOX_VOICE", "CHATTERBOX_EXAGGERATION", "CHATTERBOX_ENABLED",
-    "KOKORO_VOICE", "KOKORO_ENABLED",
+    "KOKORO_VOICE", "KOKORO_ENABLED", "KOKORO_SPEED",
     "VOL_MAX", "SPEAKER_VOLUME", "OLLAMA_MODEL_ADULT", "OLLAMA_MODEL_KIDS",
     "LED_IDLE_PEAK", "LED_IDLE_FLOOR", "LED_IDLE_PERIOD",
     "LED_KIDS_PEAK", "LED_KIDS_PERIOD",
@@ -198,6 +199,7 @@ _TYPE_COERCE = {
     "CHATTERBOX_EXAGGERATION": (float, (0.0, 2.0)),
     "CHATTERBOX_ENABLED":      (bool,  None),
     "KOKORO_ENABLED":          (bool,  None),
+    "KOKORO_SPEED":            (float, (0.5, 2.0)),
     "VOL_MAX":                 (int,   (60, 127)),
     "SPEAKER_VOLUME":          (int,   (60, 127)),
     "LED_IDLE_PEAK":           (int,   (0, 255)),
