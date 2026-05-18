@@ -340,6 +340,9 @@ def api_persist_config():
             ["sudo", "bash", "-c",
              f"mount -o remount,rw /media/root-ro && "
              f"cp {CONFIG_FILE} {SD_CONFIG} && "
+             f"chown pi:pi {SD_CONFIG} && "
+             f"chmod 644 {SD_CONFIG} && "
+             f"sync && "
              f"mount -o remount,ro /media/root-ro"],
             capture_output=True, text=True, timeout=20)
         if result.returncode != 0:
@@ -352,6 +355,7 @@ def api_persist_config():
             ["sudo", "bash", "-c",
              f"mount -o remount,rw /media/root-ro && "
              f"cp {alsa_src} {alsa_dst} && "
+             f"sync && "
              f"mount -o remount,ro /media/root-ro"],
             capture_output=True, text=True, timeout=20)
         alsa_ok = alsa_result.returncode == 0
