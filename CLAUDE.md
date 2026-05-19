@@ -27,7 +27,6 @@ Always trust local repo state first:
 - Local repo is the only source of truth for all edits.
 - Do not push to GitHub unless explicitly instructed by the user.
 - Do not edit Pi4 or GandalfAI directly unless the user says DEPLOY.
-- Show diff, wait for approval before writing any file.
 
 ---
 
@@ -51,9 +50,7 @@ Required pre-flight:
 3. Read first 50 lines of `SNAPSHOT_LATEST.md`
 4. Read `CLAUDE.md`
 5. Read task-relevant files in full before writing
-6. Output pre-flight summary
-7. Wait for user confirmation before edits
-8. Complete Session Close Report before ending session.
+6. Complete Session Close Report before ending session.
 
 ---
 
@@ -130,7 +127,7 @@ Documentation rules for this report:
 - No broad refactors during hardening work.
 - No formatting-only changes.
 - No import sorting unless required by the task.
-- Touch only files required for the approved task.
+- Touch only files required for the task.
 - Read live files before editing. Never write from memory.
 - Preserve working behavior unless behavior is the identified bug.
 - Provide rollback steps.
