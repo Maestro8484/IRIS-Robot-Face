@@ -325,3 +325,39 @@ Implemented:
 - Transcript column: snippet length 22→45 chars, `min-width:200px / max-width:360px`, full text in `title` tooltip on hover.
 - Trigger column: `.slice(0,6)` removed — full trigger name displayed.
 - All five `colspan="14"` references updated to `15`.
+
+---
+
+## S54 — RD-008: Mouth TFT Visual Overhaul (BL curve, idle animations, Pi4 dimming)
+
+**Status:** Firmware REPO-ONLY (A+B+C) — flash pending. Pi4 (D) DEPLOYED + VERIFIED.
+
+**Commits:** `4e7c61b` (firmware A+B+C), `bd6598b` (Pi4 D).
+
+### Sub-task A: Backlight PWM log curve
+
+- Replaced linear map (`level*17`) with `BL_MAP[16]` lookup in `mouth_tft.cpp`.
+- Curve: `{0,2,4,7,11,16,22,30,40,55,75,100,135,175,210,255}` — low end compressed.
+- intensity 0=off, 1=2/255 (nearly dark), 8=40/255 (comfortable), 15=255.
+- All four `analogWrite(MOUTH_TFT_BL)` call sites converted. `_currentBLLevel` tracks live state.
+
+### Sub-task B: Mouth bitmap colors
+
+- Colors already implemented in prior session — confirmed correct per spec.
+- Added `MTFT_AMBER=0xFD20` constant (reserved for AMUSED; currently reuses CURIOUS smirk index 2).
+- Fixed stale comment: BL pin is GPIO 5.
+
+### Sub-task C: Idle animations (Teensy)
+
+Six animations: BREATHE (45s BL sine), DRIFT (20s subtle pulse), TWITCH (smirk 400ms), BLINK (BL-off 150ms), YAWN (surprised oval 600ms + BL bump), SIDESMIRK (smirk 800ms + BL bump).
+All millis()-based, no delay(). Interrupted immediately by mouthIdleStop().
+IDLE:START / IDLE:STOP serial commands. Auto-start after 120s inactivity.
+`mouthIdleTick()` called each non-sleep loop() iteration.
+
+### Sub-task D: Pi4 idle dimming (DEPLOYED)
+
+- `config.py`: `MOUTH_INTENSITY_IDLE=3`, overridable via iris_config.json (int, 0-15).
+- `assistant.py`: wakeword → send MOUTH_INTENSITY_AWAKE; end of LLM+TTS+followup → send MOUTH_INTENSITY_IDLE.
+- Pi4 md5 verified (config `535d62b3`, assistant `259dd0a1`). SD persisted. Assistant running.
+
+**Remaining:** Flash firmware via PlatformIO upload. Dark-room verify: sleep=dark, idle=dim, wakeword=bright, post-speech=dim.

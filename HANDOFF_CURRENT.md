@@ -40,18 +40,18 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-S52 DEPLOYED (2026-05-18): iris_web.py + iris_web.html. md5 verified (`iris_web.py` `59115bdda6f063faffde1f7593f54c61`, `iris_web.html` `e1ddf120dc8d0667544eda105d9cf1ec`). iris-web restarted — Flask on 0.0.0.0:5000 confirmed.
-Pending user actions for S52:
-  - [ ] Browser: Voice tab → KOKORO_SPEED slider visible, set 1.15, Save, Persist to SD
-  - [ ] Browser: Chat tab → send a message → verify Kokoro TTS (not Piper fallback)
-  - [ ] Browser: Chat tab → Vision Demo card → run a preset prompt, verify camera capture + reply
-Pending user actions for S50 (still outstanding):
-  - [ ] Web UI Audio tab → `SILENCE_SECS` → set `0.7` → Save → Persist to SD
+**IMMEDIATE — Teensy flash required:**
+S54(A+B+C) firmware committed (`4e7c61b`), `pio run` PASSED. To activate BL log curve + idle animations:
+  1. Click PlatformIO upload button (Teensy is enclosure-mounted, software reset via HalfKay).
+  2. Dark-room verify: sleep mode = nearly off, idle = dim (level 3), wakeword → brightens, post-speech → dims.
+  3. Tune `MOUTH_INTENSITY_IDLE` via iris_config.json if level 3 is too dim/bright.
+
+S54(D) Pi4 DEPLOYED: MOUTH_INTENSITY_IDLE=3 live. Wakeword brightens mouth before STT; end of conversation dims to level 3.
+
+Pending from prior sessions:
   - [ ] GandalfAI: set `OLLAMA_KEEP_ALIVE=30m` machine env var + restart Ollama service
-  - [ ] Trigger one voice turn, verify `tail -1 /home/pi/logs/iris_bench.jsonl` populates
-PT-001 DEPLOYED (S48): few-shot adversarial examples live. Verification (adversarial testing) pending.
-RD-002 (AMUSED): FULLY DEPLOYED. Pending: live behavior verification.
-RD-001: COMPLETE. RD-003 (duplicate sleep log) is next low-priority item.
+  - PT-001 adversarial testing (live behavior).
+  - RD-003 (duplicate sleep log) — next low-priority item.
 
 ---
 

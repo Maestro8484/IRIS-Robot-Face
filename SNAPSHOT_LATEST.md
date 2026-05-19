@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S53 | **Date:** 2026-05-19 | **Branch:** `main` | **Last commit:** S53: Bench tab improvements — 20-cycle history, To First Word column, expanded headers
+**Session:** S54 | **Date:** 2026-05-19 | **Branch:** `main` | **Last commit:** S54(D): Pi4 idle backlight dimming — MOUTH_INTENSITY_IDLE
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -12,9 +12,9 @@
 | System | Status |
 |---|---|
 | SuperMaster Desktop | Canonical local repo. Claude Desktop, filesystem MCP, SSH MCP active. |
-| Pi4 192.168.1.200 | Operational. S50: assistant.py + config.py + tts.py + intent_router.py + journald conf deployed, md5 verified, service restarted — [INFO] Ready. confirmed. |
+| Pi4 192.168.1.200 | Operational. S54(D): assistant.py + config.py (MOUTH_INTENSITY_IDLE) deployed, md5 verified (config `535d62b3`, assistant `259dd0a1`), SD persisted, assistant restarted — [INFO] Ready. confirmed. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models rebuilt (S48) — PT-001 few-shot adversarial examples live. |
-| Teensy 4.1 | Operational. Eye movement suspended during TTS (S36). |
+| Teensy 4.1 | Firmware updated (S54 A+B+C) — REPO-ONLY. BL_MAP log curve + idle animations committed. Flash pending user action (PlatformIO upload). |
 | TTS | Kokoro primary (Docker, GandalfAI port 8004), Piper fallback (Wyoming port 10200). |
 | Web UI | Operational. S53 DEPLOYED (2026-05-19): Bench tab — 20-cycle history, To First Word column, expanded headers, trigger full name, color coding. md5 iris_web.py `5fc8b075e52bf0dd4bc26f39e507f3dc`, iris_web.html `7d3a63f629a5195085a753e93b541cff`. |
 
@@ -60,7 +60,24 @@ S50: Latency hardening + observability. KOKORO_SPEED config param, complete benc
 
 ---
 
-## Last Session Changes (S52)
+## Last Session Changes (S54)
+
+RD-008: Mouth TFT visual overhaul. Firmware (A+B+C) REPO-ONLY, Pi4 (D) DEPLOYED.
+
+- **`src/mouth_tft.cpp`** — BL_MAP[16] log curve replaces linear map. `_currentBLLevel` + `_currentMouthIdx` tracking. All analogWrite calls use BL_MAP. Idle animation engine: 6 animations (BREATHE/DRIFT/TWITCH/BLINK/YAWN/SIDESMIRK), millis-based, interruptible. mouthIdleStart/Stop/Tick/IsActive API.
+- **`src/mouth_tft.h`** — 4 new idle API declarations.
+- **`src/main.cpp`** — lastCommandMs + IDLE_AUTO_MS. mouthIdleStop() on all MOUTH/EMOTION/EYES commands. IDLE:START/STOP handlers. Auto-start after 120s. mouthIdleTick() in non-sleep loop.
+- **`pi4/core/config.py`** — MOUTH_INTENSITY_IDLE=3 added, _OVERRIDABLE + _TYPE_COERCE registered.
+- **`pi4/assistant.py`** — MOUTH_INTENSITY_AWAKE sent on wakeword. MOUTH_INTENSITY_IDLE sent after LLM+TTS+followup cycle ends.
+- Commits: `4e7c61b` (firmware), `bd6598b` (Pi4). Pi4 md5 verified, SD persisted, assistant running.
+
+## Previous Session Changes (S53)
+
+Bench tab improvements. No firmware, no GandalfAI, no assistant.py changes.
+
+- Bench tab: 20-cycle history, To First Word column, expanded headers. S53 DEPLOYED (2026-05-19). md5 iris_web.py `5fc8b075e52bf0dd4bc26f39e507f3dc`, iris_web.html `7d3a63f629a5195085a753e93b541cff`.
+
+## Previous Session Changes (S52)
 
 Web UI changes only. No firmware, no GandalfAI, no assistant.py changes.
 
@@ -131,11 +148,11 @@ Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 
 ## Next Work
 
-- S52 DEPLOYED: KOKORO_SPEED slider, chat TTS Kokoro force, vision demo panel. Pending: browser verification (Voice tab slider, Chat TTS, Vision Demo).
-- S50 pending user actions: KOKORO_SPEED dial-in via Web UI (set 1.15 + persist), SILENCE_SECS 0.7, OLLAMA_KEEP_ALIVE on GandalfAI, bench log verification.
-- RD-002 AMUSED: FULLY DEPLOYED. Pending: live behavior verification.
+- **IMMEDIATE: Flash Teensy firmware** — click PlatformIO upload. Firmware build `4e7c61b` is ready (pio run PASSED). Unlocks BL_MAP + idle animations.
+- After flash: dark-room verify — sleep=nearly off, idle=dim (level 3), wakeword fires + brightens, post-speech dims to 3.
+- `MOUTH_INTENSITY_IDLE` can be tuned via iris_config.json (range 0-15).
+- S50 pending user actions: OLLAMA_KEEP_ALIVE on GandalfAI.
 - PT-001: DEPLOYED. Pending: live adversarial testing.
-- RD-001: COMPLETE. RD-003 (duplicate sleep log) is next low-priority item.
 
 See `ROADMAP.md` for full forward-looking task list and item specs.
 
