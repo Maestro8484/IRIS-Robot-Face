@@ -40,14 +40,15 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-S51 DEPLOYED (6b6ea48, 2026-05-18): intent_router.py regex hardening — 4 false positive fixes, md5 `184e38ae685ce03f00e05cf29b3c0adf` verified, assistant restarted active.
-S50 DEPLOYED (bae8da0): All Pi4 files deployed, md5 verified, assistant restarted — `[INFO] Ready.` confirmed 2026-05-18.
-Pending user actions for S50:
-  - [ ] Web UI Voice tab → `KOKORO_SPEED` → set `1.15` → Save → Persist to SD
+S52 DEPLOYED (2026-05-18): iris_web.py + iris_web.html. md5 verified (`iris_web.py` `59115bdda6f063faffde1f7593f54c61`, `iris_web.html` `e1ddf120dc8d0667544eda105d9cf1ec`). iris-web restarted — Flask on 0.0.0.0:5000 confirmed.
+Pending user actions for S52:
+  - [ ] Browser: Voice tab → KOKORO_SPEED slider visible, set 1.15, Save, Persist to SD
+  - [ ] Browser: Chat tab → send a message → verify Kokoro TTS (not Piper fallback)
+  - [ ] Browser: Chat tab → Vision Demo card → run a preset prompt, verify camera capture + reply
+Pending user actions for S50 (still outstanding):
   - [ ] Web UI Audio tab → `SILENCE_SECS` → set `0.7` → Save → Persist to SD
   - [ ] GandalfAI: set `OLLAMA_KEEP_ALIVE=30m` machine env var + restart Ollama service
   - [ ] Trigger one voice turn, verify `tail -1 /home/pi/logs/iris_bench.jsonl` populates
-S49 DEPLOYED (6509cca): iris_web.py + iris_web.html. Pending: live browser verification.
 PT-001 DEPLOYED (S48): few-shot adversarial examples live. Verification (adversarial testing) pending.
 RD-002 (AMUSED): FULLY DEPLOYED. Pending: live behavior verification.
 RD-001: COMPLETE. RD-003 (duplicate sleep log) is next low-priority item.

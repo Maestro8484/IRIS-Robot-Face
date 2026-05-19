@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S50 | **Date:** 2026-05-18 | **Branch:** `main` | **Last commit:** S50: Latency observability + KOKORO_SPEED + journald retention
+**Session:** S52 | **Date:** 2026-05-18 | **Branch:** `main` | **Last commit:** docs: S52 deployed — update snapshot and handoff with deploy status
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -16,7 +16,7 @@
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models rebuilt (S48) — PT-001 few-shot adversarial examples live. |
 | Teensy 4.1 | Operational. Eye movement suspended during TTS (S36). |
 | TTS | Kokoro primary (Docker, GandalfAI port 8004), Piper fallback (Wyoming port 10200). |
-| Web UI | Operational. S49: Log tab reworked (structured events, filter bar), chat verbatim mode added, response cleaning wired, /api/chat route fixed. |
+| Web UI | Operational. S52 DEPLOYED (2026-05-18): KOKORO_SPEED slider, Kokoro-force in chat TTS, vision demo panel, /api/vision endpoint. md5 iris_web.py `59115bdda6f063faffde1f7593f54c61`, iris_web.html `e1ddf120dc8d0667544eda105d9cf1ec`. |
 
 ---
 
@@ -60,7 +60,16 @@ S50: Latency hardening + observability. KOKORO_SPEED config param, complete benc
 
 ---
 
-## Last Session Changes (S51)
+## Last Session Changes (S52)
+
+Web UI changes only. No firmware, no GandalfAI, no assistant.py changes.
+
+- **`pi4/iris_web.py`** — `_speak_worker` rewritten: calls Kokoro API directly from live `cfg` dict (`KOKORO_VOICE` + `KOKORO_SPEED`); Piper fallback retained. Fix: module-level `KOKORO_ENABLED` import was stale, causing all chat TTS to fall back to Piper. New `/api/vision` endpoint: libcamera-still → base64 → Ollama vision model → emotion strip + clean → optional Kokoro speak.
+- **`pi4/iris_web.html`** — Voice tab: `KOKORO_SPEED` field added (0.5–2.0), Kokoro Web UI link fixed to `/web`, `saveKokoroSettings()` includes KOKORO_SPEED. Chat tab: Vision Demo card added (5 presets + custom prompt + Kokoro speak toggle).
+- **`CLAUDE.md`** — Approval gate removed (pre-flight summary + wait-for-confirmation steps). Commit `bda42c9` pushed.
+- Pi4 DEPLOYED, md5 verified (`iris_web.py` `59115bdda6f063faffde1f7593f54c61`, `iris_web.html` `e1ddf120dc8d0667544eda105d9cf1ec`), iris-web restarted — Flask serving on 0.0.0.0:5000 confirmed.
+
+## Previous Session Changes (S51)
 
 Intent router regex hardening. No firmware, no GandalfAI, no assistant.py changes.
 
@@ -122,9 +131,8 @@ Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 
 ## Next Work
 
-- S51 DEPLOYED: intent_router.py regex hardening — all 4 findings applied, md5 verified, service restarted.
-- S50 pending user actions: KOKORO_SPEED dial-in, SILENCE_SECS, OLLAMA_KEEP_ALIVE on GandalfAI, bench log verification.
-- S49 DEPLOYED: live browser verification still pending.
+- S52 DEPLOYED: KOKORO_SPEED slider, chat TTS Kokoro force, vision demo panel. Pending: browser verification (Voice tab slider, Chat TTS, Vision Demo).
+- S50 pending user actions: KOKORO_SPEED dial-in via Web UI (set 1.15 + persist), SILENCE_SECS 0.7, OLLAMA_KEEP_ALIVE on GandalfAI, bench log verification.
 - RD-002 AMUSED: FULLY DEPLOYED. Pending: live behavior verification.
 - PT-001: DEPLOYED. Pending: live adversarial testing.
 - RD-001: COMPLETE. RD-003 (duplicate sleep log) is next low-priority item.

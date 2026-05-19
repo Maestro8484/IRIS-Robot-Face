@@ -285,3 +285,23 @@ Implemented:
 **Findings not applied:** 4.6 (volume patterns — too risky without live testing), 4.1/4.2/4.3/4.4/4.8 (out of scope).
 
 **Deploy note:** sftp_write truncates overlayfs writes to `/home/pi/core/` directly. Workaround: sftp_write base64 to `/tmp/` then `mv`. Both `/home/pi/core/` and `/media/root-rw/overlay/home/pi/core/` are the same inode — no separate SD copy step needed after `mv`.
+
+---
+
+## S52 — Web UI: KOKORO_SPEED Slider, Chat TTS Kokoro Force, Vision Demo Panel
+
+**Status:** DEPLOYED (2026-05-18). Pi4 live, md5 verified (`iris_web.py` `59115bdda6f063faffde1f7593f54c61`, `iris_web.html` `e1ddf120dc8d0667544eda105d9cf1ec`), iris-web restarted — Flask serving on 0.0.0.0:5000 confirmed.
+
+**Goal:** Three Web UI improvements — KOKORO_SPEED slider in Voice tab, Kokoro TTS force in chat (bypassing stale module-level import), Vision Demo panel with /api/vision endpoint.
+
+**Changes to `pi4/iris_web.py`:**
+
+- `_speak_worker` rewritten to call Kokoro API directly from live `cfg` dict (`KOKORO_VOICE` + `KOKORO_SPEED`). Piper fallback retained. Root cause fixed: previous code imported `KOKORO_ENABLED` at module level — stale constant caused all chat TTS to fall back to Piper.
+- `/api/vision` endpoint added: libcamera-still capture → base64 → Ollama `/api/generate` with `images` field → emotion strip + clean → optional Kokoro speak. Uses `VISION_MODEL` from live cfg.
+
+**Changes to `pi4/iris_web.html`:**
+
+- Voice tab: `KOKORO_SPEED` slider field added (0.5–2.0, step 0.05). Kokoro Web UI link fixed (`/web` suffix). `saveKokoroSettings()` now includes KOKORO_SPEED in the POST to `/api/config`.
+- Chat tab: Vision Demo card added — 5 preset prompts, custom input, Kokoro speak toggle, calls `/api/vision`.
+
+**Also this session:** Removed approval gate from `CLAUDE.md` (pre-flight summary + wait-for-confirmation steps eliminated). Commit `bda42c9` pushed.
