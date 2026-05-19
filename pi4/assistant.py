@@ -479,6 +479,7 @@ def main():
                 leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
 
             play_beep(pa)
+            teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_AWAKE}")
             _t_wake = time.time()
             _t_mono_wake = time.monotonic()
             try:
@@ -866,6 +867,7 @@ def main():
             except OSError:
                 pass
             emit_emotion(teensy, leds, "NEUTRAL")
+            teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_IDLE}")
             show_idle_for_mode(leds)
             if in_sleep_window():
                 return_to_sleep(teensy, state)

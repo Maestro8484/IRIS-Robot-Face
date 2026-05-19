@@ -143,6 +143,7 @@ OWW_DRAIN_SECS = 0.15   # audio drained after wakeword before recording starts
 # ── Mouth TFT brightness ─────────────────────────────────────────────────────
 MOUTH_INTENSITY_AWAKE = 8   # ILI9341 TFT brightness, range 0-15
 MOUTH_INTENSITY_SLEEP = 1
+MOUTH_INTENSITY_IDLE  = 3   # dim level between interactions
 
 # ── Emotion ───────────────────────────────────────────────────────────────────
 VALID_EMOTIONS = {"NEUTRAL", "HAPPY", "CURIOUS", "ANGRY", "SLEEPY", "SURPRISED", "SAD", "CONFUSED", "AMUSED"}
@@ -171,7 +172,7 @@ _OVERRIDABLE = {
     "LED_IDLE_PEAK", "LED_IDLE_FLOOR", "LED_IDLE_PERIOD",
     "LED_KIDS_PEAK", "LED_KIDS_PERIOD",
     "LED_SLEEP_PEAK", "LED_SLEEP_FLOOR", "LED_SLEEP_PERIOD",
-    "MOUTH_INTENSITY_AWAKE", "MOUTH_INTENSITY_SLEEP",
+    "MOUTH_INTENSITY_AWAKE", "MOUTH_INTENSITY_SLEEP", "MOUTH_INTENSITY_IDLE",
     "OWW_DRAIN_SECS",
 }
 
@@ -212,6 +213,7 @@ _TYPE_COERCE = {
     "LED_SLEEP_PERIOD":        (float, (0.5, 30.0)),
     "MOUTH_INTENSITY_AWAKE":   (int,   (0, 15)),
     "MOUTH_INTENSITY_SLEEP":   (int,   (0, 15)),
+    "MOUTH_INTENSITY_IDLE":    (int,   (0, 15)),
     "OWW_DRAIN_SECS":          (float, (0.05, 1.0)),
 }
 
