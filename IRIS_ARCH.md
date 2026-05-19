@@ -75,6 +75,36 @@ Final authority belongs to the human operator.
 
 ---
 
+## Servo Pan/Tilt Controller — Raspberry Pi Pico
+
+The IRIS face unit (eyes + mouth TFT) is mounted on a pan/tilt servo rig on top of the enclosure.
+The servos are driven by a dedicated Raspberry Pi Pico running `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino`.
+
+**Hardware:**
+- Raspberry Pi Pico + two SG90 servos (pan: GPIO 0, tilt: GPIO 1)
+- Person Sensor (Useful Sensors, I2C 0x62, SDA: pin 6, SCL: pin 7)
+- Powered independently from main Teensy 4.1 / Pi4 stack
+- Physical power toggle switch on enclosure rear — only way to disable servo tracking
+
+**Behavior:**
+- Fully autonomous — reads Person Sensor at 20Hz, pan+tilt to track largest facing face
+- Confidence + facing gate: ignores detections with boxConfidence < 60 or isFacing == 0
+- Dead zone (PAN/TILT_DEAD_ZONE = 2.0°): suppresses micro-jitter on small movements
+- Face lost: holds position for FACE_HOLD_MS (2500ms), then after FACE_RETURN_MS (8000ms) slowly drifts back to center (3% per tick, EASE_SINE_OUT)
+- No serial communication with Teensy 4.1, Pi4, or any other system component
+
+**Isolation:**
+- Servo board has no awareness of IRIS sleep/wake state, TTS playback, or conversation state
+- Cannot be commanded to stop tracking via software from Pi4 or Teensy 4.1
+- Power toggle on enclosure rear is the only runtime control
+- Future improvement: GPIO signal wire from Pi4 to servo board enable pin would allow
+  software-controlled pause during sleep or TTS
+
+**Source:** `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino`
+**Tunable constants:** PAN_SPEED, TILT_SPEED, PAN_DEAD_ZONE, TILT_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS, PERSON_SENSOR_DELAY
+
+---
+
 ## Active Architecture Principle
 
 All heavy AI compute runs on GandalfAI.
