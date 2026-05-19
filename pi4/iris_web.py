@@ -63,11 +63,32 @@ def _sd_synced():
 _speak_lock = threading.Lock()
 
 def _speak_worker(text: str, cfg: dict):
-    """Synthesize via services.tts (Kokoro->Piper routing)."""
+    """Synthesize via Kokoro direct (reads voice/speed from cfg); Piper fallback."""
     with _speak_lock:
+        pcm = None
         try:
-            from services.tts import synthesize
-            pcm = synthesize(text)   # s16le, 22050 Hz, mono
+            import miniaudio
+            voice   = cfg.get("KOKORO_VOICE", "bm_lewis")
+            speed   = float(cfg.get("KOKORO_SPEED", 1.0))
+            payload = {"model": "kokoro", "input": text, "voice": voice,
+                       "response_format": "wav", "speed": speed}
+            resp = requests.post(f"{KOKORO_URL}/v1/audio/speech", json=payload, timeout=30)
+            resp.raise_for_status()
+            decoded = miniaudio.decode(resp.content,
+                                       output_format=miniaudio.SampleFormat.SIGNED16,
+                                       nchannels=1, sample_rate=48000)
+            pcm = bytes(decoded.samples)
+            print(f"[WEB-TTS] Kokoro OK {len(pcm)}b voice={voice}", flush=True)
+        except Exception as e:
+            print(f"[WEB-TTS] Kokoro failed ({e}), falling back to Piper", flush=True)
+            try:
+                from services.tts import synthesize
+                pcm = synthesize(text)
+            except Exception as e2:
+                print(f"[WEB-TTS] Piper fallback failed: {e2}", flush=True)
+        if not pcm:
+            return
+        try:
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
                 wav_path = f.name
             with wave.open(wav_path, "wb") as wf:
@@ -77,7 +98,7 @@ def _speak_worker(text: str, cfg: dict):
             os.unlink(wav_path)
             print(f"[WEB-TTS] played {len(pcm)}b PCM", flush=True)
         except Exception as e:
-            print(f"[WEB-TTS] error: {e}", flush=True)
+            print(f"[WEB-TTS] playback error: {e}", flush=True)
 
 def speak_async(text: str, cfg: dict):
     threading.Thread(target=_speak_worker, args=(text, cfg), daemon=True).start()
@@ -434,6 +455,46 @@ def api_bench():
         levers = {}
 
     return jsonify(cycles=cycles[-25:], levers=levers)
+
+
+@app.route("/api/vision", methods=["POST"])
+def api_vision():
+    """Capture Pi camera frame, send to Ollama vision model, return description."""
+    data   = request.get_json(force=True)
+    prompt = data.get("prompt", "Describe in detail what you see.").strip()
+    speak  = bool(data.get("speak", False))
+    try:
+        import base64, tempfile as _tf
+        cfg = read_cfg()
+        with _tf.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+            img_path = f.name
+        result = subprocess.run(
+            ["libcamera-still", "-o", img_path, "--nopreview", "-t", "500",
+             "--width", "1024", "--height", "768"],
+            capture_output=True, timeout=15)
+        if result.returncode != 0:
+            try: os.unlink(img_path)
+            except Exception: pass
+            return jsonify(error="Camera capture failed: " + result.stderr.decode()[:200]), 500
+        with open(img_path, "rb") as f:
+            image_b64 = base64.b64encode(f.read()).decode()
+        try: os.unlink(img_path)
+        except Exception: pass
+        model = cfg.get("VISION_MODEL", "iris")
+        r = requests.post(
+            f"http://{GANDALF}:{OLLAMA_PORT}/api/generate",
+            json={"model": model, "prompt": prompt, "images": [image_b64], "stream": False},
+            timeout=120)
+        r.raise_for_status()
+        raw_reply = r.json().get("response", "").strip()
+        from services.llm import extract_emotion_from_reply, clean_llm_reply
+        emotion, clean_reply = extract_emotion_from_reply(raw_reply)
+        clean_reply = clean_llm_reply(clean_reply)
+        if speak and clean_reply:
+            speak_async(clean_reply, cfg)
+        return jsonify(reply=clean_reply, emotion=emotion, spoken=speak and bool(clean_reply))
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
 
 if __name__ == "__main__":

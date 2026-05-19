@@ -194,7 +194,12 @@ select:focus{outline:none;border-color:var(--blue)}
       <select id="KOKORO_VOICE" style="width:260px"><option>Loading...</option></select>
       <button class="btn btn-sm" onclick="loadKokoroVoices()" style="background:var(--input-bg);border:1px solid var(--border)">Refresh</button>
     </div>
-    <p class="hint" style="margin-bottom:8px">Voice name sent to Kokoro API. <a href="http://192.168.1.3:8004" target="_blank" style="color:var(--blue)">Open Kokoro Web UI</a></p>
+    <div class="field-row">
+      <label>Speech rate (KOKORO_SPEED)</label>
+      <input type="number" id="KOKORO_SPEED" step="0.05" min="0.5" max="2.0" style="width:80px">
+      <span style="font-size:12px;color:var(--muted);margin-left:6px">0.5–2.0 &nbsp;(default 1.0, 1.15 recommended)</span>
+    </div>
+    <p class="hint" style="margin-bottom:8px">Voice name sent to Kokoro API. <a href="http://192.168.1.3:8004/web" target="_blank" style="color:var(--blue)">Open Kokoro Web UI</a></p>
     <button class="btn btn-primary" onclick="saveKokoroSettings()">Save Kokoro Settings</button>
   </div>
   <div class="card">
@@ -471,6 +476,32 @@ select:focus{outline:none;border-color:var(--blue)}
     </div>
     <p class="hint" style="margin-top:8px;color:#6b7280">Note: "LLM + Speak" and voice pipeline TTS can overlap if both are active simultaneously. Use <strong>Speak verbatim</strong> when IRIS is idle to avoid conflicts.</p>
   </div>
+
+  <div class="card">
+    <h2>Vision Demo — Pi Camera + Gemma</h2>
+    <p class="hint" style="margin-bottom:10px">Captures a frame from the Pi camera and sends it to the vision model. Use preset prompts or type a custom one. Requires camera enabled and GandalfAI online.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn btn-sm" onclick="sendVision('Describe in detail what you see.')">Describe what you see</button>
+      <button class="btn btn-sm" onclick="sendVision('Who is the person in front of you? Describe their appearance.')">Who am I?</button>
+      <button class="btn btn-sm" onclick="sendVision('What object am I holding? Describe it.')">What am I holding?</button>
+      <button class="btn btn-sm" onclick="sendVision('Read any text visible in the image and repeat it exactly.')">Read text</button>
+      <button class="btn btn-sm" onclick="sendVision('What is the general scene and environment around you?')">Describe scene</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">
+      <div style="flex:1">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Custom prompt</label>
+        <input type="text" id="vision-prompt" placeholder="Ask IRIS what it sees..."
+               style="width:100%;background:var(--input-bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px"
+               onkeydown="if(event.key==='Enter')sendVision(document.getElementById('vision-prompt').value)">
+      </div>
+      <button class="btn btn-primary" onclick="sendVision(document.getElementById('vision-prompt').value)">Send</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-bottom:10px;cursor:pointer">
+      <input type="checkbox" id="vision-speak"> Speak reply via Kokoro
+    </label>
+    <div id="vision-result" style="background:#0a0a0c;border:1px solid var(--border);border-radius:6px;padding:10px;min-height:60px;font-size:13px;color:var(--text);display:none;white-space:pre-wrap;line-height:1.6"></div>
+    <div id="vision-status" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+  </div>
 </div>
 
 <!-- BENCH -->
@@ -640,10 +671,12 @@ async function loadKokoroVoices() {
 
 async function saveKokoroSettings() {
   const enabled = document.getElementById('KOKORO_ENABLED').value === 'true';
-  const voice = document.getElementById('KOKORO_VOICE').value;
+  const voice   = document.getElementById('KOKORO_VOICE').value;
+  const speedEl = document.getElementById('KOKORO_SPEED');
+  const speed   = speedEl ? Math.max(0.5, Math.min(2.0, parseFloat(speedEl.value) || 1.0)) : 1.0;
   const r = await fetch('/api/config', {method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({KOKORO_ENABLED: enabled, KOKORO_VOICE: voice})});
+    body: JSON.stringify({KOKORO_ENABLED: enabled, KOKORO_VOICE: voice, KOKORO_SPEED: speed})});
   const j = await r.json();
   toast(j.ok ? 'Kokoro settings saved' : 'Error', j.ok);
   if (j.ok) persistToSD();
@@ -907,6 +940,39 @@ async function sendChat() {
 
 function clearChat() {
   document.getElementById('chat-box').innerHTML = '';
+}
+
+// ── Vision Demo ───────────────────────────────────────────────────────────────
+async function sendVision(prompt) {
+  prompt = (prompt || '').trim();
+  if (!prompt) { toast('Enter a prompt', false); return; }
+  const resultBox  = document.getElementById('vision-result');
+  const statusEl   = document.getElementById('vision-status');
+  const speakCheck = document.getElementById('vision-speak');
+  resultBox.style.display = 'none';
+  resultBox.textContent   = '';
+  statusEl.textContent    = 'Capturing frame and querying vision model...';
+  try {
+    const r = await fetch('/api/vision', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({prompt, speak: speakCheck && speakCheck.checked})
+    });
+    const j = await r.json();
+    if (j.error) {
+      statusEl.textContent = 'Error: ' + j.error;
+      statusEl.style.color = 'var(--red)';
+    } else {
+      resultBox.textContent   = j.reply || '(no reply)';
+      resultBox.style.display = 'block';
+      const spokenTag = j.spoken ? ' — speaking via Kokoro' : '';
+      statusEl.textContent  = 'Done' + spokenTag + (j.emotion ? '  {' + j.emotion + '}' : '');
+      statusEl.style.color  = 'var(--muted)';
+    }
+  } catch(e) {
+    statusEl.textContent = 'Request failed: ' + e;
+    statusEl.style.color = 'var(--red)';
+  }
 }
 
 async function sendEmotion(emotion, mouthIdx) {
