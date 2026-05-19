@@ -469,7 +469,7 @@ def api_vision():
         with _tf.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
             img_path = f.name
         result = subprocess.run(
-            ["libcamera-still", "-o", img_path, "--nopreview", "-t", "500",
+            ["rpicam-still", "-o", img_path, "--nopreview", "-t", "500",
              "--width", "1024", "--height", "768"],
             capture_output=True, timeout=15)
         if result.returncode != 0:
