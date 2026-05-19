@@ -114,6 +114,10 @@ static bool     eyesSleeping = false;
 static uint32_t srMouthLastMs = 0;
 static constexpr uint32_t MOUTH_SLEEP_FRAME_MS = 150;
 
+// Idle animation auto-start: trigger after this many ms of no serial commands
+static uint32_t lastCommandMs = 0;
+static constexpr uint32_t IDLE_AUTO_MS = 120000UL; // 2 min inactivity
+
 // Decouple mouth TFT (blocking SWSPI) from the eye render loop.
 // MOUTH: commands queue here; rendered after eyes->renderFrame(), rate-limited
 // so TTS mouth animation never stalls the eye loop.
@@ -192,6 +196,8 @@ static void processSerial() {
         serialBufLen = 0;
 
         if (strncmp(serialBuf, "EMOTION:", 8) == 0) {
+          mouthIdleStop();
+          lastCommandMs = millis();
           EmotionID id = parseEmotion(serialBuf + 8);
           Serial.print("[DBG] EMOTION cmd: ");
           Serial.print(serialBuf + 8);
@@ -200,6 +206,7 @@ static void processSerial() {
           applyEmotion(id);
 
         } else if (strncmp(serialBuf, "EYE:", 4) == 0) {
+          lastCommandMs = millis();
           uint32_t idx = (uint32_t)atoi(serialBuf + 4);
           if (idx < EYE_IDX_COUNT) {
             userDefaultEye = idx;
@@ -214,6 +221,8 @@ static void processSerial() {
           }
 
         } else if (strcmp(serialBuf, "EYES:SLEEP") == 0) {
+          mouthIdleStop();
+          lastCommandMs = millis();
           if (!eyesSleeping) {
             eyesSleeping      = true;
             angryEyeActive    = false;
@@ -233,16 +242,22 @@ static void processSerial() {
           }
 
         } else if (strncmp(serialBuf, "MOUTH:", 6) == 0) {
+          mouthIdleStop();
+          lastCommandMs      = millis();
           pendingMouthIdx    = (uint8_t)atoi(serialBuf + 6);
           mouthUpdatePending = true;
 
         } else if (strncmp(serialBuf, "MOUTH_INTENSITY:", 16) == 0) {
+          mouthIdleStop();
+          lastCommandMs = millis();
           uint8_t lvl = (uint8_t)constrain(atoi(serialBuf + 16), 0, 15);
           mouthSetIntensity(lvl);
           Serial.print("[DBG] MOUTH_INTENSITY: ");
           Serial.println(lvl);
 
         } else if (strcmp(serialBuf, "EYES:WAKE") == 0) {
+          mouthIdleStop();
+          lastCommandMs = millis();
           if (eyesSleeping) {
             eyesSleeping = false;
             // Restore changed-areas-only for efficient eye engine rendering.
@@ -256,6 +271,16 @@ static void processSerial() {
             applyEmotion(NEUTRAL);
             Serial.println("[DBG] EYES:WAKE -- displays restored");
           }
+
+        } else if (strcmp(serialBuf, "IDLE:START") == 0) {
+          lastCommandMs = 0; // force auto-start timer to treat this as immediate
+          mouthIdleStart();
+          Serial.println("[DBG] IDLE:START");
+
+        } else if (strcmp(serialBuf, "IDLE:STOP") == 0) {
+          mouthIdleStop();
+          lastCommandMs = millis();
+          Serial.println("[DBG] IDLE:STOP");
         }
       }
     } else {
@@ -402,4 +427,11 @@ void loop() {
       lastMouthRenderMs  = nowMs;
     }
   }
+
+  // Auto-start idle after IDLE_AUTO_MS of no serial commands
+  uint32_t nowLoop = millis();
+  if (!mouthIdleIsActive() && (nowLoop - lastCommandMs) >= IDLE_AUTO_MS) {
+    mouthIdleStart();
+  }
+  mouthIdleTick(nowLoop);
 }

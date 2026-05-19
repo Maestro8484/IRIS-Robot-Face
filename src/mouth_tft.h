@@ -18,3 +18,9 @@ void mouthRestoreIntensity();
 void mouthSetIntensity(uint8_t level);
 void mouthSleepFrame();
 void mouthSleepReset();
+
+// Idle animation engine
+void mouthIdleStart();
+void mouthIdleStop();
+void mouthIdleTick(uint32_t nowMs);
+bool mouthIdleIsActive();

@@ -1,6 +1,6 @@
 // mouth_tft.cpp — ILI9341 2.8" TFT mouth driver (Arduino_GFX SWSPI, Teensy 4.1)
 // Bit-bang SPI on pins 35/37/36 — no hardware SPI, no DMA, no collision with GC9A01A_t3n.
-// Pins: MOSI=35, SCK=37, CS=36, DC=8, RST=4, BL=14
+// Pins: MOSI=35, SCK=37, CS=36, DC=8, RST=4, BL=5
 
 #include "mouth_tft.h"
 #include <Arduino_GFX_Library.h>
@@ -22,6 +22,17 @@ static constexpr uint16_t MTFT_WHITE   = 0xFFFF;  // SURPRISED
 static constexpr uint16_t MTFT_BLUE    = 0x001F;  // SAD
 static constexpr uint16_t MTFT_MAGENTA = 0xF81F;  // CONFUSED
 static constexpr uint16_t MTFT_BLUSH   = 0xFBCC;  // HAPPY cheek blush (light pink)
+static constexpr uint16_t MTFT_AMBER   = 0xFD20;  // AMUSED — reserved, needs dedicated expression index
+
+// ── Backlight lookup table (logarithmic, level 0-15 → PWM 0-255) ─────────────
+// intensity 0=off, 1=barely visible, 8=comfortable idle, 15=full
+static const uint8_t BL_MAP[16] = {
+    0, 2, 4, 7, 11, 16, 22, 30, 40, 55, 75, 100, 135, 175, 210, 255
+};
+
+// ── Backlight + expression state (tracked for idle engine) ───────────────────
+static uint8_t _currentBLLevel  = 14; // matches init (BL_MAP[14]=210)
+static uint8_t _currentMouthIdx = 0;
 
 static Arduino_DataBus *_bus = nullptr;
 static Arduino_GFX     *_tft = nullptr;
@@ -149,12 +160,13 @@ void mouthTFTInit() {
     _tft->begin();
     _tft->fillScreen(0x0000);
     pinMode(MOUTH_TFT_BL, OUTPUT);
-    analogWrite(MOUTH_TFT_BL, 220);
+    analogWrite(MOUTH_TFT_BL, BL_MAP[14]); // level 14 = 210/255
 }
 
 void mouthTFTShow(uint8_t idx) {
     if (!_tft) return;
     if (idx > 8) idx = 0;
+    _currentMouthIdx = idx;
     _tft->fillScreen(MTFT_BLACK);
     switch (idx) {
         case 0: _draw_neutral();   break;
@@ -169,21 +181,23 @@ void mouthTFTShow(uint8_t idx) {
     }
 }
 
-// Intensity / backlight control — BL on pin 14, PWM via analogWrite
+// Intensity / backlight control — BL on pin 5, PWM via BL_MAP lookup
 void mouthSetSleepIntensity() {
     if (!_tft) return;
     _tft->fillScreen(MTFT_BLACK);
-    analogWrite(MOUTH_TFT_BL, 8);  // mouthSleepFrame breathes from here
+    analogWrite(MOUTH_TFT_BL, BL_MAP[1]); // level 1 = 2/255, nearly dark
 }
 
 void mouthRestoreIntensity() {
     if (!_tft) return;
-    analogWrite(MOUTH_TFT_BL, 220);  // restore normal brightness
+    analogWrite(MOUTH_TFT_BL, BL_MAP[_currentBLLevel]);
 }
 
 void mouthSetIntensity(uint8_t level) {
     if (!_tft) return;
-    analogWrite(MOUTH_TFT_BL, (uint16_t)level * 17);
+    if (level > 15) level = 15;
+    _currentBLLevel = level;
+    analogWrite(MOUTH_TFT_BL, BL_MAP[level]);
 }
 
 // Sleep animation state — file-scope so mouthSleepReset() can zero it
@@ -227,3 +241,129 @@ void mouthSleepFrame() {
 
     _sleepFrameCount++;
 }
+
+// ── Idle animation engine ─────────────────────────────────────────────────────
+//
+// Anim IDs:
+//   0 = BREATHE   — BL sine pulse, 45s block
+//   1 = DRIFT     — subtle BL pulse, 20s block
+//   2 = TWITCH    — smirk (idx 2) for 400ms
+//   3 = BLINK     — BL off for 150ms
+//   4 = YAWN      — surprised oval (idx 5) + BL bump for 600ms
+//   5 = SIDESMIRK — smirk (idx 2) + BL bump for 800ms
+//
+// Interruption: mouthIdleStop() restores saved mouth/BL immediately.
+// Does not use delay() — all timing via millis() in mouthIdleTick().
+
+static bool     _idleActive    = false;
+static uint8_t  _idleAnim      = 0xFF; // 0xFF = none running
+static uint8_t  _idlePhase     = 0;
+static uint32_t _idlePhaseMs   = 0;
+static uint32_t _idleNextMs    = 0;
+static uint8_t  _idleSavedMouth = 0;
+
+static void _idleRestore(uint32_t nowMs) {
+    bool restoreMouth = (_idleAnim == 2 || _idleAnim == 4 || _idleAnim == 5);
+    _idleAnim  = 0xFF;
+    _idlePhase = 0;
+    analogWrite(MOUTH_TFT_BL, BL_MAP[_currentBLLevel]);
+    if (restoreMouth && _tft) mouthTFTShow(_idleSavedMouth);
+    // Gap between animations: 20-60s
+    _idleNextMs = nowMs + 20000UL + (uint32_t)random(40000);
+}
+
+void mouthIdleTick(uint32_t nowMs) {
+    if (!_idleActive || !_tft) return;
+
+    // Pick next animation when slot is empty and timer has fired
+    if (_idleAnim == 0xFF) {
+        if (nowMs < _idleNextMs) return;
+        // Weighted pick: blink/twitch common, yawn rare
+        uint8_t r = (uint8_t)random(10);
+        if      (r < 2) _idleAnim = 0; // BREATHE
+        else if (r < 4) _idleAnim = 3; // BLINK
+        else if (r < 6) _idleAnim = 2; // TWITCH
+        else if (r < 8) _idleAnim = 5; // SIDESMIRK
+        else if (r < 9) _idleAnim = 1; // DRIFT
+        else            _idleAnim = 4; // YAWN (rare)
+        _idlePhase    = 0;
+        _idlePhaseMs  = nowMs;
+        _idleSavedMouth = _currentMouthIdx;
+        // Start expression-changing anims immediately
+        switch (_idleAnim) {
+            case 2: // TWITCH
+                mouthTFTShow(2);
+                break;
+            case 4: // YAWN
+                mouthTFTShow(5);
+                analogWrite(MOUTH_TFT_BL,
+                    BL_MAP[(uint8_t)constrain((int)_currentBLLevel + 3, 0, 15)]);
+                break;
+            case 5: // SIDESMIRK
+                mouthTFTShow(2);
+                analogWrite(MOUTH_TFT_BL,
+                    BL_MAP[(uint8_t)constrain((int)_currentBLLevel + 2, 0, 15)]);
+                break;
+            default: break;
+        }
+        return;
+    }
+
+    uint32_t el = nowMs - _idlePhaseMs;
+
+    switch (_idleAnim) {
+        case 0: { // BREATHE — 4s sine, 45s total
+            float frac = (sinf(2.0f * M_PI * (float)el / 4000.0f) + 1.0f) * 0.5f;
+            uint8_t lo = BL_MAP[2];
+            uint8_t hi = BL_MAP[_currentBLLevel];
+            analogWrite(MOUTH_TFT_BL, lo + (uint8_t)(frac * (hi - lo)));
+            if (el >= 45000UL) _idleRestore(nowMs);
+            break;
+        }
+        case 1: { // DRIFT — gentler pulse, 6s sine, 20s total
+            float frac = (sinf(2.0f * M_PI * (float)el / 6000.0f) + 1.0f) * 0.5f;
+            uint8_t lo = BL_MAP[(uint8_t)constrain((int)_currentBLLevel - 2, 0, 15)];
+            uint8_t hi = BL_MAP[_currentBLLevel];
+            analogWrite(MOUTH_TFT_BL, lo + (uint8_t)(frac * (hi - lo)));
+            if (el >= 20000UL) _idleRestore(nowMs);
+            break;
+        }
+        case 2: // TWITCH — smirk held 400ms
+            if (el >= 400) _idleRestore(nowMs);
+            break;
+        case 3: // BLINK — BL off 150ms, no fillScreen
+            if (_idlePhase == 0) {
+                analogWrite(MOUTH_TFT_BL, 0);
+                _idlePhase = 1;
+            }
+            if (el >= 150) _idleRestore(nowMs);
+            break;
+        case 4: // YAWN — surprised oval held 600ms
+            if (el >= 600) _idleRestore(nowMs);
+            break;
+        case 5: // SIDESMIRK — smirk + BL bump held 800ms
+            if (el >= 800) _idleRestore(nowMs);
+            break;
+    }
+}
+
+void mouthIdleStart() {
+    if (_idleActive) return;
+    _idleActive  = true;
+    _idleAnim    = 0xFF;
+    _idleNextMs  = millis() + 5000UL; // first anim fires 5s after start
+}
+
+void mouthIdleStop() {
+    if (!_idleActive) return;
+    _idleActive = false;
+    if (_idleAnim != 0xFF) {
+        bool restoreMouth = (_idleAnim == 2 || _idleAnim == 4 || _idleAnim == 5);
+        _idleAnim  = 0xFF;
+        _idlePhase = 0;
+        analogWrite(MOUTH_TFT_BL, BL_MAP[_currentBLLevel]);
+        if (restoreMouth && _tft) mouthTFTShow(_idleSavedMouth);
+    }
+}
+
+bool mouthIdleIsActive() { return _idleActive; }
