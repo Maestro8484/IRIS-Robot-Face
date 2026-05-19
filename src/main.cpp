@@ -325,7 +325,7 @@ void setup() {
     pinMode(JOYSTICK_Y_PIN, INPUT);
   }
 
-  if (hasPersonSensor()) {
+    if (hasPersonSensor()) {
     Wire.begin();
     personSensorFound = personSensor.isPresent();
     if (personSensorFound) {

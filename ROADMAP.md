@@ -164,3 +164,21 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 **Deployment gate:** Pi4 — iris_web.py + iris_web.html. Standard `/media/root-ro` persist pattern.
 
 **Files:** `pi4/iris_web.py` (`/api/bench_jsonl` endpoint), `pi4/iris_web.html` (Bench tab panel).
+
+---
+
+## HW-001 — Teensy 4.1 Activity LED Suppression (Pin 13 / SPI SCK conflict)
+
+**Status:** DEFERRED — blocked on power distribution PCB rewiring.
+
+**Priority:** HIGH — LED is visibly distracting during normal operation.
+
+**Problem:** Teensy 4.1 pin 13 is simultaneously the built-in activity LED and the SPI SCK line for the GC9A01A eye displays. The eye render loop runs at ~60fps, keeping SPI active continuously. The SCK toggling causes the LED to glow solid during all eye operation. Software suppression (`pinMode(13, OUTPUT); digitalWrite(13, LOW)`) has no effect — the SPI hardware peripheral immediately reclaims pin 13 control.
+
+**Fix:** Cut the LED/SCK solder jumper on the underside of the Teensy 4.1 board. This disconnects the LED pad from pin 13 without affecting SPI function. One-time physical mod, ~10 seconds with a hobby knife.
+
+**Blocked on:** The Teensy 4.1 is header-soldered onto the main power supply distribution PCB. Accessing the underside of the Teensy (where the solder jumper sits) requires desoldering it from the PCB headers, or doing the cut in-situ with limited clearance. The power distribution PCB is scheduled for a large rewiring — cut the LED jumper during that work before re-seating the Teensy.
+
+**No code change required.** The two-line stub (`pinMode(13, OUTPUT); digitalWrite(13, LOW)`) was added and then removed in S54 — confirmed ineffective.
+
+**Files:** None (hardware-only fix).

@@ -148,9 +148,10 @@ Batch A docs-only cleanup. No code, no deploy, no Pi4/GandalfAI changes.
 
 ## Next Work
 
-- **IMMEDIATE: Flash Teensy firmware** — click PlatformIO upload. Firmware build `4e7c61b` is ready (pio run PASSED). Unlocks BL_MAP + idle animations.
+- **IMMEDIATE: Flash Teensy firmware** — click PlatformIO upload. Firmware build ready (`pio run` PASSED). Unlocks BL_MAP + idle animations.
 - After flash: dark-room verify — sleep=nearly off, idle=dim (level 3), wakeword fires + brightens, post-speech dims to 3.
 - `MOUTH_INTENSITY_IDLE` can be tuned via iris_config.json (range 0-15).
+- **HW-001 (HIGH, deferred):** Teensy 4.1 LED glows during operation — pin 13 = SPI SCK for eye displays. Fix is cutting solder jumper on Teensy underside. Blocked on power distribution PCB rewiring (Teensy header-soldered to PCB). Do during that rewiring session. See ROADMAP HW-001.
 - S50 pending user actions: OLLAMA_KEEP_ALIVE on GandalfAI.
 - PT-001: DEPLOYED. Pending: live adversarial testing.
 

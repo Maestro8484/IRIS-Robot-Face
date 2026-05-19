@@ -51,6 +51,7 @@ S54(D) Pi4 DEPLOYED: MOUTH_INTENSITY_IDLE=3 live. Wakeword brightens mouth befor
 Pending from prior sessions:
   - [ ] GandalfAI: set `OLLAMA_KEEP_ALIVE=30m` machine env var + restart Ollama service
   - PT-001 adversarial testing (live behavior).
+  - **HW-001 (HIGH):** Cut LED/SCK solder jumper on Teensy 4.1 underside during power PCB rewiring. No code needed. See ROADMAP.
   - RD-003 (duplicate sleep log) — next low-priority item.
 
 ---
