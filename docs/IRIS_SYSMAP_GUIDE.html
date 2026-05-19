@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>IRIS System Map</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161d;
+    --border: #1e2330;
+    --border-bright: #2e3450;
+    --text: #c8cdd8;
+    --text-dim: #606878;
+    --text-bright: #e8ecf4;
+    --accent-blue: #4a9eff;
+    --accent-cyan: #00d4c8;
+    --accent-amber: #f5a623;
+    --accent-red: #ff4d6a;
+    --accent-green: #3dd68c;
+    --accent-purple: #9b7fff;
+    --flow-line: #1e2330;
+    --tag-bg: #1a1e2a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 32px 40px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  /* PRINT */
+  @media print {
+    body { background: #fff; color: #111; padding: 18px 24px; font-size: 9.5px; }
+    :root {
+      --bg: #fff; --surface: #f5f6f8; --border: #dde0e8; --border-bright: #b0b8cc;
+      --text: #222; --text-dim: #888; --text-bright: #000;
+      --accent-blue: #1a5fc8; --accent-cyan: #007a72; --accent-amber: #b07000;
+      --accent-red: #c0003a; --accent-green: #1a7a50; --accent-purple: #5a3faa;
+      --flow-line: #dde0e8; --tag-bg: #eef0f4;
+    }
+    .flow-connector { border-left-color: #ccc; }
+    .page-break { page-break-before: always; }
+  }
+
+  /* HEADER */
+  .doc-header {
+    border-bottom: 1px solid var(--border-bright);
+    padding-bottom: 14px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .doc-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-bright);
+    letter-spacing: 0.04em;
+  }
+  .doc-title span { color: var(--accent-cyan); }
+  .doc-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    text-align: right;
+  }
+
+  /* SECTION */
+  .section {
+    margin-bottom: 6px;
+  }
+
+  /* FLOW BLOCK - the main visual unit */
+  .flow-block {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    margin-bottom: 0;
+  }
+
+  /* Connector line between flow blocks */
+  .flow-connector {
+    width: 2px;
+    margin: 0 0 0 28px;
+    height: 18px;
+    border-left: 2px dashed var(--flow-line);
+    position: relative;
+  }
+  .flow-connector::after {
+    content: '▼';
+    position: absolute;
+    bottom: -2px;
+    left: -6px;
+    font-size: 8px;
+    color: var(--text-dim);
+  }
+  .flow-connector.thick {
+    border-left: 2px solid var(--accent-blue);
+    opacity: 0.4;
+  }
+
+  /* Block header */
+  .block-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px 7px;
+    border-bottom: 1px solid var(--border);
+    cursor: default;
+  }
+  .block-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-bright);
+  }
+  .block-node-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8.5px;
+    padding: 1px 6px;
+    border-radius: 2px;
+    background: var(--tag-bg);
+    border: 1px solid var(--border-bright);
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+  .block-node-badge.pi4  { color: var(--accent-cyan);   border-color: var(--accent-cyan);   background: rgba(0,212,200,0.06); }
+  .block-node-badge.gand { color: var(--accent-purple);  border-color: var(--accent-purple);  background: rgba(155,127,255,0.06); }
+  .block-node-badge.t41  { color: var(--accent-amber);   border-color: var(--accent-amber);   background: rgba(245,166,35,0.06); }
+  .block-node-badge.pico { color: var(--accent-green);   border-color: var(--accent-green);   background: rgba(61,214,140,0.06); }
+  .block-node-badge.sm   { color: var(--accent-blue);    border-color: var(--accent-blue);    background: rgba(74,158,255,0.06); }
+
+  /* Block body */
+  .block-body {
+    padding: 8px 12px 10px;
+  }
+
+  /* Two-column layout inside a block */
+  .cols {
+    display: grid;
+    gap: 0 20px;
+  }
+  .cols-2 { grid-template-columns: 1fr 1fr; }
+  .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+  }
+  th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    padding: 3px 6px 3px 0;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+  }
+  td {
+    font-size: 10px;
+    padding: 3px 6px 3px 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--text);
+  }
+  tr:last-child td { border-bottom: none; }
+  td code, th code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--accent-cyan);
+    background: var(--tag-bg);
+    padding: 0 3px;
+    border-radius: 2px;
+  }
+  td.mono {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--accent-cyan);
+  }
+  td.dim { color: var(--text-dim); }
+  td.amber { color: var(--accent-amber); }
+  td.green { color: var(--accent-green); }
+  td.red { color: var(--accent-red); }
+  td.blue { color: var(--accent-blue); }
+  td.purple { color: var(--accent-purple); }
+
+  /* Port pill */
+  .port {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--accent-amber);
+    background: rgba(245,166,35,0.08);
+    border: 1px solid rgba(245,166,35,0.2);
+    padding: 0 4px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  /* Inline key-value pairs */
+  .kv-row {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-key {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    min-width: 140px;
+    flex-shrink: 0;
+  }
+  .kv-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px;
+    color: var(--accent-cyan);
+  }
+  .kv-note {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-left: auto;
+  }
+
+  /* Warning / note callout */
+  .callout {
+    margin-top: 8px;
+    padding: 5px 8px;
+    border-left: 2px solid var(--accent-amber);
+    background: rgba(245,166,35,0.05);
+    font-size: 9.5px;
+    color: var(--accent-amber);
+    border-radius: 0 2px 2px 0;
+  }
+  .callout.red  { border-color: var(--accent-red);   background: rgba(255,77,106,0.05);  color: var(--accent-red); }
+  .callout.blue { border-color: var(--accent-blue);  background: rgba(74,158,255,0.05);  color: var(--accent-blue); }
+  .callout.green{ border-color: var(--accent-green); background: rgba(61,214,140,0.05);  color: var(--accent-green); }
+  .callout.dim  { border-color: var(--border-bright);background: transparent;            color: var(--text-dim); }
+
+  /* Pin group label */
+  .pin-group {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin: 8px 0 3px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pin-group:first-child { margin-top: 2px; }
+
+  /* Stale badge */
+  .stale {
+    font-size: 8px;
+    color: var(--accent-red);
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 0 4px;
+    border: 1px solid var(--accent-red);
+    border-radius: 2px;
+    opacity: 0.7;
+  }
+
+  /* Section divider with label */
+  .phase-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 22px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .phase-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .phase-label span {
+    color: var(--accent-blue);
+    margin-right: 4px;
+  }
+
+  /* Inline badge */
+  .badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8px;
+    padding: 0 5px;
+    border-radius: 2px;
+    border: 1px solid;
+    vertical-align: middle;
+  }
+  .badge-yes  { color: var(--accent-green);  border-color: var(--accent-green);  background: rgba(61,214,140,0.06); }
+  .badge-no   { color: var(--text-dim);       border-color: var(--border-bright); background: transparent; }
+  .badge-warn { color: var(--accent-red);    border-color: var(--accent-red);    background: rgba(255,77,106,0.06); }
+
+  /* Flow arrow label */
+  .flow-step {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-left: 14px;
+  }
+
+  /* Persistence code block */
+  .persist-block {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--accent-green);
+    background: rgba(61,214,140,0.04);
+    border: 1px solid rgba(61,214,140,0.15);
+    border-radius: 3px;
+    padding: 7px 10px;
+    line-height: 1.7;
+    margin-top: 6px;
+  }
+  .persist-block .dim { color: var(--text-dim); font-style: italic; }
+
+  .footnote {
+    margin-top: 28px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 8.5px;
+    color: var(--text-dim);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="doc-header">
+  <div class="doc-title">IRIS <span>//</span> System Map</div>
+  <div class="doc-meta">
+    S50-planning · 2026-05-19<br>
+    Source: IRIS_ARCH.md · IRIS_CONFIG_MAP.md · servo_teensy/*.ino<br>
+    sysmap.json is authoritative for machine lookup
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="phase-label"><span>01</span> Nodes &amp; Network</div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">All Nodes</div>
+  </div>
+  <div class="block-body">
+    <table>
+      <tr>
+        <th>Node</th><th>IP</th><th>OS</th><th>SSH Tool</th><th>Shell</th><th>Role</th>
+      </tr>
+      <tr>
+        <td><strong>SuperMaster</strong></td>
+        <td class="mono">192.168.1.103</td>
+        <td>Windows</td>
+        <td class="mono">ssh</td>
+        <td>PowerShell</td>
+        <td>Repo, PlatformIO, Claude Desktop, git</td>
+      </tr>
+      <tr>
+        <td><strong>Pi4</strong></td>
+        <td class="mono">192.168.1.200</td>
+        <td>Linux / overlayfs</td>
+        <td class="mono">ssh-pi4</td>
+        <td>bash</td>
+        <td>Runtime, audio, web UI, serial bridge, cron</td>
+      </tr>
+      <tr>
+        <td><strong>GandalfAI</strong></td>
+        <td class="mono">192.168.1.3</td>
+        <td>Windows</td>
+        <td class="mono">ssh-gandalf</td>
+        <td>PowerShell</td>
+        <td>Ollama, Whisper, Kokoro, Piper, RTX 3090</td>
+      </tr>
+      <tr>
+        <td><strong>Teensy 4.1</strong></td>
+        <td class="mono">USB COM7</td>
+        <td>Arduino/Teensy</td>
+        <td class="dim">PlatformIO (user uploads)</td>
+        <td>—</td>
+        <td>Eye TFTs, mouth TFT, Person Sensor, sleep render</td>
+      </tr>
+      <tr>
+        <td><strong>Servo Pico</strong></td>
+        <td class="dim">standalone</td>
+        <td>Arduino/Pico</td>
+        <td class="dim">none — power toggle only</td>
+        <td>—</td>
+        <td>Pan/tilt servos, autonomous face tracking</td>
+      </tr>
+      <tr>
+        <td><strong>NAS</strong></td>
+        <td class="mono">192.168.1.102</td>
+        <td>Synology</td>
+        <td class="mono">ssh port 2233</td>
+        <td>—</td>
+        <td>Backup target</td>
+      </tr>
+    </table>
+    <div class="callout dim" style="margin-top:7px;">Pi4: password auth only — key auth fails &nbsp;|&nbsp; GandalfAI: PowerShell only, no bash/grep/df/head &nbsp;|&nbsp; GandalfAI filesystem MCP = C:\Users\gandalf\ only; use ssh_exec or sftp_write for C:\IRIS\, C:\docker\</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="phase-label"><span>02</span> Voice Pipeline — Wake to Playback</div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">1 · Wakeword</div>
+    <div class="block-node-badge pi4">Pi4 · port 10400 TCP</div>
+  </div>
+  <div class="block-body">
+    <div class="kv-row"><span class="kv-key">service</span><span class="kv-val">wyoming-openwakeword</span><span class="kv-note">subprocess of assistant.py — restarts with assistant</span></div>
+    <div class="kv-row"><span class="kv-key">model dir</span><span class="kv-val">/home/pi/wyoming-openwakeword/custom/</span></div>
+    <div class="kv-row"><span class="kv-key">active word</span><span class="kv-val">hey_jarvis</span><span class="kv-note">set via WAKE_WORD in iris_config.json — restart required to change</span></div>
+    <div class="kv-row"><span class="kv-key">OWW_THRESHOLD</span><span class="kv-val">0.90</span><span class="kv-note">range 0.5–1.0 · hot-reload, no restart</span></div>
+    <div class="kv-row"><span class="kv-key">OWW_DRAIN_SECS</span><span class="kv-val">0.15</span><span class="kv-note">audio flushed after wakeword fires before record starts</span></div>
+    <div class="kv-row"><span class="kv-key">PTT alt</span><span class="kv-val">GPIO 17</span><span class="kv-note">push-to-talk button, bypasses OWW</span></div>
+  </div>
+</div>
+
+<div class="flow-connector thick"></div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">2 · Record Audio</div>
+    <div class="block-node-badge pi4">Pi4 · wm8960 / LINPUT1</div>
+  </div>
+  <div class="block-body">
+    <div class="cols cols-2">
+      <div>
+        <div class="kv-row"><span class="kv-key">RECORD_SECONDS</span><span class="kv-val">10s</span></div>
+        <div class="kv-row"><span class="kv-key">SILENCE_SECS</span><span class="kv-val">1.5s</span><span class="kv-note">⟵ biggest latency knob, try 0.7s</span></div>
+        <div class="kv-row"><span class="kv-key">SILENCE_RMS</span><span class="kv-val">300</span></div>
+        <div class="kv-row"><span class="kv-key">SAMPLE_RATE</span><span class="kv-val">16000 Hz</span></div>
+        <div class="kv-row"><span class="kv-key">CHANNELS</span><span class="kv-val">2</span><span class="kv-note">stereo required by wm8960</span></div>
+      </div>
+      <div>
+        <div class="kv-row"><span class="kv-key">KIDS_RECORD_SECONDS</span><span class="kv-val">14s</span></div>
+        <div class="kv-row"><span class="kv-key">KIDS_SILENCE_SECS</span><span class="kv-val">3.5s</span></div>
+        <div class="kv-row"><span class="kv-key">KIDS_SILENCE_RMS</span><span class="kv-val">150</span></div>
+        <div class="kv-row"><span class="kv-key">ALSA card</span><span class="kv-val">seeed2micvoicec</span></div>
+        <div class="kv-row"><span class="kv-key">alsa-init</span><span class="kv-val">/home/pi/alsa-init.sh</span><span class="kv-note">protected</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-connector thick"></div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">3 · STT — Whisper</div>
+    <div class="block-node-badge gand">GandalfAI · port 10300 TCP</div>
+  </div>
+  <div class="block-body">
+    <div class="kv-row"><span class="kv-key">service</span><span class="kv-val">wyoming-whisper (Docker)</span><span class="kv-note">compose: C:\IRIS\docker\docker-compose.yml</span></div>
+    <div class="kv-row"><span class="kv-key">model</span><span class="kv-val">faster-whisper-large-v3-turbo</span><span class="kv-note">fixed in docker image</span></div>
+    <div class="callout dim">Pi4 sends raw PCM → Whisper returns transcript text</div>
+  </div>
+</div>
+
+<div class="flow-connector thick"></div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">4 · Intent Router</div>
+    <div class="block-node-badge pi4">Pi4 · intent_router.py</div>
+  </div>
+  <div class="block-body">
+    <table>
+      <tr><th>Layer</th><th>Type</th><th>Examples</th><th>LLM?</th></tr>
+      <tr><td>0 · REFLEX</td><td>Immediate</td><td>stop, sleep, wake, cancel</td><td><span class="badge badge-no">NO</span></td></tr>
+      <tr><td>1 · COMMAND</td><td>Deterministic</td><td>volume, kids mode, eye switch</td><td><span class="badge badge-no">NO</span></td></tr>
+      <tr><td>2 · UTILITY</td><td>Tool call</td><td>time, date, math, random number</td><td><span class="badge badge-no">NO</span></td></tr>
+      <tr><td>3 · AMBIGUOUS</td><td>State-dependent</td><td>"that's enough", "never mind"</td><td><span class="badge badge-no">NO</span></td></tr>
+      <tr><td>4 · LLM</td><td>Open query</td><td>all conversation, questions, stories</td><td><span class="badge badge-yes">YES</span></td></tr>
+    </table>
+    <div class="kv-row" style="margin-top:6px;"><span class="kv-key">intent log</span><span class="kv-val">/home/pi/logs/iris_intent.log</span><span class="kv-note">per-request routing decisions, 365-day retention</span></div>
+  </div>
+</div>
+
+<div class="flow-connector thick"></div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">5 · LLM — Ollama</div>
+    <div class="block-node-badge gand">GandalfAI · port 11434 HTTP</div>
+  </div>
+  <div class="block-body">
+    <div class="cols cols-2">
+      <div>
+        <div class="kv-row"><span class="kv-key">adult model</span><span class="kv-val">iris</span></div>
+        <div class="kv-row"><span class="kv-key">kids model</span><span class="kv-val">iris-kids</span></div>
+        <div class="kv-row"><span class="kv-key">base</span><span class="kv-val">gemma3:27b-it-qat</span></div>
+        <div class="kv-row"><span class="kv-key">num_ctx</span><span class="kv-val">4096</span><span class="kv-note">hard max — do not raise</span></div>
+        <div class="kv-row"><span class="kv-key">temp (adult)</span><span class="kv-val">0.82</span></div>
+        <div class="kv-row"><span class="kv-key">temp (kids)</span><span class="kv-val">0.90</span></div>
+        <div class="kv-row"><span class="kv-key">stop token</span><span class="kv-val">&lt;end_of_turn&gt;</span></div>
+      </div>
+      <div>
+        <div class="kv-row"><span class="kv-key">NUM_PREDICT_SHORT</span><span class="kv-val">120</span><span class="kv-note">tokens</span></div>
+        <div class="kv-row"><span class="kv-key">NUM_PREDICT_MEDIUM</span><span class="kv-val">350</span></div>
+        <div class="kv-row"><span class="kv-key">NUM_PREDICT_LONG</span><span class="kv-val">700</span></div>
+        <div class="kv-row"><span class="kv-key">NUM_PREDICT_MAX</span><span class="kv-val">1200</span></div>
+        <div class="kv-row"><span class="kv-key">TTS_MAX_CHARS</span><span class="kv-val">900</span><span class="kv-note">char cap before TTS truncation</span></div>
+        <div class="kv-row"><span class="kv-key">VRAM used</span><span class="kv-val">~16.1 GB / 24 GB</span></div>
+        <div class="kv-row"><span class="kv-key">VRAM headroom</span><span class="kv-val">~7.9 GB</span></div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:7px;">VRAM env required on GandalfAI: OLLAMA_FLASH_ATTENTION=1 &nbsp;·&nbsp; OLLAMA_KV_CACHE_TYPE=q8_0</div>
+    <div class="callout red" style="margin-top:5px;">Drift check: ollama show iris --modelfile on GandalfAI. Compare SYSTEM block to repo. Check for PT-001 few-shot block. Three-way desync (SuperMaster / GitHub / GandalfAI) is a recurring hazard.</div>
+    <div style="margin-top:6px;">
+      <div class="kv-row"><span class="kv-key">modelfile (adult)</span><span class="kv-val">C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt</span></div>
+      <div class="kv-row"><span class="kv-key">modelfile (kids)</span><span class="kv-val">C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt</span></div>
+      <div class="kv-row"><span class="kv-key">rebuild cmd</span><span class="kv-val">ollama create iris -f &lt;path&gt;</span></div>
+      <div class="kv-row"><span class="kv-key">bench log</span><span class="kv-val">/home/pi/logs/iris_bench.jsonl</span><span class="kv-note">per-turn timings + route + model</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-connector thick"></div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">6 · TTS — Kokoro → Piper fallback</div>
+    <div class="block-node-badge gand">GandalfAI · port 8004 (Kokoro) · 10200 (Piper)</div>
+  </div>
+  <div class="block-body">
+    <div class="cols cols-2">
+      <div>
+        <div class="kv-row"><span class="kv-key">primary</span><span class="kv-val">Kokoro (Docker)</span><span class="kv-note">since S38</span></div>
+        <div class="kv-row"><span class="kv-key">KOKORO_VOICE</span><span class="kv-val">bm_lewis</span></div>
+        <div class="kv-row"><span class="kv-key">KOKORO_SPEED</span><span class="kv-val">1.0</span><span class="kv-note">hot-reload · try 1.15</span></div>
+        <div class="kv-row"><span class="kv-key">KOKORO_ENABLED</span><span class="kv-val">true</span></div>
+      </div>
+      <div>
+        <div class="kv-row"><span class="kv-key">fallback</span><span class="kv-val">Wyoming Piper (Docker)</span></div>
+        <div class="kv-row"><span class="kv-key">PIPER_VOICE</span><span class="kv-val">en_US-ryan-high</span></div>
+        <div class="kv-row"><span class="kv-key">compose</span><span class="kv-val">docker-compose.yml</span></div>
+      </div>
+    </div>
+    <div class="callout red" style="margin-top:7px;">Kokoro does NOT auto-start on GandalfAI reboot. Manual: docker compose -f C:\IRIS\docker\docker-compose.yml up -d</div>
+  </div>
+</div>
+
+<div class="flow-connector thick"></div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">7 · Playback</div>
+    <div class="block-node-badge pi4">Pi4 · wm8960 → PAM8403 → speakers</div>
+  </div>
+  <div class="block-body">
+    <div class="kv-row"><span class="kv-key">SPEAKER_VOLUME</span><span class="kv-val">121</span><span class="kv-note">range 60–127 · set via web UI System tab</span></div>
+    <div class="kv-row"><span class="kv-key">VOL_MAX</span><span class="kv-val">127</span><span class="kv-note">voice command ceiling</span></div>
+    <div class="kv-row"><span class="kv-key">interrupt</span><span class="kv-val">STOP phrase gate</span><span class="kv-note">kills TTS mid-sentence · post-STT check before router</span></div>
+    <div class="kv-row"><span class="kv-key">conversation log</span><span class="kv-val">/home/pi/logs/conversations.jsonl</span></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="phase-label"><span>03</span> Face — Emotion System</div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">Emotion Tag → Hardware</div>
+    <div class="block-node-badge pi4">Pi4 → Teensy 4.1 via /dev/ttyACM0</div>
+  </div>
+  <div class="block-body">
+    <div class="callout blue" style="margin-bottom:7px;">LLM prepends [EMOTION:X] to every reply. Pi4 strips it, routes simultaneously to: eyes + mouth + LEDs. Serial owner: hardware/teensy_bridge.py ONLY. Everything else → UDP 127.0.0.1:10500</div>
+    <div class="cols cols-2">
+      <div>
+        <table>
+          <tr><th>Emotion</th><th>Eye</th><th>Mouth</th></tr>
+          <tr><td>NEUTRAL</td><td class="dim">nordicBlue 0</td><td class="dim">flat 0</td></tr>
+          <tr><td>HAPPY</td><td class="dim">nordicBlue 0</td><td class="dim">smile 1</td></tr>
+          <tr><td>CURIOUS</td><td class="dim">nordicBlue 0</td><td class="dim">smirk 2</td></tr>
+          <tr><td>AMUSED</td><td class="dim">nordicBlue 0</td><td class="dim">smirk 2</td></tr>
+          <tr><td>ANGRY</td><td class="amber">flame 1 → 9s</td><td class="amber">frown 3</td></tr>
+          <tr><td>SLEEPY</td><td class="dim">nordicBlue 0</td><td class="dim">droop 4</td></tr>
+          <tr><td>SURPRISED</td><td class="dim">nordicBlue 0</td><td class="dim">oval 5</td></tr>
+          <tr><td>SAD</td><td class="dim">nordicBlue 0</td><td class="dim">downturn 6</td></tr>
+          <tr><td>CONFUSED</td><td class="purple">hypnoRed 2 → 7s</td><td class="purple">zigzag 7</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="pin-group">Eye Index Map</div>
+        <div class="kv-row"><span class="kv-key">EYE:0</span><span class="kv-val">nordicBlue</span><span class="kv-note">default idle</span></div>
+        <div class="kv-row"><span class="kv-key">EYE:1</span><span class="kv-val">flame</span><span class="kv-note">ANGRY auto-revert 9s</span></div>
+        <div class="kv-row"><span class="kv-key">EYE:2</span><span class="kv-val">hypnoRed</span><span class="kv-note">CONFUSED auto-revert 7s</span></div>
+        <div class="kv-row"><span class="kv-key">EYE:3</span><span class="kv-val">hazel</span></div>
+        <div class="kv-row"><span class="kv-key">EYE:4</span><span class="kv-val">blueFlame1</span></div>
+        <div class="kv-row"><span class="kv-key">EYE:5</span><span class="kv-val">dragon</span></div>
+        <div class="kv-row"><span class="kv-key">EYE:6</span><span class="kv-val">bigBlue</span></div>
+        <div class="callout dim" style="margin-top:6px;">Eye movement suspended during TTS (S36). Person Sensor: face tracking always active.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="phase-label"><span>04</span> Hardware — Teensy 4.1 GPIO</div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">Teensy 4.1 Pin Map</div>
+    <div class="block-node-badge t41">USB COM7 · enclosure-mounted · no RESET/PROG access</div>
+  </div>
+  <div class="block-body">
+    <div class="cols cols-2">
+      <div>
+        <div class="pin-group">Left Eye — GC9A01A (SPI1)</div>
+        <table>
+          <tr><th>Pin</th><th>Signal</th></tr>
+          <tr><td class="mono">0</td><td>CS</td></tr>
+          <tr><td class="mono">2</td><td>DC</td></tr>
+          <tr><td class="mono">3</td><td>RST <span class="dim" style="font-size:8px;">recrimped S29</span></td></tr>
+          <tr><td class="mono">26</td><td>MOSI hw</td></tr>
+          <tr><td class="mono">27</td><td>SCK hw</td></tr>
+        </table>
+        <div class="pin-group">Right Eye — GC9A01A (SPI0)</div>
+        <table>
+          <tr><th>Pin</th><th>Signal</th></tr>
+          <tr><td class="mono">10</td><td>CS</td></tr>
+          <tr><td class="mono">9</td><td>DC</td></tr>
+          <tr><td class="mono">11</td><td>MOSI hw</td></tr>
+          <tr><td class="mono">13</td><td>SCK hw</td></tr>
+          <tr><td class="mono">—</td><td>RST (no pin)</td></tr>
+        </table>
+        <div class="pin-group">Person Sensor — I2C (RIGHT-SIDE-UP)</div>
+        <table>
+          <tr><th>Pin</th><th>Signal</th></tr>
+          <tr><td class="mono">18</td><td>SDA</td></tr>
+          <tr><td class="mono">19</td><td>SCL</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="pin-group">Mouth — ILI9341 (SPI2)</div>
+        <table>
+          <tr><th>Pin</th><th>Signal</th><th>Notes</th></tr>
+          <tr><td class="mono">35</td><td>MOSI hw</td><td></td></tr>
+          <tr><td class="mono">37</td><td>SCK hw</td><td></td></tr>
+          <tr><td class="mono">36</td><td>CS</td><td></td></tr>
+          <tr><td class="mono">8</td><td>DC</td><td></td></tr>
+          <tr><td class="mono">4</td><td>RST</td><td></td></tr>
+          <tr><td class="mono">5</td><td>BL (PWM)</td><td class="dim">220 awake · 8 sleep · was GPIO14</td></tr>
+        </table>
+        <div class="pin-group">Key Firmware Constants</div>
+        <div class="kv-row"><span class="kv-key">FACE_LOST_TIMEOUT</span><span class="kv-val">5000 ms</span></div>
+        <div class="kv-row"><span class="kv-key">FACE_COOLDOWN</span><span class="kv-val">30000 ms</span></div>
+        <div class="kv-row"><span class="kv-key">ANGRY_EYE_DURATION</span><span class="kv-val">9000 ms</span></div>
+        <div class="kv-row"><span class="kv-key">CONFUSED_EYE_DURATION</span><span class="kv-val">7000 ms</span></div>
+        <div class="kv-row"><span class="kv-key">SR_FRAME_MS (sleep)</span><span class="kv-val">150 ms</span></div>
+        <div class="kv-row"><span class="kv-key">PS_SAMPLE_TIME_MS</span><span class="kv-val">70 ms</span></div>
+        <div class="kv-row"><span class="kv-key">PS_CONF_THRESHOLD</span><span class="kv-val">60</span></div>
+        <div class="callout dim" style="margin-top:6px;">Free pins: 6,7,15-17,20-25,28-33,38-55. Pins 6/7 legacy MAX7219 removed.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="phase-label"><span>05</span> Hardware — Servo Pico GPIO</div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">Servo Pico Pin Map</div>
+    <div class="block-node-badge pico">Raspberry Pi Pico · standalone · power toggle only</div>
+  </div>
+  <div class="block-body">
+    <div class="cols cols-2">
+      <div>
+        <table>
+          <tr><th>Pin</th><th>Signal</th><th>Device</th></tr>
+          <tr><td class="mono">0</td><td>PWM</td><td>Pan servo SG90</td></tr>
+          <tr><td class="mono">1</td><td>PWM</td><td>Tilt servo SG90</td></tr>
+          <tr><td class="mono">6</td><td>SDA</td><td>Person Sensor I2C 0x62</td></tr>
+          <tr><td class="mono">7</td><td>SCL</td><td>Person Sensor I2C 0x62</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="kv-row"><span class="kv-key">PAN_SPEED</span><span class="kv-val">0.04</span></div>
+        <div class="kv-row"><span class="kv-key">TILT_SPEED</span><span class="kv-val">0.04</span></div>
+        <div class="kv-row"><span class="kv-key">PERSON_SENSOR_DELAY</span><span class="kv-val">50 ms</span></div>
+        <div class="kv-row"><span class="kv-key">servo range</span><span class="kv-val">0–180°</span><span class="kv-note">center 90°</span></div>
+        <div class="kv-row"><span class="kv-key">easing</span><span class="kv-val">EASE_CUBIC_OUT</span></div>
+        <div class="kv-row"><span class="kv-key">source</span><span class="kv-val">servo_teensy/*.ino</span></div>
+      </div>
+    </div>
+    <div class="callout red" style="margin-top:7px;">INCONSISTENCY: IRIS_ARCH.md labels this board "Teensy 4.0" with servo on GPIO 3. Source file confirms Raspberry Pi Pico, pan GPIO 0, tilt GPIO 1. This table is authoritative. IRIS_ARCH.md needs correction (C1 docs task).</div>
+    <div class="callout dim" style="margin-top:5px;">No serial link to Pi4 or Teensy 4.1. No awareness of sleep/wake or TTS state. Power toggle on enclosure rear is the only runtime control.</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="phase-label"><span>06</span> Sleep / Wake Cycle</div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">Sleep State Machine</div>
+    <div class="block-node-badge pi4">Pi4 cron → assistant.py → Teensy 4.1</div>
+  </div>
+  <div class="block-body">
+    <div class="cols cols-2">
+      <div>
+        <table>
+          <tr><th>Time</th><th>Script</th><th>Action</th></tr>
+          <tr><td class="mono">21:00</td><td class="mono">iris_sleep.py</td><td>EYES:SLEEP + LED indigo + mouth dim</td></tr>
+          <tr><td class="mono">07:30</td><td class="mono">iris_wake.py</td><td>EYES:WAKE + restore state</td></tr>
+          <tr><td class="mono">03:00 Sun</td><td class="mono">iris_backup.sh</td><td>NAS backup</td></tr>
+        </table>
+        <div class="kv-row" style="margin-top:5px;"><span class="kv-key">state flag</span><span class="kv-val">/tmp/iris_sleep_mode</span></div>
+        <div class="kv-row"><span class="kv-key">LED_SLEEP_PEAK</span><span class="kv-val">26</span><span class="kv-note">very dim — intentional</span></div>
+        <div class="kv-row"><span class="kv-key">LED_SLEEP_FLOOR</span><span class="kv-val">3</span></div>
+        <div class="kv-row"><span class="kv-key">LED_SLEEP_PERIOD</span><span class="kv-val">8.0s</span></div>
+      </div>
+      <div>
+        <div class="kv-row"><span class="kv-key">MOUTH_INTENSITY_AWAKE</span><span class="kv-val">8</span></div>
+        <div class="kv-row"><span class="kv-key">MOUTH_INTENSITY_SLEEP</span><span class="kv-val">1</span></div>
+        <div class="kv-row"><span class="kv-key">LED_IDLE_PEAK</span><span class="kv-val">65</span><span class="kv-note">cyan</span></div>
+        <div class="kv-row"><span class="kv-key">LED_IDLE_PERIOD</span><span class="kv-val">5.0s</span></div>
+        <div class="kv-row"><span class="kv-key">LED_KIDS_PEAK</span><span class="kv-val">62</span><span class="kv-note">yellow</span></div>
+        <div class="kv-row"><span class="kv-key">LED_KIDS_PERIOD</span><span class="kv-val">4.0s</span></div>
+        <div class="kv-row"><span class="kv-key">WoL MAC</span><span class="kv-val">A4:BB:6D:CA:83:20</span><span class="kv-note">GandalfAI</span></div>
+        <div class="kv-row"><span class="kv-key">WOL_BOOT_TIMEOUT</span><span class="kv-val">120s</span></div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:7px;">Wakeword stays active during sleep. hey_jarvis → WoL packet → ascending beep (660→880Hz) → wait for GandalfAI boot → resume pipeline.</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="phase-label"><span>07</span> Web UI &amp; Config</div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">iris-web — Flask</div>
+    <div class="block-node-badge pi4">Pi4 · http://192.168.1.200:5000</div>
+  </div>
+  <div class="block-body">
+    <div class="kv-row"><span class="kv-key">script</span><span class="kv-val">/home/pi/iris_web.py</span></div>
+    <div class="kv-row"><span class="kv-key">restart</span><span class="kv-val">sudo systemctl restart iris-web</span></div>
+    <div class="kv-row"><span class="kv-key">config reads/writes</span><span class="kv-val">/home/pi/iris_config.json</span><span class="kv-note">RAM layer — persist with button or loses on reboot</span></div>
+    <div class="kv-row"><span class="kv-key">persist button</span><span class="kv-val">top bar → "Persist to SD"</span><span class="kv-note">green = SD synced · amber = RAM only</span></div>
+    <div class="callout red" style="margin-top:6px;">After any sudo cp to iris_config.json: sudo chown pi:pi /home/pi/iris_config.json — ownership corruption silently breaks the pipeline (S22B).</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="phase-label"><span>08</span> Deployment &amp; Persistence</div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">Pi4 Overlayfs Persistence Pattern</div>
+    <div class="block-node-badge pi4">Pi4 — required for every file deploy</div>
+  </div>
+  <div class="block-body">
+    <div class="persist-block">
+      sudo mount -o remount,rw /media/root-ro<br>
+      sudo cp /home/pi/&lt;file&gt; /media/root-ro/home/pi/&lt;file&gt;<br>
+      sudo chown pi:pi /media/root-ro/home/pi/&lt;file&gt;<br>
+      sudo chmod 644 /media/root-ro/home/pi/&lt;file&gt;<br>
+      sync<br>
+      sudo mount -o remount,ro /media/root-ro<br>
+      md5sum /home/pi/&lt;file&gt; /media/root-ro/home/pi/&lt;file&gt;<br>
+      <span class="dim"># md5 must match — no exceptions</span>
+    </div>
+    <div class="callout red" style="margin-top:7px;">Never use overlayroot-chroot — MD5 mismatch confirmed Batch 1A. SFTP: write to /tmp first, then sudo cp.</div>
+  </div>
+</div>
+
+<div class="flow-connector"></div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">GandalfAI — Model &amp; Docker</div>
+    <div class="block-node-badge gand">GandalfAI · PowerShell</div>
+  </div>
+  <div class="block-body">
+    <div class="kv-row"><span class="kv-key">rebuild iris model</span><span class="kv-val">ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt</span></div>
+    <div class="kv-row"><span class="kv-key">rebuild kids model</span><span class="kv-val">ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt</span></div>
+    <div class="kv-row"><span class="kv-key">confirm</span><span class="kv-val">ollama list</span><span class="kv-note">check timestamp</span></div>
+    <div class="kv-row"><span class="kv-key">git pull first</span><span class="kv-val">cd C:\IRIS\IRIS-Robot-Face &amp;&amp; git pull origin main</span></div>
+    <div class="kv-row"><span class="kv-key">start containers</span><span class="kv-val">docker compose -f C:\IRIS\docker\docker-compose.yml up -d</span></div>
+    <div class="callout" style="margin-top:6px;">PowerShell ampersand rule: URLs with &amp; must NOT be handled inline in PS. Write Python script via sftp_write, execute via ssh_exec.</div>
+  </div>
+</div>
+
+<div class="flow-connector"></div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">Teensy 4.1 — Firmware Flash</div>
+    <div class="block-node-badge sm">SuperMaster · PlatformIO · COM7</div>
+  </div>
+  <div class="block-body">
+    <div class="kv-row"><span class="kv-key">build</span><span class="kv-val">pio run</span><span class="kv-note">Claude runs this. User clicks upload.</span></div>
+    <div class="kv-row"><span class="kv-key">bootloader reset</span><span class="kv-val">python3 -c "import serial,time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"</span></div>
+    <div class="kv-row"><span class="kv-key">serial monitor</span><span class="kv-val">VS Code terminal on COM7</span><span class="kv-note">not PlatformIO monitor — locks port</span></div>
+    <div class="callout red" style="margin-top:6px;">NEVER remote flash. NEVER transfer hex. NEVER run teensy_loader_cli. RESET/PROG not accessible.</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="phase-label"><span>09</span> Key File Paths</div>
+
+<div class="flow-block">
+  <div class="block-header">
+    <div class="block-label">Canonical Paths</div>
+  </div>
+  <div class="block-body">
+    <div class="cols cols-2">
+      <div>
+        <div class="pin-group">SuperMaster</div>
+        <div class="kv-row"><span class="kv-key">repo root</span><span class="kv-val" style="font-size:8.5px;">C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face</span></div>
+        <div class="kv-row"><span class="kv-key">snapshot repo</span><span class="kv-val" style="font-size:8.5px;">C:\Users\SuperMaster\Documents\PlatformIO\iris-snapshot</span></div>
+        <div class="kv-row"><span class="kv-key">sysmap.json</span><span class="kv-val">docs/sysmap.json</span><span class="kv-note">gitignored · local only</span></div>
+        <div class="pin-group">Pi4</div>
+        <div class="kv-row"><span class="kv-key">home</span><span class="kv-val">/home/pi/</span></div>
+        <div class="kv-row"><span class="kv-key">SD layer</span><span class="kv-val">/media/root-ro/home/pi/</span></div>
+        <div class="kv-row"><span class="kv-key">config</span><span class="kv-val">/home/pi/iris_config.json</span><span class="kv-note">protected</span></div>
+        <div class="kv-row"><span class="kv-key">logs</span><span class="kv-val">/home/pi/logs/</span></div>
+        <div class="kv-row"><span class="kv-key">intent log</span><span class="kv-val">/home/pi/logs/iris_intent.log</span></div>
+        <div class="kv-row"><span class="kv-key">bench log</span><span class="kv-val">/home/pi/logs/iris_bench.jsonl</span></div>
+        <div class="kv-row"><span class="kv-key">sleep flag</span><span class="kv-val">/tmp/iris_sleep_mode</span></div>
+        <div class="kv-row"><span class="kv-key">serial</span><span class="kv-val">/dev/ttyACM0</span><span class="kv-note">TeensyBridge only</span></div>
+      </div>
+      <div>
+        <div class="pin-group">GandalfAI</div>
+        <div class="kv-row"><span class="kv-key">iris modelfile</span><span class="kv-val" style="font-size:8.5px;">C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt</span></div>
+        <div class="kv-row"><span class="kv-key">kids modelfile</span><span class="kv-val" style="font-size:8.5px;">C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt</span></div>
+        <div class="kv-row"><span class="kv-key">docker compose</span><span class="kv-val" style="font-size:8.5px;">C:\IRIS\docker\docker-compose.yml</span></div>
+        <div class="kv-row"><span class="kv-key">chatterbox voice</span><span class="kv-val" style="font-size:8.5px;">C:\IRIS\chatterbox\reference_audio\iris_voice.wav</span></div>
+        <div class="kv-row"><span class="kv-key">MCP scope</span><span class="kv-val">C:\Users\gandalf\</span><span class="kv-note">filesystem MCP limit</span></div>
+        <div class="pin-group">Repo → Pi4 Mirror</div>
+        <div class="kv-row"><span class="kv-key">pi4/ (repo)</span><span class="kv-val">↔ /home/pi/ (live)</span><span class="kv-note">1:1 mapping</span></div>
+        <div class="pin-group">Protected Files</div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; color: var(--accent-red); line-height: 1.8; padding: 3px 0;">
+          /home/pi/iris_config.json<br>
+          /home/pi/alsa-init.sh<br>
+          src/TeensyEyes.ino<br>
+          src/eyes/EyeController.h
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- FOOTNOTE -->
+<div class="footnote">
+  IRIS_SYSMAP_GUIDE.html · generated S50-planning · 2026-05-19 · for machine lookup use docs/sysmap.json · for current live status read SNAPSHOT_LATEST.md · for architectural reasoning read IRIS_ARCH.md
+</div>
+
+</body>
+</html>
