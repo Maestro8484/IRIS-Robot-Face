@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S52 | **Date:** 2026-05-18 | **Branch:** `main` | **Last commit:** docs: S52 deployed — update snapshot and handoff with deploy status
+**Session:** S53 | **Date:** 2026-05-19 | **Branch:** `main` | **Last commit:** S53: Bench tab improvements — 20-cycle history, To First Word column, expanded headers
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 > Current state and roadmap: see `HANDOFF_CURRENT.md`.
@@ -16,7 +16,7 @@
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models rebuilt (S48) — PT-001 few-shot adversarial examples live. |
 | Teensy 4.1 | Operational. Eye movement suspended during TTS (S36). |
 | TTS | Kokoro primary (Docker, GandalfAI port 8004), Piper fallback (Wyoming port 10200). |
-| Web UI | Operational. S52 DEPLOYED (2026-05-18): KOKORO_SPEED slider, Kokoro-force in chat TTS, vision demo panel, /api/vision endpoint. md5 iris_web.py `59115bdda6f063faffde1f7593f54c61`, iris_web.html `e1ddf120dc8d0667544eda105d9cf1ec`. |
+| Web UI | Operational. S53 DEPLOYED (2026-05-19): Bench tab — 20-cycle history, To First Word column, expanded headers, trigger full name, color coding. md5 iris_web.py `5fc8b075e52bf0dd4bc26f39e507f3dc`, iris_web.html `7d3a63f629a5195085a753e93b541cff`. |
 
 ---
 

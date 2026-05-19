@@ -305,3 +305,23 @@ Implemented:
 - Chat tab: Vision Demo card added — 5 preset prompts, custom input, Kokoro speak toggle, calls `/api/vision`.
 
 **Also this session:** Removed approval gate from `CLAUDE.md` (pre-flight summary + wait-for-confirmation steps eliminated). Commit `bda42c9` pushed.
+
+---
+
+## S53 — Bench Tab: 20-Cycle History, To First Word Column, Expanded Headers
+
+**Status:** DEPLOYED (2026-05-19). Pi4 live, md5 verified (`iris_web.py` `5fc8b075e52bf0dd4bc26f39e507f3dc`, `iris_web.html` `7d3a63f629a5195085a753e93b541cff`), iris-web restarted — Flask serving on 0.0.0.0:5000 confirmed.
+
+**Goal:** Four Bench tab improvements — history depth, new latency column, readable column headers, usability polish.
+
+**Changes to `pi4/iris_web.py`:**
+- `api_bench`: cycle limit changed from `[-25:]` to `[-20:]`.
+
+**Changes to `pi4/iris_web.html`:**
+- History table now retains and displays last 20 cycles (was 25).
+- New column "To First Word": `dur_total − dur_audio` = wakeword to speaker start. Inserted between Playback and End-to-End. Color coded green/amber/red (< 4s / 4–7s / > 7s).
+- All 14 column headers expanded to plain English: `trig`→Trigger, `np`→Token Limit, `rec`→Recording, `stt`→Transcription, `ttfc`→1st LLM Chunk, `llm`→LLM Stream, `tts`→TTS Synth, `aud`→Playback, `TOTAL`→End-to-End, `eval/prompt`→Tokens (Eval/Prompt).
+- Hint paragraph rewritten to match new column names.
+- Transcript column: snippet length 22→45 chars, `min-width:200px / max-width:360px`, full text in `title` tooltip on hover.
+- Trigger column: `.slice(0,6)` removed — full trigger name displayed.
+- All five `colspan="14"` references updated to `15`.

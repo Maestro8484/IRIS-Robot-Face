@@ -454,7 +454,7 @@ def api_bench():
     except Exception:
         levers = {}
 
-    return jsonify(cycles=cycles[-25:], levers=levers)
+    return jsonify(cycles=cycles[-20:], levers=levers)
 
 
 @app.route("/api/vision", methods=["POST"])
