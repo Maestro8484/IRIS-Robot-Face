@@ -1,13 +1,15 @@
 /*
-reviewed revised 5.19.2026 joe schmidt
+reviewed revised 5.20.2026 joe schmidt
 IRIS project
 
-Rasp pi pico
-pin	Wire	Label
-1	Yel/org	Pan servo pwm
-2	        Tilt servo pwm
-6	SDA	I2c person sensor
-7	SCL	I2c person sensor
+Rasp pi pico W
+physical pin  GPIO   Label
+1             0      Pan servo PWM
+2             1      Tilt servo PWM
+9             6      SDA  I2C person sensor
+10            7      SCL  I2C person sensor
+20            15     TTP223B touch sensor OUT
+21            GND    TTP223B touch sensor GND
 */
 
 #include <Wire.h>
@@ -37,6 +39,9 @@ pin	Wire	Label
 // Expected bytes from person sensor per poll
 #define PS_EXPECTED_BYTES 18
 
+// TTP223B capacitive touch toggle (GPIO 15, physical pin 20)
+#define TOUCH_PIN 15
+
 ServoEasing panServo;
 ServoEasing tiltServo;
 
@@ -44,8 +49,11 @@ float desiredPan  = 90.0;
 float desiredTilt = 90.0;
 
 unsigned long lastFaceMs = 0;
+bool servoEnabled = false;
 
 void setup() {
+  Wire.setSDA(6);
+  Wire.setSCL(7);
   Wire.begin();
 
   panServo.attach(0);
@@ -54,10 +62,18 @@ void setup() {
   tiltServo.attach(1);
   tiltServo.write((int)desiredTilt);
 
+  pinMode(TOUCH_PIN, INPUT);
+
   Serial.begin(9600);
 }
 
 void loop() {
+  static bool lastTouch = false;
+  bool touch = digitalRead(TOUCH_PIN);
+  if (touch && !lastTouch) servoEnabled = !servoEnabled;
+  lastTouch = touch;
+  if (!servoEnabled) { delay(PERSON_SENSOR_DELAY); return; }
+
   byte readData[PS_EXPECTED_BYTES];
 
   int available = Wire.requestFrom(PERSON_SENSOR_I2C_ADDRESS, PS_EXPECTED_BYTES);

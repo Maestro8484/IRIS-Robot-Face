@@ -361,3 +361,9 @@ IDLE:START / IDLE:STOP serial commands. Auto-start after 120s inactivity.
 - Pi4 md5 verified (config `535d62b3`, assistant `259dd0a1`). SD persisted. Assistant running.
 
 **Remaining:** Flash firmware via PlatformIO upload. Dark-room verify: sleep=dark, idle=dim, wakeword=bright, post-speech=dim.
+
+## servo-pico Pico W update (2026-05-20)
+
+- I2C pins fixed for Pico W: `Wire.setSDA(6)` + `Wire.setSCL(7)` before `Wire.begin()` in setup().
+- TTP223B capacitive touch toggle added on GPIO 15 (physical pin 20): single tap enables/disables servo tracking. `servoEnabled` starts `false` (tracking off at boot).
+- `sysmap.json` servo_pico section updated: hardware=Pico W, source path corrected, GPIO 14/15 added, tunable constants current.
