@@ -40,21 +40,36 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-**IMMEDIATE — Teensy flash required:**
-S54(A+B+C) firmware committed (`4e7c61b`), `pio run` PASSED. To activate BL log curve + idle animations:
-  1. Click PlatformIO upload button (Teensy is enclosure-mounted, software reset via HalfKay).
-  2. Dark-room verify: sleep mode = nearly off, idle = dim (level 3), wakeword → brightens, post-speech → dims.
-  3. Tune `MOUTH_INTENSITY_IDLE` via iris_config.json if level 3 is too dim/bright.
+**BLOCKED — Full enclosure hardware rewiring in progress. Do not power on until complete.**
 
-S54(D) Pi4 DEPLOYED: MOUTH_INTENSITY_IDLE=3 live. Wakeword brightens mouth before STT; end of conversation dims to level 3.
+Reference: `docs/servo_pico_wiring.md` (full pin map + power distribution).
+OneNote table: `docs/servo_pico_wiring_onenote.html` (open in browser, copy-paste).
 
-Pending from prior sessions:
-  - [ ] GandalfAI: set `OLLAMA_KEEP_ALIVE=30m` machine env var + restart Ollama service
-  - PT-001 adversarial testing (live behavior).
-  - **HW-001 (HIGH):** Cut LED/SCK solder jumper on Teensy 4.1 underside during power PCB rewiring. No code needed. See ROADMAP.
-  - **HW-002 (HIGH):** Pico W reflashed bare (2026-05-20, Philhower core). Enclosure wiring still needs: disconnect RUN pin, move on/off switch to servo 5V rail. See ROADMAP HW-002.
-  - **RD-009 (HIGH):** Pico W WiFi touch integration — volume hold-toggle (GPIO 13), TTS interrupt/wakeword (GPIO 14). Full plan in `review/HANDOFF_PICO_WIFI_TOUCH.md`. Start by verifying Pi4 API endpoints before writing Pico code.
-  - RD-003 (duplicate sleep log) — next low-priority item.
+### Hardware rewiring checklist (user action)
+- [ ] RUN pin (physical 30): disconnect, leave floating
+- [ ] On/off switch: wire between supply 5V+ and servo 5V+ rail (not RUN pin)
+- [ ] Button 2 (volume): terminal A → GPIO 13 (pin 17), terminal B → GND bus
+- [ ] Button 3 (TTS/wakeword): terminal A → GPIO 14 (pin 19), terminal B → GND bus
+- [ ] Button 1 (reserved): terminal A → GPIO 15 (pin 20), terminal B → GND bus
+- [ ] Servo: PWM → GPIO 0 (pin 1), 5V → servo rail, GND → GND bus
+- [ ] Person Sensor: SDA → GPIO 6 (pin 9), SCL → GPIO 7 (pin 10), 3V3, GND
+- [ ] VSYS (pin 39): 5V from servo supply terminal
+- [ ] HW-001: cut LED/SCK solder jumper on Teensy 4.1 underside while PCB is open
+
+### After rewiring — next session steps (Claude runs these)
+1. Flash Pico W: Arduino IDE, Philhower core, COM10
+2. Plug Pico into Pi4 USB port
+3. SSH Pi4 → verify `ls /dev/ttyACM*` shows ttyACM0 (Teensy) and ttyACM1 (Pico)
+4. Deploy assistant.py to Pi4 (standard persist protocol)
+5. Restart assistant service
+6. Tail logs: `journalctl -u assistant -f`
+7. Test each button — confirm [PICO] log lines: VOL_UP, VOL_DOWN, STOP, LISTEN
+8. Flash Teensy firmware (PlatformIO upload, user clicks upload button)
+
+### Other pending
+- [ ] GandalfAI: set OLLAMA_KEEP_ALIVE=30m + restart Ollama service
+- [ ] PT-001 adversarial testing (live behavior)
+- [ ] RD-003 duplicate sleep log (low priority)
 
 ---
 
