@@ -52,6 +52,7 @@ Pending from prior sessions:
   - [ ] GandalfAI: set `OLLAMA_KEEP_ALIVE=30m` machine env var + restart Ollama service
   - PT-001 adversarial testing (live behavior).
   - **HW-001 (HIGH):** Cut LED/SCK solder jumper on Teensy 4.1 underside during power PCB rewiring. No code needed. See ROADMAP.
+  - **HW-002 (HIGH):** Servo Pico flash blocked — BOOTSEL inaccessible, RUN miswired to switch. During PCB rewiring: move switch wire from RUN (pin 30) to VSYS (pin 39), leave RUN unconnected, install Zadig WinUSB for RP2040 BOOTSEL, flash `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino`. See ROADMAP HW-002.
   - RD-003 (duplicate sleep log) — next low-priority item.
 
 ---

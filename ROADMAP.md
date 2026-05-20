@@ -182,3 +182,30 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 **No code change required.** The two-line stub (`pinMode(13, OUTPUT); digitalWrite(13, LOW)`) was added and then removed in S54 — confirmed ineffective.
 
 **Files:** None (hardware-only fix).
+
+---
+
+## HW-002 — Servo Pico USB Flash Inaccessible (Power Distribution PCB)
+
+**Status:** DEFERRED — blocked on power distribution PCB rewiring.
+
+**Priority:** HIGH — improved servo tracking code (confidence gate, dead zone, face-lost return) is REPO-ONLY and cannot be flashed until resolved.
+
+**Problem:** The Raspberry Pi Pico (servo pan/tilt controller) is header-soldered onto the main power supply distribution PCB. Two hardware issues block USB flashing:
+
+1. **RUN pin miswired to enclosure on/off switch** — The switch pulls the RUN pin (physical pin 30) to GND when ON, holding the Pico in hard reset. The Pico only runs when the switch is OFF. Correct wiring: the switch belongs in the VSYS (pin 39) power input line. RUN should be left unconnected; the internal pullup holds it high.
+
+2. **BOOTSEL button physically inaccessible** — The Pico is soldered to the PCB with components around it. The BOOTSEL button cannot be reached. Attempted workaround: use the RUN switch as a reset trigger while holding BOOTSEL — Windows Device Manager briefly refreshed (USB handshake partially detected) but no RPI-RP2 mass storage drive appeared. WinUSB driver for RP2040 BOOTSEL mode likely also needs to be installed via Zadig.
+
+**Current state:** Servo tracking (face detection, pan/tilt) IS functional on the old firmware. Improved code in `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino` (commit `c37f148`) is REPO-ONLY.
+
+**Fix during PCB rewiring:**
+1. Move the on/off switch wire from RUN (pin 30) to the VSYS (pin 39) power input line.
+2. Leave RUN unconnected.
+3. If RPI-RP2 drive still does not appear: install WinUSB driver for RP2040 BOOTSEL via [Zadig](https://zadig.akeo.ie) — Options → List All Devices → select "RP2 Boot" → install WinUSB.
+4. Flash `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino` — Arduino IDE (board: Raspberry Pi Pico, Earle Philhower RP2040 core) or PlatformIO (`upload_protocol = picotool`).
+5. Verify: smooth pan/tilt tracking, no jitter on small movements, back-of-head or low-confidence detections ignored, face-lost → holds 2.5s → slow center drift after 8s.
+
+**Blocked on:** Same power distribution PCB rewiring event as HW-001. Do both fixes in the same work session.
+
+**Files:** `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino` (REPO-ONLY, commit `c37f148`).
