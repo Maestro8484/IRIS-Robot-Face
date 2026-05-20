@@ -1,9 +1,28 @@
-# Handoff: Pico W WiFi Touch Sensor Integration
+# Handoff: Pico W USB Serial Touch Sensor Integration
 
 **Date:** 2026-05-20
 **From:** Claude Code session (servo-pico hardware/code work)
 **To:** New Claude Code session
-**Priority:** HIGH — Pico W reflashed and working, WiFi touch feature is next step
+**Priority:** HIGH — Pico W reflashed and working, USB serial touch feature is next step
+
+---
+
+## Architecture decision: USB Serial, not WiFi
+
+Pico W micro-USB → Pi4 USB port. Pico sends one-line commands over USB CDC serial.
+Pi4 assistant.py runs a background thread reading `/dev/ttyACM0`.
+
+**Why USB serial over WiFi:**
+- No credentials, no network dependency, no HTTP latency
+- ~1ms command delivery vs 50-200ms HTTP round trip
+- Pi4 USB powers the Pico — no separate 5V supply needed for the board itself
+- Code on Pico side: `Serial.println("VOL_UP")` — nothing else required
+- Same pattern as Teensy↔Pi4 serial bridge already in use
+
+**Flash workflow note:** Pico can only be connected to ONE USB host at a time.
+- To flash from Windows: unplug from Pi4, plug into Windows PC (COM10)
+- For runtime use: plug into Pi4 USB port
+- No conflict during normal operation — only matters when reflashing
 
 ---
 
@@ -14,24 +33,24 @@
 - Sketch: `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
 - Core: Earle Philhower RP2040 (rp2040 architecture) — NOT the Mbed core
 - Libraries: Wire (built-in), ServoEasing (Philhower)
-- Board: Raspberry Pi Pico W on COM10
+- Board: Raspberry Pi Pico W — flash via Windows COM10
 
 ### What the sketch currently does
 - Pan servo (GPIO 0) tracks faces via Person Sensor I2C (GPIO 6/7)
 - Confidence gate (boxConfidence ≥ 60, isFacing == true) before acting
 - Dead zone (PAN_DEAD_ZONE = 2.0°) suppresses micro-jitter
-- Face lost: holds position 2500ms, then drifts back to center after 8000ms
-- Touch 1 (GPIO 15, physical pin 20): tap to toggle servo tracking on/off. Starts disabled at boot.
-- No WiFi code yet
+- Face lost: holds position 2500ms, drifts back to center after 8000ms
+- Touch 1 (GPIO 15, physical pin 20): tap toggles servo tracking on/off. Starts disabled at boot.
+- No touch 2/3, no serial commands yet
 
 ### Pending hardware work (HW-002 — deferred to PCB rewiring)
-- RUN pin (physical 30) currently miswired to on/off switch — disconnect it, leave unconnected
-- On/off switch moving to servo 5V rail (cuts servo power only, Pico keeps running)
-- These are hardware-only changes, no code impact
+- RUN pin (physical 30) currently miswired to on/off switch — disconnect, leave unconnected
+- On/off switch moving to servo 5V rail (cuts servo power only, Pico keeps running on USB)
+- Hardware-only, no code impact
 
 ---
 
-## Task: Add Two New Touch Sensors + WiFi IRIS Integration
+## Task: Add Two New Touch Sensors + USB Serial IRIS Integration
 
 ### Hardware — new touch sensors
 
@@ -41,167 +60,161 @@ All three TTP223B sensors grouped on physically adjacent pins:
 |---|---|---|---|
 | 17 | 13 | Touch 2 OUT | Volume hold-toggle (hold = increase, hold again = decrease) |
 | 18 | GND | GND | Touch 2 GND |
-| 19 | 14 | Touch 3 OUT | TTS interrupt OR wakeword+mic trigger |
+| 19 | 14 | Touch 3 OUT | TTS interrupt (tap) / wakeword+mic trigger (hold >1s) |
 | 20 | 15 | Touch 1 OUT | Servo enable/disable (existing) |
 | 21 | GND | GND | Shared GND for Touch 1 + Touch 3 |
 
 Power for all TTP223B sensors: 3V3 OUT (physical pin 36).
+Pico board power: Pi4 USB (VSYS fed via micro-USB, no separate 5V supply needed).
+Servo power: still needs its own 5V rail (servos exceed USB current budget).
 
 ### Behavior spec
 
 **Touch 2 — Volume (GPIO 13)**
-- Hold sensor: volume increases continuously while held
-- Release, then hold again: direction reverses (now decreasing)
-- Release again: stops
-- Direction toggle persists across holds until direction reverses again
-- Rate: increment every ~200ms while held, step size TBD (suggest 5% per tick)
-- Sends HTTP request to Pi4 web API on each tick
+- Hold: volume changes continuously while held, tick every 200ms
+- Release then hold again: direction reverses
+- Direction state persists until next press reverses it
+- Serial command per tick: `VOL_UP` or `VOL_DOWN`
 
 **Touch 3 — TTS interrupt / wakeword (GPIO 14)**
-- Short tap: interrupt current TTS output (stop mid-speech)
-- Hold (>1s): activate wakeword+mic (trigger listen cycle without speaking wakeword)
-- Sends HTTP request to Pi4 on each event
-
-### WiFi architecture
-
-Pico W connects to local WiFi and sends HTTP POST/GET requests to Pi4 (192.168.1.200).
-Pi4 web server (iris_web.py) runs on port 5000.
-
-**Before implementing Pico W WiFi client side, verify these Pi4 endpoints exist:**
-
-| Function | Expected endpoint | Verify in iris_web.py |
-|---|---|---|
-| Volume up/down | `POST /api/volume` with `{"delta": +5}` or `{"delta": -5}` | Check iris_web.py for volume route |
-| TTS interrupt | `POST /api/stop` or similar | Check assistant.py for stop mechanism |
-| Wakeword trigger | `POST /api/listen` or similar | Check assistant.py for manual listen trigger |
-
-**If endpoints don't exist, they must be added to Pi4 iris_web.py / assistant.py first (Pi4 deploy required), then Pico W WiFi client side.**
-
-### Implementation order
-
-1. **Verify Pi4 API endpoints** — read iris_web.py and assistant.py. Do NOT assume endpoints exist.
-2. **Add missing Pi4 endpoints if needed** — deploy to Pi4 per standard persist protocol.
-3. **Add WiFi + touch code to Pico W sketch** — see code outline below.
-4. **Flash Pico W** — board is on COM10, Philhower core, Pico W board selected. After first Philhower flash, subsequent uploads are one-click (no BOOTSEL needed).
-5. **Verify behavior** — servo still tracks, volume responds, TTS interrupts cleanly.
+- Short tap (<1s): interrupt current TTS output → serial command `STOP`
+- Long hold (≥1s): trigger listen cycle without speaking wakeword → serial command `LISTEN`
 
 ---
 
-## Code outline for Pico W sketch additions
+## Implementation — Pico W sketch changes
 
-Add to top of sketch:
+### Additions to .ino
+
 ```cpp
-#include <WiFi.h>
-#include <HTTPClient.h>
-
-const char* WIFI_SSID     = "YOUR_SSID";
-const char* WIFI_PASSWORD = "YOUR_PASSWORD";
-const char* PI4_BASE_URL  = "http://192.168.1.200:5000";
-
-#define TOUCH2_PIN 13   // volume hold-toggle
-#define TOUCH3_PIN 14   // TTS interrupt / wakeword trigger
+#define TOUCH2_PIN 13
+#define TOUCH3_PIN 14
 ```
 
-Add in setup() after existing pinMode:
+In setup():
 ```cpp
   pinMode(TOUCH2_PIN, INPUT);
   pinMode(TOUCH3_PIN, INPUT);
-
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  // non-blocking — servo runs immediately, WiFi connects in background
-  // send requests only when WiFi.status() == WL_CONNECTED
+  // Serial.begin(9600) already present — used for USB CDC to Pi4
 ```
 
-Touch 2 logic (volume hold-toggle) in loop():
+In loop() — add after existing touch 1 block:
 ```cpp
+  // Touch 2 — volume hold-toggle
   static bool lastTouch2    = false;
   static bool volIncreasing = true;
-  static unsigned long touch2HeldMs = 0;
   static unsigned long lastVolTickMs = 0;
-
   bool touch2 = digitalRead(TOUCH2_PIN);
-  if (touch2 && !lastTouch2) {
-    touch2HeldMs = millis();
-    volIncreasing = !volIncreasing;   // reverse direction on each new hold
-  }
+  if (touch2 && !lastTouch2) volIncreasing = !volIncreasing;
   if (touch2 && (millis() - lastVolTickMs > 200)) {
     lastVolTickMs = millis();
-    // send HTTP volume delta
-    int delta = volIncreasing ? 5 : -5;
-    sendVolume(delta);
+    Serial.println(volIncreasing ? "VOL_UP" : "VOL_DOWN");
   }
   lastTouch2 = touch2;
-```
 
-Touch 3 logic (TTS interrupt / wakeword) in loop():
-```cpp
+  // Touch 3 — TTS interrupt / wakeword
   static bool lastTouch3 = false;
   static unsigned long touch3PressMs = 0;
-
   bool touch3 = digitalRead(TOUCH3_PIN);
   if (touch3 && !lastTouch3) touch3PressMs = millis();
   if (!touch3 && lastTouch3) {
     unsigned long held = millis() - touch3PressMs;
-    if (held < 1000) sendStop();        // short tap = interrupt TTS
-    else             sendListen();      // long hold = trigger wakeword
+    Serial.println(held < 1000 ? "STOP" : "LISTEN");
   }
   lastTouch3 = touch3;
 ```
 
-Helper functions (add before loop()):
-```cpp
-void sendVolume(int delta) {
-  if (WiFi.status() != WL_CONNECTED) return;
-  HTTPClient http;
-  http.begin(String(PI4_BASE_URL) + "/api/volume");
-  http.addHeader("Content-Type", "application/json");
-  http.POST("{\"delta\":" + String(delta) + "}");
-  http.end();
-}
+---
 
-void sendStop() {
-  if (WiFi.status() != WL_CONNECTED) return;
-  HTTPClient http;
-  http.begin(String(PI4_BASE_URL) + "/api/stop");
-  http.POST("");
-  http.end();
-}
+## Implementation — Pi4 side
 
-void sendListen() {
-  if (WiFi.status() != WL_CONNECTED) return;
-  HTTPClient http;
-  http.begin(String(PI4_BASE_URL) + "/api/listen");
-  http.POST("");
-  http.end();
-}
+### Step 1: Identify serial port
+
+When Pico W is plugged into Pi4 USB, it appears as `/dev/ttyACM0` (or `ttyACM1` if something else is on ACM0). Verify on Pi4:
+```bash
+ls /dev/ttyACM*
 ```
 
-**Note:** HTTP requests are synchronous and block for ~50-200ms. Monitor whether this delays servo tracking noticeably. If so, move HTTP calls to second core (RP2040 has two cores — `setup1()`/`loop1()` in Philhower).
+### Step 2: Verify what Pi4 endpoints/mechanisms already exist
+
+**Before writing any new Pi4 code**, read these files:
+- `pi4/assistant.py` — check for: volume control, TTS stop mechanism, manual listen trigger
+- `pi4/iris_web.py` — check for: `/api/volume` route, any stop/listen routes
+
+Do NOT assume these exist. If they do, wire the serial listener to call them. If they don't, add them.
+
+### Step 3: Add serial listener thread to assistant.py
+
+Add a background thread that reads from `/dev/ttyACM0` and dispatches commands.
+The TeensyBridge pattern already in assistant.py is the reference — follow the same structure.
+
+```python
+# Conceptual outline only — read actual assistant.py before writing
+import serial, threading
+
+PICO_PORT = '/dev/ttyACM0'
+PICO_BAUD = 9600
+
+def pico_listener():
+    try:
+        ser = serial.Serial(PICO_PORT, PICO_BAUD, timeout=1)
+        while True:
+            line = ser.readline().decode('utf-8', errors='ignore').strip()
+            if line == 'VOL_UP':
+                adjust_volume(+5)
+            elif line == 'VOL_DOWN':
+                adjust_volume(-5)
+            elif line == 'STOP':
+                stop_tts()
+            elif line == 'LISTEN':
+                trigger_listen()
+    except Exception as e:
+        log(f"[PICO] serial error: {e}")
+
+threading.Thread(target=pico_listener, daemon=True).start()
+```
+
+**Key constraint:** `stop_tts()` and `trigger_listen()` must be thread-safe. Check how TeensyBridge handles this in the existing code and follow the same pattern exactly.
+
+### Step 4: Volume control implementation
+
+Check iris_config.json for current VOL_MAX. Volume control likely calls `amixer` or `pactl` on Pi4.
+Find how the existing Web UI volume control works (if it exists) and reuse that function — do not write a new one.
 
 ---
 
-## Files to touch this session
+## Implementation order
+
+1. Read `pi4/assistant.py` in full — understand TeensyBridge thread pattern, TTS stop, volume, listen trigger.
+2. Read `pi4/iris_web.py` — check for existing volume/stop/listen routes.
+3. Write Pico W sketch additions (touch 2/3 + serial commands) — simple, no Pi4 needed yet.
+4. Flash Pico W (disconnect from Pi4, plug into Windows COM10, upload, reconnect to Pi4).
+5. Add pico_listener thread to assistant.py, wiring to existing mechanisms.
+6. Deploy assistant.py to Pi4 per standard persist protocol. Restart assistant service.
+7. Test: plug Pico into Pi4, verify `ls /dev/ttyACM0`, tail assistant logs, test each touch.
+
+---
+
+## Files to touch
 
 | File | Change |
 |---|---|
-| `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino` | Add WiFi, Touch 2, Touch 3 |
-| `pi4/iris_web.py` | Add /api/volume, /api/stop, /api/listen if missing |
-| `pi4/assistant.py` | Add stop/listen trigger hooks if missing |
+| `servo_pico/.../IRIS-BaseServoControlViaPerson_Sensor.ino` | Add TOUCH2_PIN, TOUCH3_PIN, serial commands |
+| `pi4/assistant.py` | Add pico_listener thread, wire to volume/stop/listen |
+| `pi4/iris_web.py` | Add routes only if missing and needed |
 | `docs/sysmap.json` | Add GPIO 13/14 to servo_pico gpio section |
-| `IRIS_ARCH.md` | Update servo section: WiFi, 3 touch sensors |
-| `SNAPSHOT_LATEST.md` | Update Servo Pico status |
+| `IRIS_ARCH.md` | Update servo section: USB serial link, 3 touch sensors |
+| `SNAPSHOT_LATEST.md` | Update after deploy |
 
 ---
 
-## Credentials / network
-- Pi4: 192.168.1.200, port 5000 (iris_web.py)
-- WiFi SSID/password: user to supply — do not hardcode in repo, use a `#define` at top of sketch with a note to fill in before flash, or read from a config file on flash storage
-- SSH to Pi4: password auth only (pi/ohs) — key auth does not work on this setup
-
----
+## SSH / deploy reference
+- Pi4 SSH: `ssh pi@192.168.1.200`, password `ohs` — password auth only, key auth fails
+- Pi4 persist pattern: copy to `/home/pi/`, then remount rw and copy to `/media/root-ro/home/pi/`, md5 verify, remount ro, restart `assistant` service
+- See `CLAUDE.md` for full persist command sequence
 
 ## Do not touch
-- Teensy 4.1 firmware (separate system, unrelated)
+- Teensy 4.1 firmware
 - GandalfAI models
-- Pi4 assistant.py sleep/wake/TTS pipeline beyond the stop/listen hooks
-- `iris_config.json` unless explicitly required
+- Pi4 sleep/wake/TTS pipeline beyond the specific stop/listen hooks
+- `iris_config.json` unless volume implementation requires it
