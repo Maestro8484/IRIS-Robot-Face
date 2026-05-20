@@ -5,7 +5,6 @@ IRIS project
 Rasp pi pico W
 physical pin  GPIO   Label
 1             0      Pan servo PWM
-2             1      Tilt servo PWM
 9             6      SDA  I2C person sensor
 10            7      SCL  I2C person sensor
 20            15     TTP223B touch sensor OUT
@@ -24,13 +23,11 @@ physical pin  GPIO   Label
 // How long to pause between sensor polls.
 #define PERSON_SENSOR_DELAY 50
 
-// Controls how fast the servos track.
+// Controls how fast the servo tracks.
 #define PAN_SPEED  0.04
-#define TILT_SPEED 0.04
 
 // Dead zone: ignore movement smaller than this (degrees equivalent — tune up if jittery)
 #define PAN_DEAD_ZONE  2.0
-#define TILT_DEAD_ZONE 2.0
 
 // Face-lost timing (ms)
 #define FACE_HOLD_MS   2500   // hold position after face is lost
@@ -43,10 +40,8 @@ physical pin  GPIO   Label
 #define TOUCH_PIN 15
 
 ServoEasing panServo;
-ServoEasing tiltServo;
 
-float desiredPan  = 90.0;
-float desiredTilt = 90.0;
+float desiredPan = 90.0;
 
 unsigned long lastFaceMs = 0;
 bool servoEnabled = false;
@@ -58,9 +53,6 @@ void setup() {
 
   panServo.attach(0);
   panServo.write((int)desiredPan);
-
-  tiltServo.attach(1);
-  tiltServo.write((int)desiredTilt);
 
   pinMode(TOUCH_PIN, INPUT);
 
@@ -131,7 +123,6 @@ void loop() {
     lastFaceMs = millis();
     Face& mainFace = faces[0];
 
-    // Pan
     float faceCenterX = (mainFace.boxLeft + mainFace.boxRight) / 2.0;
     float panDelta = (faceCenterX - 128) * PAN_SPEED;
     if (abs(panDelta) > PAN_DEAD_ZONE / 90.0) {
@@ -141,26 +132,12 @@ void loop() {
       panServo.write((int)desiredPan);
     }
 
-    // Tilt
-    float faceCenterY = (mainFace.boxTop + mainFace.boxBottom) / 2.0;
-    float tiltDelta = (faceCenterY - 128) * TILT_SPEED;
-    if (abs(tiltDelta) > TILT_DEAD_ZONE / 90.0) {
-      desiredTilt -= tiltDelta;
-      desiredTilt = constrain(desiredTilt, 0.0, 180.0);
-      tiltServo.setEasingType(EASE_CUBIC_OUT);
-      tiltServo.write((int)desiredTilt);
-    }
-
   } else {
     unsigned long elapsed = millis() - lastFaceMs;
     if (elapsed > FACE_RETURN_MS) {
-      // Slowly drift back to center
-      desiredPan  += (90.0 - desiredPan)  * 0.03;
-      desiredTilt += (90.0 - desiredTilt) * 0.03;
+      desiredPan += (90.0 - desiredPan) * 0.03;
       panServo.setEasingType(EASE_SINE_OUT);
-      tiltServo.setEasingType(EASE_SINE_OUT);
       panServo.write((int)desiredPan);
-      tiltServo.write((int)desiredTilt);
     }
     // 0..FACE_HOLD_MS and FACE_HOLD_MS..FACE_RETURN_MS: hold position, do nothing
   }
