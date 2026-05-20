@@ -7,11 +7,10 @@ physical pin  GPIO   Label
 1             0      Pan servo PWM
 9             6      SDA  I2C person sensor
 10            7      SCL  I2C person sensor
-17            13     TTP223B Touch 2 OUT  (volume hold-toggle)
-18            GND    TTP223B Touch 2 GND
-19            14     TTP223B Touch 3 OUT  (TTS interrupt / wakeword trigger)
-20            15     TTP223B Touch 1 OUT  (servo enable/disable)
-21            GND    TTP223B Touch 1+3 shared GND
+17            13     Momentary button — volume (GPIO 13, GND + INPUT_PULLUP)
+19            14     Momentary button — TTS/wakeword (GPIO 14, GND + INPUT_PULLUP)
+20            15     Momentary button — reserved (GPIO 15, wired unassigned)
+18/21         GND    Button GND (shared)
 
 USB serial / Pi4 integration:
 - USB CDC serial to Pi4 (/dev/ttyACM1, baud 9600)
@@ -44,8 +43,8 @@ USB serial / Pi4 integration:
 // Expected bytes from person sensor per poll
 #define PS_EXPECTED_BYTES 18
 
-// TTP223B touch sensors
-#define TOUCH1_PIN 15   // servo enable/disable (existing)
+// Momentary pushbuttons (active-low, INPUT_PULLUP, one terminal to GND)
+#define TOUCH1_PIN 15   // reserved — wired, unassigned
 #define TOUCH2_PIN 13   // volume hold-toggle
 #define TOUCH3_PIN 14   // TTS interrupt / wakeword trigger
 
@@ -54,7 +53,6 @@ ServoEasing panServo;
 float desiredPan = 90.0;
 
 unsigned long lastFaceMs = 0;
-bool servoEnabled = false;
 
 void setup() {
   Wire.setSDA(6);
@@ -64,26 +62,22 @@ void setup() {
   panServo.attach(0);
   panServo.write((int)desiredPan);
 
-  pinMode(TOUCH1_PIN, INPUT);
-  pinMode(TOUCH2_PIN, INPUT);
-  pinMode(TOUCH3_PIN, INPUT);
+  pinMode(TOUCH1_PIN, INPUT_PULLUP);
+  pinMode(TOUCH2_PIN, INPUT_PULLUP);
+  pinMode(TOUCH3_PIN, INPUT_PULLUP);
 
   Serial.begin(9600);
 }
 
 void loop() {
-  // ── Touch 1 — servo enable/disable toggle ────────────────────────────────
-  static bool lastTouch1 = false;
-  bool touch1 = digitalRead(TOUCH1_PIN);
-  if (touch1 && !lastTouch1) servoEnabled = !servoEnabled;
-  lastTouch1 = touch1;
+  // ── Touch 1 — reserved (GPIO 15, TTP223B wired but unassigned) ──────────
 
   // ── Touch 2 — volume hold-toggle ─────────────────────────────────────────
   static bool lastTouch2      = false;
   static bool volIncreasing   = false;  // false→first hold flips true (increasing)
   static unsigned long lastVolTickMs = 0;
 
-  bool touch2 = digitalRead(TOUCH2_PIN);
+  bool touch2 = !digitalRead(TOUCH2_PIN);
   if (touch2 && !lastTouch2) {
     volIncreasing = !volIncreasing;   // reverse direction on each new hold
   }
@@ -97,15 +91,13 @@ void loop() {
   static bool lastTouch3 = false;
   static unsigned long touch3PressMs = 0;
 
-  bool touch3 = digitalRead(TOUCH3_PIN);
+  bool touch3 = !digitalRead(TOUCH3_PIN);
   if (touch3 && !lastTouch3) touch3PressMs = millis();
   if (!touch3 && lastTouch3) {
     unsigned long held = millis() - touch3PressMs;
     Serial.println(held < 1000 ? "STOP" : "LISTEN");
   }
   lastTouch3 = touch3;
-
-  if (!servoEnabled) { delay(PERSON_SENSOR_DELAY); return; }
 
   byte readData[PS_EXPECTED_BYTES];
 
