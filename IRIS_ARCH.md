@@ -75,33 +75,41 @@ Final authority belongs to the human operator.
 
 ---
 
-## Servo Pan/Tilt Controller — Raspberry Pi Pico
+## Servo Pan Controller — Raspberry Pi Pico W
 
-The IRIS face unit (eyes + mouth TFT) is mounted on a pan/tilt servo rig on top of the enclosure.
-The servos are driven by a dedicated Raspberry Pi Pico running `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino`.
+The IRIS face unit (eyes + mouth TFT) is mounted on a pan servo rig on top of the enclosure.
+The servo is driven by a dedicated Raspberry Pi Pico W running `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`.
 
 **Hardware:**
-- Raspberry Pi Pico + two SG90 servos (pan: GPIO 0, tilt: GPIO 1)
-- Person Sensor (Useful Sensors, I2C 0x62, SDA: pin 6, SCL: pin 7)
+- Raspberry Pi Pico W + one SG90 pan servo (GPIO 0)
+- Person Sensor (Useful Sensors, I2C 0x62, SDA: GPIO 6, SCL: GPIO 7)
+- Three TTP223B capacitive touch sensors: GPIO 13 (Touch 2), GPIO 14 (Touch 3), GPIO 15 (Touch 1)
 - Powered independently from main Teensy 4.1 / Pi4 stack
-- Physical power toggle switch on enclosure rear — only way to disable servo tracking
+
+**Touch sensor functions:**
+- Touch 1 (GPIO 15): tap to toggle servo tracking on/off. Starts disabled at boot.
+- Touch 2 (GPIO 13): hold to adjust volume. Direction reverses on each new hold. Sends `POST /api/volume {"delta": ±5}` to Pi4 every 200ms while held.
+- Touch 3 (GPIO 14): short tap = interrupt TTS (`POST /api/stop`); hold ≥1s = trigger listen cycle (`POST /api/listen`).
+
+**WiFi:**
+- Connects to local WiFi at boot (non-blocking — servo runs immediately)
+- HTTP requests to Pi4 at `http://192.168.1.200:5000`
+- All HTTP helpers gate on `WiFi.status() == WL_CONNECTED`
+- HTTP calls are synchronous (~50-200ms). If servo tracking degrades under load, move calls to core 1 (`loop1()`).
 
 **Behavior:**
-- Fully autonomous — reads Person Sensor at 20Hz, pan+tilt to track largest facing face
+- Reads Person Sensor at ~20Hz, pans to track largest facing face
 - Confidence + facing gate: ignores detections with boxConfidence < 60 or isFacing == 0
-- Dead zone (PAN/TILT_DEAD_ZONE = 2.0°): suppresses micro-jitter on small movements
-- Face lost: holds position for FACE_HOLD_MS (2500ms), then after FACE_RETURN_MS (8000ms) slowly drifts back to center (3% per tick, EASE_SINE_OUT)
-- No serial communication with Teensy 4.1, Pi4, or any other system component
+- Dead zone (PAN_DEAD_ZONE = 2.0°): suppresses micro-jitter
+- Face lost: holds position FACE_HOLD_MS (2500ms), then drifts to center after FACE_RETURN_MS (8000ms)
 
-**Isolation:**
-- Servo board has no awareness of IRIS sleep/wake state, TTS playback, or conversation state
-- Cannot be commanded to stop tracking via software from Pi4 or Teensy 4.1
-- Power toggle on enclosure rear is the only runtime control
-- Future improvement: GPIO signal wire from Pi4 to servo board enable pin would allow
-  software-controlled pause during sleep or TTS
+**Pi4 API endpoints added for Pico W (RD-009):**
+- `POST /api/volume` — accepts `{"delta": ±n}` (relative) or `{"level": n}` (absolute 0-127)
+- `POST /api/stop` — sets `_stop_playback` event in assistant.py via UDP STOP_PLAYBACK
+- `POST /api/listen` — writes `/tmp/iris_manual_listen`; wakeword.py polls this flag to trigger a PTT-equivalent listen cycle
 
-**Source:** `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino`
-**Tunable constants:** PAN_SPEED, TILT_SPEED, PAN_DEAD_ZONE, TILT_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS, PERSON_SENSOR_DELAY
+**Source:** `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
+**Tunable constants:** PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS, PERSON_SENSOR_DELAY
 
 ---
 

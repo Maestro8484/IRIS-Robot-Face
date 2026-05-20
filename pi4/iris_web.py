@@ -386,13 +386,25 @@ def api_persist_config():
 
 @app.route("/api/volume", methods=["GET","POST"])
 def api_volume():
-    """Get or set wm8960 speaker volume (0-127)."""
+    """Get or set wm8960 speaker volume (0-127). POST accepts {"level": <abs>} or {"delta": <±n>}."""
     import re as _re
     card = subprocess.check_output(
         ["bash","-c","aplay -l 2>/dev/null | grep wm8960 | head -1 | awk '{print $2}' | tr -d ':'"],
         text=True).strip() or "0"
     if request.method == "POST":
-        level = max(0, min(127, int(request.get_json(force=True).get("level", 110))))
+        data = request.get_json(force=True)
+        if "delta" in data:
+            out = subprocess.check_output(["amixer","-c",card,"sget","Speaker"], text=True)
+            current = 110
+            for line in out.splitlines():
+                if "Front Left:" in line:
+                    m = _re.search(r"Playback (\d+)", line)
+                    if m:
+                        current = int(m.group(1))
+                        break
+            level = max(0, min(127, current + int(data["delta"])))
+        else:
+            level = max(0, min(127, int(data.get("level", 110))))
         subprocess.run(["amixer","-c",card,"sset","Speaker",str(level)],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["alsactl", "store"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -407,6 +419,23 @@ def api_volume():
                 level = int(m.group(1))
                 return jsonify(level=level, pct=round(level/127*100))
     return jsonify(level=110, pct=87)
+
+
+@app.route("/api/stop", methods=["POST"])
+def api_stop():
+    """Interrupt current TTS playback (Pico W Touch 3 short tap)."""
+    ok = send_teensy("STOP_PLAYBACK")
+    return jsonify(ok=ok)
+
+
+@app.route("/api/listen", methods=["POST"])
+def api_listen():
+    """Trigger a manual listen cycle without saying the wakeword (Pico W Touch 3 long hold)."""
+    try:
+        open("/tmp/iris_manual_listen", "w").close()
+        return jsonify(ok=True)
+    except Exception as e:
+        return jsonify(ok=False, error=str(e)), 500
 
 
 @app.route("/api/bench")

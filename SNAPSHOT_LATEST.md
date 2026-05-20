@@ -11,10 +11,10 @@
 | System | Status |
 |---|---|
 | SuperMaster Desktop | Canonical repo — pushed `af6167c`. Claude Desktop, filesystem MCP, SSH MCP active. |
-| Pi4 192.168.1.200 | Operational. S54(D) DEPLOYED: assistant.py + config.py (MOUTH_INTENSITY_IDLE=3). md5 verified, SD persisted, assistant running. |
+| Pi4 192.168.1.200 | Operational. S54(D) DEPLOYED. RD-009 Pi4 changes REPO-ONLY: iris_web.py (+/api/stop, /api/listen, volume delta), assistant.py (STOP_PLAYBACK cmd), wakeword.py (manual listen flag). Deploy pending. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). |
 | Teensy 4.1 | Firmware REPO-ONLY (`4e7c61b`). BL_MAP log curve + idle animations built, **flash pending** (PlatformIO upload). |
-| Servo Pico | DEPLOYED (bare board) — Pico W reflashed 2026-05-20 via Arduino IDE (Philhower core, COM10). Pan-only, touch toggle (GPIO 15), I2C on GPIO 6/7. Not yet reinstalled in enclosure. WiFi touch integration planned (see ROADMAP RD-009). |
+| Servo Pico | REPO-ONLY — RD-009 sketch updated: WiFi + Touch 2 (GPIO 13, volume) + Touch 3 (GPIO 14, TTS stop/listen). Pi4 iris_web.py + assistant.py + wakeword.py updated. Flash pending (COM10, Philhower core). Not yet reinstalled in enclosure. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 | Web UI | Operational. S53 DEPLOYED. md5 iris_web.py `5fc8b075`, iris_web.html `7d3a63f6`. |
 

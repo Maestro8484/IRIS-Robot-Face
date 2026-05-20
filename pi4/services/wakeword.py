@@ -7,6 +7,7 @@ Returns "wake" (wakeword fired) or "button" (PTT button pressed).
 """
 
 import json
+import os
 import select
 import socket
 import threading
@@ -14,6 +15,8 @@ import threading
 from core.config import OWW_THRESHOLD, WAKE_WORD, SAMPLE_RATE, CHANNELS, CHUNK
 from hardware.io import button_pressed
 from services.wyoming import wy_send
+
+_MANUAL_LISTEN_FLAG = "/tmp/iris_manual_listen"
 
 
 def wait_for_wakeword_or_button(mic, oww_sock) -> str:
@@ -77,7 +80,9 @@ def wait_for_wakeword_or_button(mic, oww_sock) -> str:
         wy_send(oww_sock, "audio-chunk",
                 {"rate": SAMPLE_RATE, "width": 2, "channels": CHANNELS},
                 audio)
-        if button_pressed():
+        if button_pressed() or os.path.exists(_MANUAL_LISTEN_FLAG):
+            try: os.remove(_MANUAL_LISTEN_FLAG)
+            except Exception: pass
             trigger[0] = "button"
             detected.set()
             threading.Event().wait(0.05)  # debounce

@@ -146,14 +146,51 @@ def start_cmd_listener(teensy, leds):
                     data, _ = s.recvfrom(256)
                     cmd = data.decode(errors="ignore").strip()
                     if cmd:
-                        print(f"[CMD] -> teensy: {cmd}", flush=True)
-                        teensy.send_command(cmd)
-                        if cmd == "EYES:SLEEP":
-                            _do_sleep(teensy, leds)
-                        elif cmd == "EYES:WAKE":
-                            _do_wake(teensy, leds)
+                        if cmd == "STOP_PLAYBACK":
+                            _stop_playback.set()
+                            print("[CMD] STOP_PLAYBACK: playback interrupted", flush=True)
+                        else:
+                            print(f"[CMD] -> teensy: {cmd}", flush=True)
+                            teensy.send_command(cmd)
+                            if cmd == "EYES:SLEEP":
+                                _do_sleep(teensy, leds)
+                            elif cmd == "EYES:WAKE":
+                                _do_wake(teensy, leds)
                 except Exception as e:
                     print(f"[CMD] Listener error: {e}", flush=True)
+    threading.Thread(target=_listener, daemon=True).start()
+
+
+def start_pico_listener():
+    """USB serial listener for Pico W touch commands (/dev/ttyACM1, 9600 baud)."""
+    import serial as _serial
+    PICO_PORT = '/dev/ttyACM1'
+    PICO_BAUD = 9600
+
+    def _listener():
+        while True:
+            try:
+                ser = _serial.Serial(PICO_PORT, PICO_BAUD, timeout=1)
+                print(f"[PICO] Connected on {PICO_PORT}", flush=True)
+                while True:
+                    line = ser.readline().decode('utf-8', errors='ignore').strip()
+                    if not line:
+                        continue
+                    print(f"[PICO] {line}", flush=True)
+                    if line == 'VOL_UP':
+                        set_volume(min(127, get_volume() + 5))
+                    elif line == 'VOL_DOWN':
+                        set_volume(max(0, get_volume() - 5))
+                    elif line == 'STOP':
+                        _stop_playback.set()
+                        print("[PICO] STOP: playback interrupted", flush=True)
+                    elif line == 'LISTEN':
+                        open("/tmp/iris_manual_listen", "w").close()
+                        print("[PICO] LISTEN: manual listen triggered", flush=True)
+            except Exception as e:
+                print(f"[PICO] {e} -- retrying in 5s", flush=True)
+                time.sleep(5)
+
     threading.Thread(target=_listener, daemon=True).start()
 
 
@@ -356,6 +393,7 @@ def main():
     ctx_thread = threading.Thread(target=_context_watchdog, daemon=True); ctx_thread.start()
     teensy = TeensyBridge(TEENSY_PORT, TEENSY_BAUD)
     start_cmd_listener(teensy, leds)
+    start_pico_listener()
     router = IntentRouter()
 
     def _start_oww():
