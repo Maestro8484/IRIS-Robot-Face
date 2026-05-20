@@ -11,9 +11,9 @@
 | 1        | 0       | Yel/Org   | Pan servo PWM                         | panServo.attach(0)                         |
 | 9        | 6       | Blue      | SDA — I2C Person Sensor               | Wire.setSDA(6)                             |
 | 10       | 7       | Yellow    | SCL — I2C Person Sensor               | Wire.setSCL(7)                             |
-| 17       | 13      | —         | Button 2 — Volume (terminal A)        | active-low INPUT_PULLUP; terminal B to GND |
-| 19       | 14      | —         | Button 3 — TTS/Wakeword (terminal A)  | active-low INPUT_PULLUP; terminal B to GND |
-| 20       | 15      | —         | Button 1 — Reserved (terminal A)      | wired, unassigned in firmware              |
+| 14       | 10      | —         | Button 2 — Volume (terminal A)        | active-low INPUT_PULLUP; terminal B to GND |
+| 15       | 11      | —         | Button 3 — TTS/Wakeword (terminal A)  | active-low INPUT_PULLUP; terminal B to GND |
+| 16       | 12      | —         | Button 1 — Reserved (terminal A)      | wired, unassigned in firmware              |
 
 ---
 
@@ -21,7 +21,7 @@
 
 | Phys Pin | GPIO    | Wire color | Device / Label                        | Notes                                               |
 |----------|---------|-----------|---------------------------------------|-----------------------------------------------------|
-| 21       | GND     | —         | Button GND bus                        | shared GND terminal for all 3 button terminal B's   |
+| 12       | GND     | —         | Button GND bus                        | shared GND for all 3 button terminal B's (pin 12 is GND between I2C and buttons) |
 | 30       | RUN     | —         | DISCONNECTED                          | HW-002: was on/off switch — leave floating          |
 | 36       | 3V3 OUT | —         | (unused — no TTP223B VCC needed)      | available for future use                            |
 | 38       | GND     | —         | Main GND bus                          | PCB ground terminal                                 |
@@ -37,7 +37,7 @@ Pico GPIO pin ── Terminal A ──[BUTTON]── Terminal B ── GND bus
 
 - No resistors needed — Pico internal pull-up handles it
 - Pressed = GPIO pulled LOW = detected as active
-- All terminal B's share a single GND bus (pin 21 or pin 38)
+- All terminal B's share GND bus — use pin 12 (between I2C and buttons) or pin 38
 
 ---
 
@@ -47,11 +47,11 @@ Pico GPIO pin ── Terminal A ──[BUTTON]── Terminal B ── GND bus
 |--------------|-------------------------------|------------------------------------|-------------------------------------------------|
 | 5V (VSYS)    | Servo supply PCB terminal     | Pico pin 39 (VSYS)                 | None — Pico always live when supply connected   |
 | 5V (servo)   | Same servo supply terminal    | Servo power wire                   | Physical toggle on enclosure (5V+ to servo 5V+) |
-| GND          | Pico pins 21 + 38             | Servo GND, button GNDs, GND bus    | None                                            |
+| GND          | Pico pins 12 + 38             | Servo GND, button GNDs, GND bus    | None                                            |
 | USB          | Pi4 USB → Pico micro-USB      | Pico board power + serial comms    | None — runtime connection                       |
 
 **Key point:** Physical toggle cuts servo 5V only. Pico stays live on Pi4 USB.
-Button 1 (GPIO 15) is reserved — wired but no firmware action assigned.
+Button 1 (GPIO 12) is reserved — wired but no firmware action assigned.
 
 ---
 
@@ -90,5 +90,6 @@ Button 1 (GPIO 15) is reserved — wired but no firmware action assigned.
 - Pico powered by Pi4 USB (VSYS) — board always live, zero extra wiring to Pi4
 - Servo 5V isolated: physical toggle on enclosure between supply 5V+ and servo 5V+
 - RUN pin disconnected (HW-002 resolved)
-- Button 1 (GPIO 15) reserved — physical switch handles servo enable/disable
+- Buttons reassigned to GPIO 10/11/12 (pins 14/15/16) — adjacent block immediately below I2C pair, GND at pin 12 shared between I2C and buttons
+- Button 1 (GPIO 12) reserved — physical switch handles servo enable/disable
 - All connections centralized on PCB protoboard with screw terminals

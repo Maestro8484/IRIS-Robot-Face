@@ -24,15 +24,15 @@
   <tr><td>1</td><td>0</td><td>Yel/Org</td><td>Pan servo PWM</td><td>panServo.attach(0)</td></tr>
   <tr><td>9</td><td>6</td><td>Blue</td><td>SDA — I2C Person Sensor</td><td>Wire.setSDA(6)</td></tr>
   <tr><td>10</td><td>7</td><td>Yellow</td><td>SCL — I2C Person Sensor</td><td>Wire.setSCL(7)</td></tr>
-  <tr><td>17</td><td>13</td><td>—</td><td>Button 2 — Volume (terminal A)</td><td>Active-low INPUT_PULLUP; terminal B to GND</td></tr>
-  <tr><td>19</td><td>14</td><td>—</td><td>Button 3 — TTS / Wakeword (terminal A)</td><td>Active-low INPUT_PULLUP; terminal B to GND</td></tr>
-  <tr><td>20</td><td>15</td><td>—</td><td>Button 1 — Reserved (terminal A)</td><td>Wired, unassigned in firmware</td></tr>
+  <tr><td>14</td><td>10</td><td>—</td><td>Button 2 — Volume (terminal A)</td><td>Active-low INPUT_PULLUP; terminal B to GND</td></tr>
+  <tr><td>15</td><td>11</td><td>—</td><td>Button 3 — TTS / Wakeword (terminal A)</td><td>Active-low INPUT_PULLUP; terminal B to GND</td></tr>
+  <tr><td>16</td><td>12</td><td>—</td><td>Button 1 — Reserved (terminal A)</td><td>Wired, unassigned in firmware</td></tr>
 </table>
 
 <h2>Right Side — Power Pins (USB end at top, going down)</h2>
 <table>
   <tr><th>Phys Pin</th><th>GPIO</th><th>Wire Color</th><th>Device / Label</th><th>Notes</th></tr>
-  <tr><td>21</td><td>GND</td><td>—</td><td>Button GND bus</td><td>Shared GND for all 3 button terminal B's</td></tr>
+  <tr><td>12</td><td>GND</td><td>—</td><td>Button GND bus</td><td>Shared GND for all 3 buttons — sits between I2C and button block</td></tr>
   <tr><td>30</td><td>RUN</td><td>—</td><td>DISCONNECTED</td><td>HW-002: was on/off switch — leave floating</td></tr>
   <tr><td>38</td><td>GND</td><td>—</td><td>Main GND bus</td><td>PCB ground screw terminal</td></tr>
   <tr><td>39</td><td>VSYS</td><td>—</td><td>5V power in</td><td>From servo 5V supply rail via PCB screw terminal</td></tr>

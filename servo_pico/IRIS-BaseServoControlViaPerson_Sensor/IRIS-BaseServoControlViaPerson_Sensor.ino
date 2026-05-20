@@ -7,10 +7,10 @@ physical pin  GPIO   Label
 1             0      Pan servo PWM
 9             6      SDA  I2C person sensor
 10            7      SCL  I2C person sensor
-17            13     Momentary button — volume (GPIO 13, GND + INPUT_PULLUP)
-19            14     Momentary button — TTS/wakeword (GPIO 14, GND + INPUT_PULLUP)
-20            15     Momentary button — reserved (GPIO 15, wired unassigned)
-18/21         GND    Button GND (shared)
+14            10     Momentary button — volume (GPIO 10, GND + INPUT_PULLUP)
+15            11     Momentary button — TTS/wakeword (GPIO 11, GND + INPUT_PULLUP)
+16            12     Momentary button — reserved (GPIO 12, wired unassigned)
+12            GND    Button GND (shared)
 
 USB serial / Pi4 integration:
 - USB CDC serial to Pi4 (/dev/ttyACM1, baud 9600)
@@ -44,9 +44,9 @@ USB serial / Pi4 integration:
 #define PS_EXPECTED_BYTES 18
 
 // Momentary pushbuttons (active-low, INPUT_PULLUP, one terminal to GND)
-#define TOUCH1_PIN 15   // reserved — wired, unassigned
-#define TOUCH2_PIN 13   // volume hold-toggle
-#define TOUCH3_PIN 14   // TTS interrupt / wakeword trigger
+#define TOUCH1_PIN 12   // reserved — wired, unassigned
+#define TOUCH2_PIN 10   // volume hold-toggle
+#define TOUCH3_PIN 11   // TTS interrupt / wakeword trigger
 
 ServoEasing panServo;
 
