@@ -52,7 +52,8 @@ Pending from prior sessions:
   - [ ] GandalfAI: set `OLLAMA_KEEP_ALIVE=30m` machine env var + restart Ollama service
   - PT-001 adversarial testing (live behavior).
   - **HW-001 (HIGH):** Cut LED/SCK solder jumper on Teensy 4.1 underside during power PCB rewiring. No code needed. See ROADMAP.
-  - **HW-002 (HIGH):** Servo Pico flash blocked — BOOTSEL inaccessible, RUN miswired to switch. During PCB rewiring: move switch wire from RUN (pin 30) to VSYS (pin 39), leave RUN unconnected, install Zadig WinUSB for RP2040 BOOTSEL, flash `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino`. See ROADMAP HW-002.
+  - **HW-002 (HIGH):** Pico W reflashed bare (2026-05-20, Philhower core). Enclosure wiring still needs: disconnect RUN pin, move on/off switch to servo 5V rail. See ROADMAP HW-002.
+  - **RD-009 (HIGH):** Pico W WiFi touch integration — volume hold-toggle (GPIO 13), TTS interrupt/wakeword (GPIO 14). Full plan in `review/HANDOFF_PICO_WIFI_TOUCH.md`. Start by verifying Pi4 API endpoints before writing Pico code.
   - RD-003 (duplicate sleep log) — next low-priority item.
 
 ---

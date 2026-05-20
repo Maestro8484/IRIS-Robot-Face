@@ -14,7 +14,7 @@
 | Pi4 192.168.1.200 | Operational. S54(D) DEPLOYED: assistant.py + config.py (MOUTH_INTENSITY_IDLE=3). md5 verified, SD persisted, assistant running. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). |
 | Teensy 4.1 | Firmware REPO-ONLY (`4e7c61b`). BL_MAP log curve + idle animations built, **flash pending** (PlatformIO upload). |
-| Servo Pico | REPO-ONLY — `c37f148` servo improvements committed (confidence gate, dead zone, face-lost return). **Flash blocked by HW-002** (BOOTSEL inaccessible, RUN miswired to switch). Tracking functional on old firmware. |
+| Servo Pico | DEPLOYED (bare board) — Pico W reflashed 2026-05-20 via Arduino IDE (Philhower core, COM10). Pan-only, touch toggle (GPIO 15), I2C on GPIO 6/7. Not yet reinstalled in enclosure. WiFi touch integration planned (see ROADMAP RD-009). |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 | Web UI | Operational. S53 DEPLOYED. md5 iris_web.py `5fc8b075`, iris_web.html `7d3a63f6`. |
 
@@ -23,7 +23,7 @@
 ## Active Issues
 
 - **HIGH: HW-001 — Teensy 4.1 LED** — Pin 13 = SPI SCK for eye displays; LED glows solid during operation. Fix: cut solder jumper on Teensy underside. Blocked on power distribution PCB rewiring (Teensy header-soldered to PCB). See ROADMAP HW-001.
-- **HIGH: HW-002 — Servo Pico flash blocked** — BOOTSEL button inaccessible (Pico header-soldered to PCB). RUN pin miswired to enclosure on/off switch (pulls RUN low when ON = hard reset). Improved servo code REPO-ONLY. Fix during PCB rewiring: move switch to VSYS line, leave RUN unconnected, install WinUSB driver via Zadig, flash `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino`. See ROADMAP HW-002.
+- **HIGH: HW-002 — Servo Pico enclosure wiring** — RUN pin miswired to on/off switch (should be unconnected). Switch moving to servo 5V rail. Board reflashed bare (2026-05-20) — BOOTSEL issue resolved for bare board. Enclosure rewiring still pending PCB work. See ROADMAP HW-002.
 - **HIGH: Teensy firmware flash pending** — S54 firmware built and committed but not flashed. BL_MAP curve + idle animations inactive until PlatformIO upload.
 - **MED: Perceived latency** — Bench JSONL live (S50). Pending: OLLAMA_KEEP_ALIVE=30m on GandalfAI.
 - **LOW: "stop" Whisper hallucination** — post-STT gate deployed (RD-001). Residual edge cases remain.
@@ -58,7 +58,8 @@ S54: RD-008 mouth TFT overhaul — BL log curve (A), color confirm (B), idle ani
 
 - Flash Teensy firmware (PlatformIO upload). Verify: sleep=dark, idle=dim L3, wakeword=bright, post-speech=dim.
 - HW-001: cut LED solder jumper during PCB rewiring.
-- HW-002: move Pico RUN switch wire to VSYS, install Zadig WinUSB driver, flash servo_pico code.
+- HW-002: disconnect RUN pin, move switch to servo 5V rail, reinstall Pico W in enclosure.
+- RD-009: Pico W WiFi touch integration — volume, TTS interrupt, wakeword trigger. See review/HANDOFF_PICO_WIFI_TOUCH.md.
 - OLLAMA_KEEP_ALIVE=30m on GandalfAI.
 - PT-001: live adversarial verification.
 - RD-007: Bench trend viewer (needs ~1 week bench data first).

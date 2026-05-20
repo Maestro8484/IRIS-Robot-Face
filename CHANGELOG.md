@@ -367,3 +367,14 @@ IDLE:START / IDLE:STOP serial commands. Auto-start after 120s inactivity.
 - I2C pins fixed for Pico W: `Wire.setSDA(6)` + `Wire.setSCL(7)` before `Wire.begin()` in setup().
 - TTP223B capacitive touch toggle added on GPIO 15 (physical pin 20): single tap enables/disables servo tracking. `servoEnabled` starts `false` (tracking off at boot).
 - `sysmap.json` servo_pico section updated: hardware=Pico W, source path corrected, GPIO 14/15 added, tunable constants current.
+
+## Pico W servo-pico overhaul (2026-05-20)
+
+- Switched from Mbed core to Earle Philhower RP2040 core — fixes Wire.setSDA/setSCL and ServoEasing compatibility.
+- Removed tilt servo (pan only).
+- Added TTP223B touch toggle on GPIO 15 (servo enable/disable, starts disabled).
+- I2C explicit pin assignment: Wire.setSDA(6), Wire.setSCL(7) for Pico W.
+- Sketch moved to IRIS-BaseServoControlViaPerson_Sensor/ subdir (Arduino IDE requirement).
+- Pico W successfully reflashed bare board via BOOTSEL, COM10.
+- HW-002 partially resolved: BOOTSEL accessible on bare board. Enclosure wiring (RUN pin, switch) deferred to PCB rewiring.
+- RD-009 planned: WiFi touch integration (volume, TTS interrupt, wakeword). Full spec in review/HANDOFF_PICO_WIFI_TOUCH.md.

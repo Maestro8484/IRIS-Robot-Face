@@ -209,3 +209,30 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 **Blocked on:** Same power distribution PCB rewiring event as HW-001. Do both fixes in the same work session.
 
 **Files:** `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino` (REPO-ONLY, commit `c37f148`).
+
+---
+
+## RD-009 — Pico W WiFi Touch Sensor Integration
+
+**Status:** PLANNED — full spec in `review/HANDOFF_PICO_WIFI_TOUCH.md`.
+
+**Priority:** HIGH
+
+**Summary:** Add two additional TTP223B capacitive touch sensors to the Pico W and connect via WiFi to Pi4 HTTP API.
+
+- **Touch 1 (GPIO 15, existing):** Servo enable/disable toggle.
+- **Touch 2 (GPIO 13, physical pin 17):** Hold to increase volume; hold again to decrease. HTTP POST to Pi4 `/api/volume` with delta.
+- **Touch 3 (GPIO 14, physical pin 19):** Short tap = interrupt TTS output. Long hold (>1s) = trigger wakeword+mic listen cycle.
+
+**Architecture:** Pico W WiFi → HTTP → Pi4 iris_web.py (port 5000). WiFi connects non-blocking in setup(); requests only sent when WL_CONNECTED. If HTTP latency blocks servo loop, move HTTP to second RP2040 core (setup1/loop1).
+
+**Implementation order:**
+1. Verify Pi4 endpoints (`/api/volume`, `/api/stop`, `/api/listen`) exist in iris_web.py / assistant.py.
+2. Add missing endpoints to Pi4 and deploy.
+3. Add WiFi + touch code to Pico W sketch.
+4. Flash via Arduino IDE (COM10, Philhower, Pico W board — one-click, no BOOTSEL).
+5. Verify all three touch behaviors + servo tracking unaffected.
+
+**Files:** `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`, `pi4/iris_web.py`, `pi4/assistant.py`, `docs/sysmap.json`, `IRIS_ARCH.md`.
+
+**Note:** WiFi credentials must not be hardcoded in repo. Use `#define` at top of sketch with clear placeholder, or load from LittleFS config file on flash.
