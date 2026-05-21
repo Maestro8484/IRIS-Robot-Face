@@ -40,31 +40,27 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-**BLOCKED — Full enclosure hardware rewiring in progress. Do not power on until complete.**
+**Board swap complete (REPO-ONLY). Pico W dead — replaced with Teensy 4.0 (COM11 on Windows).**
 
-Reference: `docs/servo_pico_wiring.md` (full pin map + power distribution).
-OneNote table: `docs/servo_pico_wiring_onenote.html` (open in browser, copy-paste).
+Reference: `docs/servo_pico_wiring.md` (updated for Teensy 4.0 pins).
 
-### Hardware rewiring checklist (user action)
-- [ ] RUN pin (physical 30): disconnect, leave floating
-- [ ] On/off switch: wire between supply 5V+ and servo 5V+ rail (not RUN pin)
-- [ ] Button 2 (volume): terminal A → GPIO 13 (pin 17), terminal B → GND bus
-- [ ] Button 3 (TTS/wakeword): terminal A → GPIO 14 (pin 19), terminal B → GND bus
-- [ ] Button 1 (reserved): terminal A → GPIO 15 (pin 20), terminal B → GND bus
-- [ ] Servo: PWM → GPIO 0 (pin 1), 5V → servo rail, GND → GND bus
-- [ ] Person Sensor: SDA → GPIO 6 (pin 9), SCL → GPIO 7 (pin 10), 3V3, GND
-- [ ] VSYS (pin 39): 5V from servo supply terminal
+### Rewiring checklist for Teensy 4.0 (user action)
+- [ ] Servo: PWM signal → Teensy pin 9, 5V → servo rail (toggle switch), GND → GND bus
+- [ ] I2C shared bus: SDA → Teensy pin 18, SCL → Teensy pin 19
+- [ ] Person Sensor: SDA, SCL (shared bus), 3.3V from Teensy 3.3V pin, GND
+- [ ] APDS-9960: SDA, SCL (shared bus), 3.3V, GND
+- [ ] USB: Teensy micro-USB → Pi4 USB port (data cable confirmed working)
 - [ ] HW-001: cut LED/SCK solder jumper on Teensy 4.1 underside while PCB is open
 
 ### After rewiring — next session steps (Claude runs these)
-1. Flash Pico W: Arduino IDE, Philhower core, COM10
-2. Plug Pico into Pi4 USB port
-3. SSH Pi4 → verify `ls /dev/ttyACM*` shows ttyACM0 (Teensy) and ttyACM1 (Pico)
-4. Deploy assistant.py to Pi4 (standard persist protocol)
+1. Flash Teensy 4.0: PlatformIO upload (`servo_pico/IRIS-BaseServoControlViaPerson_Sensor`, env:teensy40, user clicks upload on COM11)
+2. Plug Teensy 4.0 into Pi4 USB port
+3. SSH Pi4 → verify `ls /dev/ttyACM*` shows ttyACM0 (Teensy 4.1) and ttyACM1 (Teensy 4.0)
+4. Deploy assistant.py to Pi4 (standard persist protocol) — pico_listener reads /dev/ttyACM1, no change needed
 5. Restart assistant service
 6. Tail logs: `journalctl -u assistant -f`
-7. Test each button — confirm [PICO] log lines: VOL_UP, VOL_DOWN, STOP, LISTEN
-8. Flash Teensy firmware (PlatformIO upload, user clicks upload button)
+7. Trigger gestures on APDS-9960 — confirm [PICO] log lines: VOL_UP, VOL_DOWN, STOP, LISTEN
+8. Flash Teensy 4.1 firmware (PlatformIO upload, user clicks upload button)
 
 ### Other pending
 - [ ] GandalfAI: set OLLAMA_KEEP_ALIVE=30m + restart Ollama service

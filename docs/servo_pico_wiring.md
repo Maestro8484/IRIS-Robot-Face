@@ -1,10 +1,20 @@
-# Servo Pico W — Wire & Pin Mapping
-**Last updated:** 2026-05-20 (S55, RD-009 iteration 4)
-**Board:** Raspberry Pi Pico W | USB connector at top | Left side = pins 1–20 | Right side = pins 21–40
+# Servo Controller — Wire & Pin Mapping
+**Last updated:** 2026-05-21 (S56, iteration 5)
+**Board:** Teensy 4.0 (replacing Pico W — hardware failure)
 
 ---
 
-## Left Side — Signal Pins (USB end at top, going down)
+## Teensy 4.0 Signal Pins
+
+| Pin# | Wire color | Device / Label                        | Notes                                      |
+|------|-----------|---------------------------------------|--------------------------------------------|
+| 9    | Yel/Org   | Pan servo PWM                         | panServo.attach(9)                         |
+| 18   | Blue      | SDA — I2C shared bus                  | Wire default SDA (Teensy 4.0 fixed)        |
+| 19   | Yellow    | SCL — I2C shared bus                  | Wire default SCL (Teensy 4.0 fixed)        |
+
+---
+
+## Previous Board (Pico W — dead, iteration 4)
 
 | Phys Pin | GPIO    | Wire color | Device / Label                        | Notes                                      |
 |----------|---------|-----------|---------------------------------------|--------------------------------------------|
@@ -82,7 +92,16 @@ Button 1 (GPIO 12) is reserved — wired but no firmware action assigned.
 - Volume and TTS/wakeword via HTTP calls to Pi4 web API
 - Capacitive sensing through 5.8mm acrylic ruled out — too thick, unreliable without copper foil extension
 
-### Iteration 4 — Momentary pushbuttons, USB serial, simplified power (current)
+### Iteration 5 — Teensy 4.0 replacement (current)
+**2026-05-21 S56** — Pico W dead (hardware failure, no USB enumeration). Replaced with Teensy 4.0.
+- Platform: `teensy` / board: `teensy40` in platformio.ini
+- Wire.setSDA/SCL removed — Teensy 4.0 has fixed I2C pins (18=SDA, 19=SCL)
+- panServo.attach(9) — pin 9 is PWM-capable, no I2C/SPI conflict
+- USB CDC serial retained — shows as /dev/ttyACM1 on Pi4 (Teensy 4.1 is ttyACM0)
+- No button pins in current firmware (gestures via APDS-9960)
+- Pi4 assistant.py pico_listener unchanged — still reads /dev/ttyACM1 at 9600 baud
+
+### Iteration 4 — Momentary pushbuttons, USB serial, simplified power
 **Design principle:** Eliminate every dependency that isn't strictly necessary.
 - TTP223B capacitive sensors replaced with standard momentary pushbuttons (threaded mount, laser-cut panel)
 - WiFi removed entirely — USB CDC serial replaces all HTTP (VOL_UP, VOL_DOWN, STOP, LISTEN)

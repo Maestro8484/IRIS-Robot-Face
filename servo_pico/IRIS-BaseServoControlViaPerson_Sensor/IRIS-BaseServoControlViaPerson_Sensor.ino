@@ -1,12 +1,12 @@
 /*
-IRIS project — Raspberry Pi Pico W
+IRIS project — Teensy 4.0
 Pan-only servo controller with Person Sensor + APDS-9960 gesture sensor
 Last revised: 2026-05-21 joe schmidt
 
-physical pin  GPIO   Label
-1             0      Pan servo PWM
-9             6      SDA  I2C shared bus (Person Sensor 0x62, APDS-9960 0x39)
-10            7      SCL  I2C shared bus
+Pin#   Label
+9      Pan servo PWM
+18     SDA  I2C shared bus (Person Sensor 0x62, APDS-9960 0x39)
+19     SCL  I2C shared bus
 
 USB serial / Pi4 integration:
 - USB CDC serial to Pi4 (/dev/ttyACM1, baud 9600)
@@ -57,11 +57,9 @@ float desiredPan = 90.0;
 unsigned long lastFaceMs = 0;
 
 void setup() {
-  Wire.setSDA(6);
-  Wire.setSCL(7);
   Wire.begin();
 
-  panServo.attach(0);
+  panServo.attach(9);
   panServo.write((int)desiredPan);
 
   Serial.begin(9600);

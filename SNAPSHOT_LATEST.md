@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S55 | **Date:** 2026-05-20 | **Branch:** `main` | **Last commit:** `618db26` — RD-009 momentary buttons replace TTP223B, wiring docs added
+**Session:** S56 | **Date:** 2026-05-21 | **Branch:** `main` | **Last commit:** `af66b24` — servo-pico: Pico W I2C fix, APDS-9960 gesture replaces buttons
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -14,7 +14,7 @@
 | Pi4 192.168.1.200 | Operational (S54 state). RD-009 Pi4 changes REPO-ONLY — assistant.py (pico_listener thread), iris_web.py (/api/stop, /api/listen), wakeword.py (manual listen flag). **Deploy pending after hardware rewiring.** |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). |
 | Teensy 4.1 | Firmware REPO-ONLY (`4e7c61b`). BL_MAP log curve + idle animations built, **flash pending** (PlatformIO upload). |
-| Servo Pico | REPO-ONLY — RD-009 sketch complete: USB serial (no WiFi), momentary buttons INPUT_PULLUP (GPIO 13/14), Touch 1 reserved. **Flash pending. Entire enclosure being rewired before power-on.** |
+| Servo Controller | REPO-ONLY — **Pico W dead (hardware failure, no USB enumeration).** Replaced with Teensy 4.0 (COM11). Firmware updated: Wire.begin() fixed pins 18/19, panServo.attach(9). platformio.ini → teensy40. Flash pending. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 | Web UI | Operational. S53 DEPLOYED. md5 iris_web.py `5fc8b075`, iris_web.html `7d3a63f6`. |
 
