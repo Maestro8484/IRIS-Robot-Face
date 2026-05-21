@@ -1,57 +1,59 @@
 /*
-reviewed revised 5.20.2026 joe schmidt
-IRIS project
+IRIS project — Raspberry Pi Pico W
+Pan-only servo controller with Person Sensor + APDS-9960 gesture sensor
+Last revised: 2026-05-21 joe schmidt
 
-Rasp pi pico W
 physical pin  GPIO   Label
 1             0      Pan servo PWM
-9             6      SDA  I2C person sensor
-10            7      SCL  I2C person sensor
-14            10     Momentary button — volume (GPIO 10, GND + INPUT_PULLUP)
-15            11     Momentary button — TTS/wakeword (GPIO 11, GND + INPUT_PULLUP)
-16            12     Momentary button — reserved (GPIO 12, wired unassigned)
-12            GND    Button GND (shared)
+9             6      SDA  I2C shared bus (Person Sensor 0x62, APDS-9960 0x39)
+10            7      SCL  I2C shared bus
 
 USB serial / Pi4 integration:
 - USB CDC serial to Pi4 (/dev/ttyACM1, baud 9600)
 - Commands sent: VOL_UP, VOL_DOWN, STOP, LISTEN
 - Pi4 assistant.py pico_listener thread reads and dispatches these.
+- Commands triggered by APDS-9960:
+    UP gesture    → VOL_UP
+    DOWN gesture  → VOL_DOWN
+    LEFT gesture  → STOP
+    RIGHT gesture → STOP
+    Proximity > 150 held ~1s → LISTEN
 */
 
 #include <Wire.h>
 #include <ServoEasing.hpp>
+#include <SparkFun_APDS9960.h>
 
-// The person sensor has the I2C ID of hex 62, or decimal 98.
+// Person Sensor I2C address
 #define PERSON_SENSOR_I2C_ADDRESS 0x62
 
-// The maximum number of faces to detect.
+// Maximum number of faces to detect
 #define PERSON_SENSOR_FACE_MAX 6
 
-// How long to pause between sensor polls.
+// Pause between sensor polls (ms)
 #define PERSON_SENSOR_DELAY 50
 
-// Controls how fast the servo tracks.
-#define PAN_SPEED  0.04
-
-// Dead zone: ignore movement smaller than this (degrees equivalent — tune up if jittery)
-#define PAN_DEAD_ZONE  2.0
+// Servo tracking constants
+#define PAN_SPEED     0.04
+#define PAN_DEAD_ZONE 2.0
 
 // Face-lost timing (ms)
-#define FACE_HOLD_MS   2500   // hold position after face is lost
-#define FACE_RETURN_MS 8000   // begin slow center-return after this long without a face
+#define FACE_HOLD_MS   2500
+#define FACE_RETURN_MS 8000
 
 // Expected bytes from person sensor per poll
 #define PS_EXPECTED_BYTES 18
 
-// Momentary pushbuttons (active-low, INPUT_PULLUP, one terminal to GND)
-#define TOUCH1_PIN 12   // reserved — wired, unassigned
-#define TOUCH2_PIN 10   // volume hold-toggle
-#define TOUCH3_PIN 11   // TTS interrupt / wakeword trigger
+// APDS-9960 proximity threshold and hold time for LISTEN trigger
+#define PROX_LISTEN_THRESHOLD 150
+#define PROX_HOLD_MS          1000
+
+SparkFun_APDS9960 apds;
+bool apdsOk = false;
 
 ServoEasing panServo;
 
 float desiredPan = 90.0;
-
 unsigned long lastFaceMs = 0;
 
 void setup() {
@@ -62,42 +64,50 @@ void setup() {
   panServo.attach(0);
   panServo.write((int)desiredPan);
 
-  pinMode(TOUCH1_PIN, INPUT_PULLUP);
-  pinMode(TOUCH2_PIN, INPUT_PULLUP);
-  pinMode(TOUCH3_PIN, INPUT_PULLUP);
-
   Serial.begin(9600);
+
+  if (!apds.init()) {
+    Serial.println("WARN: APDS-9960 not found");
+  } else {
+    apds.enableGestureSensor(true);
+    apds.enableProximitySensor(false);
+    apdsOk = true;
+  }
+}
+
+void pollGesture() {
+  if (!apdsOk) return;
+
+  if (apds.isGestureAvailable()) {
+    switch (apds.readGesture()) {
+      case DIR_UP:    Serial.println("VOL_UP");  break;
+      case DIR_DOWN:  Serial.println("VOL_DOWN"); break;
+      case DIR_LEFT:  Serial.println("STOP");     break;
+      case DIR_RIGHT: Serial.println("STOP");     break;
+      default: break;
+    }
+  }
+
+  // Proximity hold above threshold → LISTEN
+  static unsigned long proxAboveMs = 0;
+  static bool listenSent = false;
+  uint8_t proxVal = 0;
+  if (apds.readProximity(proxVal)) {
+    if (proxVal > PROX_LISTEN_THRESHOLD) {
+      if (proxAboveMs == 0) proxAboveMs = millis();
+      if (!listenSent && (millis() - proxAboveMs >= PROX_HOLD_MS)) {
+        Serial.println("LISTEN");
+        listenSent = true;
+      }
+    } else {
+      proxAboveMs = 0;
+      listenSent = false;
+    }
+  }
 }
 
 void loop() {
-  // ── Touch 1 — reserved (GPIO 15, TTP223B wired but unassigned) ──────────
-
-  // ── Touch 2 — volume hold-toggle ─────────────────────────────────────────
-  static bool lastTouch2      = false;
-  static bool volIncreasing   = false;  // false→first hold flips true (increasing)
-  static unsigned long lastVolTickMs = 0;
-
-  bool touch2 = !digitalRead(TOUCH2_PIN);
-  if (touch2 && !lastTouch2) {
-    volIncreasing = !volIncreasing;   // reverse direction on each new hold
-  }
-  if (touch2 && (millis() - lastVolTickMs > 200)) {
-    lastVolTickMs = millis();
-    Serial.println(volIncreasing ? "VOL_UP" : "VOL_DOWN");
-  }
-  lastTouch2 = touch2;
-
-  // ── Touch 3 — TTS interrupt (short tap) / wakeword trigger (long hold) ───
-  static bool lastTouch3 = false;
-  static unsigned long touch3PressMs = 0;
-
-  bool touch3 = !digitalRead(TOUCH3_PIN);
-  if (touch3 && !lastTouch3) touch3PressMs = millis();
-  if (!touch3 && lastTouch3) {
-    unsigned long held = millis() - touch3PressMs;
-    Serial.println(held < 1000 ? "STOP" : "LISTEN");
-  }
-  lastTouch3 = touch3;
+  pollGesture();
 
   byte readData[PS_EXPECTED_BYTES];
 
