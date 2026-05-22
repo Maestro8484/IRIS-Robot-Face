@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S57 | **Date:** 2026-05-21 | **Branch:** `main` | **Last commit:** pending
+**Session:** S57 | **Date:** 2026-05-21 | **Branch:** `main` | **Last commit:** `2429d51` — S57: ESP32 DevKit 1C replaces Teensy 4.0 as servo controller — full repo consistency pass
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
