@@ -11,7 +11,7 @@
 | Pi4 | 192.168.1.200 | Linux | `ssh-pi4` (bash) | Runtime, audio, web UI, serial bridge |
 | GandalfAI | 192.168.1.3 | Windows | `ssh-gandalf` (PowerShell) | Ollama, Whisper, Kokoro, Piper, RTX 3090 |
 | Teensy 4.1 | USB COM7 | — | PlatformIO (user upload) | Eye TFTs, mouth TFT, Person Sensor |
-| Servo Controller (Teensy 4.0) | USB → Pi4 /dev/ttyACM1 | — | PlatformIO (user upload, COM11) | Pan servo, Person Sensor + APDS-9960 gesture, USB CDC serial to Pi4 |
+| Servo Controller (ESP32 DevKit 1C) | USB → Pi4 /dev/ttyUSB0 | — | PlatformIO (user upload, COM13) | Pan servo, Person Sensor + APDS-9960 gesture, USB-UART serial to Pi4 |
 | NAS | 192.168.1.102 | Synology | `ssh` port 2233 | Backup target |
 
 > Pi4 SSH: password auth only. Key auth fails. GandalfAI: PowerShell only, no bash/grep/df/head.
@@ -102,17 +102,17 @@
 
 ---
 
-## GPIO: Servo Controller (Teensy 4.0)
+## GPIO: Servo Controller (ESP32 DevKit 1C)
 
 | Pin | Signal | Device | Notes |
 |---|---|---|---|
-| 9 | PWM | Pan servo SG90 | panServo.attach(9) |
-| 18 | SDA | I2C shared bus | Wire default SDA. Person Sensor 0x62 + APDS-9960 0x39 |
-| 19 | SCL | I2C shared bus | Wire default SCL |
+| 13 | PWM | Pan servo SG90 | panServo.attach(13) |
+| 21 | SDA | I2C shared bus | Wire.begin(21,22). Person Sensor 0x62 + APDS-9960 0x39 |
+| 22 | SCL | I2C shared bus | Wire.begin(21,22) |
 
-> Source: `servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
-> Board: Teensy 4.0 (replaced Pico W S56 — hardware failure). PlatformIO: env:teensy40, platform teensy.
-> USB CDC serial → Pi4 /dev/ttyACM1 at 9600 baud. Pi4 assistant.py start_servo_listener() reads commands.
+> Source: `servo_esp32/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
+> Board: ESP32 DevKit 1C / ESP32-WROOM-32 (replaced Pico W S56, Teensy 4.0 S57). PlatformIO: env:esp32, platform espressif32.
+> USB-UART bridge → Pi4 /dev/ttyUSB0 at 9600 baud. Pi4 assistant.py start_servo_listener() reads commands.
 > Servo 5V rail is independent (physical toggle switch). Board powered via Pi4 USB.
 
 ---
@@ -214,7 +214,7 @@
 | Pi4 | — | — | Update from SNAPSHOT_LATEST.md |
 | GandalfAI | — | — | Update from SNAPSHOT_LATEST.md |
 | Teensy 4.1 | — | — | Update from SNAPSHOT_LATEST.md |
-| Servo Controller (Teensy 4.0) | REPO-ONLY | — | Flash + rewire pending (HW-002) |
+| Servo Controller (ESP32 DevKit 1C) | REPO-ONLY | — | Flash + rewire pending (HW-002) |
 
 ---
 

@@ -185,47 +185,47 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 
 ---
 
-## HW-002 — Servo Controller Flash + Rewire (Teensy 4.0)
+## HW-002 — Servo Controller Flash + Rewire (ESP32 DevKit 1C)
 
 **Status:** REPO-ONLY — firmware ready, hardware rewiring and flash pending.
 
 **Priority:** HIGH
 
-**Context:** Pico W (previous servo controller) had hardware failure (no USB enumeration, S56). Replaced with Teensy 4.0 (COM11 on Windows). Firmware updated for Teensy 4.0 pin assignments. Enclosure PCB rewiring required before first power-on.
+**Context:** Pico W (previous servo controller) had hardware failure (no USB enumeration, S56). Replaced with Teensy 4.0 (S56), then replaced with ESP32 DevKit 1C (ESP32-WROOM-32, COM13, S57) — final board choice. Enclosure PCB rewiring required before first power-on.
 
 **Rewiring checklist (user action):**
-- Servo PWM signal → Teensy 4.0 pin 9
-- I2C SDA → Teensy 4.0 pin 18 (Wire default)
-- I2C SCL → Teensy 4.0 pin 19 (Wire default)
-- Sensor VCC → Teensy 4.0 3.3V pin
-- Teensy micro-USB → Pi4 USB port (data cable confirmed working)
+- Servo PWM signal → ESP32 pin 13
+- I2C SDA → ESP32 pin 21
+- I2C SCL → ESP32 pin 22
+- Sensor VCC → ESP32 3.3V pin
+- ESP32 micro-USB → Pi4 USB port (data cable)
 - Servo 5V → physical toggle switch → servo rail (unchanged)
 - HW-001 (Teensy 4.1 LED jumper cut): do in same session while PCB is open
 
 **Flash procedure (Claude runs `pio run`, user clicks upload):**
-1. PlatformIO: open `servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor`, select `env:teensy40`
-2. User clicks upload — Teensy 4.0 on COM11
-3. Plug Teensy 4.0 into Pi4 USB port
-4. SSH Pi4 → verify `/dev/ttyACM1` appears: `ls /dev/ttyACM*`
+1. PlatformIO: open `servo_esp32/IRIS-BaseServoControlViaPerson_Sensor`, select `env:esp32`
+2. User clicks upload — ESP32 on COM13
+3. Plug ESP32 into Pi4 USB port
+4. SSH Pi4 → verify `/dev/ttyUSB0` appears: `ls /dev/ttyUSB*`
 5. Deploy updated `pi4/assistant.py` to Pi4 (standard persist protocol — `start_servo_listener`, `[SERVO]` log prefix)
 6. Tail logs: `journalctl -u assistant -f`
 7. Trigger APDS-9960 gestures — confirm `[SERVO]` log lines: VOL_UP, VOL_DOWN, STOP, LISTEN
 8. Verify servo tracks face on Person Sensor detection
 
-**Files:** `servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`, `pi4/assistant.py`
+**Files:** `servo_esp32/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`, `pi4/assistant.py`
 
 ---
 
 ## RD-009 — Servo Controller USB Serial Integration
 
-**Status:** REPO-ONLY — Pi4 code complete, firmware updated for Teensy 4.0. Deploy pending HW-002 rewire + flash.
+**Status:** REPO-ONLY — Pi4 code complete, firmware updated for ESP32 DevKit 1C. Deploy pending HW-002 rewire + flash.
 
-**Summary:** Servo controller (Teensy 4.0) communicates with Pi4 via USB CDC serial (/dev/ttyACM1, 9600 baud). APDS-9960 gesture sensor drives volume, stop, and listen commands. No WiFi required.
+**Summary:** Servo controller (ESP32 DevKit 1C) communicates with Pi4 via USB-UART bridge (/dev/ttyUSB0, 9600 baud). APDS-9960 gesture sensor drives volume, stop, and listen commands. No WiFi required.
 
 **Implemented (REPO-ONLY):**
 - Firmware: APDS-9960 gesture → `VOL_UP` / `VOL_DOWN` / `STOP` / `LISTEN` over USB serial. Proximity hold > 150 for 1s → `LISTEN`.
-- `pi4/assistant.py`: `start_servo_listener()` daemon thread reads `/dev/ttyACM1` at 9600 baud, dispatches to `set_volume()`, `_stop_playback.set()`, `/tmp/iris_manual_listen`.
+- `pi4/assistant.py`: `start_servo_listener()` daemon thread reads `/dev/ttyUSB0` at 9600 baud, dispatches to `set_volume()`, `_stop_playback.set()`, `/tmp/iris_manual_listen`.
 - `pi4/iris_web.py`: `/api/stop` and `/api/listen` routes (web UI equivalents).
 - `pi4/services/wakeword.py`: `/tmp/iris_manual_listen` flag check in wait loop.
 
-**Deploy gate:** HW-002 (Teensy 4.0 rewire + flash) must complete first. See HW-002 for full procedure.
+**Deploy gate:** HW-002 (ESP32 rewire + flash) must complete first. See HW-002 for full procedure.

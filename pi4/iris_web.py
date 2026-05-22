@@ -423,14 +423,14 @@ def api_volume():
 
 @app.route("/api/stop", methods=["POST"])
 def api_stop():
-    """Interrupt current TTS playback (Teensy 4.0 servo controller STOP command)."""
+    """Interrupt current TTS playback (ESP32 servo controller STOP command)."""
     ok = send_teensy("STOP_PLAYBACK")
     return jsonify(ok=ok)
 
 
 @app.route("/api/listen", methods=["POST"])
 def api_listen():
-    """Trigger a manual listen cycle without saying the wakeword (Teensy 4.0 servo controller LISTEN command)."""
+    """Trigger a manual listen cycle without saying the wakeword (ESP32 servo controller LISTEN command)."""
     try:
         open("/tmp/iris_manual_listen", "w").close()
         return jsonify(ok=True)

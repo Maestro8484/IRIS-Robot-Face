@@ -71,29 +71,28 @@ Final authority belongs to the human operator.
 | Pi4 | Voice pipeline orchestration, wakeword, mic/audio, LEDs, camera, web UI, cron sleep/wake, Teensy serial bridge |
 | GandalfAI | Ollama LLM, Modelfiles, Whisper STT, Kokoro TTS (primary), Piper TTS (fallback), Chatterbox (rollback only), RTX 3090 inference |
 | Teensy 4.1 | Embedded controller for eyes, mouth, sleep renderer, person sensor integration, serial protocol |
-| Servo Controller (Teensy 4.0) | Pan servo driver, Person Sensor + APDS-9960 gesture, USB CDC serial to Pi4 /dev/ttyACM1 |
+| Servo Controller (ESP32 DevKit 1C) | Pan servo driver, Person Sensor + APDS-9960 gesture, USB-UART serial to Pi4 /dev/ttyUSB0 |
 | GitHub | Secondary mirror, backup, version history, sharing remote |
 
 ---
 
-## Servo Pan Controller — Teensy 4.0
+## Servo Pan Controller — ESP32 DevKit 1C (ESP32-WROOM-32)
 
 The IRIS face unit (eyes + mouth TFT) is mounted on a pan servo rig on top of the enclosure.
-The servo is driven by a dedicated Teensy 4.0 running `servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`.
+The servo is driven by a dedicated ESP32 DevKit 1C running `servo_esp32/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`.
 
 
 **Hardware:**
-- Teensy 4.0 + one SG90 pan servo (pin 9)
-- Person Sensor (Useful Sensors, I2C 0x62, SDA: pin 18, SCL: pin 19)
-- APDS-9960 gesture sensor (I2C 0x39, shared I2C bus — pins 18/19)
+- ESP32 DevKit 1C (ESP32-WROOM-32) + one SG90 pan servo (pin 13)
+- Person Sensor (Useful Sensors, I2C 0x62, SDA: pin 21, SCL: pin 22)
+- APDS-9960 gesture sensor (I2C 0x39, shared I2C bus — pins 21/22)
 - Powered via Pi4 USB (micro-USB → Pi4 USB port); servo 5V rail is independent (physical toggle switch)
 
 **USB serial integration:**
-- USB CDC serial → Pi4 `/dev/ttyACM1` at 9600 baud
-- Teensy 4.0 appears as `/dev/ttyACM1` (Teensy 4.1 eye controller is `/dev/ttyACM0`)
+- USB-UART bridge (CH340/CP2102) → Pi4 `/dev/ttyUSB0` at 9600 baud
 - Pi4 `assistant.py` `start_servo_listener()` daemon thread reads commands and dispatches
 
-**Commands sent over serial (Teensy 4.0 → Pi4):**
+**Commands sent over serial (ESP32 → Pi4):**
 
 | APDS-9960 input | Command | Pi4 behavior |
 |---|---|---|
@@ -112,8 +111,8 @@ The servo is driven by a dedicated Teensy 4.0 running `servo_teensy40/IRIS-BaseS
 - `POST /api/stop` — sets `_stop_playback` event in assistant.py via UDP STOP_PLAYBACK
 - `POST /api/listen` — writes `/tmp/iris_manual_listen`; wakeword.py polls this flag to trigger PTT-equivalent listen cycle
 
-**Source:** `servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
-**PlatformIO:** `env:teensy40`, platform `teensy`, board `teensy40`
+**Source:** `servo_esp32/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
+**PlatformIO:** `env:esp32`, platform `espressif32`, board `esp32dev`
 **Tunable constants:** PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS, PERSON_SENSOR_DELAY
 
 ---

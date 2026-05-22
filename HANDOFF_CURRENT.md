@@ -40,26 +40,26 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-**Board swap complete (REPO-ONLY). Pico W dead — replaced with Teensy 4.0 (COM11 on Windows).**
+**Board swap complete (REPO-ONLY). Final board: ESP32 DevKit 1C (ESP32-WROOM-32, COM13).**
 
-Reference: `docs/servo_teensy40_wiring.md` (updated for Teensy 4.0 pins).
+Reference: `docs/servo_esp32_wiring.md` (iteration 6 pin table).
 
-### Rewiring checklist for Teensy 4.0 (user action)
-- [ ] Servo: PWM signal → Teensy pin 9, 5V → servo rail (toggle switch), GND → GND bus
-- [ ] I2C shared bus: SDA → Teensy pin 18, SCL → Teensy pin 19
-- [ ] Person Sensor: SDA, SCL (shared bus), 3.3V from Teensy 3.3V pin, GND
+### Rewiring checklist for ESP32 DevKit 1C (user action)
+- [ ] Servo: PWM signal → ESP32 pin 13, 5V → servo rail (toggle switch), GND → GND bus
+- [ ] I2C shared bus: SDA → ESP32 pin 21, SCL → ESP32 pin 22
+- [ ] Person Sensor: SDA, SCL (shared bus), 3.3V from ESP32 3V3 pin, GND
 - [ ] APDS-9960: SDA, SCL (shared bus), 3.3V, GND
-- [ ] USB: Teensy micro-USB → Pi4 USB port (data cable confirmed working)
+- [ ] USB: ESP32 micro-USB → Pi4 USB port (data cable, COM13 confirmed on Windows)
 - [ ] HW-001: cut LED/SCK solder jumper on Teensy 4.1 underside while PCB is open
 
 ### After rewiring — next session steps (Claude runs these)
-1. Flash Teensy 4.0: PlatformIO upload (`servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor`, env:teensy40, user clicks upload on COM11)
-2. Plug Teensy 4.0 into Pi4 USB port
-3. SSH Pi4 → verify `ls /dev/ttyACM*` shows ttyACM0 (Teensy 4.1) and ttyACM1 (Teensy 4.0)
-4. Deploy assistant.py to Pi4 (standard persist protocol) — pico_listener reads /dev/ttyACM1, no change needed
+1. Flash ESP32: PlatformIO upload (`servo_esp32/IRIS-BaseServoControlViaPerson_Sensor`, env:esp32, user clicks upload on COM13)
+2. Plug ESP32 into Pi4 USB port
+3. SSH Pi4 → verify `ls /dev/ttyUSB*` shows /dev/ttyUSB0
+4. Deploy assistant.py to Pi4 (standard persist protocol) — SERVO_PORT is now /dev/ttyUSB0
 5. Restart assistant service
 6. Tail logs: `journalctl -u assistant -f`
-7. Trigger gestures on APDS-9960 — confirm [PICO] log lines: VOL_UP, VOL_DOWN, STOP, LISTEN
+7. Trigger gestures on APDS-9960 — confirm [SERVO] log lines: VOL_UP, VOL_DOWN, STOP, LISTEN
 8. Flash Teensy 4.1 firmware (PlatformIO upload, user clicks upload button)
 
 ### Other pending

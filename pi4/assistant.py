@@ -162,11 +162,11 @@ def start_cmd_listener(teensy, leds):
 
 
 def start_servo_listener():
-    """USB serial listener for Teensy 4.0 servo controller (/dev/ttyACM1, 9600 baud).
-    Commands: VOL_UP, VOL_DOWN, STOP, LISTEN (sent by APDS-9960 gestures on Teensy 4.0).
+    """USB serial listener for ESP32 DevKit 1C servo controller (/dev/ttyUSB0, 9600 baud).
+    Commands: VOL_UP, VOL_DOWN, STOP, LISTEN (sent by APDS-9960 gestures on ESP32).
     """
     import serial as _serial
-    SERVO_PORT = '/dev/ttyACM1'
+    SERVO_PORT = '/dev/ttyUSB0'
     SERVO_BAUD = 9600
 
     def _listener():
