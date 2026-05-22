@@ -71,31 +71,37 @@ Final authority belongs to the human operator.
 | Pi4 | Voice pipeline orchestration, wakeword, mic/audio, LEDs, camera, web UI, cron sleep/wake, Teensy serial bridge |
 | GandalfAI | Ollama LLM, Modelfiles, Whisper STT, Kokoro TTS (primary), Piper TTS (fallback), Chatterbox (rollback only), RTX 3090 inference |
 | Teensy 4.1 | Embedded controller for eyes, mouth, sleep renderer, person sensor integration, serial protocol |
+| Servo Controller (Teensy 4.0) | Pan servo driver, Person Sensor + APDS-9960 gesture, USB CDC serial to Pi4 /dev/ttyACM1 |
 | GitHub | Secondary mirror, backup, version history, sharing remote |
 
 ---
 
-## Servo Pan Controller — Raspberry Pi Pico W
+## Servo Pan Controller — Teensy 4.0
 
 The IRIS face unit (eyes + mouth TFT) is mounted on a pan servo rig on top of the enclosure.
-The servo is driven by a dedicated Raspberry Pi Pico W running `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`.
+The servo is driven by a dedicated Teensy 4.0 running `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`.
+
+> Note: The folder is named `servo_pico/` for historical reasons. The board is Teensy 4.0 as of S56. Pico W (previous board) had hardware failure.
 
 **Hardware:**
-- Raspberry Pi Pico W + one SG90 pan servo (GPIO 0)
-- Person Sensor (Useful Sensors, I2C 0x62, SDA: GPIO 6, SCL: GPIO 7)
-- Three TTP223B capacitive touch sensors: GPIO 13 (Touch 2), GPIO 14 (Touch 3), GPIO 15 (Touch 1)
-- Powered independently from main Teensy 4.1 / Pi4 stack
+- Teensy 4.0 + one SG90 pan servo (pin 9)
+- Person Sensor (Useful Sensors, I2C 0x62, SDA: pin 18, SCL: pin 19)
+- APDS-9960 gesture sensor (I2C 0x39, shared I2C bus — pins 18/19)
+- Powered via Pi4 USB (micro-USB → Pi4 USB port); servo 5V rail is independent (physical toggle switch)
 
-**Touch sensor functions:**
-- Touch 1 (GPIO 15): tap to toggle servo tracking on/off. Starts disabled at boot.
-- Touch 2 (GPIO 13): hold to adjust volume. Direction reverses on each new hold. Sends `POST /api/volume {"delta": ±5}` to Pi4 every 200ms while held.
-- Touch 3 (GPIO 14): short tap = interrupt TTS (`POST /api/stop`); hold ≥1s = trigger listen cycle (`POST /api/listen`).
+**USB serial integration:**
+- USB CDC serial → Pi4 `/dev/ttyACM1` at 9600 baud
+- Teensy 4.0 appears as `/dev/ttyACM1` (Teensy 4.1 eye controller is `/dev/ttyACM0`)
+- Pi4 `assistant.py` `start_servo_listener()` daemon thread reads commands and dispatches
 
-**WiFi:**
-- Connects to local WiFi at boot (non-blocking — servo runs immediately)
-- HTTP requests to Pi4 at `http://192.168.1.200:5000`
-- All HTTP helpers gate on `WiFi.status() == WL_CONNECTED`
-- HTTP calls are synchronous (~50-200ms). If servo tracking degrades under load, move calls to core 1 (`loop1()`).
+**Commands sent over serial (Teensy 4.0 → Pi4):**
+
+| APDS-9960 input | Command | Pi4 behavior |
+|---|---|---|
+| UP gesture | `VOL_UP` | `set_volume(+5)` |
+| DOWN gesture | `VOL_DOWN` | `set_volume(-5)` |
+| LEFT / RIGHT gesture | `STOP` | `_stop_playback.set()` |
+| Proximity > 150 held 1s | `LISTEN` | writes `/tmp/iris_manual_listen` |
 
 **Behavior:**
 - Reads Person Sensor at ~20Hz, pans to track largest facing face
@@ -103,12 +109,12 @@ The servo is driven by a dedicated Raspberry Pi Pico W running `servo_pico/IRIS-
 - Dead zone (PAN_DEAD_ZONE = 2.0°): suppresses micro-jitter
 - Face lost: holds position FACE_HOLD_MS (2500ms), then drifts to center after FACE_RETURN_MS (8000ms)
 
-**Pi4 API endpoints added for Pico W (RD-009):**
-- `POST /api/volume` — accepts `{"delta": ±n}` (relative) or `{"level": n}` (absolute 0-127)
+**Pi4 web UI equivalents (iris_web.py):**
 - `POST /api/stop` — sets `_stop_playback` event in assistant.py via UDP STOP_PLAYBACK
-- `POST /api/listen` — writes `/tmp/iris_manual_listen`; wakeword.py polls this flag to trigger a PTT-equivalent listen cycle
+- `POST /api/listen` — writes `/tmp/iris_manual_listen`; wakeword.py polls this flag to trigger PTT-equivalent listen cycle
 
 **Source:** `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
+**PlatformIO:** `env:teensy40`, platform `teensy`, board `teensy40`
 **Tunable constants:** PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS, PERSON_SENSOR_DELAY
 
 ---

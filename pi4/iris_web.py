@@ -423,14 +423,14 @@ def api_volume():
 
 @app.route("/api/stop", methods=["POST"])
 def api_stop():
-    """Interrupt current TTS playback (Pico W Touch 3 short tap)."""
+    """Interrupt current TTS playback (Teensy 4.0 servo controller STOP command)."""
     ok = send_teensy("STOP_PLAYBACK")
     return jsonify(ok=ok)
 
 
 @app.route("/api/listen", methods=["POST"])
 def api_listen():
-    """Trigger a manual listen cycle without saying the wakeword (Pico W Touch 3 long hold)."""
+    """Trigger a manual listen cycle without saying the wakeword (Teensy 4.0 servo controller LISTEN command)."""
     try:
         open("/tmp/iris_manual_listen", "w").close()
         return jsonify(ok=True)

@@ -185,54 +185,47 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 
 ---
 
-## HW-002 — Servo Pico USB Flash Inaccessible (Power Distribution PCB)
+## HW-002 — Servo Controller Flash + Rewire (Teensy 4.0)
 
-**Status:** DEFERRED — blocked on power distribution PCB rewiring.
-
-**Priority:** HIGH — improved servo tracking code (confidence gate, dead zone, face-lost return) is REPO-ONLY and cannot be flashed until resolved.
-
-**Problem:** The Raspberry Pi Pico (servo pan/tilt controller) is header-soldered onto the main power supply distribution PCB. Two hardware issues block USB flashing:
-
-1. **RUN pin miswired to enclosure on/off switch** — The switch pulls the RUN pin (physical pin 30) to GND when ON, holding the Pico in hard reset. The Pico only runs when the switch is OFF. Correct wiring: the switch belongs in the VSYS (pin 39) power input line. RUN should be left unconnected; the internal pullup holds it high.
-
-2. **BOOTSEL button physically inaccessible** — The Pico is soldered to the PCB with components around it. The BOOTSEL button cannot be reached. Attempted workaround: use the RUN switch as a reset trigger while holding BOOTSEL — Windows Device Manager briefly refreshed (USB handshake partially detected) but no RPI-RP2 mass storage drive appeared. WinUSB driver for RP2040 BOOTSEL mode likely also needs to be installed via Zadig.
-
-**Current state:** Servo tracking (face detection, pan/tilt) IS functional on the old firmware. Improved code in `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino` (commit `c37f148`) is REPO-ONLY.
-
-**Fix during PCB rewiring:**
-1. Move the on/off switch wire from RUN (pin 30) to the VSYS (pin 39) power input line.
-2. Leave RUN unconnected.
-3. If RPI-RP2 drive still does not appear: install WinUSB driver for RP2040 BOOTSEL via [Zadig](https://zadig.akeo.ie) — Options → List All Devices → select "RP2 Boot" → install WinUSB.
-4. Flash `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino` — Arduino IDE (board: Raspberry Pi Pico, Earle Philhower RP2040 core) or PlatformIO (`upload_protocol = picotool`).
-5. Verify: smooth pan/tilt tracking, no jitter on small movements, back-of-head or low-confidence detections ignored, face-lost → holds 2.5s → slow center drift after 8s.
-
-**Blocked on:** Same power distribution PCB rewiring event as HW-001. Do both fixes in the same work session.
-
-**Files:** `servo_pico/IRIS-BaseServoControlViaPerson_Sensor.ino` (REPO-ONLY, commit `c37f148`).
-
----
-
-## RD-009 — Pico W USB Serial Touch Sensor Integration
-
-**Status:** PLANNED — full spec in `review/HANDOFF_PICO_WIFI_TOUCH.md`.
+**Status:** REPO-ONLY — firmware ready, hardware rewiring and flash pending.
 
 **Priority:** HIGH
 
-**Summary:** Add two additional TTP223B touch sensors to the Pico W. Pico communicates with Pi4 via USB serial (micro-USB → Pi4 USB port) — no WiFi needed.
+**Context:** Pico W (previous servo controller) had hardware failure (no USB enumeration, S56). Replaced with Teensy 4.0 (COM11 on Windows). Firmware updated for Teensy 4.0 pin assignments. Enclosure PCB rewiring required before first power-on.
 
-- **Touch 1 (GPIO 15, existing):** Servo enable/disable toggle.
-- **Touch 2 (GPIO 13, physical pin 17):** Hold to change volume; hold again reverses direction. Sends `VOL_UP` / `VOL_DOWN` over serial every 200ms while held.
-- **Touch 3 (GPIO 14, physical pin 19):** Short tap = `STOP` (interrupt TTS). Long hold >1s = `LISTEN` (trigger wakeword+mic without speaking).
+**Rewiring checklist (user action):**
+- Servo PWM signal → Teensy 4.0 pin 9
+- I2C SDA → Teensy 4.0 pin 18 (Wire default)
+- I2C SCL → Teensy 4.0 pin 19 (Wire default)
+- Sensor VCC → Teensy 4.0 3.3V pin
+- Teensy micro-USB → Pi4 USB port (data cable confirmed working)
+- Servo 5V → physical toggle switch → servo rail (unchanged)
+- HW-001 (Teensy 4.1 LED jumper cut): do in same session while PCB is open
 
-**Architecture:** Pico W USB CDC serial → `/dev/ttyACM0` on Pi4 → background listener thread in assistant.py dispatches commands. Same pattern as existing TeensyBridge.
+**Flash procedure (Claude runs `pio run`, user clicks upload):**
+1. PlatformIO: open `servo_pico/IRIS-BaseServoControlViaPerson_Sensor`, select `env:teensy40`
+2. User clicks upload — Teensy 4.0 on COM11
+3. Plug Teensy 4.0 into Pi4 USB port
+4. SSH Pi4 → verify `/dev/ttyACM1` appears: `ls /dev/ttyACM*`
+5. Deploy updated `pi4/assistant.py` to Pi4 (standard persist protocol — `start_servo_listener`, `[SERVO]` log prefix)
+6. Tail logs: `journalctl -u assistant -f`
+7. Trigger APDS-9960 gestures — confirm `[SERVO]` log lines: VOL_UP, VOL_DOWN, STOP, LISTEN
+8. Verify servo tracks face on Person Sensor detection
 
-**Pico W board power:** Pi4 USB powers the Pico board. Servo still needs its own 5V rail.
+**Files:** `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`, `pi4/assistant.py`
 
-**Implementation order:**
-1. Read assistant.py in full — understand TeensyBridge pattern, TTS stop, volume, listen trigger.
-2. Add Touch 2/3 + `Serial.println()` commands to Pico W sketch. Flash via Windows COM10.
-3. Add pico_listener thread to assistant.py, wired to existing volume/stop/listen mechanisms.
-4. Deploy assistant.py to Pi4 per standard persist protocol.
-5. Verify: `ls /dev/ttyACM0` on Pi4, tail logs, test each touch.
+---
 
-**Files:** `servo_pico/.../IRIS-BaseServoControlViaPerson_Sensor.ino`, `pi4/assistant.py`, `pi4/iris_web.py` (only if routes missing), `docs/sysmap.json`, `IRIS_ARCH.md`.
+## RD-009 — Servo Controller USB Serial Integration
+
+**Status:** REPO-ONLY — Pi4 code complete, firmware updated for Teensy 4.0. Deploy pending HW-002 rewire + flash.
+
+**Summary:** Servo controller (Teensy 4.0) communicates with Pi4 via USB CDC serial (/dev/ttyACM1, 9600 baud). APDS-9960 gesture sensor drives volume, stop, and listen commands. No WiFi required.
+
+**Implemented (REPO-ONLY):**
+- Firmware: APDS-9960 gesture → `VOL_UP` / `VOL_DOWN` / `STOP` / `LISTEN` over USB serial. Proximity hold > 150 for 1s → `LISTEN`.
+- `pi4/assistant.py`: `start_servo_listener()` daemon thread reads `/dev/ttyACM1` at 9600 baud, dispatches to `set_volume()`, `_stop_playback.set()`, `/tmp/iris_manual_listen`.
+- `pi4/iris_web.py`: `/api/stop` and `/api/listen` routes (web UI equivalents).
+- `pi4/services/wakeword.py`: `/tmp/iris_manual_listen` flag check in wait loop.
+
+**Deploy gate:** HW-002 (Teensy 4.0 rewire + flash) must complete first. See HW-002 for full procedure.

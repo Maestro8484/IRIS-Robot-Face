@@ -11,7 +11,7 @@
 | Pi4 | 192.168.1.200 | Linux | `ssh-pi4` (bash) | Runtime, audio, web UI, serial bridge |
 | GandalfAI | 192.168.1.3 | Windows | `ssh-gandalf` (PowerShell) | Ollama, Whisper, Kokoro, Piper, RTX 3090 |
 | Teensy 4.1 | USB COM7 | — | PlatformIO (user upload) | Eye TFTs, mouth TFT, Person Sensor |
-| Servo Pico | standalone | — | none (power toggle only) | Pan/tilt servo, autonomous face tracking |
+| Servo Controller (Teensy 4.0) | USB → Pi4 /dev/ttyACM1 | — | PlatformIO (user upload, COM11) | Pan servo, Person Sensor + APDS-9960 gesture, USB CDC serial to Pi4 |
 | NAS | 192.168.1.102 | Synology | `ssh` port 2233 | Backup target |
 
 > Pi4 SSH: password auth only. Key auth fails. GandalfAI: PowerShell only, no bash/grep/df/head.
@@ -102,19 +102,18 @@
 
 ---
 
-## GPIO: Servo Pico (Raspberry Pi Pico)
+## GPIO: Servo Controller (Teensy 4.0)
 
 | Pin | Signal | Device | Notes |
 |---|---|---|---|
-| 0 | PWM | Pan servo SG90 | panServo.attach(0) |
-| 1 | PWM | Tilt servo SG90 | tiltServo.attach(1) |
-| 6 | SDA | Person Sensor I2C 0x62 | |
-| 7 | SCL | Person Sensor I2C 0x62 | |
+| 9 | PWM | Pan servo SG90 | panServo.attach(9) |
+| 18 | SDA | I2C shared bus | Wire default SDA. Person Sensor 0x62 + APDS-9960 0x39 |
+| 19 | SCL | I2C shared bus | Wire default SCL |
 
-> Source: `servo_teensy/IRIS-BaseServoControlViaPerson_Sensor.ino`
-> INCONSISTENCY: IRIS_ARCH.md labels this board "Teensy 4.0" with servo on GPIO 3. Source file
-> confirms Raspberry Pi Pico with pan/tilt on GPIO 0/1. This table is authoritative. IRIS_ARCH.md needs correction.
-> Fully autonomous. No serial link to Pi4 or Teensy 4.1. Power toggle on enclosure rear is the only runtime control.
+> Source: `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
+> Board: Teensy 4.0 (replaced Pico W S56 — hardware failure). PlatformIO: env:teensy40, platform teensy.
+> USB CDC serial → Pi4 /dev/ttyACM1 at 9600 baud. Pi4 assistant.py start_servo_listener() reads commands.
+> Servo 5V rail is independent (physical toggle switch). Board powered via Pi4 USB.
 
 ---
 
@@ -215,7 +214,7 @@
 | Pi4 | — | — | Update from SNAPSHOT_LATEST.md |
 | GandalfAI | — | — | Update from SNAPSHOT_LATEST.md |
 | Teensy 4.1 | — | — | Update from SNAPSHOT_LATEST.md |
-| Servo Pico | — | — | Standalone, not tracked by IRIS pipeline |
+| Servo Controller (Teensy 4.0) | REPO-ONLY | — | Flash + rewire pending (HW-002) |
 
 ---
 

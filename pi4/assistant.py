@@ -161,34 +161,36 @@ def start_cmd_listener(teensy, leds):
     threading.Thread(target=_listener, daemon=True).start()
 
 
-def start_pico_listener():
-    """USB serial listener for Pico W touch commands (/dev/ttyACM1, 9600 baud)."""
+def start_servo_listener():
+    """USB serial listener for Teensy 4.0 servo controller (/dev/ttyACM1, 9600 baud).
+    Commands: VOL_UP, VOL_DOWN, STOP, LISTEN (sent by APDS-9960 gestures on Teensy 4.0).
+    """
     import serial as _serial
-    PICO_PORT = '/dev/ttyACM1'
-    PICO_BAUD = 9600
+    SERVO_PORT = '/dev/ttyACM1'
+    SERVO_BAUD = 9600
 
     def _listener():
         while True:
             try:
-                ser = _serial.Serial(PICO_PORT, PICO_BAUD, timeout=1)
-                print(f"[PICO] Connected on {PICO_PORT}", flush=True)
+                ser = _serial.Serial(SERVO_PORT, SERVO_BAUD, timeout=1)
+                print(f"[SERVO] Connected on {SERVO_PORT}", flush=True)
                 while True:
                     line = ser.readline().decode('utf-8', errors='ignore').strip()
                     if not line:
                         continue
-                    print(f"[PICO] {line}", flush=True)
+                    print(f"[SERVO] {line}", flush=True)
                     if line == 'VOL_UP':
                         set_volume(min(127, get_volume() + 5))
                     elif line == 'VOL_DOWN':
                         set_volume(max(0, get_volume() - 5))
                     elif line == 'STOP':
                         _stop_playback.set()
-                        print("[PICO] STOP: playback interrupted", flush=True)
+                        print("[SERVO] STOP: playback interrupted", flush=True)
                     elif line == 'LISTEN':
                         open("/tmp/iris_manual_listen", "w").close()
-                        print("[PICO] LISTEN: manual listen triggered", flush=True)
+                        print("[SERVO] LISTEN: manual listen triggered", flush=True)
             except Exception as e:
-                print(f"[PICO] {e} -- retrying in 5s", flush=True)
+                print(f"[SERVO] {e} -- retrying in 5s", flush=True)
                 time.sleep(5)
 
     threading.Thread(target=_listener, daemon=True).start()
@@ -393,7 +395,7 @@ def main():
     ctx_thread = threading.Thread(target=_context_watchdog, daemon=True); ctx_thread.start()
     teensy = TeensyBridge(TEENSY_PORT, TEENSY_BAUD)
     start_cmd_listener(teensy, leds)
-    start_pico_listener()
+    start_servo_listener()
     router = IntentRouter()
 
     def _start_oww():
