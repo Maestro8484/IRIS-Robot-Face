@@ -38,9 +38,9 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 - GandalfAI model rebuilds require explicit `DEPLOY`.
 - Pi4 persistence: direct `/media/root-ro` remount only — see `CLAUDE.md`.
 
-## Next Work
+## Next Work — *** DO THIS FIRST ***
 
-**Board swap complete (REPO-ONLY). Final board: ESP32 DevKit 1C (ESP32-WROOM-32, COM13).**
+**HW-002: ESP32 PCB rewire + verify. Firmware flashed (S57). Pi4 assistant.py deployed (S57). Hardware is the only remaining blocker.**
 
 Reference: `docs/servo_esp32_wiring.md` (iteration 6 pin table).
 
