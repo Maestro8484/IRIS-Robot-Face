@@ -23,7 +23,7 @@
 ## Active Issues
 
 - **HIGH: HW-001 — Teensy 4.1 LED** — Pin 13 = SPI SCK for eye displays; LED glows solid during operation. Fix: cut solder jumper on Teensy underside. Blocked on power distribution PCB rewiring (Teensy header-soldered to PCB). See ROADMAP HW-001.
-- **HIGH: HW-002 — Full enclosure rewiring in progress** — All hardware being rewired before next power-on. RUN pin: disconnect (leave floating). On/off switch: move to servo 5V rail. Momentary buttons (GPIO 13/14/15): wire active-low to GND. See docs/servo_pico_wiring.md for full pin map.
+- **HIGH: HW-002 — Full enclosure rewiring in progress** — All hardware being rewired before next power-on. RUN pin: disconnect (leave floating). On/off switch: move to servo 5V rail. Momentary buttons (GPIO 13/14/15): wire active-low to GND. See docs/servo_teensy40_wiring.md for full pin map.
 - **HIGH: Teensy firmware flash pending** — S54 firmware built and committed but not flashed. BL_MAP curve + idle animations inactive until PlatformIO upload.
 - **MED: Perceived latency** — Bench JSONL live (S50). Pending: OLLAMA_KEEP_ALIVE=30m on GandalfAI.
 - **LOW: "stop" Whisper hallucination** — post-STT gate deployed (RD-001). Residual edge cases remain.
@@ -39,12 +39,12 @@ S55: RD-009 — Pico W USB serial touch integration. WiFi removed, momentary but
 
 ## Last Session Changes (S55)
 
-- **`servo_pico/.../IRIS-BaseServoControlViaPerson_Sensor.ino`** — WiFi/HTTP stripped entirely. USB CDC serial replaces all Pi4 comms (VOL_UP, VOL_DOWN, STOP, LISTEN). TTP223B → momentary pushbuttons: INPUT_PULLUP, !digitalRead(). servoEnabled variable and Touch 1 toggle logic removed (physical switch handles servo power). Touch 1 (GPIO 15) reserved in firmware.
+- **`servo_teensy40/.../IRIS-BaseServoControlViaPerson_Sensor.ino`** — WiFi/HTTP stripped entirely. USB CDC serial replaces all Pi4 comms (VOL_UP, VOL_DOWN, STOP, LISTEN). TTP223B → momentary pushbuttons: INPUT_PULLUP, !digitalRead(). servoEnabled variable and Touch 1 toggle logic removed (physical switch handles servo power). Touch 1 (GPIO 15) reserved in firmware.
 - **`pi4/assistant.py`** — `start_pico_listener()` daemon thread added. Reads /dev/ttyACM1 at 9600 baud. Dispatches: VOL_UP/DOWN → set_volume(), STOP → _stop_playback.set(), LISTEN → /tmp/iris_manual_listen.
 - **`pi4/iris_web.py`** — `/api/stop` (STOP_PLAYBACK via UDP) and `/api/listen` (writes /tmp/iris_manual_listen) routes added.
 - **`pi4/services/wakeword.py`** — /tmp/iris_manual_listen flag check in wait loop; treats as button trigger.
-- **`docs/servo_pico_wiring.md`** — Full pin map, power distribution, button wiring, iteration 4 design history.
-- **`docs/servo_pico_wiring_onenote.html`** — OneNote-ready browser-paste version of wiring tables.
+- **`docs/servo_teensy40_wiring.md`** — Full pin map, power distribution, button wiring, iteration 4 design history.
+- **`docs/servo_teensy40_wiring_onenote.html`** — OneNote-ready browser-paste version of wiring tables.
 
 ## Previous Session Changes (S54)
 
@@ -56,7 +56,7 @@ S55: RD-009 — Pico W USB serial touch integration. WiFi removed, momentary but
 
 ## Known TODO
 
-- **BLOCKED: Full enclosure hardware rewiring in progress** — do not power on until complete. See docs/servo_pico_wiring.md.
+- **BLOCKED: Full enclosure hardware rewiring in progress** — do not power on until complete. See docs/servo_teensy40_wiring.md.
 - After rewiring: flash Pico W (Arduino IDE, Philhower core, COM10), plug into Pi4 USB, verify /dev/ttyACM1, deploy assistant.py, test buttons.
 - Flash Teensy firmware (PlatformIO upload). Verify: sleep=dark, idle=dim L3, wakeword=bright, post-speech=dim.
 - HW-001: cut LED solder jumper on Teensy underside during PCB rewiring.

@@ -110,7 +110,7 @@
 | 18 | SDA | I2C shared bus | Wire default SDA. Person Sensor 0x62 + APDS-9960 0x39 |
 | 19 | SCL | I2C shared bus | Wire default SCL |
 
-> Source: `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
+> Source: `servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
 > Board: Teensy 4.0 (replaced Pico W S56 — hardware failure). PlatformIO: env:teensy40, platform teensy.
 > USB CDC serial → Pi4 /dev/ttyACM1 at 9600 baud. Pi4 assistant.py start_servo_listener() reads commands.
 > Servo 5V rail is independent (physical toggle switch). Board powered via Pi4 USB.

@@ -79,9 +79,8 @@ Final authority belongs to the human operator.
 ## Servo Pan Controller — Teensy 4.0
 
 The IRIS face unit (eyes + mouth TFT) is mounted on a pan servo rig on top of the enclosure.
-The servo is driven by a dedicated Teensy 4.0 running `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`.
+The servo is driven by a dedicated Teensy 4.0 running `servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`.
 
-> Note: The folder is named `servo_pico/` for historical reasons. The board is Teensy 4.0 as of S56. Pico W (previous board) had hardware failure.
 
 **Hardware:**
 - Teensy 4.0 + one SG90 pan servo (pin 9)
@@ -113,7 +112,7 @@ The servo is driven by a dedicated Teensy 4.0 running `servo_pico/IRIS-BaseServo
 - `POST /api/stop` — sets `_stop_playback` event in assistant.py via UDP STOP_PLAYBACK
 - `POST /api/listen` — writes `/tmp/iris_manual_listen`; wakeword.py polls this flag to trigger PTT-equivalent listen cycle
 
-**Source:** `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
+**Source:** `servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
 **PlatformIO:** `env:teensy40`, platform `teensy`, board `teensy40`
 **Tunable constants:** PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS, PERSON_SENSOR_DELAY
 

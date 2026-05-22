@@ -203,7 +203,7 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 - HW-001 (Teensy 4.1 LED jumper cut): do in same session while PCB is open
 
 **Flash procedure (Claude runs `pio run`, user clicks upload):**
-1. PlatformIO: open `servo_pico/IRIS-BaseServoControlViaPerson_Sensor`, select `env:teensy40`
+1. PlatformIO: open `servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor`, select `env:teensy40`
 2. User clicks upload — Teensy 4.0 on COM11
 3. Plug Teensy 4.0 into Pi4 USB port
 4. SSH Pi4 → verify `/dev/ttyACM1` appears: `ls /dev/ttyACM*`
@@ -212,7 +212,7 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 7. Trigger APDS-9960 gestures — confirm `[SERVO]` log lines: VOL_UP, VOL_DOWN, STOP, LISTEN
 8. Verify servo tracks face on Person Sensor detection
 
-**Files:** `servo_pico/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`, `pi4/assistant.py`
+**Files:** `servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`, `pi4/assistant.py`
 
 ---
 

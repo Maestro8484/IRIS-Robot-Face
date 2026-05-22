@@ -27,7 +27,7 @@ Rollback: git checkout ca4c395~1 -- pi4/assistant.py && redeploy
 - `platformio.ini` updated: `env:teensy40`, `platform = teensy`, `board = teensy40`.
 - `pi4/assistant.py`: `start_pico_listener()` renamed to `start_servo_listener()`, `[PICO]` log prefix → `[SERVO]`, `PICO_PORT/PICO_BAUD` → `SERVO_PORT/SERVO_BAUD`.
 - `pi4/iris_web.py`: docstrings updated — Pico W → Teensy 4.0.
-- All docs updated: `IRIS_ARCH.md`, `ROADMAP.md`, `docs/IRIS_INVENTORY.md`, `docs/servo_pico_wiring.md`, `SNAPSHOT_LATEST.md`, `HANDOFF_CURRENT.md`.
+- All docs updated: `IRIS_ARCH.md`, `ROADMAP.md`, `docs/IRIS_INVENTORY.md`, `docs/servo_teensy40_wiring.md`, `SNAPSHOT_LATEST.md`, `HANDOFF_CURRENT.md`.
 - All changes REPO-ONLY — nothing deployed to Pi4 yet.
 
 ---
@@ -75,7 +75,7 @@ Also: cut HW-001 LED/SCK solder jumper on Teensy 4.1 underside while PCB is open
 
 ### Step 2 — Flash Teensy 4.0 (user action)
 
-1. Open PlatformIO → `servo_pico/IRIS-BaseServoControlViaPerson_Sensor`
+1. Open PlatformIO → `servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor`
 2. Select environment `env:teensy40`
 3. Claude runs: `cd "C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face\servo_pico\IRIS-BaseServoControlViaPerson_Sensor" && pio run`
 4. User clicks **Upload** in PlatformIO (Teensy 4.0 on COM11)
@@ -149,7 +149,7 @@ journalctl -u assistant -f
 | File | Purpose |
 |---|---|
 | `IRIS_ARCH.md` | System architecture, all machine credentials, pin tables, deploy commands |
-| `docs/servo_pico_wiring.md` | Teensy 4.0 wiring iteration 5 pin table |
+| `docs/servo_teensy40_wiring.md` | Teensy 4.0 wiring iteration 5 pin table |
 | `docs/IRIS_INVENTORY.md` | Node list, GPIO tables, service ports, key file paths |
 | `ROADMAP.md` | HW-002, HW-001, RD-009 full specs |
 | `pi4/assistant.py` | `start_servo_listener()` at line ~164; called in `main()` at line ~396 |

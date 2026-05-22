@@ -42,7 +42,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 **Board swap complete (REPO-ONLY). Pico W dead — replaced with Teensy 4.0 (COM11 on Windows).**
 
-Reference: `docs/servo_pico_wiring.md` (updated for Teensy 4.0 pins).
+Reference: `docs/servo_teensy40_wiring.md` (updated for Teensy 4.0 pins).
 
 ### Rewiring checklist for Teensy 4.0 (user action)
 - [ ] Servo: PWM signal → Teensy pin 9, 5V → servo rail (toggle switch), GND → GND bus
@@ -53,7 +53,7 @@ Reference: `docs/servo_pico_wiring.md` (updated for Teensy 4.0 pins).
 - [ ] HW-001: cut LED/SCK solder jumper on Teensy 4.1 underside while PCB is open
 
 ### After rewiring — next session steps (Claude runs these)
-1. Flash Teensy 4.0: PlatformIO upload (`servo_pico/IRIS-BaseServoControlViaPerson_Sensor`, env:teensy40, user clicks upload on COM11)
+1. Flash Teensy 4.0: PlatformIO upload (`servo_teensy40/IRIS-BaseServoControlViaPerson_Sensor`, env:teensy40, user clicks upload on COM11)
 2. Plug Teensy 4.0 into Pi4 USB port
 3. SSH Pi4 → verify `ls /dev/ttyACM*` shows ttyACM0 (Teensy 4.1) and ttyACM1 (Teensy 4.0)
 4. Deploy assistant.py to Pi4 (standard persist protocol) — pico_listener reads /dev/ttyACM1, no change needed
