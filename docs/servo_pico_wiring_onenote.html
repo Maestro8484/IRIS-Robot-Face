@@ -11,58 +11,105 @@
   th { background: #1f3864; color: white; padding: 6px 14px; text-align: left; font-size: 10pt; }
   td { border: 1px solid #bbb; padding: 5px 14px; font-size: 10pt; }
   tr:nth-child(even) td { background: #f2f2f2; }
+  .side-header td { background: #d6e0f0; font-weight: bold; font-size: 10pt; color: #1f3864; border: 1px solid #bbb; padding: 4px 14px; }
+  .w { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  .stripe-blue { background: linear-gradient(135deg, #1a6fd4 50%, #fff 50%); border: 1px solid #1a6fd4; }
 </style>
 </head>
 <body>
 
-<h1>SERVO PICO W — Wire &amp; Pin Mapping</h1>
-<p>Board: Raspberry Pi Pico W &nbsp;|&nbsp; USB connector at top &nbsp;|&nbsp; Left side = pins 1–20 &nbsp;|&nbsp; Right side = pins 21–40 &nbsp;|&nbsp; Last updated: 2026-05-20</p>
+<h1>SERVO CONTROLLER (TEENSY 4.0) &mdash; Pin &amp; Wire Reference</h1>
+<p>Teensy 4.0 &nbsp;|&nbsp; micro-USB at top &nbsp;|&nbsp; Pins labeled by number &nbsp;|&nbsp; Updated: 2026-05-21 (S56 &mdash; replaced Pico W, hardware failure)</p>
 
-<h2>Left Side — Signal Pins (USB end at top, going down)</h2>
+<h2>Teensy 4.0 &mdash; Used Pins Only</h2>
 <table>
-  <tr><th>Phys Pin</th><th>GPIO</th><th>Wire Color</th><th>Device / Label</th><th>Notes</th></tr>
-  <tr><td>1</td><td>0</td><td>Yel/Org</td><td>Pan servo PWM</td><td>panServo.attach(0)</td></tr>
-  <tr><td>9</td><td>6</td><td>Blue</td><td>SDA — I2C Person Sensor</td><td>Wire.setSDA(6)</td></tr>
-  <tr><td>10</td><td>7</td><td>Yellow</td><td>SCL — I2C Person Sensor</td><td>Wire.setSCL(7)</td></tr>
-  <tr><td>14</td><td>10</td><td>—</td><td>Button 2 — Volume (terminal A)</td><td>Active-low INPUT_PULLUP; terminal B to GND</td></tr>
-  <tr><td>15</td><td>11</td><td>—</td><td>Button 3 — TTS / Wakeword (terminal A)</td><td>Active-low INPUT_PULLUP; terminal B to GND</td></tr>
-  <tr><td>16</td><td>12</td><td>—</td><td>Button 1 — Reserved (terminal A)</td><td>Wired, unassigned in firmware</td></tr>
+  <tr><th>Pin</th><th>Function</th><th>Wire(s)</th><th>To</th><th>Notes</th></tr>
+
+  <tr class="side-header"><td colspan="5">SIGNAL PINS</td></tr>
+  <tr>
+    <td>9</td><td>PWM &mdash; Pan servo</td>
+    <td><span class="w" style="background:#e6a817;border:1px solid #b07c00;"></span>Yel/org</td>
+    <td>Pan servo signal</td>
+    <td>panServo.attach(9)</td>
+  </tr>
+  <tr>
+    <td>18</td><td>SDA &mdash; I2C (Wire default)</td>
+    <td>
+      <span class="w" style="background:#1a6fd4;"></span>Solid blue (Person Sensor)<br>
+      <span class="w" style="background:#1a6fd4;"></span>Solid blue (APDS-9960)
+    </td>
+    <td>I2C SDA &mdash; both sensors wired in parallel</td>
+    <td>Wire.begin() &mdash; fixed pin</td>
+  </tr>
+  <tr>
+    <td>19</td><td>SCL &mdash; I2C (Wire default)</td>
+    <td>
+      <span class="w" style="background:#e6a817;border:1px solid #b07c00;"></span>Yellow (Person Sensor)<br>
+      <span class="w stripe-blue"></span>Blue/wht stripe (APDS-9960)
+    </td>
+    <td>I2C SCL &mdash; both sensors wired in parallel</td>
+    <td>Wire.begin() &mdash; fixed pin</td>
+  </tr>
+
+  <tr class="side-header"><td colspan="5">POWER PINS</td></tr>
+  <tr>
+    <td>GND</td><td>GND</td>
+    <td><span class="w" style="background:#4a7ab5;outline:1px solid #aaa;"></span>Blu/wht stripe</td>
+    <td>Person Sensor GND + APDS-9960 GND</td>
+    <td>Shared sensor ground</td>
+  </tr>
+  <tr>
+    <td>3.3V</td><td>3.3V OUT</td>
+    <td><span class="w" style="background:#e07820;"></span>Solid orange</td>
+    <td>Person Sensor VCC + APDS-9960 VCC + APDS-9960 VL</td>
+    <td>Twist VCC+VL at Teensy end, split at sensor</td>
+  </tr>
+  <tr>
+    <td>micro-USB</td><td>USB CDC serial + board power</td>
+    <td>Black USB</td>
+    <td>Pi4 USB port</td>
+    <td>Board power + serial /dev/ttyACM1 at 9600 baud</td>
+  </tr>
 </table>
 
-<h2>Right Side — Power Pins (USB end at top, going down)</h2>
+<h2>Person Sensor Breakout &mdash; Pin to Wire</h2>
+<p>Address 0x62. Mounted on Teensy head assembly. Shares I2C bus with APDS-9960.</p>
 <table>
-  <tr><th>Phys Pin</th><th>GPIO</th><th>Wire Color</th><th>Device / Label</th><th>Notes</th></tr>
-  <tr><td>12</td><td>GND</td><td>—</td><td>Button GND bus</td><td>Shared GND for all 3 buttons — sits between I2C and button block</td></tr>
-  <tr><td>30</td><td>RUN</td><td>—</td><td>DISCONNECTED</td><td>HW-002: was on/off switch — leave floating</td></tr>
-  <tr><td>38</td><td>GND</td><td>—</td><td>Main GND bus</td><td>PCB ground screw terminal</td></tr>
-  <tr><td>39</td><td>VSYS</td><td>—</td><td>5V power in</td><td>From servo 5V supply rail via PCB screw terminal</td></tr>
+  <tr><th>Board Pin</th><th>Wire</th><th>To</th></tr>
+  <tr><td>VCC</td><td><span class="w" style="background:#e07820;"></span>Solid orange</td><td>Teensy 4.0 3.3V pin</td></tr>
+  <tr><td>GND</td><td><span class="w" style="background:#4a7ab5;outline:1px solid #aaa;"></span>Blu/wht stripe</td><td>Teensy 4.0 GND pin</td></tr>
+  <tr><td>SDA</td><td><span class="w" style="background:#1a6fd4;"></span>Solid blue</td><td>Teensy 4.0 pin 18 (SDA)</td></tr>
+  <tr><td>SCL</td><td><span class="w" style="background:#e6a817;border:1px solid #b07c00;"></span>Yellow</td><td>Teensy 4.0 pin 19 (SCL)</td></tr>
 </table>
 
-<h2>Power Distribution</h2>
+<h2>APDS-9960 Breakout &mdash; Pin to Wire</h2>
+<p>Address 0x39. Mounted between eyes on head enclosure. INT unconnected (polling mode). Line of sight needed for two black IR cylinders at top of board.</p>
 <table>
-  <tr><th>Rail</th><th>Source</th><th>Destination</th><th>Switch</th></tr>
-  <tr><td>5V (VSYS)</td><td>Servo supply PCB terminal</td><td>Pico pin 39 (VSYS)</td><td>None — Pico always live when supply connected</td></tr>
-  <tr><td>5V (servo)</td><td>Same servo supply terminal</td><td>Servo power wire</td><td>Physical toggle on enclosure (supply 5V+ → servo 5V+)</td></tr>
-  <tr><td>GND</td><td>Pico pins 21 + 38</td><td>Servo GND, button GNDs, GND bus</td><td>None</td></tr>
-  <tr><td>USB</td><td>Pi4 USB → Pico micro-USB</td><td>Pico board power + serial comms</td><td>None — runtime connection</td></tr>
+  <tr><th>Board Pin</th><th>Wire</th><th>To</th><th>Notes</th></tr>
+  <tr><td>VL</td><td><span class="w" style="background:#e07820;"></span>Solid orange</td><td>Teensy 4.0 3.3V pin</td><td>Twist with VCC at Teensy end</td></tr>
+  <tr><td>GND</td><td><span class="w" style="background:#4a7ab5;outline:1px solid #aaa;"></span>Blu/wht stripe</td><td>Teensy 4.0 GND pin</td><td></td></tr>
+  <tr><td>VCC</td><td><span class="w" style="background:#e07820;"></span>Solid orange</td><td>Teensy 4.0 3.3V pin</td><td>Twist with VL at Teensy end</td></tr>
+  <tr><td>SDA</td><td><span class="w" style="background:#1a6fd4;"></span>Solid blue</td><td>Teensy 4.0 pin 18 (SDA)</td><td>Parallel with Person Sensor SDA</td></tr>
+  <tr><td>SCL</td><td><span class="w stripe-blue"></span>Blue/wht stripe</td><td>Teensy 4.0 pin 19 (SCL)</td><td>Parallel with Person Sensor SCL</td></tr>
+  <tr><td>INT</td><td>&mdash;</td><td>Unconnected</td><td></td></tr>
 </table>
 
-<h2>USB Serial Commands (Pico → Pi4)</h2>
+<h2>Servo Power &mdash; Independent 5V Rail</h2>
 <table>
-  <tr><th>Button</th><th>Action</th><th>Serial Command</th><th>Pi4 Behavior</th></tr>
-  <tr><td>Button 2</td><td>Short press / hold</td><td>VOL_UP or VOL_DOWN</td><td>amixer ±5; direction toggles each press; ticks every 200ms while held</td></tr>
-  <tr><td>Button 3</td><td>Short tap &lt; 1s</td><td>STOP</td><td>Interrupt current TTS playback</td></tr>
-  <tr><td>Button 3</td><td>Hold ≥ 1s</td><td>LISTEN</td><td>Trigger listen cycle without wakeword</td></tr>
-  <tr><td>Button 1</td><td>Any</td><td>(none)</td><td>Reserved</td></tr>
+  <tr><th>Wire</th><th>From</th><th>To</th><th>Notes</th></tr>
+  <tr><td><span class="w" style="background:#d42020;"></span>Red</td><td>5V supply +</td><td>Toggle switch &rarr; servo VCC</td><td>Switch cuts servo only &mdash; Teensy 4.0 stays live on USB</td></tr>
+  <tr><td><span class="w" style="background:#222;"></span>Black</td><td>5V supply &minus;</td><td>Servo GND</td><td>Direct &mdash; not through Teensy 4.0</td></tr>
+  <tr><td><span class="w" style="background:#e6a817;border:1px solid #b07c00;"></span>Yel/org</td><td>Teensy 4.0 pin 9</td><td>Servo signal wire</td><td></td></tr>
 </table>
 
-<h2>Button Wiring — Each Momentary Pushbutton</h2>
+<h2>Gesture Mapping &mdash; APDS-9960</h2>
 <table>
-  <tr><th>Terminal</th><th>Connects to</th></tr>
-  <tr><td>Terminal A</td><td>Pico GPIO pin (pin 17, 19, or 20)</td></tr>
-  <tr><td>Terminal B</td><td>GND bus (pin 21 or pin 38)</td></tr>
+  <tr><th>Gesture</th><th>Serial &rarr; Pi4</th><th>Action</th></tr>
+  <tr><td>Swipe UP</td><td>VOL_UP</td><td>Volume up</td></tr>
+  <tr><td>Swipe DOWN</td><td>VOL_DOWN</td><td>Volume down</td></tr>
+  <tr><td>Swipe LEFT or RIGHT</td><td>STOP</td><td>Stop TTS</td></tr>
+  <tr><td>Proximity hold</td><td>LISTEN</td><td>Trigger listen</td></tr>
 </table>
-<p>No resistors needed — Pico internal pull-up handles it. No VCC wire needed. All terminal B's share one GND bus.</p>
 
 </body>
 </html>
