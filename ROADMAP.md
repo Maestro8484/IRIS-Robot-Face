@@ -229,3 +229,37 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 - `pi4/services/wakeword.py`: `/tmp/iris_manual_listen` flag check in wait loop.
 
 **Deploy gate:** HW-002 (ESP32 rewire + flash) must complete first. See HW-002 for full procedure.
+
+---
+
+## RD-010 — ESP32 Remote Flash via Pi4 USB
+
+**Status:** Open — implement after HW-002 hardware verify.
+
+**Goal:** Enable Claude to flash new ESP32 firmware over SSH to Pi4, with no physical access to SuperMaster or the enclosure. ESP32 is already permanently USB-connected to Pi4 (/dev/ttyUSB0), so Pi4 is the natural flash host.
+
+**Procedure (documented in platformio.ini comments):**
+1. `pio run` on SuperMaster — builds `.pio/build/esp32/firmware.bin`
+2. Claude SFTPs `firmware.bin` → Pi4 `/tmp/servo_firmware.bin`
+3. Claude SSH Pi4: `python3 -m esptool --port /dev/ttyUSB0 write_flash 0x0 /tmp/servo_firmware.bin`
+4. No BOOT button needed — CH340 auto-reset works once firmware is running
+
+**Pre-requisite:** `python3-esptool` on Pi4 — `sudo apt install python3-esptool` (one-time, persists to SD).
+
+**Risk:** Low. esptool write_flash is the same operation ESPHome Flasher uses. Auto-reset confirmed working after first manual flash.
+
+**Files:** `servo_esp32/.../platformio.ini` (procedure already documented in comments), Pi4 apt install.
+
+---
+
+## RD-011 — APDS-9960 Proximity Sensor Verify (LISTEN trigger)
+
+**Status:** Open — verify after HW-002 hardware bring-up.
+
+**Issue:** Firmware calls `apds.enableProximitySensor(false)` then later calls `apds.readProximity()` for the LISTEN trigger. If the SparkFun library requires proximity mode explicitly enabled for `readProximity()` to return valid data, the LISTEN gesture will silently never fire.
+
+**Fix (if broken):** Change `enableProximitySensor(false)` → `enableProximitySensor(true)` in setup(). Verify gesture mode and proximity mode are not mutually exclusive on APDS-9960 with this library version (SparkFun APDS9960 @ 1.4.3).
+
+**How to verify:** SSH Pi4 → `tail -f /dev/ttyUSB0` (or `journalctl -u assistant -f`), hold hand ~3cm from sensor for 1s → should see `LISTEN` in serial output and `[SERVO] LISTEN` in assistant log.
+
+**Files:** `servo_esp32/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino` (setup() only)
