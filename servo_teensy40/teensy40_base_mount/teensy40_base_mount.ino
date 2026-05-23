@@ -46,6 +46,12 @@ extern "C" void _reboot_Teensyduino_(void);
 // Expected bytes from person sensor per poll
 #define PS_EXPECTED_BYTES 18
 
+// Set to 0 to disable the Person Sensor LED, 1 to enable
+#define PERSON_SENSOR_LED_ENABLED 0
+
+// Set to 1 to print a one-time I2C scan 10s after boot (diagnostic only)
+#define I2C_SCAN_DIAG 0
+
 // APDS-9960 proximity threshold and hold time for LISTEN trigger
 #define PROX_LISTEN_THRESHOLD 150
 #define PROX_HOLD_MS          1000
@@ -61,16 +67,39 @@ unsigned long lastFaceMs = 0;
 void setup() {
   Wire.begin();
 
+  // Disable/enable Person Sensor LED (debug mode register)
+  // Register 0x07 = PERSON_SENSOR_REG_DEBUG_MODE per SparkFun docs
+  // If LED still on after flash, try 0x08 instead
+  Wire.beginTransmission(PERSON_SENSOR_I2C_ADDRESS);
+  Wire.write(0x07);
+  Wire.write(PERSON_SENSOR_LED_ENABLED);
+  Wire.endTransmission();
+
   panServo.attach(2);
   panServo.write((int)desiredPan);
 
   Serial.begin(115200);
+  while (!Serial && millis() < 3000) {}  // wait up to 3s for monitor to reconnect after reboot
+
+  // Read raw chip ID from register 0x92 before library init
+  Wire.beginTransmission(0x39);
+  Wire.write(0x92);
+  Wire.endTransmission();
+  Wire.requestFrom((uint8_t)0x39, (uint8_t)1);
+  if (Wire.available()) {
+    Serial.print("APDS ID reg: 0x");
+    Serial.println(Wire.read(), HEX);
+  } else {
+    Serial.println("APDS ID reg: no response");
+  }
 
   if (!apds.init()) {
-    Serial.println("WARN: APDS-9960 not found");
+    Serial.println("WARN: APDS-9960 init failed");
   } else {
     apds.enableGestureSensor(true);
-    apds.enableProximitySensor(false);
+    // NOTE: do NOT call enableProximitySensor(false) here —
+    // gesture mode uses the proximity engine as its trigger internally.
+    // Disabling proximity silently kills gesture detection.
     apdsOk = true;
   }
 }
@@ -115,6 +144,22 @@ void loop() {
       _reboot_Teensyduino_();
     }
   }
+
+#if I2C_SCAN_DIAG
+  // One-time I2C scan 3s after boot — bridge has time to connect, output appears in journal
+  static bool _i2cScanned = false;
+  if (!_i2cScanned && millis() > 10000) {
+    for (byte addr = 1; addr < 127; addr++) {
+      Wire.beginTransmission(addr);
+      if (Wire.endTransmission() == 0) {
+        Serial.print("I2C_SCAN: 0x");
+        Serial.println(addr, HEX);
+      }
+    }
+    Serial.println("I2C_SCAN_DONE");
+    _i2cScanned = true;
+  }
+#endif
 
   pollGesture();
 
