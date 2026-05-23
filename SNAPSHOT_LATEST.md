@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S60 | **Date:** 2026-05-23 | **Branch:** `main` | **Last commit:** pending
+**Session:** S60 | **Date:** 2026-05-23 | **Branch:** `main` | **Last commit:** c853709 — S60: gesture config tab DEPLOYED+VERIFIED
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
