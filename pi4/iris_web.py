@@ -526,5 +526,30 @@ def api_vision():
         return jsonify(error=str(e)), 500
 
 
+_DEFAULT_GESTURE_MAP = {
+    "VOL+":   "VOL+",
+    "VOL-":   "VOL-",
+    "STOP":   "STOP",
+    "LISTEN": "LISTEN",
+}
+_VALID_GESTURE_ACTIONS = {"VOL+", "VOL-", "STOP", "LISTEN", "SKIP"}
+
+
+@app.route("/api/gesture_config", methods=["GET", "POST"])
+def api_gesture_config():
+    if request.method == "POST":
+        data = request.get_json(force=True)
+        raw_map = data.get("GESTURE_MAP", {})
+        cleaned = {k: v for k, v in raw_map.items() if v in _VALID_GESTURE_ACTIONS}
+        threshold = max(0, min(255, int(data.get("GESTURE_PROXIMITY_THRESHOLD", 150))))
+        write_cfg({"GESTURE_MAP": cleaned, "GESTURE_PROXIMITY_THRESHOLD": threshold})
+        return jsonify(ok=True)
+    cfg = read_cfg()
+    return jsonify(
+        GESTURE_MAP=cfg.get("GESTURE_MAP", _DEFAULT_GESTURE_MAP),
+        GESTURE_PROXIMITY_THRESHOLD=cfg.get("GESTURE_PROXIMITY_THRESHOLD", 150),
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)

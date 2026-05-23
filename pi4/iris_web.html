@@ -139,6 +139,7 @@ select:focus{outline:none;border-color:var(--blue)}
   <button onclick="tab('system',this)">System</button>
   <button onclick="tab('chat',this)">Chat</button>
   <button onclick="tab('bench',this)">Bench</button>
+  <button onclick="tab('gestures',this)">Gestures</button>
 </nav>
 
 <!-- SD persistence bar — always visible -->
@@ -536,6 +537,39 @@ select:focus{outline:none;border-color:var(--blue)}
   </div>
 </div>
 
+<!-- GESTURES -->
+<div class="section" id="sec-gestures">
+  <div class="card">
+    <h2>Gesture Sensor Mapping</h2>
+    <p class="hint">Map APDS-9960 gesture events (Teensy 4.0, /dev/ttyACM1) to actions. Changes take effect immediately — no restart needed.</p>
+    <div class="field-row" style="margin-top:12px">
+      <label>VOL+ (swipe up)</label>
+      <select id="gesture-VOL+"></select>
+    </div>
+    <div class="field-row">
+      <label>VOL- (swipe down)</label>
+      <select id="gesture-VOL-"></select>
+    </div>
+    <div class="field-row">
+      <label>STOP (swipe left/right)</label>
+      <select id="gesture-STOP"></select>
+    </div>
+    <div class="field-row">
+      <label>LISTEN (proximity hold)</label>
+      <select id="gesture-LISTEN"></select>
+    </div>
+    <div class="field-row" style="margin-top:14px">
+      <label>Proximity threshold (0–255)</label>
+      <input type="range" id="GESTURE_PROXIMITY_THRESHOLD" min="0" max="255" step="1" value="150"
+             style="width:180px;accent-color:var(--blue);height:6px;cursor:pointer"
+             oninput="document.getElementById('prox-display').textContent=this.value">
+      <span id="prox-display" style="width:30px;color:var(--text);font-size:13px;flex-shrink:0">150</span>
+    </div>
+    <p class="hint" style="margin-bottom:14px">Proximity threshold stored in config — reserved for future Teensy firmware use.</p>
+    <button class="btn btn-primary" onclick="saveGestureConfig()">Save Gesture Config</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -550,6 +584,7 @@ function tab(name, btn) {
   if (name === 'voice') { loadKokoroVoices(); }
   if (name === 'gandalf') loadVram();
   if (name === 'bench') fetchBench();
+  if (name === 'gestures') loadGestureConfig();
   if (name === 'eyes') pollSleepState();
   if (name === 'sleep') {
     pollSleepState();
@@ -1081,6 +1116,67 @@ async function fetchBench() {
 function toggleBenchAuto(cb) {
   if (_benchAutoTimer) { clearInterval(_benchAutoTimer); _benchAutoTimer = null; }
   if (cb.checked) _benchAutoTimer = setInterval(fetchBench, 15000);
+}
+
+// ── Gesture config ────────────────────────────────────────────────────────────
+const _GESTURE_KEYS    = ['VOL+', 'VOL-', 'STOP', 'LISTEN'];
+const _GESTURE_ACTIONS = ['VOL+', 'VOL-', 'STOP', 'LISTEN', 'SKIP'];
+const _GESTURE_LABELS  = {
+  'VOL+':   'VOL+ — volume up',
+  'VOL-':   'VOL- — volume down',
+  'STOP':   'STOP — stop playback',
+  'LISTEN': 'LISTEN — trigger listen',
+  'SKIP':   'SKIP — do nothing',
+};
+
+function _populateGestureSelects() {
+  _GESTURE_KEYS.forEach(function(key) {
+    const sel = document.getElementById('gesture-' + key);
+    if (!sel || sel.options.length > 1) return;
+    sel.innerHTML = '';
+    _GESTURE_ACTIONS.forEach(function(act) {
+      const o = document.createElement('option');
+      o.value = act;
+      o.textContent = _GESTURE_LABELS[act] || act;
+      sel.appendChild(o);
+    });
+  });
+}
+
+async function loadGestureConfig() {
+  _populateGestureSelects();
+  try {
+    const r = await fetch('/api/gesture_config');
+    const j = await r.json();
+    const map = j.GESTURE_MAP || {};
+    _GESTURE_KEYS.forEach(function(key) {
+      const sel = document.getElementById('gesture-' + key);
+      if (sel && map[key]) sel.value = map[key];
+    });
+    const thr = document.getElementById('GESTURE_PROXIMITY_THRESHOLD');
+    if (thr) {
+      thr.value = j.GESTURE_PROXIMITY_THRESHOLD != null ? j.GESTURE_PROXIMITY_THRESHOLD : 150;
+      document.getElementById('prox-display').textContent = thr.value;
+    }
+  } catch(e) { toast('Failed to load gesture config', false); }
+}
+
+async function saveGestureConfig() {
+  const map = {};
+  _GESTURE_KEYS.forEach(function(key) {
+    const sel = document.getElementById('gesture-' + key);
+    if (sel) map[key] = sel.value;
+  });
+  const thrEl = document.getElementById('GESTURE_PROXIMITY_THRESHOLD');
+  const thr = thrEl ? parseInt(thrEl.value) : 150;
+  const r = await fetch('/api/gesture_config', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({GESTURE_MAP: map, GESTURE_PROXIMITY_THRESHOLD: thr})
+  });
+  const j = await r.json();
+  toast(j.ok ? 'Gesture config saved' : 'Error saving gesture config', j.ok);
+  if (j.ok) checkSDStatus();
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────

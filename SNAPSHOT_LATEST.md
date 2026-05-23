@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S59 | **Date:** 2026-05-23 | **Branch:** `main` | **Last commit:** 08e4330 — S59: Teensy 4.0 gesture sensor fix — APDS-9960 DEPLOYED+VERIFIED
+**Session:** S60 | **Date:** 2026-05-23 | **Branch:** `main` | **Last commit:** pending
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -11,7 +11,7 @@
 | System | Status |
 |---|---|
 | SuperMaster Desktop | Canonical repo — S59 committed (08e4330), push pending. |
-| Pi4 192.168.1.200 | Operational. S58 DEPLOYED+VERIFIED. assistant.py (f98978a5), base_mount_bridge.py (6bfc3801), core/config.py (ebf1561b) — all md5 verified RAM==SD. [BASE] Teensy 4.0 connected on /dev/ttyACM1. [INFO] Ready. |
+| Pi4 192.168.1.200 | Operational. S60 DEPLOYED+VERIFIED. iris_web.py (98f84f0f), iris_web.html (0a8bdfc7), base_mount_bridge.py (743d1d52) — all md5 verified RAM==SD. iris-web + assistant services running. [INFO] Ready. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). |
 | Teensy 4.1 | Firmware REPO-ONLY (af66b24). BL_MAP log curve + idle animations built, flash pending. /dev/ttyACM0 confirmed. |
 | Teensy 4.0 (base mount) | DEPLOYED+VERIFIED S59. Gesture sensor (APDS-9960) working — VOL+/VOL-/STOP/LISTEN confirmed on desktop USB. Flashed to Pi4 /dev/ttyACM1 15:08. [BASE] connected confirmed. Servo works (clunky/jerky — tuning pending). |
@@ -33,11 +33,17 @@
 
 ## Session Scope
 
-S59: APDS-9960 gesture sensor diagnosed and fixed. Root cause: library init() calls Wire.begin() internally — Teensy 4.0 I2C bus needs 25ms settle before first transaction. Also fixed: enableProximitySensor(false) was silently killing gesture detection. Library patched into lib/ for permanence. REBOOT command + Person Sensor LED disable added. Flashed to Pi4 and verified.
+S60: Gesture config tab added to IRIS web UI. base_mount_bridge.py now reads GESTURE_MAP from iris_config.json on every event (config-driven dispatch, no hardcoding). /api/gesture_config GET/POST endpoint added to iris_web.py. Gestures tab added to iris_web.html with per-gesture action dropdowns (VOL+/VOL-/STOP/LISTEN/SKIP) and proximity threshold slider. All three files deployed+verified RAM==SD.
 
 ---
 
-## Last Session Changes (S59)
+## Last Session Changes (S60)
+
+- **`pi4/hardware/base_mount_bridge.py`** — Config-driven gesture dispatch: reads GESTURE_MAP from iris_config.json on each event. Added LISTEN action (/tmp/iris_manual_listen), SKIP no-op, error handling per action. DEPLOYED+VERIFIED md5 743d1d52.
+- **`pi4/iris_web.py`** — Added /api/gesture_config GET/POST endpoint. GET returns GESTURE_MAP + GESTURE_PROXIMITY_THRESHOLD from iris_config.json (defaults if absent). POST validates actions against whitelist, range-clamps threshold, writes via write_cfg(). DEPLOYED+VERIFIED md5 98f84f0f.
+- **`pi4/iris_web.html`** — Added Gestures nav tab. Gestures section: four select dropdowns (VOL+/VOL-/STOP/LISTEN gesture keys, actions VOL+/VOL-/STOP/LISTEN/SKIP), proximity threshold range slider 0-255. loadGestureConfig()/saveGestureConfig() JS. DEPLOYED+VERIFIED md5 0a8bdfc7.
+
+## Previous Session Changes (S59)
 
 - **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — Added REBOOT command, Person Sensor LED disable, while(!Serial) boot wait, I2C_SCAN_DIAG flag, raw APDS ID read diagnostic. Removed enableProximitySensor(false) bug. DEPLOYED+VERIFIED.
 - **`servo_teensy40/teensy40_base_mount/platformio.ini`** — Removed registry APDS9960 dep; uses local lib/ instead.

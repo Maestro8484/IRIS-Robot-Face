@@ -1,9 +1,28 @@
+import json
 import socket
 import threading
 import time
 
 from core.config import CMD_PORT
 from hardware.audio_io import handle_volume_command
+
+_CONFIG_PATH = "/home/pi/iris_config.json"
+
+_DEFAULT_GESTURE_MAP = {
+    "VOL+":   "VOL+",
+    "VOL-":   "VOL-",
+    "STOP":   "STOP",
+    "LISTEN": "LISTEN",
+}
+
+
+def _load_gesture_map():
+    try:
+        with open(_CONFIG_PATH) as f:
+            cfg = json.load(f)
+        return cfg.get("GESTURE_MAP", _DEFAULT_GESTURE_MAP)
+    except Exception:
+        return _DEFAULT_GESTURE_MAP
 
 
 class BaseMountBridge:
@@ -22,17 +41,32 @@ class BaseMountBridge:
             return
         threading.Thread(target=self._read_loop, daemon=True).start()
 
-    def _on_vol_up(self):
-        try:
-            handle_volume_command("louder")
-        except Exception as e:
-            print(f"[BASE] VOL+ error: {e}", flush=True)
-
-    def _on_vol_down(self):
-        try:
-            handle_volume_command("quieter")
-        except Exception as e:
-            print(f"[BASE] VOL- error: {e}", flush=True)
+    def _dispatch(self, action):
+        if action == "VOL+":
+            try:
+                handle_volume_command("louder")
+            except Exception as e:
+                print(f"[BASE] VOL+ error: {e}", flush=True)
+        elif action == "VOL-":
+            try:
+                handle_volume_command("quieter")
+            except Exception as e:
+                print(f"[BASE] VOL- error: {e}", flush=True)
+        elif action == "STOP":
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                    s.sendto(b"STOP", ("127.0.0.1", CMD_PORT))
+            except Exception as e:
+                print(f"[BASE] STOP error: {e}", flush=True)
+        elif action == "LISTEN":
+            try:
+                open("/tmp/iris_manual_listen", "w").close()
+            except Exception as e:
+                print(f"[BASE] LISTEN error: {e}", flush=True)
+        elif action == "SKIP":
+            pass
+        else:
+            print(f"[BASE] unknown action: {action!r}", flush=True)
 
     def _read_loop(self):
         _err_logged = False
@@ -47,13 +81,10 @@ class BaseMountBridge:
                 if not line:
                     continue
                 print(f"[BASE] {line}", flush=True)
-                if line == "VOL+":
-                    self._on_vol_up()
-                elif line == "VOL-":
-                    self._on_vol_down()
-                elif line == "STOP":
-                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                        s.sendto(b"STOP", ("127.0.0.1", CMD_PORT))
+                gesture_map = _load_gesture_map()
+                action = gesture_map.get(line, "SKIP")
+                if action != "SKIP":
+                    self._dispatch(action)
             except Exception as e:
                 if not _err_logged:
                     print(f"[BASE] Serial error: {e} -- reconnecting in 5s", flush=True)
