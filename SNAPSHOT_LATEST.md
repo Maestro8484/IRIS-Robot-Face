@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S57 | **Date:** 2026-05-21 | **Branch:** `main` | **Last commit:** `fd43e02` — S57: Pi4 assistant.py deployed — SERVO_PORT /dev/ttyUSB0, [INFO] Ready confirmed
+**Session:** S58 | **Date:** 2026-05-23 | **Branch:** `main` | **Last commit:** pending push — S58: Teensy 4.0 base mount controller — firmware built, Pi4 deployed, [BASE] + [INFO] Ready verified
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -10,60 +10,58 @@
 
 | System | Status |
 |---|---|
-| SuperMaster Desktop | Canonical repo — pushed to origin. 10 S57 commits. |
-| Pi4 192.168.1.200 | Operational. assistant.py DEPLOYED S57 — SERVO_PORT=/dev/ttyUSB0, start_servo_listener() active. md5 f22dc816. [INFO] Ready. |
+| SuperMaster Desktop | Canonical repo — S58 changes committed locally, push pending. |
+| Pi4 192.168.1.200 | Operational. S58 DEPLOYED+VERIFIED. assistant.py (f98978a5), base_mount_bridge.py (6bfc3801), core/config.py (ebf1561b) — all md5 verified RAM==SD. [BASE] Teensy 4.0 connected on /dev/ttyACM1. [INFO] Ready. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). |
-| Teensy 4.1 | Firmware REPO-ONLY (af66b24). BL_MAP log curve + idle animations built, flash pending. |
-| Servo Controller | FLASHED S57 (ESP32 DevKit 1C / ESP32-WROOM-32, COM13, ESPHome Flasher). PCB rewire pending. |
+| Teensy 4.1 | Firmware REPO-ONLY (af66b24). BL_MAP log curve + idle animations built, flash pending. /dev/ttyACM0 confirmed. |
+| Teensy 4.0 (base mount) | DEPLOYED+VERIFIED S58. teensy40_base_mount.ino built (pio run OK). Plugged into Pi4 /dev/ttyACM1. [BASE] connected confirmed in journalctl. Servo works (clunky/jerky — tuning pending). |
+| Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
 ---
 
 ## Active Issues
 
-- **HIGH: HW-002 — ESP32 PCB rewire** — Firmware flashed, Pi4 assistant.py deployed. Only hardware blocks. Pin 13 servo, 21 SDA, 22 SCL, 3V3 sensors, micro-USB → Pi4 USB.
-- **HIGH: HW-001 — Teensy 4.1 LED jumper cut** — Do during PCB rewire session. Physical mod only.
+- **HIGH: Teensy 4.0 servo tuning** — Pan servo works but clunky/jerky. Tune PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS constants in servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. Flash after tuning.
+- **HIGH: HW-001 — Teensy 4.1 LED jumper cut** — Physical mod only, no software needed.
 - **HIGH: Teensy 4.1 firmware flash pending** — af66b24 BL_MAP + idle animations. PlatformIO upload, COM7.
 - **MED: Perceived latency** — OLLAMA_KEEP_ALIVE=30m on GandalfAI pending.
-- **LOW: RD-011 — APDS-9960 proximity LISTEN trigger** — verify after HW-002 bring-up. May be silently broken (enableProximitySensor(false) but readProximity() called).
+- **LOW: RD-011 — APDS-9960 proximity LISTEN trigger** — verify on Teensy 4.0 bring-up. May be silently broken (enableProximitySensor(false) but readProximity() called).
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
 
 ---
 
 ## Session Scope
 
-S57: ESP32 DevKit 1C (ESP32-WROOM-32) replaces Teensy 4.0 as servo controller — full repo consistency pass, firmware built + flashed, Pi4 assistant.py deployed.
+S58: Teensy 4.0 confirmed as final base mount controller (ESP32 abandoned). Firmware renamed + 4 bugs fixed, Pi4 bridge created and wired into assistant.py, stale ESP32/Pico/bak files deleted, IRIS_ARCH.md fully updated, Pi4 deployed + SD persisted + VERIFIED.
 
 ---
 
-## Last Session Changes (S57)
+## Last Session Changes (S58)
 
-- **`servo_esp32/.../IRIS-BaseServoControlViaPerson_Sensor.ino`** — `Wire.begin(21,22)`, `panServo.attach(13)`, header updated. Renamed from servo_teensy40/.
-- **`servo_esp32/.../platformio.ini`** — `env:esp32`, `platform=espressif32`, `board=esp32dev`, `ESP32Servo` dep added. Pi4 remote flash procedure in comments.
-- **`pi4/assistant.py`** — `SERVO_PORT='/dev/ttyUSB0'`. DEPLOYED Pi4, md5 f22dc816, `[INFO] Ready.` confirmed.
-- **`pi4/iris_web.py`** — Two docstrings updated → ESP32. REPO-ONLY (docstring-only, no behaviour change).
-- **`IRIS_ARCH.md`** — Servo section rewritten: ESP32 DevKit 1C, pins 13/21/22, /dev/ttyUSB0.
-- **`ROADMAP.md`** — HW-002, RD-009 updated for ESP32. RD-010 (Pi4 remote flash) + RD-011 (proximity verify) added.
-- **`docs/IRIS_INVENTORY.md`** — Nodes, GPIO table, Deploy Status updated for ESP32.
-- **`docs/servo_esp32_wiring.md`** + **`servo_esp32_wiring_onenote.html`** — New; replaced servo_teensy40 versions.
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — Renamed from IRIS-BaseServoControlViaPerson_Sensor.ino. Fixed: panServo.attach(2), Serial.begin(115200), VOL+/VOL- commands, comment block. Build: SUCCESS.
+- **`servo_teensy40/teensy40_base_mount/platformio.ini`** — monitor_speed=115200 (was 9600).
+- **`pi4/hardware/base_mount_bridge.py`** — NEW. BaseMountBridge class: reads /dev/ttyACM1, dispatches VOL+/VOL-/STOP. DEPLOYED+VERIFIED md5 6bfc3801.
+- **`pi4/core/config.py`** — Added BASE_MOUNT_ENABLED, BASE_MOUNT_PORT, BASE_MOUNT_BAUD. DEPLOYED+VERIFIED md5 ebf1561b.
+- **`pi4/assistant.py`** — Added BaseMountBridge import + startup block. Removed dead start_servo_listener(). DEPLOYED+VERIFIED md5 f98978a5.
+- **`pi4/iris_web.py`** — Removed ESP32 references from /api/stop and /api/listen docstrings. REPO-ONLY.
+- **`IRIS_ARCH.md`** — System Roles/Architecture tables updated. New Teensy 4.0 pin section. ESP32 servo section deleted.
+- **`.claude/settings.local.json`** — PostToolUse hook path fixed to absolute path.
+- **Deleted:** servo_esp32/ directory, docs/servo_esp32_wiring.md, docs/servo_esp32_wiring_onenote.html, docs/servo_pico_wiring_onenote.txt, two .bak files.
 
-## Previous Session Changes (S56)
+## Previous Session Changes (S57)
 
-- Pico W confirmed dead (no USB enumeration). Replaced with Teensy 4.0 (COM11). Wire.begin() fixed I2C pins 18/19, panServo.attach(9), platformio.ini → env:teensy40.
-- pi4/assistant.py: start_pico_listener → start_servo_listener (superseded by S57 ESP32 changes).
-- All Pico W references updated across IRIS_ARCH.md, ROADMAP.md, IRIS_INVENTORY.md, wiring docs.
+- ESP32 DevKit 1C firmware + Pi4 deploy — superseded/tombstoned in S58.
 
 ---
 
 ## Known TODO
 
-- **NEXT: Rewire PCB** — pin 13 servo PWM, pin 21 SDA, pin 22 SCL, 3V3 sensors, micro-USB → Pi4 USB port
-- After rewire: plug ESP32 into Pi4 → verify `/dev/ttyUSB0` → tail logs → test APDS-9960 gestures
-- HW-001: cut LED/SCK solder jumper on Teensy 4.1 underside (do during PCB rewire)
+- **NEXT: Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in teensy40_base_mount.ino, then re-flash
+- HW-001: cut LED/SCK solder jumper on Teensy 4.1 underside
 - Flash Teensy 4.1 firmware (PlatformIO upload, env:eyes, COM7, user clicks upload)
 - GandalfAI: set OLLAMA_KEEP_ALIVE=30m + restart Ollama service
-- RD-010: `sudo apt install python3-esptool` on Pi4 (one-time; enables Claude to flash ESP32 remotely)
-- RD-011: after HW-002 verify — confirm APDS-9960 LISTEN trigger fires; fix if needed
+- RD-011: confirm APDS-9960 LISTEN trigger fires on Teensy 4.0; fix enableProximitySensor() if needed
 
 ---
 

@@ -40,32 +40,54 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**HW-002: ESP32 PCB rewire + verify. Firmware flashed (S57). Pi4 assistant.py deployed (S57). Hardware is the only remaining blocker.**
+**Teensy 4.0 base mount controller bring-up. Firmware built (REPO-ONLY). Pi4 bridge code written (REPO-ONLY). Hardware wiring + deploy are the remaining blockers.**
 
-Reference: `docs/servo_esp32_wiring.md` (iteration 6 pin table).
+Reference: `docs/servo_teensy40_wiring.md` | Firmware: `servo_teensy40/teensy40_base_mount/` | Bridge: `pi4/hardware/base_mount_bridge.py`
 
-### Rewiring checklist for ESP32 DevKit 1C (user action)
-- [ ] Servo: PWM signal → ESP32 pin 13, 5V → servo rail (toggle switch), GND → GND bus
-- [ ] I2C shared bus: SDA → ESP32 pin 21, SCL → ESP32 pin 22
-- [ ] Person Sensor: SDA, SCL (shared bus), 3.3V from ESP32 3V3 pin, GND
+### Wiring checklist for Teensy 4.0 (user action)
+- [ ] Servo: PWM signal → Teensy pin 2, 5V → servo rail (toggle switch), GND → GND bus
+- [ ] I2C shared bus: SDA → Teensy pin 18, SCL → Teensy pin 19
+- [ ] Person Sensor: SDA, SCL (shared bus), 3.3V from Teensy 3V3 pin, GND
 - [ ] APDS-9960: SDA, SCL (shared bus), 3.3V, GND
-- [ ] USB: ESP32 micro-USB → Pi4 USB port (data cable, COM13 confirmed on Windows)
+- [ ] I2C pullups: 4.7K resistor SDA→3.3V, 4.7K resistor SCL→3.3V (external)
+- [ ] USB: Teensy 4.0 micro-USB → Pi4 USB port (data cable)
 - [ ] HW-001: cut LED/SCK solder jumper on Teensy 4.1 underside while PCB is open
 
-### After rewiring — next session steps (Claude runs these)
-1. Flash ESP32: PlatformIO upload (`servo_esp32/IRIS-BaseServoControlViaPerson_Sensor`, env:esp32, user clicks upload on COM13)
-2. Plug ESP32 into Pi4 USB port
-3. SSH Pi4 → verify `ls /dev/ttyUSB*` shows /dev/ttyUSB0
-4. Deploy assistant.py to Pi4 (standard persist protocol) — SERVO_PORT is now /dev/ttyUSB0
+### After wiring — next session steps (say DEPLOY)
+1. `pio run -e teensy40` inside `servo_teensy40/teensy40_base_mount/` — user clicks PlatformIO upload
+2. Plug Teensy 4.0 into Pi4 USB port
+3. SSH Pi4 → verify `ls /dev/ttyACM*` shows /dev/ttyACM1 (Teensy 4.0 separate from ACM0)
+4. Deploy Pi4 files: `assistant.py`, `core/config.py`, `hardware/base_mount_bridge.py` (standard persist protocol)
 5. Restart assistant service
-6. Tail logs: `journalctl -u assistant -f`
-7. Trigger gestures on APDS-9960 — confirm [SERVO] log lines: VOL_UP, VOL_DOWN, STOP, LISTEN
-8. Flash Teensy 4.1 firmware (PlatformIO upload, user clicks upload button)
+6. Tail logs: `journalctl -u assistant -n 30 --no-pager`
+7. Confirm `[BASE] Teensy 4.0 connected on /dev/ttyACM1` in log
+8. Trigger gestures on APDS-9960 — confirm `[BASE] VOL+`, `[BASE] VOL-`, `[BASE] STOP` log lines
+9. Flash Teensy 4.1 firmware (PlatformIO upload, user clicks upload button — separate task)
 
 ### Other pending
 - [ ] GandalfAI: set OLLAMA_KEEP_ALIVE=30m + restart Ollama service
 - [ ] PT-001 adversarial testing (live behavior)
 - [ ] RD-003 duplicate sleep log (low priority)
+
+---
+
+## S58 — Teensy 4.0 Base Mount Controller (REPO-ONLY)
+
+**Status:** REPO-ONLY. All files committed locally. Pi4 deploy and firmware flash pending user DEPLOY command.
+
+**Changes:**
+- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — renamed from IRIS-BaseServoControlViaPerson_Sensor. Fixed: pin 2, baud 115200, VOL+/VOL-, base_mount_bridge.py comment reference.
+- `servo_teensy40/teensy40_base_mount/platformio.ini` — monitor_speed 115200.
+- `pi4/hardware/base_mount_bridge.py` — NEW. Daemon thread reads /dev/ttyACM1 at 115200, dispatches VOL+/VOL-/STOP.
+- `pi4/core/config.py` — BASE_MOUNT_ENABLED, BASE_MOUNT_PORT, BASE_MOUNT_BAUD added.
+- `pi4/assistant.py` — BaseMountBridge import + conditional startup after TeensyBridge init.
+- `IRIS_ARCH.md` — Teensy 4.0 pin section added, System Roles and Architecture tables updated.
+
+**Rollback (Pi4 files, if deployed):**
+```bash
+git checkout -- pi4/assistant.py pi4/core/config.py
+# Remove base_mount_bridge.py from Pi4, then persist and restart service
+```
 
 ---
 

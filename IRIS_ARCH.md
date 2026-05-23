@@ -70,50 +70,10 @@ Final authority belongs to the human operator.
 | SuperMaster Desktop | Command/control node, Claude Desktop, local repo, VS Code, PlatformIO, git |
 | Pi4 | Voice pipeline orchestration, wakeword, mic/audio, LEDs, camera, web UI, cron sleep/wake, Teensy serial bridge |
 | GandalfAI | Ollama LLM, Modelfiles, Whisper STT, Kokoro TTS (primary), Piper TTS (fallback), Chatterbox (rollback only), RTX 3090 inference |
-| Teensy 4.1 | Embedded controller for eyes, mouth, sleep renderer, person sensor integration, serial protocol |
-| Servo Controller (ESP32 DevKit 1C) | Pan servo driver, Person Sensor + APDS-9960 gesture, USB-UART serial to Pi4 /dev/ttyUSB0 |
+| Teensy 4.1 (display controller) | Embedded controller for eyes, mouth, sleep renderer, person sensor integration, serial protocol |
+| Teensy 4.0 (base mount controller) | Pan servo driver, Person Sensor + APDS-9960 gesture, USB-CDC serial to Pi4 /dev/ttyACM1 |
+| Servo Controller (ESP32 DevKit 1C) | TOMBSTONED — replaced by Teensy 4.0 base mount controller |
 | GitHub | Secondary mirror, backup, version history, sharing remote |
-
----
-
-## Servo Pan Controller — ESP32 DevKit 1C (ESP32-WROOM-32)
-
-The IRIS face unit (eyes + mouth TFT) is mounted on a pan servo rig on top of the enclosure.
-The servo is driven by a dedicated ESP32 DevKit 1C running `servo_esp32/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`.
-
-
-**Hardware:**
-- ESP32 DevKit 1C (ESP32-WROOM-32) + one SG90 pan servo (pin 13)
-- Person Sensor (Useful Sensors, I2C 0x62, SDA: pin 21, SCL: pin 22)
-- APDS-9960 gesture sensor (I2C 0x39, shared I2C bus — pins 21/22)
-- Powered via Pi4 USB (micro-USB → Pi4 USB port); servo 5V rail is independent (physical toggle switch)
-
-**USB serial integration:**
-- USB-UART bridge (CH340/CP2102) → Pi4 `/dev/ttyUSB0` at 9600 baud
-- Pi4 `assistant.py` `start_servo_listener()` daemon thread reads commands and dispatches
-
-**Commands sent over serial (ESP32 → Pi4):**
-
-| APDS-9960 input | Command | Pi4 behavior |
-|---|---|---|
-| UP gesture | `VOL_UP` | `set_volume(+5)` |
-| DOWN gesture | `VOL_DOWN` | `set_volume(-5)` |
-| LEFT / RIGHT gesture | `STOP` | `_stop_playback.set()` |
-| Proximity > 150 held 1s | `LISTEN` | writes `/tmp/iris_manual_listen` |
-
-**Behavior:**
-- Reads Person Sensor at ~20Hz, pans to track largest facing face
-- Confidence + facing gate: ignores detections with boxConfidence < 60 or isFacing == 0
-- Dead zone (PAN_DEAD_ZONE = 2.0°): suppresses micro-jitter
-- Face lost: holds position FACE_HOLD_MS (2500ms), then drifts to center after FACE_RETURN_MS (8000ms)
-
-**Pi4 web UI equivalents (iris_web.py):**
-- `POST /api/stop` — sets `_stop_playback` event in assistant.py via UDP STOP_PLAYBACK
-- `POST /api/listen` — writes `/tmp/iris_manual_listen`; wakeword.py polls this flag to trigger PTT-equivalent listen cycle
-
-**Source:** `servo_esp32/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`
-**PlatformIO:** `env:esp32`, platform `espressif32`, board `esp32dev`
-**Tunable constants:** PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS, PERSON_SENSOR_DELAY
 
 ---
 
@@ -249,6 +209,7 @@ On both rebooting simultaneously: GandalfAI must be up before assistant.py finis
 | GandalfAI | 192.168.1.3 | gandalf / &lt;password&gt; | Ollama LLM, Whisper STT, Piper TTS, Kokoro TTS, RTX 3090 |
 | Desktop PC | 192.168.1.103 | SuperMaster / &lt;password&gt; | PlatformIO firmware, VS Code, Claude Desktop. OpenSSH server enabled S29 - Claude can ssh_exec PowerShell commands and run git directly. |
 | Teensy 4.1 | USB -> Desktop PC | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
+| Teensy 4.0 | USB -> Pi4 | N/A | Base mount controller: pan servo, Person Sensor, APDS-9960 gesture |
 | Synology NAS | 192.168.1.102 | Master / &lt;password&gt; | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
 **SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (SuperMaster 192.168.1.103, PowerShell). NAS SSH: port 2233 - connect via ssh MCP with explicit host override. Credentials in CLAUDE.md (user-level, not committed).
@@ -325,6 +286,32 @@ HF cache: `C:\Users\gandalf\.cache\huggingface` - stays in user profile, intenti
 > GPIO 5 now assigned to ILI9341 BL.
 > GPIO 3 RST Dupont female recrimped S29 after wire snip during enclosure work.
 > Teensy is enclosure-mounted. RESET and PROG buttons are NOT accessible. All resets via software bootloader entry only.
+
+---
+
+## Teensy 4.0 Pin Assignment — Base Mount Controller
+
+Connected: USB to Pi4 (`/dev/ttyACM1` — separate from Teensy 4.1 on `/dev/ttyACM0`)
+Powered: Pi4 USB port
+Pi4 handler: `pi4/hardware/base_mount_bridge.py`
+
+| GPIO | Signal | Device | Notes |
+|---|---|---|---|
+| 2  | Pan servo PWM | Pan servo | `panServo.attach(2)` |
+| 18 | SDA (Wire default) | Person Sensor 0x62 + APDS-9960 0x39 | Shared I2C bus |
+| 19 | SCL (Wire default) | Person Sensor 0x62 + APDS-9960 0x39 | Shared I2C bus |
+
+I2C pullups: 4.7K resistor SDA→3.3V, 4.7K resistor SCL→3.3V (external, required)
+Servo power: external 5V supply, physical toggle switch on enclosure
+Sensors: 3.3V from Teensy 3.3V pin
+
+USB Serial commands (Teensy 4.0 → Pi4):
+
+| Command | Pi4 behavior |
+|---|---|
+| `VOL+` | volume up (`handle_volume_command("louder")`) |
+| `VOL-` | volume down (`handle_volume_command("quieter")`) |
+| `STOP` | UDP to 127.0.0.1:10500 |
 
 ---
 

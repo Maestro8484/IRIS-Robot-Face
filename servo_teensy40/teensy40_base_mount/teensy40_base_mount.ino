@@ -1,20 +1,20 @@
 /*
-IRIS project — ESP32 DevKit 1C (ESP32-WROOM-32)
+IRIS project — Teensy 4.0
 Pan-only servo controller with Person Sensor + APDS-9960 gesture sensor
 Last revised: 2026-05-21 joe schmidt
 
 Pin#   Label
-13     Pan servo PWM
-21     SDA  I2C shared bus (Person Sensor 0x62, APDS-9960 0x39)
-22     SCL  I2C shared bus
+2      Pan servo PWM
+18     SDA  I2C shared bus (Person Sensor 0x62, APDS-9960 0x39)
+19     SCL  I2C shared bus
 
 USB serial / Pi4 integration:
-- USB-UART bridge to Pi4 (/dev/ttyUSB0, baud 9600)
-- Commands sent: VOL_UP, VOL_DOWN, STOP, LISTEN
-- Pi4 assistant.py servo_listener thread reads and dispatches these.
+- USB CDC serial to Pi4 (/dev/ttyACM1, baud 115200)
+- Commands sent: VOL+, VOL-, STOP, LISTEN
+- Pi4 hardware/base_mount_bridge.py daemon thread reads and dispatches these.
 - Commands triggered by APDS-9960:
-    UP gesture    → VOL_UP
-    DOWN gesture  → VOL_DOWN
+    UP gesture    → VOL+
+    DOWN gesture  → VOL-
     LEFT gesture  → STOP
     RIGHT gesture → STOP
     Proximity > 150 held ~1s → LISTEN
@@ -23,6 +23,8 @@ USB serial / Pi4 integration:
 #include <Wire.h>
 #include <ServoEasing.hpp>
 #include <SparkFun_APDS9960.h>
+
+extern "C" void _reboot_Teensyduino_(void);
 
 // Person Sensor I2C address
 #define PERSON_SENSOR_I2C_ADDRESS 0x62
@@ -57,12 +59,12 @@ float desiredPan = 90.0;
 unsigned long lastFaceMs = 0;
 
 void setup() {
-  Wire.begin(21, 22);
+  Wire.begin();
 
-  panServo.attach(13);
+  panServo.attach(2);
   panServo.write((int)desiredPan);
 
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   if (!apds.init()) {
     Serial.println("WARN: APDS-9960 not found");
@@ -78,8 +80,8 @@ void pollGesture() {
 
   if (apds.isGestureAvailable()) {
     switch (apds.readGesture()) {
-      case DIR_UP:    Serial.println("VOL_UP");  break;
-      case DIR_DOWN:  Serial.println("VOL_DOWN"); break;
+      case DIR_UP:    Serial.println("VOL+");  break;
+      case DIR_DOWN:  Serial.println("VOL-"); break;
       case DIR_LEFT:  Serial.println("STOP");     break;
       case DIR_RIGHT: Serial.println("STOP");     break;
       default: break;
@@ -105,6 +107,15 @@ void pollGesture() {
 }
 
 void loop() {
+  // Handle incoming serial commands
+  if (Serial.available()) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    if (cmd == "REBOOT") {
+      _reboot_Teensyduino_();
+    }
+  }
+
   pollGesture();
 
   byte readData[PS_EXPECTED_BYTES];

@@ -52,6 +52,9 @@ BUTTON_PIN     = 17
 NUM_LEDS       = 3
 TEENSY_PORT    = "/dev/ttyACM0"
 TEENSY_BAUD    = 115200
+BASE_MOUNT_ENABLED = True
+BASE_MOUNT_PORT    = "/dev/ttyACM1"
+BASE_MOUNT_BAUD    = 115200
 
 # ── APA102 LED animations ─────────────────────────────────────────────────────
 LED_IDLE_PEAK      = 65     # cyan breathe normal max (0-255)
