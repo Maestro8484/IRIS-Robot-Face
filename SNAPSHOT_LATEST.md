@@ -19,7 +19,7 @@
 
 | System | Status |
 |---|---|
-| SuperMaster Desktop | Canonical repo — S61b committed locally, push pending. |
+| SuperMaster Desktop | Canonical repo — S61b committed + pushed to GitHub. |
 | Pi4 192.168.1.200 | Operational. S61b DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. Event log reads SD history. Cron */5 for log export + GandalfAI scp backup. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 | Sleep animation update IN PROGRESS (separate session). Base firmware af66b24 (BL_MAP + idle animations). Flash after sleep animation session completes. |
