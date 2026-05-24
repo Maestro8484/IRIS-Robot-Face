@@ -63,6 +63,18 @@ class BaseMountBridge:
                 open("/tmp/iris_manual_listen", "w").close()
             except Exception as e:
                 print(f"[BASE] LISTEN error: {e}", flush=True)
+        elif action == "SLEEP":
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                    s.sendto(b"EYES:SLEEP", ("127.0.0.1", CMD_PORT))
+            except Exception as e:
+                print(f"[BASE] SLEEP error: {e}", flush=True)
+        elif action == "WAKE":
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                    s.sendto(b"EYES:WAKE", ("127.0.0.1", CMD_PORT))
+            except Exception as e:
+                print(f"[BASE] WAKE error: {e}", flush=True)
         elif action == "SKIP":
             pass
         else:

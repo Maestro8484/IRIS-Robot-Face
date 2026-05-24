@@ -378,3 +378,38 @@ IDLE:START / IDLE:STOP serial commands. Auto-start after 120s inactivity.
 - Pico W successfully reflashed bare board via BOOTSEL, COM10.
 - HW-002 partially resolved: BOOTSEL accessible on bare board. Enclosure wiring (RUN pin, switch) deferred to PCB rewiring.
 - RD-009 planned: WiFi touch integration (volume, TTS interrupt, wakeword). Full spec in review/HANDOFF_PICO_WIFI_TOUCH.md.
+
+---
+
+## S61 — Event Log Persistence + Gesture Monitoring (2026-05-23)
+
+**Status:** DEPLOYED+VERIFIED. Commits `8ee2519` (S61) + `5af1073` (S61b). All 4 files md5-confirmed RAM=SD. iris-web restarted, /api/logs returning 82 events from SD history on first load.
+
+**Goal:** Ensure all IRIS events survive Pi4 reboots and are reviewable in the web UI. Add a gesture monitoring interface in the Gestures tab. 100MB log retention ("forever or 100MB").
+
+**Root causes fixed:**
+1. `_MSG_RE` regex wrong — was `assistant|iris.web`, actual journald format is `python3[PID]`. Event log was silently dropping all events (showed nothing).
+2. Cron overwrite bug — `iris_log_export.sh` used `> file` (overwrite) + `--boot`. As journald rotated, each cron run replaced the SD file with progressively fewer events, destroying history. Fixed: append mode + timestamp tracking.
+3. Cron interval too slow — was `*/15`, changed to `*/5` (must beat ~35-min journald rotation window).
+
+**Changes:**
+- **`pi4/iris_web.py`** — Fixed `_MSG_RE`. Module-level `_parse_event_msg()` + `_sd_events(n_days=3650)`. `/api/logs` merges journalctl + all SD daily logs (deduped, capped 500). Added `[GESTURE]` + legacy `[BASE]` gesture parsing. New `/api/gesture_log` endpoint (200-event gesture history from SD+journal). md5 `0561d413`.
+- **`pi4/iris_web.html`** — `cat-gesture` CSS, `f-gesture` filter. Gesture filter button in Logs tab. Gesture Event Log card in Gestures tab (auto-refresh 30s, date+time display, 300px). md5 `84531409`.
+- **`pi4/hardware/base_mount_bridge.py`** — Gesture output changed to structured `[GESTURE] gesture={line} action={action}` (was `[BASE] {line}`). Connection/error messages remain `[BASE]`. md5 `30f3e04b`.
+- **`pi4/scripts/iris_log_export.sh`** — Rewritten: append mode, timestamp tracking (`/run/iris_log_last_ts`), 100MB size-cap (oldest daily files removed). md5 `47b0959e`.
+- **`pi4/scripts/iris-logs.cron`** — Updated `*/15` → `*/5`. `/etc/cron.d/iris-logs` updated on Pi4.
+
+---
+
+## S61b — GandalfAI Log Backup + SLEEP/WAKE Gesture Actions (2026-05-23)
+
+**Status:** DEPLOYED+VERIFIED. All files md5-confirmed RAM=SD.
+
+**Goal:** Persist IRIS logs to GandalfAI (permanent LAN workstation backup). Add SLEEP/WAKE as assignable gesture actions.
+
+**Changes:**
+- **`pi4/scripts/iris_log_export.sh`** — Added scp block: copies all daily logs to `gandalf@192.168.1.3:C:/IRIS/iris-logs/` using `/home/pi/.ssh/id_iris_logs` (ed25519, BatchMode). Runs every 5 min with existing cron. md5 `5fe88e7d`.
+- **`pi4/hardware/base_mount_bridge.py`** — Added SLEEP and WAKE dispatch cases: send `EYES:SLEEP`/`EYES:WAKE` UDP to CMD_PORT 10500. These trigger the full `_do_sleep()`/`_do_wake()` sequences in assistant.py (starfield eyes, snore mouth, LED dim, /tmp/iris_sleep_mode). md5 `dc944097`.
+- **`pi4/iris_web.html`** — SLEEP/WAKE added to `_GESTURE_ACTIONS` + `_GESTURE_LABELS`. Gesture Event Log hint updated to reference GandalfAI backup. md5 `d1c15589`.
+- **GandalfAI setup** — `C:\IRIS\iris-logs\` directory created. `C:\ProgramData\ssh\administrators_authorized_keys` configured with pi4-iris-logs public key (Windows OpenSSH admin override). icacls: SYSTEM:F + Administrators:F, no inheritance. 7 daily log files confirmed on GandalfAI.
+- **Pi4 SSH key** — ed25519 at `/home/pi/.ssh/id_iris_logs` + `/media/root-ro/home/pi/.ssh/id_iris_logs`. SD-persisted across reboots.

@@ -32,3 +32,12 @@ done
 
 sync
 sudo mount -o remount,ro /media/root-ro 2>/dev/null
+
+# Secondary backup: scp all daily logs to GandalfAI C:\IRIS\iris-logs\
+# Key: /home/pi/.ssh/id_iris_logs (ed25519, authorized in C:\ProgramData\ssh\administrators_authorized_keys)
+_GANDALF="gandalf@192.168.1.3"
+_GANDALF_DEST="$_GANDALF:C:/IRIS/iris-logs/"
+scp -i /home/pi/.ssh/id_iris_logs \
+    -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o BatchMode=yes \
+    /media/root-ro/home/pi/logs/iris-*.log \
+    "$_GANDALF_DEST" 2>/dev/null || true

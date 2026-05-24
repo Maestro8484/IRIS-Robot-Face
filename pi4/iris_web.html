@@ -1137,12 +1137,14 @@ function toggleBenchAuto(cb) {
 
 // ── Gesture config ────────────────────────────────────────────────────────────
 const _GESTURE_KEYS    = ['VOL+', 'VOL-', 'STOP', 'LISTEN'];
-const _GESTURE_ACTIONS = ['VOL+', 'VOL-', 'STOP', 'LISTEN', 'SKIP'];
+const _GESTURE_ACTIONS = ['VOL+', 'VOL-', 'STOP', 'LISTEN', 'SLEEP', 'WAKE', 'SKIP'];
 const _GESTURE_LABELS  = {
   'VOL+':   'VOL+ — volume up',
   'VOL-':   'VOL- — volume down',
   'STOP':   'STOP — stop playback',
   'LISTEN': 'LISTEN — trigger listen',
+  'SLEEP':  'SLEEP — full sleep sequence (starfield + snore)',
+  'WAKE':   'WAKE — full wake sequence (restore eyes + NEUTRAL)',
   'SKIP':   'SKIP — do nothing',
 };
 

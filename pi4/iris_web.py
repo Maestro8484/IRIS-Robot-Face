@@ -109,7 +109,7 @@ def _parse_event_msg(ts, ts_s, msg):
                 "msg": msg[:140], "detail": ""}
     return None
 
-def _sd_events(n_days=30):
+def _sd_events(n_days=3650):
     """Parse SD daily assistant log files into event dicts (history across reboots)."""
     results = []
     files = sorted(_glob.glob(os.path.join(_SD_LOG_DIR, "iris-????????.log")))[-n_days:]
