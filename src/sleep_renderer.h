@@ -154,7 +154,7 @@ static constexpr SrStar SR_STARS_R[40] = {
 // ---------------------------------------------------------------------------
 static bool     srInitialized = false;
 static uint32_t srLastFrameMs = 0;
-static constexpr uint32_t SR_FRAME_MS = 100; // ~10fps
+static constexpr uint32_t SR_FRAME_MS = 130; // ~7.7fps — relaxed pace
 
 // Moon
 static constexpr int SR_MOON_CX      = 120;
@@ -173,8 +173,8 @@ static float srRingR[3] = { 30.0f, 41.0f, 51.0f };
 
 // Shooting stars — 4 per display (was 2)
 static constexpr int      SR_SHOOT_COUNT    = 4;
-static constexpr uint32_t SR_SHOOT_INTERVAL = 3200; // ms per traverse (was 4500)
-static constexpr int      SR_SHOOT_TRAIL    = 50;   // trail length px (was 25)
+static constexpr uint32_t SR_SHOOT_INTERVAL = 4000; // ms per traverse
+static constexpr int      SR_SHOOT_TRAIL    = 38;   // trail length px
 static uint32_t srShootTimerL[4] = {0, 0, 0, 0};
 static uint32_t srShootTimerR[4] = {0, 0, 0, 0};
 
@@ -222,9 +222,9 @@ static void srDrawStar(GC9A01A_t3n* d, const SrStar& s, uint32_t nowMs) {
     uint8_t r5 = ((c >> 11) & 0x1F);
     uint8_t g6 = ((c >> 5)  & 0x3F);
     uint8_t b5 = (c & 0x1F);
-    r5 = (uint8_t)(min(r5 * b * 1.6f, 31.0f));
-    g6 = (uint8_t)(min(g6 * b * 1.6f, 63.0f));
-    b5 = (uint8_t)(min(b5 * b * 1.6f, 31.0f));
+    r5 = (uint8_t)(min(r5 * b * 1.5f, 31.0f));
+    g6 = (uint8_t)(min(g6 * b * 1.5f, 63.0f));
+    b5 = (uint8_t)(min(b5 * b * 1.5f, 31.0f));
     if (r5 == 0 && g6 == 0 && b5 == 0) return;
     uint16_t col = ((uint16_t)r5 << 11) | ((uint16_t)g6 << 5) | b5;
     if (s.r <= 1) {
@@ -339,7 +339,7 @@ static void srHandleShootingStars(GC9A01A_t3n* left, GC9A01A_t3n* right, uint32_
 
 // Draw Earth-like planet with hyperspace warp streaks.
 // Position: SR_EARTH_CX/CY/R on the right eye (bottom-left quadrant).
-static void srDrawEarth(GC9A01A_t3n* d, uint32_t nowMs) {
+static void srDrawEarth(GC9A01A_t3n* d) {
     int cx = SR_EARTH_CX, cy = SR_EARTH_CY, r = SR_EARTH_R;
 
     // Atmosphere glow
@@ -359,35 +359,6 @@ static void srDrawEarth(GC9A01A_t3n* d, uint32_t nowMs) {
     // Polar ice caps
     d->fillCircle(cx,       cy - r + 5, 7, SR_EARTH_POLAR);
     d->fillCircle(cx,       cy + r - 5, 5, SR_EARTH_POLAR);
-
-    // Warp hyperspace streaks — 5 directions from planet edge toward screen interior
-    // Pulse with period 2800ms; streaks appear and fade like a micro-jump
-    float pulse = 0.5f + 0.5f * sinf((float)nowMs * (6.2832f / 2800.0f));
-    if (pulse > 0.22f) {
-        float intensity = (pulse - 0.22f) / 0.78f;  // 0.0→1.0
-        uint16_t streakCol = (intensity > 0.55f) ? SR_WARP_STREAK : 0x2318;
-        int streakLen = (int)(12.0f + 28.0f * intensity);  // 12–40 px
-
-        // Unit direction vectors, chosen to stay on-screen for bottom-left position
-        static const float dirs[5][2] = {
-            {  1.0f,  0.0f   },   // right
-            {  0.707f,-0.707f},   // upper-right
-            {  0.0f, -1.0f   },   // straight up
-            { -0.5f, -0.866f },   // upper-left
-            {  0.866f, 0.5f  },   // lower-right (toward screen center)
-        };
-        for (int s = 0; s < 5; s++) {
-            int sx = cx + (int)((float)(r + 6) * dirs[s][0]);
-            int sy = cy + (int)((float)(r + 6) * dirs[s][1]);
-            int ex = cx + (int)((float)(r + 6 + streakLen) * dirs[s][0]);
-            int ey = cy + (int)((float)(r + 6 + streakLen) * dirs[s][1]);
-            // Only draw if both endpoints are on screen
-            if (sx >= 0 && sx < SR_W && sy >= 0 && sy < SR_H &&
-                ex >= 0 && ex < SR_W && ey >= 0 && ey < SR_H) {
-                d->drawLine(sx, sy, ex, ey, streakCol);
-            }
-        }
-    }
 }
 
 // Draw one ZZZ character. cyclePhase: 0.0→1.0 within SR_ZZZ_CYCLE.
@@ -477,7 +448,7 @@ static inline void renderSleepFrame(GC9A01A_t3n* left, GC9A01A_t3n* right) {
     for (int i = 0; i < SR_STAR_COUNT; i++) srDrawStar(right, SR_STARS_R[i], nowMs);
     srDrawMoon(right, SR_MOON_CY_R);
     srDrawRings(right, (int)srFrameCount);
-    srDrawEarth(right, nowMs);  // Earth planet + warp streaks
+    srDrawEarth(right);  // Earth planet
 
     // ── Shared elements ───────────────────────────────────────────
     srHandleShootingStars(left, right, nowMs);
