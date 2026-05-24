@@ -6,14 +6,23 @@
 
 ---
 
+## WHAT'S NEXT (Priority Queue)
+
+1. **Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in `teensy40_base_mount.ino`, then reflash. Handoff: `HANDOFF_SERVO_TUNING.md`.
+2. **Teensy 4.1 flash** — Sleep animation session in progress (separate). After that session completes: PlatformIO upload, env:eyes, COM7, user clicks upload.
+3. **RD-011** — Confirm APDS-9960 LISTEN proximity trigger fires on live Pi4.
+4. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
+
+---
+
 ## Machine Status
 
 | System | Status |
 |---|---|
-| SuperMaster Desktop | Canonical repo — S61 committed locally, push pending. |
+| SuperMaster Desktop | Canonical repo — S61b committed locally, push pending. |
 | Pi4 192.168.1.200 | Operational. S61b DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. Event log reads SD history. Cron */5 for log export + GandalfAI scp backup. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
-| Teensy 4.1 | Firmware REPO-ONLY (af66b24). BL_MAP log curve + idle animations built, flash pending. /dev/ttyACM0 confirmed. |
+| Teensy 4.1 | Sleep animation update IN PROGRESS (separate session). Base firmware af66b24 (BL_MAP + idle animations). Flash after sleep animation session completes. |
 | Teensy 4.0 (base mount) | DEPLOYED+VERIFIED S59. Gesture sensor (APDS-9960) working — VOL+/VOL-/STOP/LISTEN confirmed on desktop USB. Flashed to Pi4 /dev/ttyACM1. [BASE] connected confirmed. Servo works (clunky/jerky — tuning pending). |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
@@ -23,8 +32,8 @@
 ## Active Issues
 
 - **HIGH: Teensy 4.0 servo tuning** — Pan servo works but clunky/jerky. Tune PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS constants in servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. Flash after tuning.
-- **HIGH: HW-001 — Teensy 4.1 LED jumper cut** — Physical mod only, no software needed.
-- **HIGH: Teensy 4.1 firmware flash pending** — af66b24 BL_MAP + idle animations. PlatformIO upload, COM7.
+- **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
+- **HIGH: Teensy 4.1 firmware flash** — Sleep animation update in progress (separate session). Flash after that session completes. PlatformIO upload, env:eyes, COM7, user clicks upload.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
 - **LOW: RD-011 — APDS-9960 LISTEN proximity trigger** — gesture VOL+/VOL-/STOP verified working S59. LISTEN (proximity hold) not yet verified on live Pi.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
