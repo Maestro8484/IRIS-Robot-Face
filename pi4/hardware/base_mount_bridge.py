@@ -80,9 +80,9 @@ class BaseMountBridge:
                 line = self._ser.readline().decode("utf-8", errors="ignore").strip()
                 if not line:
                     continue
-                print(f"[BASE] {line}", flush=True)
                 gesture_map = _load_gesture_map()
                 action = gesture_map.get(line, "SKIP")
+                print(f"[GESTURE] gesture={line} action={action}", flush=True)
                 if action != "SKIP":
                     self._dispatch(action)
             except Exception as e:

@@ -107,6 +107,7 @@ select:focus{outline:none;border-color:var(--blue)}
 .log-event.cat-drift .log-msg{color:#fb923c}
 .log-event.cat-error .log-cat{color:var(--red)}
 .log-event.cat-info .log-cat{color:var(--muted)}
+.log-event.cat-gesture .log-cat{color:#a78bfa}
 .log-filter-bar{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
 .btn-filter{background:var(--input-bg);border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px;transition:all .15s}
 .btn-filter:hover{color:var(--text)}
@@ -114,6 +115,7 @@ select:focus{outline:none;border-color:var(--blue)}
 .btn-filter.f-stop.active{border-color:var(--red);color:var(--red);background:#1a0500}
 .btn-filter.f-drift.active{border-color:#f97316;color:#f97316;background:#1c0a00}
 .btn-filter.f-error.active{border-color:var(--red);color:var(--red);background:#1a0500}
+.btn-filter.f-gesture.active{border-color:#a78bfa;color:#a78bfa;background:#16003a}
 </style>
 </head>
 <body>
@@ -386,7 +388,8 @@ select:focus{outline:none;border-color:var(--blue)}
       <button class="btn-filter"         data-cat="tts"      onclick="setLogFilter('tts',this)">Spoken</button>
       <button class="btn-filter f-stop"  data-cat="stop"     onclick="setLogFilter('stop',this)">STOP</button>
       <button class="btn-filter f-drift" data-cat="drift"    onclick="setLogFilter('drift',this)">Drift</button>
-      <button class="btn-filter f-error" data-cat="error"    onclick="setLogFilter('error',this)">Errors</button>
+      <button class="btn-filter f-error"   data-cat="error"   onclick="setLogFilter('error',this)">Errors</button>
+      <button class="btn-filter f-gesture" data-cat="gesture" onclick="setLogFilter('gesture',this)">Gesture</button>
     </div>
     <div class="log-events" id="log-events">
       <div style="color:var(--muted);padding:16px;text-align:center">Click Refresh to load</div>
@@ -568,6 +571,20 @@ select:focus{outline:none;border-color:var(--blue)}
     <p class="hint" style="margin-bottom:14px">Proximity threshold stored in config — reserved for future Teensy firmware use.</p>
     <button class="btn btn-primary" onclick="saveGestureConfig()">Save Gesture Config</button>
   </div>
+  <div class="card">
+    <h2>Gesture Event Log</h2>
+    <p class="hint" style="margin-bottom:10px">APDS-9960 gesture events from Teensy 4.0. History persists across reboots via SD daily logs (30-day retention).</p>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" style="background:var(--input-bg);border:1px solid var(--border);color:var(--text)" onclick="fetchGestureLog()">Refresh</button>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" id="gesture-log-auto" onchange="toggleGestureLogAuto(this)"> auto 30s
+      </label>
+      <span id="gesture-log-count" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+    </div>
+    <div class="log-events" id="gesture-log-events" style="height:300px">
+      <div style="color:var(--muted);padding:16px;text-align:center">Click Refresh to load</div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -584,7 +601,7 @@ function tab(name, btn) {
   if (name === 'voice') { loadKokoroVoices(); }
   if (name === 'gandalf') loadVram();
   if (name === 'bench') fetchBench();
-  if (name === 'gestures') loadGestureConfig();
+  if (name === 'gestures') { loadGestureConfig(); fetchGestureLog(); }
   if (name === 'eyes') pollSleepState();
   if (name === 'sleep') {
     pollSleepState();
@@ -804,7 +821,7 @@ let _logEvents = [];
 const _CAT_LABELS = {
   wakeword:'WAKE', stt:'HEARD', route:'ROUTE', llm:'LLM',
   tts:'SPOKEN', stop:'STOP', drift:'DRIFT', error:'ERR',
-  info:'INFO', cmd:'CMD', warn:'WARN'
+  info:'INFO', cmd:'CMD', warn:'WARN', gesture:'GESTURE'
 };
 
 function _esc(s) {
@@ -1177,6 +1194,44 @@ async function saveGestureConfig() {
   const j = await r.json();
   toast(j.ok ? 'Gesture config saved' : 'Error saving gesture config', j.ok);
   if (j.ok) checkSDStatus();
+}
+
+// ── Gesture log ───────────────────────────────────────────────────────────────
+let _gestureLogAutoTimer = null;
+
+async function fetchGestureLog() {
+  const box = document.getElementById('gesture-log-events');
+  const cnt = document.getElementById('gesture-log-count');
+  if (!box) return;
+  box.innerHTML = '<div style="color:var(--muted);padding:16px;text-align:center">Loading...</div>';
+  try {
+    const r = await fetch('/api/gesture_log');
+    const j = await r.json();
+    const evs = j.events || [];
+    if (cnt) cnt.textContent = evs.length + ' event' + (evs.length !== 1 ? 's' : '');
+    if (!evs.length) {
+      box.innerHTML = '<div style="color:var(--muted);padding:16px;text-align:center">No gesture events yet — wave hand over APDS-9960 sensor</div>';
+      return;
+    }
+    box.innerHTML = evs.slice().reverse().map(e => {
+      const dateStr = (e.t || '').slice(0, 10);
+      const timeStr = e.ts || '';
+      const label   = dateStr ? `${dateStr} ${timeStr}` : timeStr;
+      return `<div class="log-event cat-gesture">` +
+             `<span class="log-ts" style="width:130px">${_esc(label)}</span>` +
+             `<span class="log-cat">[GESTURE]</span>` +
+             `<span class="log-msg">${_esc(e.msg || '')}</span>` +
+             `</div>`;
+    }).join('');
+    box.scrollTop = 0;
+  } catch(e) {
+    box.innerHTML = `<div style="color:var(--red);padding:12px">Error: ${_esc(String(e))}</div>`;
+  }
+}
+
+function toggleGestureLogAuto(cb) {
+  if (_gestureLogAutoTimer) { clearInterval(_gestureLogAutoTimer); _gestureLogAutoTimer = null; }
+  if (cb.checked) _gestureLogAutoTimer = setInterval(fetchGestureLog, 30000);
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
