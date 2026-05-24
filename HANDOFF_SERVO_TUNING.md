@@ -4,6 +4,8 @@
 **Lines:** 39–44 (constants block)
 **Task:** Tune pan servo behavior — currently clunky/jerky when tracking faces.
 
+**Hardware:** Teensy 4.0 — handles servo pan + APDS-9960 gesture sensor. NOT Teensy 4.1 (that is TeensyEyes + mouth TFT only).
+
 ---
 
 ## Current Constants (as of S61b)

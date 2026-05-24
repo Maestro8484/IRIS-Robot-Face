@@ -22,8 +22,8 @@
 | SuperMaster Desktop | Canonical repo — S61b committed + pushed to GitHub. |
 | Pi4 192.168.1.200 | Operational. S61b DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. Event log reads SD history. Cron */5 for log export + GandalfAI scp backup. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
-| Teensy 4.1 | Sleep animation update IN PROGRESS (separate session). Base firmware af66b24 (BL_MAP + idle animations). Flash after sleep animation session completes. |
-| Teensy 4.0 (base mount) | DEPLOYED+VERIFIED S59. Gesture sensor (APDS-9960) working — VOL+/VOL-/STOP/LISTEN confirmed on desktop USB. Flashed to Pi4 /dev/ttyACM1. [BASE] connected confirmed. Servo works (clunky/jerky — tuning pending). |
+| Teensy 4.1 (TeensyEyes + mouth TFT) | Sleep animation update IN PROGRESS (separate session). Base firmware af66b24 (BL_MAP + idle animations). Flash after sleep animation session completes. /dev/ttyACM0. |
+| Teensy 4.0 (servo + gesture) | DEPLOYED+VERIFIED S59. APDS-9960 gesture sensor working — VOL+/VOL-/STOP/LISTEN confirmed. Servo pan works (clunky/jerky — tuning pending). /dev/ttyACM1. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
