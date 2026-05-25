@@ -198,6 +198,14 @@ Launched by `assistant.py`. Config split between iris_config.json and launch arg
 
 ---
 
+## POST / Diagnostic Config
+
+| Key | File | Restart required? | Notes |
+|---|---|---|---|
+| GESTURE_SENSOR_REQUIRED | core/config.py (hard constant) | Yes (deploy + restart) | False = gesture sensor I2C probe is WARN on fail; True = FAIL blocks startup. Flip after PAJ7620U2 swap confirmed on live hardware. Not web-UI overridable. |
+
+---
+
 ## Stale / Orphan Keys
 
 | Key | Location | Status |

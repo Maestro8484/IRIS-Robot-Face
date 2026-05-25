@@ -682,6 +682,41 @@ def api_vision():
         return jsonify(error=str(e)), 500
 
 
+_post_lock    = threading.Lock()
+_post_running = threading.Event()
+_post_last_result = None   # type: dict | None
+
+
+@app.route("/api/post", methods=["GET", "POST"])
+def api_post():
+    global _post_last_result
+    if request.method == "GET":
+        return jsonify(running=_post_running.is_set(), result=_post_last_result)
+    if _post_running.is_set():
+        return jsonify(ok=False, error="POST already running"), 409
+
+    def _do_post():
+        global _post_last_result
+        _post_running.set()
+        try:
+            sys.path.insert(0, "/home/pi")
+            import importlib
+            import iris_post as _ip
+            importlib.reload(_ip)
+            _post_last_result = _ip.run_post(verbose=True)
+        except Exception as e:
+            _post_last_result = {
+                "verdict": "ERROR", "error": str(e),
+                "n_pass": 0, "n_warn": 0, "n_fail": 0, "n_total": 0,
+                "checks": [], "ts": __import__("datetime").datetime.now().isoformat(timespec="seconds"),
+            }
+        finally:
+            _post_running.clear()
+
+    threading.Thread(target=_do_post, daemon=True).start()
+    return jsonify(ok=True, started=True)
+
+
 _DEFAULT_GESTURE_MAP = {
     "VOL+":   "VOL+",
     "VOL-":   "VOL-",

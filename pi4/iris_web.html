@@ -509,6 +509,30 @@ function _saTabHook() { if (!_saLoaded) { _saLoaded = true; _loadSaSliders(); } 
       <button class="btn btn-sm" style="background:var(--input-bg);border:1px solid var(--border);color:var(--text)" onclick="pollStatus()">Refresh Status</button>
     </div>
   </div>
+  <!-- POST diagnostic card -->
+  <div class="card">
+    <h2>Power-On Self-Test (POST)</h2>
+    <p class="hint" style="margin-bottom:12px">Runs the 5-layer IRIS diagnostic: hardware presence, network services, Teensy display exercise, pipeline smoke, config integrity. Takes 10–120 s. Results also written to <code style="color:var(--blue)">/home/pi/logs/iris_post.log</code>.</p>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+      <button class="btn btn-primary" id="btn-post" onclick="runPost()">Run POST Diagnostic</button>
+      <span id="post-status" style="font-size:12px;color:var(--muted)">idle</span>
+    </div>
+    <div id="post-result" style="display:none">
+      <div id="post-verdict" style="font-size:13px;font-weight:600;margin-bottom:10px"></div>
+      <div style="overflow-x:auto">
+        <table class="bench-table" style="font-size:11px">
+          <thead><tr>
+            <th style="text-align:left;width:40px">Layer</th>
+            <th style="text-align:left">Check</th>
+            <th style="text-align:left;width:56px">Result</th>
+            <th style="text-align:left">Detail</th>
+          </tr></thead>
+          <tbody id="post-rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <h2>Config Persistence</h2>
     <p class="hint" style="margin-bottom:12px">Config saves go to RAM (<code style="color:var(--blue)">iris_config.json</code>) and survive assistant restarts, but are <strong>lost on reboot</strong> unless persisted to SD. The status bar above always shows current sync state.</p>
@@ -1333,6 +1357,88 @@ async function fetchGestureLog() {
 function toggleGestureLogAuto(cb) {
   if (_gestureLogAutoTimer) { clearInterval(_gestureLogAutoTimer); _gestureLogAutoTimer = null; }
   if (cb.checked) _gestureLogAutoTimer = setInterval(fetchGestureLog, 30000);
+}
+
+// ── POST diagnostic ───────────────────────────────────────────────────────────
+let _postPollTimer = null;
+
+const _POST_STATUS_COLORS = {
+  PASS: 'var(--green)', WARN: 'var(--amber)', FAIL: 'var(--red)',
+  SKIP: 'var(--muted)', ERROR: 'var(--red)'
+};
+
+async function runPost() {
+  const btn = document.getElementById('btn-post');
+  const statusEl = document.getElementById('post-status');
+  const resultEl = document.getElementById('post-result');
+  btn.disabled = true;
+  statusEl.textContent = 'starting...';
+  statusEl.style.color = 'var(--blue)';
+  resultEl.style.display = 'none';
+  try {
+    const r = await fetch('/api/post', {method: 'POST'});
+    const j = await r.json();
+    if (!j.ok && j.error) {
+      statusEl.textContent = j.error;
+      statusEl.style.color = 'var(--red)';
+      btn.disabled = false;
+      return;
+    }
+  } catch(e) {
+    statusEl.textContent = 'request failed';
+    statusEl.style.color = 'var(--red)';
+    btn.disabled = false;
+    return;
+  }
+  statusEl.textContent = 'running...';
+  if (_postPollTimer) clearInterval(_postPollTimer);
+  _postPollTimer = setInterval(_pollPost, 2000);
+}
+
+async function _pollPost() {
+  const btn = document.getElementById('btn-post');
+  const statusEl = document.getElementById('post-status');
+  try {
+    const r = await fetch('/api/post');
+    const j = await r.json();
+    if (j.running) { statusEl.textContent = 'running...'; return; }
+    clearInterval(_postPollTimer); _postPollTimer = null;
+    btn.disabled = false;
+    _renderPostResult(j.result);
+  } catch(e) {
+    statusEl.textContent = 'poll error';
+  }
+}
+
+function _renderPostResult(result) {
+  if (!result) return;
+  const statusEl  = document.getElementById('post-status');
+  const resultEl  = document.getElementById('post-result');
+  const verdictEl = document.getElementById('post-verdict');
+  const rowsEl    = document.getElementById('post-rows');
+
+  const ok = result.verdict === 'AUTHORIZED';
+  statusEl.textContent = `done — ${result.ts || ''}`;
+  statusEl.style.color = ok ? 'var(--green)' : 'var(--red)';
+
+  const vColor = ok ? 'var(--green)' : 'var(--red)';
+  verdictEl.innerHTML =
+    `<span style="color:${vColor}">${_esc(result.verdict)}</span>` +
+    `&nbsp; ${result.n_pass}/${result.n_total} PASS` +
+    (result.n_warn ? `&nbsp; <span style="color:var(--amber)">${result.n_warn} WARN</span>` : '') +
+    (result.n_fail ? `&nbsp; <span style="color:var(--red)">${result.n_fail} FAIL</span>` : '');
+
+  rowsEl.innerHTML = (result.checks || []).map(c => {
+    const col = _POST_STATUS_COLORS[c.status] || 'var(--muted)';
+    return `<tr>
+      <td style="text-align:left;color:var(--muted)">${_esc(c.layer)}</td>
+      <td style="text-align:left">${_esc(c.check)}</td>
+      <td style="text-align:left;color:${col};font-weight:700">${_esc(c.status)}</td>
+      <td style="text-align:left;color:var(--muted);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(c.detail || '')}</td>
+    </tr>`;
+  }).join('');
+
+  resultEl.style.display = 'block';
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────

@@ -472,3 +472,23 @@ IDLE:START / IDLE:STOP serial commands. Auto-start after 120s inactivity.
 - **`pi4/iris_web.html`** — Sleep Animation card with 4 `<details>` groups (Stars & Warps, Shooting Stars, Objects, Mouth), 24 sliders. `_buildSaSliders(data)` renders all sliders dynamically. `_saCfgSend(key,val)` debounced 180ms POST to `/api/sleep_cfg`. `_loadSaSliders()` fires GET on first Sleep tab open. Sleep nav button wired: `tab('sleep',this);_saTabHook()`.
 
 **Animation speed:** SR_FRAME_MS=155ms (was 130ms), `speed` default 0.85 (was 1.0). ~17% overall slowdown per user request.
+
+---
+
+## S66 — IRIS Power-On Self-Test (POST) (2026-05-25)
+
+**Status:** REPO-ONLY — Pi4 files pending DEPLOY.
+
+**Goal:** Add a comprehensive 5-layer startup diagnostic that runs automatically at boot and on demand via web UI or SSH. Surfaces hardware faults, service outages, and config drift before any user interaction.
+
+**Changes:**
+
+- **`pi4/iris_post.py`** (NEW) — 5-layer POST sequence implemented as `_POST` class + `run_post(leds, teensy, pa, verbose)` public API. L0: serial /dev/ttyIRIS_EYES open + EMOTION:NEUTRAL, mic wm8960 PyAudio open, rpicam-still test capture, gesture sensor I2C 0x73 smbus probe (WARN or FAIL per GESTURE_SENSOR_REQUIRED). L1: GandalfAI TCP check + WoL if unreachable (polls 5s/120s), Kokoro/Whisper/Piper/OWW TCP connect with retry, Ollama /api/tags model list. L2: MOUTH:0-8 cycle (400ms dwell), EMOTION sweep, EYES:SLEEP/WAKE, EYE index cycle, MOUTH_INTENSITY ramp — all via UDP 10500. L3: intent router "what time is it" → assert ROUTE_UTILITY, Kokoro TTS round-trip, Ollama LLM smoke (model=iris, prompt="hello"), intent log writable check. L4: iris_config.json JSON parse + unknown-key audit vs _OVERRIDABLE, assistant.py RAM vs SD md5, iris_config.json owner pi:pi check. L5 verdict: AUTHORIZED if 0 FAILs, else TTS alert + LED red flash 3×. Log path: /home/pi/logs/iris_post.log. Standalone SSH: `python3 /home/pi/iris_post.py` exits 0/1 by verdict.
+
+- **`pi4/core/config.py`** — `GESTURE_SENSOR_REQUIRED = False` added to Hardware section. Not in _OVERRIDABLE (deploy action, not web UI tunable). Flip to True after PAJ7620U2 I2C swap is confirmed on live hardware.
+
+- **`pi4/assistant.py`** — `run_post(leds=leds, teensy=teensy, pa=pa)` called after OWW starts, before main `while True:` loop. On FAIL verdict: prints blocked message + `sys.exit(1)`. Import wrapped in try/except so a missing iris_post.py does not crash startup.
+
+- **`pi4/iris_web.py`** — `/api/post` GET/POST route. POST: starts `run_post()` in daemon thread (single concurrent run enforced by `_post_running` Event), returns `{"ok":true,"started":true}` immediately. GET: returns `{"running":bool,"result":<last result dict>}`. Module-level `_post_last_result` holds last completed result.
+
+- **`pi4/iris_web.html`** — POST diagnostic card added to System tab (before Config Persistence card). "Run POST Diagnostic" button + status indicator. On trigger: polls `/api/post` GET every 2s. On completion: renders per-check result table (Layer / Check / Result / Detail) with color-coded PASS/WARN/FAIL. `runPost()`, `_pollPost()`, `_renderPostResult()` JS functions added.

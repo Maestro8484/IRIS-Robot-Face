@@ -51,6 +51,7 @@ KIDS_SILENCE_RMS      = 150
 BUTTON_PIN     = 17
 NUM_LEDS       = 3
 TEENSY_PORT    = "/dev/ttyIRIS_EYES"
+GESTURE_SENSOR_REQUIRED = False  # flip to True after PAJ7620U2 swap confirmed
 TEENSY_BAUD    = 115200
 BASE_MOUNT_ENABLED = True
 BASE_MOUNT_PORT    = "/dev/ttyIRIS_SERVO"

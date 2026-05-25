@@ -456,6 +456,18 @@ def main():
     print("[INFO] Ready.", flush=True)
     show_idle_for_mode(leds)
 
+    # ── Power-On Self-Test ────────────────────────────────────────────────────
+    try:
+        from iris_post import run_post as _iris_post
+        _post_result = _iris_post(leds=leds, teensy=teensy, pa=pa, verbose=True)
+        if _post_result.get("verdict") == "FAIL":
+            print("[POST] FAIL -- IRIS startup blocked. Check /home/pi/logs/iris_post.log",
+                  flush=True)
+            sys.exit(1)
+    except Exception as _pe:
+        print(f"[POST] POST skipped: {_pe}", flush=True)
+    # ─────────────────────────────────────────────────────────────────────────
+
     try:
         while True:
             # Restart OWW process if it has died
