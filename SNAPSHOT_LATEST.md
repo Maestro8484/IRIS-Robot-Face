@@ -35,7 +35,7 @@
 - **HIGH: Teensy 4.0 servo tuning** — Pan servo works but clunky/jerky. Tune PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS in servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. Flash after tuning.
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
-- **LOW: RD-011 — APDS-9960 LISTEN proximity trigger** — gesture VOL+/VOL-/STOP verified working S59. LISTEN (proximity hold) not yet verified on live Pi.
+- **HIGH: APDS-9960 chip dead (S65)** — I2C no-response confirmed. Person Sensor on same bus/pull-ups/3.3V rail works — bus is healthy. Fault isolated to APDS-9960 chip or its specific wiring. Chip returned 0x0 from ID register (expected 0xAB), then full no-response after reflash. Action: physically reseat or swap APDS-9960 breakout, reflash T4.0, verify gesture events in web UI.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
 
 ---

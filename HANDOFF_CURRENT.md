@@ -59,8 +59,8 @@ After deploy: open web UI → Sleep tab → verify slider card loads and values 
 - S65 commit — complete, pushed to GitHub
 
 ### After Pi4 sleep deploy
+- **HARDWARE: APDS-9960 chip dead (S66)** — I2C no-response confirmed. Person Sensor on same T4.0 I2C bus works — bus/pull-ups/power healthy. Fault is the chip or its specific wiring. Chip showed 0x0 from ID register (expected 0xAB) then full no-response after reflash. Reseat or swap breakout, reflash T4.0, verify gesture log shows VOL+/VOL-/STOP events.
 - **Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`
-- **RD-011** — Confirm APDS-9960 LISTEN proximity trigger fires on live Pi4
 - **RD-003** — Duplicate sleep log cleanup (low priority)
 
 ---
