@@ -22,7 +22,7 @@
 | SuperMaster Desktop | Canonical repo — S61b committed + pushed to GitHub. |
 | Pi4 192.168.1.200 | Operational. S61b DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. Event log reads SD history. Cron */5 for log export + GandalfAI scp backup. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
-| Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S63 — udev symlink /dev/ttyIRIS_EYES active. Auto-wake fix deployed. S62 sleep animation changes REPO-ONLY pending flash. Base firmware af66b24. |
+| Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
 | Teensy 4.0 (servo + gesture) | DEPLOYED+VERIFIED S59. APDS-9960 gesture sensor working. Servo pan works (clunky/jerky — tuning pending). /dev/ttyIRIS_SERVO (udev symlink, S63). |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
@@ -31,7 +31,7 @@
 
 ## Active Issues
 
-- **HIGH: Teensy 4.1 firmware flash (S62)** — S62 sleep animation (amplified starfield, moon, Earth planet, warp streaks) + SLEEP_CFG: handler in src/main.cpp. REPO-ONLY. Flash: PlatformIO upload, env:eyes, COM7, user clicks upload.
+- **MED: Pi4 deploy — Sleep Animation sliders** — `pi4/iris_web.html`, `pi4/iris_web.py`, `pi4/core/config.py` REPO-ONLY. Deploy enables Sleep tab slider card + `/api/sleep_cfg` route + SLEEP_ANIM_* config push on sleep entry.
 - **HIGH: Teensy 4.0 servo tuning** — Pan servo works but clunky/jerky. Tune PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS in servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. Flash after tuning.
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
@@ -42,6 +42,8 @@
 
 ## Session Scope
 
+S65: Cosmic sleep animation overhaul — full visual rewrite of GC9A01A eyes and ILI9341 mouth TFT to match HTML v8 mockup (Saturn+Moon+warp particles+nebula+3-wave mouth+symmetric ZZZ). Added SleepCfg struct shared header, 24-field SLEEP_CFG: serial protocol, Pi4 SLEEP_ANIM_* config system, /api/sleep_cfg web route, and Sleep Animation slider card in web UI. Animation speed reduced (SR_FRAME_MS 155ms, speed default 0.85). Firmware flashed to Teensy 4.1. Pi4 files REPO-ONLY pending DEPLOY.
+
 S63: WebUI→Teensy 4.1 connection fix + persistent USB device identity. Root cause was two-part: (1) Teensy 4.0/4.1 USB ports swapped on Pi4 — Linux assigns /dev/ttyACM* by port position, so swapping ports swapped device names. (2) CMD listener forwarded EMOTION:/EYE:/MOUTH: commands while eyesSleeping=true — Teensy firmware processed commands but main loop early-return bypassed display rendering, producing no visible effect. Fix 1: udev rules bind /dev/ttyIRIS_EYES (Teensy 4.1) and /dev/ttyIRIS_SERVO (Teensy 4.0) to hardware serial numbers — survive all port swaps and reboots. Fix 2: CMD listener auto-wakes before forwarding display commands if eyes_sleeping. Also synced SLEEP_CFG_MAP and updated _do_sleep() from deployed S62 state into local repo (S62 had been deployed without local commit).
 
 S61b: GandalfAI log backup + SLEEP/WAKE gesture actions. iris_log_export.sh now scp's all daily logs to GandalfAI `C:\IRIS\iris-logs\` every 5 min. Pi4 ed25519 key generated + authorized in GandalfAI `C:\ProgramData\ssh\administrators_authorized_keys`. SLEEP/WAKE added as gesture actions in base_mount_bridge.py (sends EYES:SLEEP/EYES:WAKE UDP to CMD_PORT 10500 → full sleep/wake sequence). iris_web.html gesture dropdowns updated with SLEEP/WAKE options. All DEPLOYED+VERIFIED. md5 confirmed RAM=SD.
@@ -50,7 +52,19 @@ S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was
 
 ---
 
-## Last Session Changes (S63)
+## Last Session Changes (S65)
+
+- **`src/sleep_cfg.h`** (NEW) — Minimal shared struct header: `SleepCfg` (25 fields) + `extern SleepCfg sleepCfg`. Allows mouth_tft.cpp to access sleepCfg without pulling in GC9A01A_t3n.h (header conflict with ILI9341).
+- **`src/sleep_renderer.h`** (FULL REWRITE) — Cosmic sleep animation v3: Saturn (rings, bands, specular), Moon (crescent, glow), 48 warp particles (LFSR-seeded), nebula overlay, starfield. ZZZ removed from eyes (moved to mouth). SR_FRAME_MS=155ms, speed=0.85. Moon: top-right eye (175,48) / top-left eye (65,48). Saturn: bottom-left eye (55,185) / bottom-right eye (185,185).
+- **`src/mouth_tft.cpp`** — `mouthSleepFrame()` rewritten: symmetric ZZZ pairs (3 sizes, sinusoidal drift, cyan), 3-wave band (y=76..162, blue+purple+teal, primary+0.35x secondary harmonic), cy oscillation capped ±14px for SWSPI band constraint.
+- **`src/main.cpp`** — SERIAL_BUF_SIZE 32→40. SLEEP_CFG: command handler added: parses `key=value`, maps all 24 SleepCfg fields from Pi4 serial.
+- **`pi4/core/config.py`** — 24 SLEEP_ANIM_* constants added (speed, star*, shoot*, warp*, moon*, saturn*, nebula*, wave*, mouth*, zzz*). All added to `_OVERRIDABLE` + `_TYPE_COERCE` with slider range bounds.
+- **`pi4/iris_web.py`** — `/api/sleep_cfg` GET/POST route: GET returns 24 current values keyed by short name; POST maps to SLEEP_ANIM_* and writes via `write_cfg()`.
+- **`pi4/iris_web.html`** — Sleep Animation card: 4 `<details>` groups (Stars & Warps, Shooting Stars, Objects, Mouth), 24 sliders, `_buildSaSliders()` / `_saCfgSend()` (180ms debounce) / `_loadSaSliders()`. Sleep tab button wired: `_saTabHook()` loads sliders on first click.
+
+**Status:** Firmware FLASHED (Teensy 4.1, env:eyes, COM7). Pi4 files REPO-ONLY pending DEPLOY.
+
+## Previous Session Changes (S63)
 
 - **`pi4/scripts/99-iris-teensy.rules`** — NEW FILE. udev rules: /dev/ttyIRIS_EYES → Teensy 4.1 (serial 13625440), /dev/ttyIRIS_SERVO → Teensy 4.0 (serial 12763490). DEPLOYED to /etc/udev/rules.d/99-iris-teensy.rules + udevadm reload.
 - **`pi4/core/config.py`** — TEENSY_PORT → "/dev/ttyIRIS_EYES", BASE_MOUNT_PORT → "/dev/ttyIRIS_SERVO". DEPLOYED+VERIFIED.

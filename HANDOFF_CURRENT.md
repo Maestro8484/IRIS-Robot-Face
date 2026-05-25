@@ -40,28 +40,28 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**Flash Teensy 4.1 firmware — S62 sleep animation + SLEEP_CFG: handler. REPO-ONLY. User clicks PlatformIO upload.**
+**Pi4 deploy — Sleep Animation sliders (say DEPLOY)**
 
-Files: `src/main.cpp`, `src/mouth_tft.cpp`, `src/sleep_renderer.h` (S62 uncommitted changes, local working tree dirty)
-Env: `eyes` | Port: COM7 | Method: user clicks PlatformIO upload button in VS Code
+Files: `pi4/iris_web.html`, `pi4/iris_web.py`, `pi4/core/config.py`
 
-Steps:
-1. `pio run -e eyes` — Claude builds, user uploads
-2. After flash: test sleep mode via webUI sleep button — verify enhanced starfield, moon, Earth animations
-3. Test webUI emotion/eye buttons while IRIS is awake — verify they fire correctly
-4. Test webUI emotion/eye buttons while IRIS is in sleep mode — verify auto-wake fires before display command
+What it enables:
+- 24 SLEEP_ANIM_* config keys pushed to Teensy on each sleep entry via SLEEP_CFG: protocol
+- `/api/sleep_cfg` GET/POST route for live slider updates
+- Sleep tab: "Sleep Animation" card with 4 groups of sliders (stars, shooting stars, objects, mouth)
 
-### After Teensy flash
+After deploy: open web UI → Sleep tab → verify slider card loads and values save.
+
+### S65 — Deploy state note
+- `src/sleep_cfg.h`, `src/sleep_renderer.h`, `src/mouth_tft.cpp`, `src/main.cpp` — FLASHED (Teensy 4.1 S65, 2026-05-25)
+- `pi4/core/config.py` — REPO-ONLY (SLEEP_ANIM_* additions on top of S63 ttyIRIS changes)
+- `pi4/iris_web.py` — REPO-ONLY (/api/sleep_cfg route)
+- `pi4/iris_web.html` — REPO-ONLY (Sleep Animation card + sliders + tab hook)
+- S65 commit — complete, pushed to GitHub
+
+### After Pi4 sleep deploy
 - **Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`
 - **RD-011** — Confirm APDS-9960 LISTEN proximity trigger fires on live Pi4
 - **RD-003** — Duplicate sleep log cleanup (low priority)
-
-### S63 — Deploy state note
-- `pi4/scripts/99-iris-teensy.rules` — DEPLOYED (udev rules active, /dev/ttyIRIS_EYES + /dev/ttyIRIS_SERVO live)
-- `pi4/core/config.py` — DEPLOYED (ttyIRIS_EYES + ttyIRIS_SERVO constants)
-- `pi4/assistant.py` CMD listener auto-wake — DEPLOYED (targeted patch)
-- `pi4/assistant.py` full file (SLEEP_CFG_MAP sync, leds arg) — REPO-ONLY pending full deploy
-- S63 commit — pending (src/main.cpp has dirty S62 changes too; commit after Teensy flash)
 
 ---
 

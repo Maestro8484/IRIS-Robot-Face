@@ -39,7 +39,7 @@
 
 static constexpr uint32_t FACE_LOST_TIMEOUT_MS =  5000;
 static constexpr uint32_t FACE_COOLDOWN_MS      = 30000;
-static constexpr uint32_t SERIAL_BUF_SIZE       =    32;
+static constexpr uint32_t SERIAL_BUF_SIZE       =    40;  // SLEEP_CFG:mouthPulseAlpha=255 = 29 chars
 
 // ANGRY eye swap: flame (index 1) held for this duration then auto-reverts
 static constexpr uint32_t ANGRY_EYE_DURATION_MS   = 9000;
@@ -112,7 +112,7 @@ static bool     eyesSleeping = false;
 
 // Mouth sleep frame throttle — min interval between frames to prevent flicker
 static uint32_t srMouthLastMs = 0;
-static constexpr uint32_t MOUTH_SLEEP_FRAME_MS = 150;
+static constexpr uint32_t MOUTH_SLEEP_FRAME_MS = 60;
 
 // Idle animation auto-start: trigger after this many ms of no serial commands
 static uint32_t lastCommandMs = 0;
@@ -124,7 +124,7 @@ static constexpr uint32_t IDLE_AUTO_MS = 120000UL; // 2 min inactivity
 static uint8_t  pendingMouthIdx    = 0;
 static bool     mouthUpdatePending = false;
 static uint32_t lastMouthRenderMs  = 0;
-static constexpr uint32_t MOUTH_RENDER_MIN_MS = 500;
+static constexpr uint32_t MOUTH_RENDER_MIN_MS = 75;
 
 // ---------------------------------------------------------------------------
 // HELPERS
@@ -281,6 +281,38 @@ static void processSerial() {
           mouthIdleStop();
           lastCommandMs = millis();
           Serial.println("[DBG] IDLE:STOP");
+
+        } else if (strncmp(serialBuf, "SLEEP_CFG:", 10) == 0) {
+          char* eq = strchr(serialBuf + 10, '=');
+          if (eq) {
+            *eq = '\0';
+            const char* key = serialBuf + 10;
+            float val = atof(eq + 1);
+            if      (strcmp(key, "speed")          == 0) sleepCfg.speed          = val;
+            else if (strcmp(key, "starBrightMin")  == 0) sleepCfg.starBrightMin  = (uint8_t)val;
+            else if (strcmp(key, "starBrightMax")  == 0) sleepCfg.starBrightMax  = (uint8_t)val;
+            else if (strcmp(key, "starTwinkleAmp") == 0) sleepCfg.starTwinkleAmp = (uint8_t)val;
+            else if (strcmp(key, "shootCount")     == 0) sleepCfg.shootCount     = (uint8_t)val;
+            else if (strcmp(key, "shootSpeed")     == 0) sleepCfg.shootSpeed     = (uint8_t)val;
+            else if (strcmp(key, "shootLen")       == 0) sleepCfg.shootLen       = (uint8_t)val;
+            else if (strcmp(key, "shootBright")    == 0) sleepCfg.shootBright    = (uint8_t)val;
+            else if (strcmp(key, "warpCount")      == 0) sleepCfg.warpCount      = (uint8_t)val;
+            else if (strcmp(key, "warpSpeed")      == 0) sleepCfg.warpSpeed      = (uint8_t)val;
+            else if (strcmp(key, "warpBright")     == 0) sleepCfg.warpBright     = (uint8_t)val;
+            else if (strcmp(key, "moonR")          == 0) sleepCfg.moonR          = (uint8_t)val;
+            else if (strcmp(key, "moonDrift")      == 0) sleepCfg.moonDrift      = (uint8_t)val;
+            else if (strcmp(key, "saturnR")        == 0) sleepCfg.saturnR        = (uint8_t)val;
+            else if (strcmp(key, "saturnDrift")    == 0) sleepCfg.saturnDrift    = (uint8_t)val;
+            else if (strcmp(key, "nebulaAlpha")    == 0) sleepCfg.nebulaAlpha    = (uint8_t)val;
+            else if (strcmp(key, "waveAmp0")       == 0) sleepCfg.waveAmp0       = (uint8_t)val;
+            else if (strcmp(key, "waveAmp1")       == 0) sleepCfg.waveAmp1       = (uint8_t)val;
+            else if (strcmp(key, "waveAmp2")       == 0) sleepCfg.waveAmp2       = (uint8_t)val;
+            else if (strcmp(key, "waveOscAmp")     == 0) sleepCfg.waveOscAmp     = (uint8_t)val;
+            else if (strcmp(key,"mouthPulseAlpha") == 0) sleepCfg.mouthPulseAlpha= (uint8_t)val;
+            else if (strcmp(key, "zzzAlpha0")      == 0) sleepCfg.zzzAlpha0      = (uint8_t)val;
+            else if (strcmp(key, "zzzAlpha1")      == 0) sleepCfg.zzzAlpha1      = (uint8_t)val;
+            else if (strcmp(key, "zzzAlpha2")      == 0) sleepCfg.zzzAlpha2      = (uint8_t)val;
+          }
         }
       }
     } else {

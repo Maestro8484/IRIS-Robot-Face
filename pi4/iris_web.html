@@ -134,7 +134,7 @@ select:focus{outline:none;border-color:var(--blue)}
   <button onclick="tab('voice',this)">Voice</button>
   <button onclick="tab('conversation',this)">Conversation</button>
   <button onclick="tab('eyes',this)">Eyes</button>
-  <button onclick="tab('sleep',this)">Sleep</button>
+  <button onclick="tab('sleep',this);_saTabHook()">Sleep</button>
   <button onclick="tab('lights',this)">Lights</button>
   <button onclick="tab('gandalf',this)">Gandalf AI</button>
   <button onclick="tab('logs',this)">Logs</button>
@@ -331,7 +331,106 @@ select:focus{outline:none;border-color:var(--blue)}
     <div class="field-row"><label>Cycle period (s)</label><input type="number" id="LED_SLEEP_PERIOD" step="0.5" min="1" max="60"></div>
     <button class="btn btn-primary" onclick="saveFields(['LED_SLEEP_PEAK','LED_SLEEP_FLOOR','LED_SLEEP_PERIOD'])">Save Sleep LEDs</button>
   </div>
+
+  <!-- Sleep Animation Controls -->
+  <div class="card" id="sleep-anim-card">
+    <h2>Sleep Animation</h2>
+    <p class="hint">Tune the cosmic starfield scene on the eye and mouth displays. Changes take effect on the next sleep cycle. Persist to SD to survive reboot.</p>
+
+    <details open style="margin-bottom:12px">
+      <summary style="cursor:pointer;color:var(--blue);font-size:13px;font-weight:600;margin-bottom:8px">Stars &amp; Warps</summary>
+      <div id="sa-stars-warps"></div>
+    </details>
+
+    <details open style="margin-bottom:12px">
+      <summary style="cursor:pointer;color:var(--blue);font-size:13px;font-weight:600;margin-bottom:8px">Shooting Stars</summary>
+      <div id="sa-shoots"></div>
+    </details>
+
+    <details open style="margin-bottom:12px">
+      <summary style="cursor:pointer;color:var(--blue);font-size:13px;font-weight:600;margin-bottom:8px">Objects (Moon &amp; Saturn)</summary>
+      <div id="sa-objects"></div>
+    </details>
+
+    <details open style="margin-bottom:12px">
+      <summary style="cursor:pointer;color:var(--blue);font-size:13px;font-weight:600;margin-bottom:8px">Mouth (Waveform &amp; ZZZ)</summary>
+      <div id="sa-mouth"></div>
+    </details>
+  </div>
 </div>
+
+<script>
+// ── Sleep Animation slider builder ────────────────────────────────────────────
+const _SA_SLIDERS = [
+  // [group-id, key, label, min, max, step, defaultVal]
+  ["sa-stars-warps","speed","Speed",0.2,2.0,0.1,0.85],
+  ["sa-stars-warps","starBrightMin","Star brightness min",20,200,5,115],
+  ["sa-stars-warps","starBrightMax","Star brightness max",100,255,5,205],
+  ["sa-stars-warps","starTwinkleAmp","Star twinkle amp",20,255,5,140],
+  ["sa-stars-warps","warpCount","Warp particle count",0,60,2,32],
+  ["sa-stars-warps","warpSpeed","Warp speed",5,100,5,28],
+  ["sa-stars-warps","warpBright","Warp brightness",40,255,5,175],
+  ["sa-shoots","shootCount","Shoot count",0,10,1,4],
+  ["sa-shoots","shootSpeed","Shoot speed",5,120,5,38],
+  ["sa-shoots","shootLen","Trail length (px)",10,120,5,55],
+  ["sa-shoots","shootBright","Shoot brightness",50,255,5,210],
+  ["sa-objects","moonR","Moon radius (px)",10,50,1,28],
+  ["sa-objects","moonDrift","Moon drift amp (px)",0,15,1,3],
+  ["sa-objects","saturnR","Saturn radius (px)",8,35,1,18],
+  ["sa-objects","saturnDrift","Saturn drift amp (px)",0,15,1,4],
+  ["sa-objects","nebulaAlpha","Nebula alpha",0,120,4,44],
+  ["sa-mouth","waveAmp0","Wave amp primary (px)",5,60,1,28],
+  ["sa-mouth","waveAmp1","Wave amp secondary (px)",3,40,1,18],
+  ["sa-mouth","waveAmp2","Wave amp tertiary (px)",2,25,1,10],
+  ["sa-mouth","waveOscAmp","Wave vertical osc (px)",0,60,2,34],
+  ["sa-mouth","mouthPulseAlpha","Mouth pulse alpha",20,255,5,140],
+  ["sa-mouth","zzzAlpha0","ZZZ alpha (large)",30,255,5,191],
+  ["sa-mouth","zzzAlpha1","ZZZ alpha (medium)",30,255,5,158],
+  ["sa-mouth","zzzAlpha2","ZZZ alpha (small)",30,255,5,128],
+];
+
+function _buildSaSliders(data) {
+  _SA_SLIDERS.forEach(([grp, key, lbl, mn, mx, step, def]) => {
+    const container = document.getElementById(grp);
+    if (!container) return;
+    const val = (data && data[key] != null) ? data[key] : def;
+    const row = document.createElement('div');
+    row.className = 'field-row';
+    row.innerHTML =
+      `<label style="width:220px">${lbl}</label>` +
+      `<input type="range" id="sa-${key}" min="${mn}" max="${mx}" step="${step}" value="${val}"` +
+      ` style="width:160px;accent-color:var(--indigo);height:6px;cursor:pointer"` +
+      ` oninput="document.getElementById('sa-v-${key}').textContent=this.value;_saCfgSend('${key}',this.value)">` +
+      `<span id="sa-v-${key}" style="width:34px;color:var(--text);font-size:13px;flex-shrink:0">${val}</span>`;
+    container.appendChild(row);
+  });
+}
+
+let _saDebounce = {};
+function _saCfgSend(key, val) {
+  clearTimeout(_saDebounce[key]);
+  _saDebounce[key] = setTimeout(() => {
+    const numVal = parseFloat(val);
+    fetch('/api/sleep_cfg', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({[key]: numVal})
+    }).then(r=>r.json()).catch(()=>{});
+  }, 180);
+}
+
+function _loadSaSliders() {
+  fetch('/api/sleep_cfg').then(r=>r.json()).then(d=>{
+    _buildSaSliders(d);
+  }).catch(()=>{
+    _buildSaSliders(null);
+  });
+}
+
+// Load sliders when Sleep tab is first shown
+var _saLoaded = false;
+function _saTabHook() { if (!_saLoaded) { _saLoaded = true; _loadSaSliders(); } }
+</script>
 
 <!-- LIGHTS -->
 <div class="section" id="sec-lights">

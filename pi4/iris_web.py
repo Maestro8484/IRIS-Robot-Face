@@ -287,6 +287,57 @@ def api_wake():
     if os.path.exists(SLEEP_FLAG): os.remove(SLEEP_FLAG)
     return jsonify(ok=ok, sleeping=False)
 
+_SLEEP_CFG_KEYS = {
+    "speed":          "SLEEP_ANIM_SPEED",
+    "starBrightMin":  "SLEEP_ANIM_STAR_BRIGHT_MIN",
+    "starBrightMax":  "SLEEP_ANIM_STAR_BRIGHT_MAX",
+    "starTwinkleAmp": "SLEEP_ANIM_STAR_TWINKLE",
+    "shootCount":     "SLEEP_ANIM_SHOOT_COUNT",
+    "shootSpeed":     "SLEEP_ANIM_SHOOT_SPEED",
+    "shootLen":       "SLEEP_ANIM_SHOOT_LEN",
+    "shootBright":    "SLEEP_ANIM_SHOOT_BRIGHT",
+    "warpCount":      "SLEEP_ANIM_WARP_COUNT",
+    "warpSpeed":      "SLEEP_ANIM_WARP_SPEED",
+    "warpBright":     "SLEEP_ANIM_WARP_BRIGHT",
+    "moonR":          "SLEEP_ANIM_MOON_R",
+    "moonDrift":      "SLEEP_ANIM_MOON_DRIFT",
+    "saturnR":        "SLEEP_ANIM_SATURN_R",
+    "saturnDrift":    "SLEEP_ANIM_SATURN_DRIFT",
+    "nebulaAlpha":    "SLEEP_ANIM_NEBULA_ALPHA",
+    "waveAmp0":       "SLEEP_ANIM_WAVE_AMP0",
+    "waveAmp1":       "SLEEP_ANIM_WAVE_AMP1",
+    "waveAmp2":       "SLEEP_ANIM_WAVE_AMP2",
+    "waveOscAmp":     "SLEEP_ANIM_WAVE_OSC_AMP",
+    "mouthPulseAlpha":"SLEEP_ANIM_MOUTH_PULSE_A",
+    "zzzAlpha0":      "SLEEP_ANIM_ZZZ_ALPHA0",
+    "zzzAlpha1":      "SLEEP_ANIM_ZZZ_ALPHA1",
+    "zzzAlpha2":      "SLEEP_ANIM_ZZZ_ALPHA2",
+}
+
+@app.route("/api/sleep_cfg", methods=["GET","POST"])
+def api_sleep_cfg():
+    if request.method == "POST":
+        patch = request.get_json(force=True) or {}
+        # Map short key names to SLEEP_ANIM_* config keys and write
+        cfg_patch = {}
+        for short_key, val in patch.items():
+            cfg_key = _SLEEP_CFG_KEYS.get(short_key)
+            if cfg_key:
+                cfg_patch[cfg_key] = val
+        if cfg_patch:
+            write_cfg(cfg_patch)
+        return jsonify(ok=True)
+    # GET: return current values keyed by short names
+    try:
+        import core.config as _cc
+        live = read_cfg()
+        result = {}
+        for short_key, cfg_key in _SLEEP_CFG_KEYS.items():
+            result[short_key] = live.get(cfg_key, getattr(_cc, cfg_key, None))
+        return jsonify(result)
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+
 @app.route("/api/logs")
 def api_logs():
     # 1. Current journalctl (live, current boot — last 1000 lines)

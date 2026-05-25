@@ -446,3 +446,29 @@ IDLE:START / IDLE:STOP serial commands. Auto-start after 120s inactivity.
 - **`pi4/assistant.py`** — CMD listener: auto-wake added (if `state.eyes_sleeping` and EMOTION:/EYE:/MOUTH: command arrives, `_do_wake()` fires before forwarding). Also synced SLEEP_CFG_MAP + updated _do_sleep() + BaseMountBridge leds arg from deployed S62 state (S62 had deployed these without local commit). CMD listener patch DEPLOYED; full file sync REPO-ONLY.
 - **`docs/sysmap.json`** — `serial.device` → `/dev/ttyIRIS_EYES`, `pico_serial` replaced with `teensy40_serial` + `udev_rules` section, `servo_pico` node renamed `teensy40` with correct hardware/source/GPIO.
 - **`IRIS_ARCH.md`** — USB Device Identity section added. All `/dev/ttyACM*` references updated. Hard rule added: never hardcode `/dev/ttyACM*` in code, config, or commands.
+
+---
+
+## S65 — Cosmic Sleep Animation Overhaul + Web UI Sliders (2026-05-25)
+
+**Status:** Firmware FLASHED (Teensy 4.1, env:eyes, COM7). Pi4 files REPO-ONLY — iris_web.html, iris_web.py, config.py pending DEPLOY.
+
+**Goal:** Rebuild Teensy 4.1 sleep animation to visually match HTML v8 mockup (Saturn+Moon+warp particles+nebula+3-wave mouth+symmetric ZZZ). Add SLEEP_CFG: serial protocol so Pi4 can push 24 animation parameters to Teensy on each sleep entry without reflash. Wire all parameters to live web UI sliders in a new Sleep Animation card.
+
+**Changes:**
+
+- **`src/sleep_cfg.h`** (NEW) — Shared struct header: `SleepCfg` (25 fields: speed, starCount, starBrightMin/Max/TwinkleAmp, shootCount/Speed/Len/Bright, warpCount/Speed/Bright, moonR/Drift, saturnR/Drift, nebulaAlpha, waveAmp0/1/2, waveOscAmp, mouthPulseAlpha, zzzAlpha0/1/2) + `extern SleepCfg sleepCfg`. Solves GC9A01A_t3n.h / ILI9341 header conflict — mouth_tft.cpp includes only this header.
+
+- **`src/sleep_renderer.h`** (FULL REWRITE v3) — Cosmic animation: Saturn with back/front ring scanlines (ellipse math, tilt=0.42, 4 colors), Moon with crescent+glow, 48 warp particles (LFSR-seeded angles/speeds, radial outward motion), starfield (twinkle), nebula overlay. ZZZ removed from eyes (moved to mouth per v8 spec). SR_FRAME_MS=155ms (~6.4fps). Moon top-right/left; Saturn bottom-left/right. `SleepCfg sleepCfg = {.speed=0.85, ...}` defined here (single TU via main.cpp).
+
+- **`src/mouth_tft.cpp`** — `mouthSleepFrame()` fully rewritten: clear ZZZ zone (fillRect 0,4,320,67), draw 3 symmetric Z-pairs per side (6 Z total, sinusoidal Y drift, cyan from sleepCfg.zzzAlpha*), 3-wave band y=76..162 (blue 0x001F, purple 0x780F, teal 0x0318; primary+0.35x secondary at 1.7x freq matching v8 formula). cy oscillation capped ±14px for SWSPI band constraint.
+
+- **`src/main.cpp`** — `SERIAL_BUF_SIZE` 32→40 (accommodates longest SLEEP_CFG: token). Added `SLEEP_CFG:` handler in `processSerial()`: splits on `=`, maps all 24 SleepCfg field names to struct members.
+
+- **`pi4/core/config.py`** — 24 `SLEEP_ANIM_*` constants added with defaults matching v8 spec (speed=0.85, warpCount=12, moonR=28, saturnR=22, etc.). All added to `_OVERRIDABLE` set and `_TYPE_COERCE` dict with type + slider range bounds.
+
+- **`pi4/iris_web.py`** — `_SLEEP_CFG_KEYS` dict (short name → SLEEP_ANIM_* config key). `/api/sleep_cfg` GET: returns 24 current values keyed by short name. POST: maps short keys to SLEEP_ANIM_* and writes via `write_cfg()`.
+
+- **`pi4/iris_web.html`** — Sleep Animation card with 4 `<details>` groups (Stars & Warps, Shooting Stars, Objects, Mouth), 24 sliders. `_buildSaSliders(data)` renders all sliders dynamically. `_saCfgSend(key,val)` debounced 180ms POST to `/api/sleep_cfg`. `_loadSaSliders()` fires GET on first Sleep tab open. Sleep nav button wired: `tab('sleep',this);_saTabHook()`.
+
+**Animation speed:** SR_FRAME_MS=155ms (was 130ms), `speed` default 0.85 (was 1.0). ~17% overall slowdown per user request.
