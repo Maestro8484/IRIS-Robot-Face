@@ -413,3 +413,36 @@ IDLE:START / IDLE:STOP serial commands. Auto-start after 120s inactivity.
 - **`pi4/iris_web.html`** — SLEEP/WAKE added to `_GESTURE_ACTIONS` + `_GESTURE_LABELS`. Gesture Event Log hint updated to reference GandalfAI backup. md5 `d1c15589`.
 - **GandalfAI setup** — `C:\IRIS\iris-logs\` directory created. `C:\ProgramData\ssh\administrators_authorized_keys` configured with pi4-iris-logs public key (Windows OpenSSH admin override). icacls: SYSTEM:F + Administrators:F, no inheritance. 7 daily log files confirmed on GandalfAI.
 - **Pi4 SSH key** — ed25519 at `/home/pi/.ssh/id_iris_logs` + `/media/root-ro/home/pi/.ssh/id_iris_logs`. SD-persisted across reboots.
+
+---
+
+## S62 — Sleep Animation Enhancement (2026-05-24)
+
+**Status:** REPO-ONLY. src/main.cpp, mouth_tft.cpp, sleep_renderer.h changed locally. Teensy 4.1 firmware flash pending (user PlatformIO upload, env:eyes, COM7). Pi4 SLEEP_CFG_MAP deployed but Teensy firmware does not yet handle SLEEP_CFG: commands.
+
+**Goal:** Enhance Teensy 4.1 sleep animation — amplified starfield, crescent moon glow, Earth planet, warp streaks. Add SLEEP_CFG: serial command so Pi4 can tune animation parameters without reflash.
+
+**Changes:**
+- **`src/sleep_renderer.h`** — Amplified star brightness, crescent moon glow, Earth-like planet, warp streaks animation.
+- **`src/mouth_tft.cpp`** — mouthSleepFrame() enhanced.
+- **`src/main.cpp`** — SLEEP_CFG: command handler added (parses key=val, updates animation params).
+- **`pi4/assistant.py`** — SLEEP_CFG_MAP dict + updated _do_sleep() to push SLEEP_CFG: params on sleep entry. Deployed to Pi4 during S62. Local commit pending.
+
+---
+
+## S63 — WebUI→Teensy Fix + Persistent USB Device Identity (2026-05-25)
+
+**Status:** DEPLOYED (udev rules + config.py + CMD listener auto-wake). Local repo sync complete. Commit pending.
+
+**Goal:** Fix webUI buttons (emotion, eye select, mouth) having no effect on Teensy 4.1 displays. Prevent recurrence via hardware-identity-based USB device naming.
+
+**Root causes:**
+1. **USB port swap** — Teensy 4.0 and 4.1 were physically connected to swapped Pi4 USB ports. Linux `/dev/ttyACM*` assignment is port-position-based. Swapping ports meant Teensy 4.1 was on `/dev/ttyACM1` (assigned to base mount) and Teensy 4.0 was on `/dev/ttyACM0` (assigned to eyes). All eye/mouth commands went to the wrong device.
+2. **Sleep mode display bypass** — Even after fixing the port swap, EMOTION:/EYE:/MOUTH: commands arrived via CMD listener while `eyesSleeping=true`. Teensy firmware processes these in `processSerial()` but `loop()` returns early when sleeping — the eye engine and mouth TFT never render. Commands silently succeeded at the serial level but produced no visual output. APA LEDs responded because they are driven from Pi4 Python directly, not through the sleep early-return.
+
+**Changes:**
+- **`pi4/scripts/99-iris-teensy.rules`** (NEW) — udev rules binding `/dev/ttyIRIS_EYES` to Teensy 4.1 (USB serial 13625440) and `/dev/ttyIRIS_SERVO` to Teensy 4.0 (USB serial 12763490). Survive all port swaps and reboots. DEPLOYED to `/etc/udev/rules.d/99-iris-teensy.rules` + udevadm reload.
+- **`pi4/core/config.py`** — `TEENSY_PORT = "/dev/ttyIRIS_EYES"`, `BASE_MOUNT_PORT = "/dev/ttyIRIS_SERVO"`. DEPLOYED+VERIFIED.
+- **`pi4/assistant.py`** — CMD listener: auto-wake added (if `state.eyes_sleeping` and EMOTION:/EYE:/MOUTH: command arrives, `_do_wake()` fires before forwarding). Also synced SLEEP_CFG_MAP + updated _do_sleep() + BaseMountBridge leds arg from deployed S62 state (S62 had deployed these without local commit). CMD listener patch DEPLOYED; full file sync REPO-ONLY.
+- **`docs/sysmap.json`** — `serial.device` → `/dev/ttyIRIS_EYES`, `pico_serial` replaced with `teensy40_serial` + `udev_rules` section, `servo_pico` node renamed `teensy40` with correct hardware/source/GPIO.
+- **`IRIS_ARCH.md`** — USB Device Identity section added. All `/dev/ttyACM*` references updated. Hard rule added: never hardcode `/dev/ttyACM*` in code, config, or commands.

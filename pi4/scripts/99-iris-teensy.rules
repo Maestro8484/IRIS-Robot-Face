@@ -1,0 +1,16 @@
+# IRIS Teensy USB device rules — persistent symlinks by hardware serial number.
+# These rules survive port swaps and reboots.
+#
+# Deploy: sudo cp 99-iris-teensy.rules /etc/udev/rules.d/
+#         sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# Result:
+#   /dev/ttyIRIS_EYES  -> Teensy 4.1 (TeensyEyes + TFT mouth) — serial 13625440
+#   /dev/ttyIRIS_SERVO -> Teensy 4.0 (servo + APDS-9960 gesture) — serial PENDING
+#
+# To get Teensy 4.0 serial: plug it in then run:
+#   udevadm info -a -n /dev/ttyACM1 | grep "ATTRS{serial}"
+# Replace PENDING below with that value, redeploy, then update core/config.py.
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="16c0", ATTRS{serial}=="13625440", SYMLINK+="ttyIRIS_EYES"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="16c0", ATTRS{serial}=="12763490", SYMLINK+="ttyIRIS_SERVO"

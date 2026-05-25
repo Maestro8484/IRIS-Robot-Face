@@ -152,6 +152,12 @@ def start_cmd_listener(teensy, leds):
                             print("[CMD] STOP_PLAYBACK: playback interrupted", flush=True)
                         else:
                             print(f"[CMD] -> teensy: {cmd}", flush=True)
+                            if state.eyes_sleeping and (
+                                cmd.startswith("EMOTION:") or cmd.startswith("EYE:")
+                                or cmd.startswith("MOUTH:")
+                            ):
+                                _do_wake(teensy, leds)
+                                print(f"[CMD] Auto-woke eyes for: {cmd}", flush=True)
                             teensy.send_command(cmd)
                             if cmd == "EYES:SLEEP":
                                 _do_sleep(teensy, leds)
@@ -329,8 +335,49 @@ def _bench_write(stages, transcript, reply_chars, model, gandalf_was_cold, route
         print(f"[BENCH] JSONL write failed: {e}", flush=True)
 
 
+SLEEP_CFG_MAP = {
+    "speed":           "SLEEP_ANIM_SPEED",
+    "starBrightMin":   "SLEEP_ANIM_STAR_BRIGHT_MIN",
+    "starBrightMax":   "SLEEP_ANIM_STAR_BRIGHT_MAX",
+    "starTwinkleAmp":  "SLEEP_ANIM_STAR_TWINKLE",
+    "shootCount":      "SLEEP_ANIM_SHOOT_COUNT",
+    "shootSpeed":      "SLEEP_ANIM_SHOOT_SPEED",
+    "shootLen":        "SLEEP_ANIM_SHOOT_LEN",
+    "shootBright":     "SLEEP_ANIM_SHOOT_BRIGHT",
+    "warpCount":       "SLEEP_ANIM_WARP_COUNT",
+    "warpSpeed":       "SLEEP_ANIM_WARP_SPEED",
+    "warpBright":      "SLEEP_ANIM_WARP_BRIGHT",
+    "moonR":           "SLEEP_ANIM_MOON_R",
+    "moonDrift":       "SLEEP_ANIM_MOON_DRIFT",
+    "saturnR":         "SLEEP_ANIM_SATURN_R",
+    "saturnDrift":     "SLEEP_ANIM_SATURN_DRIFT",
+    "nebulaAlpha":     "SLEEP_ANIM_NEBULA_ALPHA",
+    "waveAmp0":        "SLEEP_ANIM_WAVE_AMP0",
+    "waveAmp1":        "SLEEP_ANIM_WAVE_AMP1",
+    "waveAmp2":        "SLEEP_ANIM_WAVE_AMP2",
+    "waveOscAmp":      "SLEEP_ANIM_WAVE_OSC_AMP",
+    "mouthPulseAlpha": "SLEEP_ANIM_MOUTH_PULSE_A",
+    "zzzAlpha0":       "SLEEP_ANIM_ZZZ_ALPHA0",
+    "zzzAlpha1":       "SLEEP_ANIM_ZZZ_ALPHA1",
+    "zzzAlpha2":       "SLEEP_ANIM_ZZZ_ALPHA2",
+}
+
+
 def _do_sleep(teensy, leds):
     teensy.send_command("EYES:SLEEP")
+    try:
+        import core.config as _cc
+        try:
+            with open("/home/pi/iris_config.json") as _f:
+                _live = json.load(_f)
+        except Exception:
+            _live = {}
+        for key, cfg_key in SLEEP_CFG_MAP.items():
+            val = _live.get(cfg_key, getattr(_cc, cfg_key, None))
+            if val is not None:
+                teensy.send_command(f"SLEEP_CFG:{key}={val}")
+    except Exception as _e:
+        print(f"[SLEEP] SLEEP_CFG push failed: {_e}", flush=True)
     teensy.send_command("MOUTH:8")
     teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_SLEEP}")
     state.eyes_sleeping = True
@@ -362,7 +409,7 @@ def main():
     teensy = TeensyBridge(TEENSY_PORT, TEENSY_BAUD)
     import core.config as _bm_cfg
     if BASE_MOUNT_ENABLED:
-        base_bridge = BaseMountBridge(_bm_cfg)
+        base_bridge = BaseMountBridge(_bm_cfg, leds)
         base_bridge.start()
     start_cmd_listener(teensy, leds)
     router = IntentRouter()

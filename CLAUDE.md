@@ -136,6 +136,7 @@ Documentation rules for this report:
 - Do not stack unverified changes.
 - Never push to GitHub unless explicitly authorized in the current session.
 - Never write to Pi4 or GandalfAI unless the user says DEPLOY.
+- Never hardcode `/dev/ttyACM*` in code, config, or commands. Always use `/dev/ttyIRIS_EYES` (Teensy 4.1 eyes + mouth) or `/dev/ttyIRIS_SERVO` (Teensy 4.0 servo + gesture). These are udev symlinks bound to hardware USB serial numbers — they survive USB port swaps and reboots. ttyACM* numbers are port-position-based and change when cables are moved (confirmed failure S63).
 
 ---
 

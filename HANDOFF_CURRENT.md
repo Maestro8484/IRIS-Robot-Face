@@ -40,34 +40,28 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**Teensy 4.0 base mount controller bring-up. Firmware built (REPO-ONLY). Pi4 bridge code written (REPO-ONLY). Hardware wiring + deploy are the remaining blockers.**
+**Flash Teensy 4.1 firmware — S62 sleep animation + SLEEP_CFG: handler. REPO-ONLY. User clicks PlatformIO upload.**
 
-Reference: `docs/servo_teensy40_wiring.md` | Firmware: `servo_teensy40/teensy40_base_mount/` | Bridge: `pi4/hardware/base_mount_bridge.py`
+Files: `src/main.cpp`, `src/mouth_tft.cpp`, `src/sleep_renderer.h` (S62 uncommitted changes, local working tree dirty)
+Env: `eyes` | Port: COM7 | Method: user clicks PlatformIO upload button in VS Code
 
-### Wiring checklist for Teensy 4.0 (user action)
-- [ ] Servo: PWM signal → Teensy pin 2, 5V → servo rail (toggle switch), GND → GND bus
-- [ ] I2C shared bus: SDA → Teensy pin 18, SCL → Teensy pin 19
-- [ ] Person Sensor: SDA, SCL (shared bus), 3.3V from Teensy 3V3 pin, GND
-- [ ] APDS-9960: SDA, SCL (shared bus), 3.3V, GND
-- [ ] I2C pullups: 4.7K resistor SDA→3.3V, 4.7K resistor SCL→3.3V (external)
-- [ ] USB: Teensy 4.0 micro-USB → Pi4 USB port (data cable)
-- [ ] HW-001: cut LED/SCK solder jumper on Teensy 4.1 underside while PCB is open
+Steps:
+1. `pio run -e eyes` — Claude builds, user uploads
+2. After flash: test sleep mode via webUI sleep button — verify enhanced starfield, moon, Earth animations
+3. Test webUI emotion/eye buttons while IRIS is awake — verify they fire correctly
+4. Test webUI emotion/eye buttons while IRIS is in sleep mode — verify auto-wake fires before display command
 
-### After wiring — next session steps (say DEPLOY)
-1. `pio run -e teensy40` inside `servo_teensy40/teensy40_base_mount/` — user clicks PlatformIO upload
-2. Plug Teensy 4.0 into Pi4 USB port
-3. SSH Pi4 → verify `ls /dev/ttyACM*` shows /dev/ttyACM1 (Teensy 4.0 separate from ACM0)
-4. Deploy Pi4 files: `assistant.py`, `core/config.py`, `hardware/base_mount_bridge.py` (standard persist protocol)
-5. Restart assistant service
-6. Tail logs: `journalctl -u assistant -n 30 --no-pager`
-7. Confirm `[BASE] Teensy 4.0 connected on /dev/ttyACM1` in log
-8. Trigger gestures on APDS-9960 — confirm `[BASE] VOL+`, `[BASE] VOL-`, `[BASE] STOP` log lines
-9. Flash Teensy 4.1 firmware (PlatformIO upload, user clicks upload button — separate task)
+### After Teensy flash
+- **Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`
+- **RD-011** — Confirm APDS-9960 LISTEN proximity trigger fires on live Pi4
+- **RD-003** — Duplicate sleep log cleanup (low priority)
 
-### Other pending
-- [ ] GandalfAI: set OLLAMA_KEEP_ALIVE=30m + restart Ollama service
-- [ ] PT-001 adversarial testing (live behavior)
-- [ ] RD-003 duplicate sleep log (low priority)
+### S63 — Deploy state note
+- `pi4/scripts/99-iris-teensy.rules` — DEPLOYED (udev rules active, /dev/ttyIRIS_EYES + /dev/ttyIRIS_SERVO live)
+- `pi4/core/config.py` — DEPLOYED (ttyIRIS_EYES + ttyIRIS_SERVO constants)
+- `pi4/assistant.py` CMD listener auto-wake — DEPLOYED (targeted patch)
+- `pi4/assistant.py` full file (SLEEP_CFG_MAP sync, leds arg) — REPO-ONLY pending full deploy
+- S63 commit — pending (src/main.cpp has dirty S62 changes too; commit after Teensy flash)
 
 ---
 

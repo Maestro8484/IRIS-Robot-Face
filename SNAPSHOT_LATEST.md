@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S61b | **Date:** 2026-05-23 | **Branch:** `main` | **Last commit:** 5af1073 S61b log capture fix
+**Session:** S65 | **Date:** 2026-05-25 | **Branch:** `main` | **Last commit:** S65 commit
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -8,8 +8,8 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in `teensy40_base_mount.ino`, then reflash. Handoff: `HANDOFF_SERVO_TUNING.md`.
-2. **Teensy 4.1 flash** — Sleep animation session in progress (separate). After that session completes: PlatformIO upload, env:eyes, COM7, user clicks upload.
+1. **Pi4 deploy — Sleep Animation sliders** — `pi4/iris_web.html`, `pi4/iris_web.py`, `pi4/core/config.py` have SLEEP_ANIM_* config + `/api/sleep_cfg` route + Sleep tab slider card. REPO-ONLY. Say DEPLOY when ready.
+2. **Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`, then reflash.
 3. **RD-011** — Confirm APDS-9960 LISTEN proximity trigger fires on live Pi4.
 4. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
 
@@ -22,8 +22,8 @@
 | SuperMaster Desktop | Canonical repo — S61b committed + pushed to GitHub. |
 | Pi4 192.168.1.200 | Operational. S61b DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. Event log reads SD history. Cron */5 for log export + GandalfAI scp backup. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
-| Teensy 4.1 (TeensyEyes + mouth TFT) | Sleep animation update IN PROGRESS (separate session). Base firmware af66b24 (BL_MAP + idle animations). Flash after sleep animation session completes. /dev/ttyACM0. |
-| Teensy 4.0 (servo + gesture) | DEPLOYED+VERIFIED S59. APDS-9960 gesture sensor working — VOL+/VOL-/STOP/LISTEN confirmed. Servo pan works (clunky/jerky — tuning pending). /dev/ttyACM1. |
+| Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S63 — udev symlink /dev/ttyIRIS_EYES active. Auto-wake fix deployed. S62 sleep animation changes REPO-ONLY pending flash. Base firmware af66b24. |
+| Teensy 4.0 (servo + gesture) | DEPLOYED+VERIFIED S59. APDS-9960 gesture sensor working. Servo pan works (clunky/jerky — tuning pending). /dev/ttyIRIS_SERVO (udev symlink, S63). |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -31,9 +31,9 @@
 
 ## Active Issues
 
-- **HIGH: Teensy 4.0 servo tuning** — Pan servo works but clunky/jerky. Tune PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS constants in servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. Flash after tuning.
+- **HIGH: Teensy 4.1 firmware flash (S62)** — S62 sleep animation (amplified starfield, moon, Earth planet, warp streaks) + SLEEP_CFG: handler in src/main.cpp. REPO-ONLY. Flash: PlatformIO upload, env:eyes, COM7, user clicks upload.
+- **HIGH: Teensy 4.0 servo tuning** — Pan servo works but clunky/jerky. Tune PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS in servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. Flash after tuning.
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
-- **HIGH: Teensy 4.1 firmware flash** — Sleep animation update in progress (separate session). Flash after that session completes. PlatformIO upload, env:eyes, COM7, user clicks upload.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
 - **LOW: RD-011 — APDS-9960 LISTEN proximity trigger** — gesture VOL+/VOL-/STOP verified working S59. LISTEN (proximity hold) not yet verified on live Pi.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
@@ -42,13 +42,23 @@
 
 ## Session Scope
 
+S63: WebUI→Teensy 4.1 connection fix + persistent USB device identity. Root cause was two-part: (1) Teensy 4.0/4.1 USB ports swapped on Pi4 — Linux assigns /dev/ttyACM* by port position, so swapping ports swapped device names. (2) CMD listener forwarded EMOTION:/EYE:/MOUTH: commands while eyesSleeping=true — Teensy firmware processed commands but main loop early-return bypassed display rendering, producing no visible effect. Fix 1: udev rules bind /dev/ttyIRIS_EYES (Teensy 4.1) and /dev/ttyIRIS_SERVO (Teensy 4.0) to hardware serial numbers — survive all port swaps and reboots. Fix 2: CMD listener auto-wakes before forwarding display commands if eyes_sleeping. Also synced SLEEP_CFG_MAP and updated _do_sleep() from deployed S62 state into local repo (S62 had been deployed without local commit).
+
 S61b: GandalfAI log backup + SLEEP/WAKE gesture actions. iris_log_export.sh now scp's all daily logs to GandalfAI `C:\IRIS\iris-logs\` every 5 min. Pi4 ed25519 key generated + authorized in GandalfAI `C:\ProgramData\ssh\administrators_authorized_keys`. SLEEP/WAKE added as gesture actions in base_mount_bridge.py (sends EYES:SLEEP/EYES:WAKE UDP to CMD_PORT 10500 → full sleep/wake sequence). iris_web.html gesture dropdowns updated with SLEEP/WAKE options. All DEPLOYED+VERIFIED. md5 confirmed RAM=SD.
 
 S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was `assistant|iris.web`, actual format is `python3[PID]` — event log was showing zero events). Fixed cron overwrite bug (was `> file --boot`, now `>> file --since=LAST_TS` append mode, 5-min interval). SD daily logs read at `/api/logs` (100MB size-based retention, survives reboots). Added `/api/gesture_log` endpoint. Structured `[GESTURE]` log format in base_mount_bridge.py. Gesture Event Log panel in Gestures tab. Gesture filter in Logs tab. All DEPLOYED+VERIFIED. md5 confirmed for all 4 files (RAM=SD).
 
 ---
 
-## Last Session Changes (S61b)
+## Last Session Changes (S63)
+
+- **`pi4/scripts/99-iris-teensy.rules`** — NEW FILE. udev rules: /dev/ttyIRIS_EYES → Teensy 4.1 (serial 13625440), /dev/ttyIRIS_SERVO → Teensy 4.0 (serial 12763490). DEPLOYED to /etc/udev/rules.d/99-iris-teensy.rules + udevadm reload.
+- **`pi4/core/config.py`** — TEENSY_PORT → "/dev/ttyIRIS_EYES", BASE_MOUNT_PORT → "/dev/ttyIRIS_SERVO". DEPLOYED+VERIFIED.
+- **`pi4/assistant.py`** — (1) CMD listener auto-wake: if state.eyes_sleeping and EMOTION:/EYE:/MOUTH: command, calls _do_wake() before forwarding. (2) SLEEP_CFG_MAP dict synced from deployed S62 state. (3) _do_sleep() pushes SLEEP_CFG: parameters to Teensy on sleep entry. (4) BaseMountBridge call: passes leds arg. DEPLOYED (CMD listener patch only; full file sync REPO-ONLY pending full deploy).
+- **`docs/sysmap.json`** — serial.device → ttyIRIS_EYES, pico_serial replaced with teensy40_serial + udev_rules section, servo_pico node renamed to teensy40 with correct Teensy 4.0 hardware. cmd_listener.notes updated.
+- **`IRIS_ARCH.md`** — USB Device Identity section added. All /dev/ttyACM* references updated to ttyIRIS_EYES/ttyIRIS_SERVO. Serial Ownership Rule updated with auto-wake note.
+
+## Previous Session Changes (S61b)
 
 - **`pi4/hardware/base_mount_bridge.py`** — Added SLEEP and WAKE gesture actions: `EYES:SLEEP`/`EYES:WAKE` UDP to CMD_PORT 10500 → full `_do_sleep()`/`_do_wake()` sequences. DEPLOYED+VERIFIED md5 `dc944097`.
 - **`pi4/scripts/iris_log_export.sh`** — Added scp backup to GandalfAI `C:\IRIS\iris-logs\` using `/home/pi/.ssh/id_iris_logs` key. Runs every 5 min with the cron. DEPLOYED+VERIFIED md5 `5fe88e7d`.

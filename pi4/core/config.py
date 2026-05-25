@@ -50,10 +50,10 @@ KIDS_SILENCE_RMS      = 150
 # ── Hardware ──────────────────────────────────────────────────────────────────
 BUTTON_PIN     = 17
 NUM_LEDS       = 3
-TEENSY_PORT    = "/dev/ttyACM0"
+TEENSY_PORT    = "/dev/ttyIRIS_EYES"
 TEENSY_BAUD    = 115200
 BASE_MOUNT_ENABLED = True
-BASE_MOUNT_PORT    = "/dev/ttyACM1"
+BASE_MOUNT_PORT    = "/dev/ttyIRIS_SERVO"
 BASE_MOUNT_BAUD    = 115200
 
 # ── APA102 LED animations ─────────────────────────────────────────────────────
@@ -118,6 +118,32 @@ VISION_TRIGGERS = {
 SLEEP_WINDOW_START_HOUR = 21  # 9 PM
 SLEEP_WINDOW_END_HOUR   = 8   # 8 AM
 
+# ── Sleep animation CFG defaults (SLEEP_CFG: serial keys → Teensy sleepCfg) ─
+SLEEP_ANIM_SPEED          = 0.85
+SLEEP_ANIM_STAR_BRIGHT_MIN = 115
+SLEEP_ANIM_STAR_BRIGHT_MAX = 205
+SLEEP_ANIM_STAR_TWINKLE    = 140
+SLEEP_ANIM_SHOOT_COUNT     = 4
+SLEEP_ANIM_SHOOT_SPEED     = 38
+SLEEP_ANIM_SHOOT_LEN       = 55
+SLEEP_ANIM_SHOOT_BRIGHT    = 210
+SLEEP_ANIM_WARP_COUNT      = 32
+SLEEP_ANIM_WARP_SPEED      = 28
+SLEEP_ANIM_WARP_BRIGHT     = 175
+SLEEP_ANIM_MOON_R          = 28
+SLEEP_ANIM_MOON_DRIFT      = 3
+SLEEP_ANIM_SATURN_R        = 18
+SLEEP_ANIM_SATURN_DRIFT    = 4
+SLEEP_ANIM_NEBULA_ALPHA    = 44
+SLEEP_ANIM_WAVE_AMP0       = 28
+SLEEP_ANIM_WAVE_AMP1       = 18
+SLEEP_ANIM_WAVE_AMP2       = 10
+SLEEP_ANIM_WAVE_OSC_AMP    = 34
+SLEEP_ANIM_MOUTH_PULSE_A   = 140
+SLEEP_ANIM_ZZZ_ALPHA0      = 191
+SLEEP_ANIM_ZZZ_ALPHA1      = 158
+SLEEP_ANIM_ZZZ_ALPHA2      = 128
+
 # ── Eye trigger phrases ───────────────────────────────────────────────────────
 EYES_SLEEP_TRIGGERS = {
     "turn off your eyes", "turn off eyes", "turn off the eyes",
@@ -177,6 +203,16 @@ _OVERRIDABLE = {
     "LED_SLEEP_PEAK", "LED_SLEEP_FLOOR", "LED_SLEEP_PERIOD",
     "MOUTH_INTENSITY_AWAKE", "MOUTH_INTENSITY_SLEEP", "MOUTH_INTENSITY_IDLE",
     "OWW_DRAIN_SECS",
+    "SLEEP_ANIM_SPEED",
+    "SLEEP_ANIM_STAR_BRIGHT_MIN", "SLEEP_ANIM_STAR_BRIGHT_MAX", "SLEEP_ANIM_STAR_TWINKLE",
+    "SLEEP_ANIM_SHOOT_COUNT", "SLEEP_ANIM_SHOOT_SPEED", "SLEEP_ANIM_SHOOT_LEN", "SLEEP_ANIM_SHOOT_BRIGHT",
+    "SLEEP_ANIM_WARP_COUNT", "SLEEP_ANIM_WARP_SPEED", "SLEEP_ANIM_WARP_BRIGHT",
+    "SLEEP_ANIM_MOON_R", "SLEEP_ANIM_MOON_DRIFT",
+    "SLEEP_ANIM_SATURN_R", "SLEEP_ANIM_SATURN_DRIFT",
+    "SLEEP_ANIM_NEBULA_ALPHA",
+    "SLEEP_ANIM_WAVE_AMP0", "SLEEP_ANIM_WAVE_AMP1", "SLEEP_ANIM_WAVE_AMP2", "SLEEP_ANIM_WAVE_OSC_AMP",
+    "SLEEP_ANIM_MOUTH_PULSE_A",
+    "SLEEP_ANIM_ZZZ_ALPHA0", "SLEEP_ANIM_ZZZ_ALPHA1", "SLEEP_ANIM_ZZZ_ALPHA2",
 }
 
 # Type coercion and range bounds for overridable numeric/bool keys.
@@ -218,6 +254,30 @@ _TYPE_COERCE = {
     "MOUTH_INTENSITY_SLEEP":   (int,   (0, 15)),
     "MOUTH_INTENSITY_IDLE":    (int,   (0, 15)),
     "OWW_DRAIN_SECS":          (float, (0.05, 1.0)),
+    "SLEEP_ANIM_SPEED":          (float, (0.1,  3.0)),
+    "SLEEP_ANIM_STAR_BRIGHT_MIN":(int,   (20,   200)),
+    "SLEEP_ANIM_STAR_BRIGHT_MAX":(int,   (100,  255)),
+    "SLEEP_ANIM_STAR_TWINKLE":   (int,   (20,   255)),
+    "SLEEP_ANIM_SHOOT_COUNT":    (int,   (0,    10)),
+    "SLEEP_ANIM_SHOOT_SPEED":    (int,   (5,    120)),
+    "SLEEP_ANIM_SHOOT_LEN":      (int,   (10,   120)),
+    "SLEEP_ANIM_SHOOT_BRIGHT":   (int,   (50,   255)),
+    "SLEEP_ANIM_WARP_COUNT":     (int,   (0,    60)),
+    "SLEEP_ANIM_WARP_SPEED":     (int,   (5,    100)),
+    "SLEEP_ANIM_WARP_BRIGHT":    (int,   (40,   255)),
+    "SLEEP_ANIM_MOON_R":         (int,   (10,   50)),
+    "SLEEP_ANIM_MOON_DRIFT":     (int,   (0,    15)),
+    "SLEEP_ANIM_SATURN_R":       (int,   (8,    35)),
+    "SLEEP_ANIM_SATURN_DRIFT":   (int,   (0,    15)),
+    "SLEEP_ANIM_NEBULA_ALPHA":   (int,   (0,    120)),
+    "SLEEP_ANIM_WAVE_AMP0":      (int,   (5,    60)),
+    "SLEEP_ANIM_WAVE_AMP1":      (int,   (3,    40)),
+    "SLEEP_ANIM_WAVE_AMP2":      (int,   (2,    25)),
+    "SLEEP_ANIM_WAVE_OSC_AMP":   (int,   (0,    60)),
+    "SLEEP_ANIM_MOUTH_PULSE_A":  (int,   (20,   255)),
+    "SLEEP_ANIM_ZZZ_ALPHA0":     (int,   (30,   255)),
+    "SLEEP_ANIM_ZZZ_ALPHA1":     (int,   (30,   255)),
+    "SLEEP_ANIM_ZZZ_ALPHA2":     (int,   (30,   255)),
 }
 
 

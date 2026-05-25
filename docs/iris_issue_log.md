@@ -323,3 +323,17 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Symptom:** `/home/pi/iris_sleep.log` (root level) may duplicate `/home/pi/logs/iris_sleep.log`. Two log files for same events.
 **Root cause:** Early implementation wrote to root home dir. Logging path later standardized to `logs/` subdirectory but old path not cleaned up.
 **Status:** Open — LOW priority cleanup
+
+---
+
+## 2026-05-25 | S63 | Pi4 / WebUI + Teensy serial — USB port swap + sleep mode display bypass
+
+**Symptom:** All webUI buttons (emotion, eye select, mouth, sleep) produce no response on Teensy 4.1 eye displays or TFT mouth. APA LEDs respond to sleep button. Pi4 logs show serial writes (`[EYES] >> EYE:1`) with no Teensy echo (`[EYES] <<`).
+**Root cause (primary):** Teensy 4.0 and Teensy 4.1 USB cables were physically swapped on Pi4. Linux `/dev/ttyACM*` device assignment is port-position-based. Swapping USB ports swapped device names: Teensy 4.1 (eye displays) received `/dev/ttyACM1` (expected by base_mount_bridge.py) and Teensy 4.0 (servo/gesture) received `/dev/ttyACM0` (expected by teensy_bridge.py). All eye/mouth commands went to the wrong MCU.
+**Root cause (secondary):** Even with correct USB assignment, when `eyesSleeping=true`, Teensy 4.1 `loop()` returns early after `processSerial()`. EMOTION:/EYE:/MOUTH: commands are parsed but the eye engine and mouth TFT are never called. Commands silently "succeed" at the serial level with zero visual output. APA LEDs responded because they are Pi4-driven in `_do_sleep()` before the serial write, not gated by the Teensy sleep state.
+**Fix 1:** udev rules in `/etc/udev/rules.d/99-iris-teensy.rules` bind `/dev/ttyIRIS_EYES` and `/dev/ttyIRIS_SERVO` to Teensy hardware USB serial numbers (13625440 and 12763490 respectively). Symlinks survive USB port swaps and Pi4 reboots.
+**Fix 2:** `core/config.py` updated: `TEENSY_PORT = "/dev/ttyIRIS_EYES"`, `BASE_MOUNT_PORT = "/dev/ttyIRIS_SERVO"`.
+**Fix 3:** CMD listener in `assistant.py` auto-wake: if `state.eyes_sleeping` and EMOTION:/EYE:/MOUTH: command arrives, calls `_do_wake()` before forwarding the command. Display commands no longer silently fail while sleeping.
+**Files:** `pi4/scripts/99-iris-teensy.rules` (NEW), `pi4/core/config.py`, `pi4/assistant.py`
+**Hard rule added:** Never hardcode `/dev/ttyACM*` in code, config, or commands. Always use `/dev/ttyIRIS_EYES` (Teensy 4.1) or `/dev/ttyIRIS_SERVO` (Teensy 4.0).
+**Status:** Fixed and deployed to Pi4 (S63)

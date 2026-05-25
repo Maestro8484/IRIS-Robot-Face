@@ -71,7 +71,7 @@ Final authority belongs to the human operator.
 | Pi4 | Voice pipeline orchestration, wakeword, mic/audio, LEDs, camera, web UI, cron sleep/wake, Teensy serial bridge |
 | GandalfAI | Ollama LLM, Modelfiles, Whisper STT, Kokoro TTS (primary), Piper TTS (fallback), Chatterbox (rollback only), RTX 3090 inference |
 | Teensy 4.1 (display controller) | Embedded controller for eyes, mouth, sleep renderer, person sensor integration, serial protocol |
-| Teensy 4.0 (base mount controller) | Pan servo driver, Person Sensor + APDS-9960 gesture, USB-CDC serial to Pi4 /dev/ttyACM1 |
+| Teensy 4.0 (base mount controller) | Pan servo driver, Person Sensor + APDS-9960 gesture, USB-CDC serial to Pi4 /dev/ttyIRIS_SERVO |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED — replaced by Teensy 4.0 base mount controller |
 | GitHub | Secondary mirror, backup, version history, sharing remote |
 
@@ -131,14 +131,33 @@ During Batch 1A, `overlayroot-chroot cp` produced an MD5 mismatch because source
 
 ---
 
+## USB Device Identity — udev Rules
+
+Teensy devices are identified by hardware USB serial number, not port position.
+
+| Symlink | Serial | Device |
+|---|---|---|
+| `/dev/ttyIRIS_EYES` | `13625440` | Teensy 4.1 (eyes + TFT mouth) |
+| `/dev/ttyIRIS_SERVO` | `12763490` | Teensy 4.0 (servo + gesture) |
+
+Rules file: `/etc/udev/rules.d/99-iris-teensy.rules` (repo: `pi4/scripts/99-iris-teensy.rules`)
+Reload: `sudo udevadm control --reload-rules && sudo udevadm trigger`
+Get serial for new device: `udevadm info -a -n /dev/ttyACMx | grep 'ATTRS{serial}'`
+
+**HARD RULE: Never hardcode `/dev/ttyACM*` in code, config, or commands. Always use `/dev/ttyIRIS_EYES` or `/dev/ttyIRIS_SERVO`.** ttyACM assignments are port-position-based and change when USB ports are swapped (confirmed failure S63).
+
+---
+
 ## Serial Ownership Rule
 
-Only `hardware/teensy_bridge.py` owns `/dev/ttyACM0`.
+Only `hardware/teensy_bridge.py` owns `/dev/ttyIRIS_EYES`.
 
 Everything else must communicate through:
 UDP -> `127.0.0.1:10500` -> assistant command listener -> TeensyBridge
 
 Do not open Teensy serial from web routes, cron scripts, or helper scripts.
+
+CMD listener auto-wake (S63): if `state.eyes_sleeping` is True and an EMOTION:, EYE:, or MOUTH: command arrives via UDP, `_do_wake()` is called before forwarding the command. This prevents display commands from silently failing while eyes are sleeping.
 
 ---
 
@@ -291,7 +310,7 @@ HF cache: `C:\Users\gandalf\.cache\huggingface` - stays in user profile, intenti
 
 ## Teensy 4.0 Pin Assignment — Base Mount Controller
 
-Connected: USB to Pi4 (`/dev/ttyACM1` — separate from Teensy 4.1 on `/dev/ttyACM0`)
+Connected: USB to Pi4 (`/dev/ttyIRIS_SERVO` — separate from Teensy 4.1 on `/dev/ttyIRIS_EYES`)
 Powered: Pi4 USB port
 Pi4 handler: `pi4/hardware/base_mount_bridge.py`
 
@@ -337,7 +356,7 @@ IRIS-Robot-Face/
     services/wakeword.py        -- OWW + GPIO button handler
     hardware/audio_io.py        -- PCM playback, record, beep, interrupt detection
     hardware/led.py             -- APA102 driver
-    hardware/teensy_bridge.py   -- single serial owner of /dev/ttyACM0
+    hardware/teensy_bridge.py   -- single serial owner of /dev/ttyIRIS_EYES
     hardware/io.py              -- GPIO helpers
     state/state_manager.py      -- StateManager: conversation_history, kids_mode, eyes_sleeping
     core/config.py              -- all constants; iris_config.json override loader
@@ -461,7 +480,7 @@ MOUTH_INTENSITY:n  -- set backlight level (0-15)
 ```
 
 **Teensy -> Pi4:** `FACE:1` / `FACE:0`
-**Rule:** Only TeensyBridge owns `/dev/ttyACM0`. Everything else uses UDP -> `127.0.0.1:10500`.
+**Rule:** Only TeensyBridge owns `/dev/ttyIRIS_EYES`. Everything else uses UDP -> `127.0.0.1:10500`. Never use `/dev/ttyACM*` directly.
 
 ---
 
@@ -511,7 +530,7 @@ journalctl -u assistant -n 30 --no-pager
 # NEVER remote flash. NEVER transfer hex. NEVER run teensy_loader_cli.
 # Physical access: Teensy is enclosure-mounted. RESET and PROG buttons are NOT accessible.
 # All resets must be done via software bootloader entry (run on Pi4):
-python3 -c "import serial, time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"
+python3 -c "import serial, time; s=serial.Serial('/dev/ttyIRIS_EYES',134); time.sleep(0.5); s.close()"
 # Serial monitoring: Teensy on COM7 when connected to desktop. Use VS Code terminal (not PlatformIO serial monitor - it locks the port).
 
 # GandalfAI containers (after reboot or manual down):
