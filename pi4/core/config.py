@@ -90,6 +90,8 @@ NUM_PREDICT_MAX       = 1200  # "tell me everything about", essays, code
 # ── TTS ───────────────────────────────────────────────────────────────────────
 TTS_MAX_CHARS         = 900   # TTS hard-cap; ~5-8 spoken sentences
 CONVERSATION_LOG      = "/home/pi/logs/conversations.jsonl"
+BENCH_LOG             = "/home/pi/logs/iris_bench.jsonl"
+SD_BENCH_LOG          = "/media/root-ro/home/pi/logs/iris_bench.jsonl"
 
 # ── Camera / Vision ───────────────────────────────────────────────────────────
 CAMERA_ENABLED = True

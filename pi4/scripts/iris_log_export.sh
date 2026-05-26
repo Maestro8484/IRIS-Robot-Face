@@ -17,6 +17,19 @@ echo "$NOW" > "$STAMP"
 sudo mount -o remount,rw /media/root-ro 2>/dev/null
 mkdir -p "$LOGDIR"
 
+# Bench JSONL persistence — append new records since last sync
+_BENCH_RAM="/home/pi/logs/iris_bench.jsonl"
+_BENCH_SD="$LOGDIR/iris_bench.jsonl"
+_BENCH_STAMP="/run/iris_bench_last_pos"
+if [ -f "$_BENCH_RAM" ]; then
+    _LAST=$(cat "$_BENCH_STAMP" 2>/dev/null || echo 0)
+    _NOW=$(stat -c%s "$_BENCH_RAM" 2>/dev/null || echo 0)
+    if [ "$_NOW" -gt "$_LAST" ]; then
+        tail -c +"$((_LAST + 1))" "$_BENCH_RAM" >> "$_BENCH_SD"
+        echo "$_NOW" > "$_BENCH_STAMP"
+    fi
+fi
+
 # Append new assistant.service entries since last capture to today's file
 journalctl -u assistant.service --since="$SINCE" --output=short \
   >> "$LOGDIR/iris-${TODAY}.log" 2>/dev/null

@@ -316,7 +316,7 @@ def _bench_write(stages, transcript, reply_chars, model, gandalf_was_cold, route
     """Append one structured JSON record to iris_bench.jsonl. Never raises."""
     import datetime
     try:
-        os.makedirs("/home/pi/logs", exist_ok=True)
+        os.makedirs(os.path.dirname(BENCH_LOG), exist_ok=True)
         record = {
             "ts":               datetime.datetime.now().isoformat(timespec="seconds"),
             "stages":           stages,
@@ -328,7 +328,7 @@ def _bench_write(stages, transcript, reply_chars, model, gandalf_was_cold, route
             "route":            route,
             "interrupted":      interrupted,
         }
-        with open("/home/pi/logs/iris_bench.jsonl", "a", encoding="utf-8") as f:
+        with open(BENCH_LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
             f.flush()
     except Exception as e:
