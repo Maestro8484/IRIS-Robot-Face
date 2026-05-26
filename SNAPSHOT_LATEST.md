@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S66 | **Date:** 2026-05-25 | **Branch:** `main` | **Last commit:** S66 commit
+**Session:** S67 | **Date:** 2026-05-26 | **Branch:** `main` | **Last commit:** cb9d3c2
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -8,11 +8,10 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **Pi4 deploy — iris_post.py + S66 files** — `pi4/iris_post.py`, `pi4/assistant.py`, `pi4/iris_web.py`, `pi4/iris_web.html`, `pi4/core/config.py` REPO-ONLY. Say DEPLOY when ready.
-2. **Pi4 deploy — Sleep Animation sliders** — REPO-ONLY from S65. Deploy enables Sleep tab slider card + `/api/sleep_cfg` route. Say DEPLOY when ready.
-3. **Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`, then reflash.
-4. **RD-011** — Confirm APDS-9960 LISTEN proximity trigger fires on live Pi4.
-5. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
+1. **Pi4 deploy — S65/S66/S67 files** — `pi4/iris_post.py`, `pi4/assistant.py`, `pi4/iris_web.py`, `pi4/iris_web.html`, `pi4/core/config.py`, `pi4/scripts/iris_log_export.sh` REPO-ONLY. Single DEPLOY covers S65 sliders + S66 POST + S67 bench persistence. Say DEPLOY when ready.
+2. **Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`, then reflash.
+3. **RD-011** — Confirm APDS-9960 LISTEN proximity trigger fires on live Pi4.
+4. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
 
 ---
 
@@ -20,8 +19,8 @@
 
 | System | Status |
 |---|---|
-| SuperMaster Desktop | Canonical repo — S66 committed. iris_post.py + S65 Pi4 files REPO-ONLY pending DEPLOY. |
-| Pi4 192.168.1.200 | Operational. S61b DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. S66 files (iris_post.py, assistant.py, iris_web.py, iris_web.html, config.py) REPO-ONLY pending DEPLOY. |
+| SuperMaster Desktop | Canonical repo — S67 committed. S65/S66/S67 Pi4 files REPO-ONLY pending DEPLOY. |
+| Pi4 192.168.1.200 | Operational. S61b DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. install_journald.sh run S67 (journald 500MB/1yr). S65/S66/S67 files (iris_post.py, assistant.py, iris_web.py, iris_web.html, config.py, iris_log_export.sh) REPO-ONLY pending DEPLOY. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
 | Teensy 4.0 (servo + gesture) | DEPLOYED+VERIFIED S59. APDS-9960 gesture sensor working. Servo pan works (clunky/jerky — tuning pending). /dev/ttyIRIS_SERVO (udev symlink, S63). |
@@ -32,7 +31,7 @@
 
 ## Active Issues
 
-- **MED: Pi4 deploy — S66 + S65 files** — iris_post.py (NEW), assistant.py (POST call at startup), iris_web.py (/api/post), iris_web.html (POST card in System tab), config.py (GESTURE_SENSOR_REQUIRED + SLEEP_ANIM_*) all REPO-ONLY. Single DEPLOY covers both S65 sliders and S66 POST. GESTURE_SENSOR_REQUIRED=False pending PAJ7620U2 swap.
+- **MED: Pi4 deploy — S65/S66/S67 files** — iris_post.py (NEW), assistant.py (POST + BENCH_LOG), iris_web.py (/api/post /api/sleep_cfg), iris_web.html (POST card + sleep sliders), config.py (GESTURE_SENSOR_REQUIRED + SLEEP_ANIM_* + BENCH_LOG/SD_BENCH_LOG), iris_log_export.sh (bench JSONL sync) all REPO-ONLY. Single DEPLOY covers all three sessions. GESTURE_SENSOR_REQUIRED=False pending PAJ7620U2 swap.
 - **HIGH: Teensy 4.0 servo tuning** — Pan servo works but clunky/jerky. Tune PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS in servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. Flash after tuning.
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
@@ -42,6 +41,8 @@
 ---
 
 ## Session Scope
+
+S67: iris_bench.jsonl SD persistence. `iris_log_export.sh` extended with byte-offset append block: on each 15-min cron run (as root), new records from RAM `/home/pi/logs/iris_bench.jsonl` are appended to SD `/media/root-ro/home/pi/logs/iris_bench.jsonl` using `/run/iris_bench_last_pos` stamp (resets on boot — correct, each boot cycle appends its own records). `config.py` gains `BENCH_LOG` (RAM write path) and `SD_BENCH_LOG` (SD accumulation path). `assistant.py` `_bench_write` uses `BENCH_LOG` constant instead of hardcoded string. `install_journald.sh` run on Pi4 — journald retention extended to 500MB/1 year (S50 pending step). All Pi4 file changes REPO-ONLY pending DEPLOY.
 
 S66: IRIS Power-On Self-Test (POST) — new `pi4/iris_post.py` (5-layer diagnostic: L0 hardware presence, L1 network/services, L2 Teensy display exercise, L3 pipeline smoke, L4 config/persistence). APA102 LEDs cycle through layer colors (cyan/purple/amber/orange/red) during POST; green flash on PASS; red 3× flash + freeze on FAIL. Results logged to `/home/pi/logs/iris_post.log`. assistant.py calls `run_post()` at startup before main loop; FAIL blocks startup (sys.exit 1). iris_web.py `/api/post` route runs POST in background thread; iris_web.html System tab POST card with per-check result table. `GESTURE_SENSOR_REQUIRED=False` added to config.py (flip to True after PAJ7620U2 swap confirmed). All Pi4 files REPO-ONLY pending DEPLOY.
 

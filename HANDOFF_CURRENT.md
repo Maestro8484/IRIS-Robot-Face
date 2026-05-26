@@ -40,25 +40,28 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**Pi4 deploy — Sleep Animation sliders (say DEPLOY)**
+**Pi4 deploy — S65 + S66 + S67 files (say DEPLOY)**
 
-Files: `pi4/iris_web.html`, `pi4/iris_web.py`, `pi4/core/config.py`
+Files: `pi4/iris_post.py`, `pi4/assistant.py`, `pi4/iris_web.py`, `pi4/iris_web.html`, `pi4/core/config.py`, `pi4/scripts/iris_log_export.sh`
 
 What it enables:
-- 24 SLEEP_ANIM_* config keys pushed to Teensy on each sleep entry via SLEEP_CFG: protocol
-- `/api/sleep_cfg` GET/POST route for live slider updates
-- Sleep tab: "Sleep Animation" card with 4 groups of sliders (stars, shooting stars, objects, mouth)
+- Sleep Animation sliders (S65): 24 SLEEP_ANIM_* config keys, `/api/sleep_cfg`, slider card in Sleep tab
+- POST diagnostic (S66): `run_post()` at startup, `/api/post` route, POST card in System tab
+- Bench persistence (S67): `iris_log_export.sh` syncs `iris_bench.jsonl` to SD every 15 min
 
-After deploy: open web UI → Sleep tab → verify slider card loads and values save.
+After deploy: restart assistant service; verify `[INFO] Ready.` in logs; check Sleep tab sliders load; check iris_post.log for PASS.
 
-### S65 — Deploy state note
+### Deploy state note
 - `src/sleep_cfg.h`, `src/sleep_renderer.h`, `src/mouth_tft.cpp`, `src/main.cpp` — FLASHED (Teensy 4.1 S65, 2026-05-25)
-- `pi4/core/config.py` — REPO-ONLY (SLEEP_ANIM_* additions on top of S63 ttyIRIS changes)
-- `pi4/iris_web.py` — REPO-ONLY (/api/sleep_cfg route)
-- `pi4/iris_web.html` — REPO-ONLY (Sleep Animation card + sliders + tab hook)
-- S65 commit — complete, pushed to GitHub
+- `pi4/iris_post.py` — REPO-ONLY (NEW, S66)
+- `pi4/core/config.py` — REPO-ONLY (SLEEP_ANIM_* S65 + GESTURE_SENSOR_REQUIRED S66 + BENCH_LOG/SD_BENCH_LOG S67)
+- `pi4/assistant.py` — REPO-ONLY (POST call S66 + BENCH_LOG use S67)
+- `pi4/iris_web.py` — REPO-ONLY (/api/sleep_cfg S65 + /api/post S66)
+- `pi4/iris_web.html` — REPO-ONLY (sleep sliders S65 + POST card S66)
+- `pi4/scripts/iris_log_export.sh` — REPO-ONLY (bench JSONL sync S67)
+- S65/S66/S67 commits complete, not yet pushed to GitHub
 
-### After Pi4 sleep deploy
+### After Pi4 deploy
 - **HARDWARE: APDS-9960 chip dead (S66)** — I2C no-response confirmed. Person Sensor on same T4.0 I2C bus works — bus/pull-ups/power healthy. Fault is the chip or its specific wiring. Chip showed 0x0 from ID register (expected 0xAB) then full no-response after reflash. Reseat or swap breakout, reflash T4.0, verify gesture log shows VOL+/VOL-/STOP events.
 - **Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`
 - **RD-003** — Duplicate sleep log cleanup (low priority)
