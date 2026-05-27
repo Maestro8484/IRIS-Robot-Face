@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S67 | **Date:** 2026-05-26 | **Branch:** `main` | **Last commit:** cb9d3c2
+**Session:** S68 | **Date:** 2026-05-27 | **Branch:** `main` | **Last commit:** cf0b17b
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -39,6 +39,8 @@
 ---
 
 ## Session Scope
+
+S68: Docs-only audit and correction pass. Servo subsystem (Teensy 4.0) fully documented in IRIS_ARCH.md: System Roles/Architecture tables enhanced, firmware file/ServoEasing/autonomy/power-toggle added to T4.0 pin section, Serial Protocol section extended with T4.0 one-way serial, Repo Structure updated, Env Quick Ref updated, PAJ7620U2 pending hardware section added, stale /dev/ttyACM0 reference corrected. SNAPSHOT/HANDOFF updated. ROADMAP pruned: HW-002/RD-009/RD-010/RD-011 (ESP32, tombstoned) removed, HW-001 closed, HW-003 PAJ7620U2 added. CHANGELOG gains servo controller evolution history. Memory files corrected (flash workflow memories updated to Teensy 4.1, new project_servo_controller_hardware.md created). Commit cf0b17b.
 
 S67: iris_bench.jsonl SD persistence. `iris_log_export.sh` extended with byte-offset append block: on each 15-min cron run (as root), new records from RAM `/home/pi/logs/iris_bench.jsonl` are appended to SD `/media/root-ro/home/pi/logs/iris_bench.jsonl` using `/run/iris_bench_last_pos` stamp (resets on boot — correct, each boot cycle appends its own records). `config.py` gains `BENCH_LOG` (RAM write path) and `SD_BENCH_LOG` (SD accumulation path). `assistant.py` `_bench_write` uses `BENCH_LOG` constant instead of hardcoded string. `install_journald.sh` run on Pi4 — journald retention extended to 500MB/1 year (S50 pending step). All Pi4 file changes REPO-ONLY pending DEPLOY.
 
