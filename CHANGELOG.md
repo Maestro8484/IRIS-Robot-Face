@@ -379,6 +379,16 @@ IDLE:START / IDLE:STOP serial commands. Auto-start after 120s inactivity.
 - HW-002 partially resolved: BOOTSEL accessible on bare board. Enclosure wiring (RUN pin, switch) deferred to PCB rewiring.
 - RD-009 planned: WiFi touch integration (volume, TTS interrupt, wakeword). Full spec in review/HANDOFF_PICO_WIFI_TOUCH.md.
 
+## Servo Controller Hardware Evolution — Pico W → ESP32 → Teensy 4.0 (S56–S59)
+
+**Summary:** The servo base mount controller went through two board replacements before reaching its current state.
+
+- **Pico W** — Original servo controller. Firmware developed with Earle Philhower RP2040 core + ServoEasing. Had USB enumeration hardware failure (S56) — no USB detected on any port.
+- **ESP32 DevKit 1C** (S57) — First replacement board. Firmware rewritten for ESP32 (servo_esp32/ directory). PCB was destroyed during enclosure work (S58) — board tombstoned. servo_esp32/ directory removed.
+- **Teensy 4.0** (S58) — Final replacement. Firmware renamed to `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`. ServoEasing library retained. USB to Pi4 at `/dev/ttyACM1`, later `/dev/ttyIRIS_SERVO` (S63 udev symlinks). DEPLOYED+VERIFIED S59.
+
+Current servo controller is Teensy 4.0. ESP32 and Pico W are tombstoned. All HW-002/RD-009/RD-010/RD-011 roadmap items referencing ESP32 closed (removed from ROADMAP S68 docs pass).
+
 ---
 
 ## S61 — Event Log Persistence + Gesture Monitoring (2026-05-23)

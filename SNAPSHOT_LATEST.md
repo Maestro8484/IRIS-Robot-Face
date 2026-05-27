@@ -22,7 +22,7 @@
 | Pi4 192.168.1.200 | Operational. S67 DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. POST 21/22 PASS (1 WARN gesture sensor expected). S65 sleep sliders live. S66 POST diagnostic live. S67 bench JSONL sync live. install_journald.sh run (journald 500MB/1yr). |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
-| Teensy 4.0 (servo + gesture) | DEPLOYED+VERIFIED S59. APDS-9960 gesture sensor working. Servo pan works (clunky/jerky — tuning pending). /dev/ttyIRIS_SERVO (udev symlink, S63). |
+| Teensy 4.0 (servo + gesture) | DEPLOYED+VERIFIED S59. Servo pan works (tuning pending). APDS-9960 chip DEAD (S66 — I2C no-response). PAJ7620U2 replacement received, not yet wired. /dev/ttyIRIS_SERVO (udev symlink S63). |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -30,11 +30,10 @@
 
 ## Active Issues
 
-- **HIGH: APDS-9960 chip dead (S66)** — I2C no-response confirmed. Person Sensor on same bus works — bus healthy. Fault isolated to chip or its specific wiring. Action: reseat or swap breakout, reflash T4.0, verify gesture events in web UI.
+- **HIGH: APDS-9960 chip dead** — I2C no-response confirmed S65/S66. Person Sensor on same bus works — bus healthy. Chip returned 0x0 from ID register (expected 0xAB); full no-response after reflash. PAJ7620U2 replacement received — pending enclosure access to install and wire. Reflash T4.0 after swap, verify gesture events in web UI.
 - **HIGH: Teensy 4.0 servo tuning** — Pan servo works but clunky/jerky. Tune PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS in servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. Flash after tuning.
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
-- **HIGH: APDS-9960 chip dead (S65)** — I2C no-response confirmed. Person Sensor on same bus/pull-ups/3.3V rail works — bus is healthy. Fault isolated to APDS-9960 chip or its specific wiring. Chip returned 0x0 from ID register (expected 0xAB), then full no-response after reflash. Action: physically reseat or swap APDS-9960 breakout, reflash T4.0, verify gesture events in web UI.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
 
 ---

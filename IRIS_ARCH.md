@@ -71,7 +71,7 @@ Final authority belongs to the human operator.
 | Pi4 | Voice pipeline orchestration, wakeword, mic/audio, LEDs, camera, web UI, cron sleep/wake, Teensy serial bridge |
 | GandalfAI | Ollama LLM, Modelfiles, Whisper STT, Kokoro TTS (primary), Piper TTS (fallback), Chatterbox (rollback only), RTX 3090 inference |
 | Teensy 4.1 (display controller) | Embedded controller for eyes, mouth, sleep renderer, person sensor integration, serial protocol |
-| Teensy 4.0 (base mount controller) | Pan servo driver, Person Sensor + APDS-9960 gesture, USB-CDC serial to Pi4 /dev/ttyIRIS_SERVO |
+| Teensy 4.0 (base mount controller) | Pan servo: runs autonomously from Person Sensor face data (ServoEasing). APDS-9960 gesture (chip dead S66 — PAJ7620U2 replacement pending). USB-CDC serial to Pi4 /dev/ttyIRIS_SERVO, one-way (Teensy→Pi4: VOL+/VOL-/STOP; Pi4 sends nothing). Physical power toggle on enclosure rear. Firmware: servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED — replaced by Teensy 4.0 base mount controller |
 | GitHub | Secondary mirror, backup, version history, sharing remote |
 
@@ -210,7 +210,7 @@ GandalfAI personality/pipeline/model behavior.
 | Sleep/wake cron (9PM/7:30AM) | Working but **REBOOT-FRAGILE** | Piper missing at /usr/local/bin/piper - sleep wakeword says nothing |
 | ALSA state on reboot | **HARDENED S23** | alsa-init.sh now sets all 6 critical switches explicitly |
 | GandalfAI reboot | **FRAGILE** | Kokoro docker must be started manually after reboot (`docker compose up -d`) |
-| Teensy flash (mouthSleepFrame) | **DONE** - confirmed by user, S27 | /dev/ttyACM0 present, firmware live |
+| Teensy flash (mouthSleepFrame) | **DONE** - confirmed by user, S27 | Firmware live on /dev/ttyIRIS_EYES (was /dev/ttyACM0 pre-S63 udev rules) |
 | Mouth smoke test | **DONE** - confirmed by user, S27 | MOUTH:0-8 via UDP 127.0.0.1:10500 confirmed |
 
 ### Reboot survival checklist
@@ -228,7 +228,7 @@ On both rebooting simultaneously: GandalfAI must be up before assistant.py finis
 | GandalfAI | 192.168.1.3 | gandalf / &lt;password&gt; | Ollama LLM, Whisper STT, Piper TTS, Kokoro TTS, RTX 3090 |
 | Desktop PC | 192.168.1.103 | SuperMaster / &lt;password&gt; | PlatformIO firmware, VS Code, Claude Desktop. OpenSSH server enabled S29 - Claude can ssh_exec PowerShell commands and run git directly. |
 | Teensy 4.1 | USB -> Desktop PC | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
-| Teensy 4.0 | USB -> Pi4 | N/A | Base mount controller: pan servo, Person Sensor, APDS-9960 gesture |
+| Teensy 4.0 | USB -> Pi4 (/dev/ttyIRIS_SERVO) | N/A | Base mount controller: pan servo (ServoEasing, autonomous), Person Sensor, APDS-9960 gesture (dead S66). Physical power toggle on enclosure rear. |
 | Synology NAS | 192.168.1.102 | Master / &lt;password&gt; | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
 **SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (SuperMaster 192.168.1.103, PowerShell). NAS SSH: port 2233 - connect via ssh MCP with explicit host override. Credentials in CLAUDE.md (user-level, not committed).
@@ -310,9 +310,14 @@ HF cache: `C:\Users\gandalf\.cache\huggingface` - stays in user profile, intenti
 
 ## Teensy 4.0 Pin Assignment — Base Mount Controller
 
+**Firmware:** `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`
+**Library:** ServoEasing (pan servo smooth motion control)
+**Autonomy:** Pan servo runs autonomously from Person Sensor face detection — Pi4 sends no commands to this board.
+**Serial direction:** One-way Teensy→Pi4 only. Teensy sends VOL+/VOL-/STOP on gesture events. Pi4 handler: `pi4/hardware/base_mount_bridge.py`. Only `base_mount_bridge.py` owns `/dev/ttyIRIS_SERVO`.
+**Power toggle:** Physical switch on enclosure rear controls servo 5V rail. Pi4 USB power is unaffected.
+
 Connected: USB to Pi4 (`/dev/ttyIRIS_SERVO` — separate from Teensy 4.1 on `/dev/ttyIRIS_EYES`)
 Powered: Pi4 USB port
-Pi4 handler: `pi4/hardware/base_mount_bridge.py`
 
 | GPIO | Signal | Device | Notes |
 |---|---|---|---|
@@ -331,6 +336,20 @@ USB Serial commands (Teensy 4.0 → Pi4):
 | `VOL+` | volume up (`handle_volume_command("louder")`) |
 | `VOL-` | volume down (`handle_volume_command("quieter")`) |
 | `STOP` | UDP to 127.0.0.1:10500 |
+
+---
+
+## Pending Hardware — PAJ7620U2 Gesture Sensor
+
+**Part:** HiLetgo PAJ7620U2 gesture sensor, 3.3V I2C, address `0x73`
+**Status:** Received. Not wired. Not integrated.
+**Purpose:** Intended replacement for dead APDS-9960 (I2C no-response confirmed S66). Provides directional swipe gestures (up/down/left/right/forward/backward/clockwise/counter-clockwise).
+**I2C bus assignment:** TBD — pending enclosure access to confirm wiring feasibility. Candidates:
+- Teensy 4.0 Wire (pins 18/19) — same bus as Person Sensor (0x62); no address conflict with 0x73
+- Teensy 4.1 Wire (pins 18/19) — separate firmware path; requires T4.1 firmware change
+- USB-I2C bridge to Pi4 — independent of Teensy firmware
+**Integration gate:** Enclosure access required for physical install and wiring. I2C bus decision must precede firmware integration spec.
+`GESTURE_SENSOR_REQUIRED = False` in `pi4/core/config.py` until integration is confirmed. See ROADMAP.md HW-003.
 
 ---
 
@@ -364,6 +383,10 @@ IRIS-Robot-Face/
     iris_web.html               -- Web UI (ElevenLabs removed S18, MAX7219/matrix refs removed S21)
     iris_sleep.py               -- cron sleep script
     iris_wake.py                -- cron wake script
+  servo_teensy40/
+    teensy40_base_mount/
+      teensy40_base_mount.ino   -- pan servo + gesture firmware (ServoEasing, Person Sensor, APDS-9960)
+      platformio.ini            -- env:t40, board teensy40, monitor_speed 115200
   ollama/
     iris_modelfile.txt          -- adult IRIS persona (gemma3:27b-it-qat) -- canonical
     iris-kids_modelfile.txt     -- kids IRIS persona (gemma3:27b-it-qat) -- canonical
@@ -479,8 +502,19 @@ MOUTH:x            -- set mouth expression (0-8)
 MOUTH_INTENSITY:n  -- set backlight level (0-15)
 ```
 
-**Teensy -> Pi4:** `FACE:1` / `FACE:0`
+**Teensy 4.1 -> Pi4:** `FACE:1` / `FACE:0`
 **Rule:** Only TeensyBridge owns `/dev/ttyIRIS_EYES`. Everything else uses UDP -> `127.0.0.1:10500`. Never use `/dev/ttyACM*` directly.
+
+---
+
+**Teensy 4.0 -> Pi4 (one-way, `/dev/ttyIRIS_SERVO`, 115200 baud):**
+```
+VOL+    -- volume up (APDS-9960 right swipe)
+VOL-    -- volume down (APDS-9960 left swipe)
+STOP    -- stop playback (APDS-9960 down swipe)
+```
+Pi4 handler: `pi4/hardware/base_mount_bridge.py`. Only `base_mount_bridge.py` owns `/dev/ttyIRIS_SERVO`.
+Pi4 never sends commands to Teensy 4.0 — serial is one-way.
 
 ---
 
@@ -626,7 +660,8 @@ curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris\",\"prompt\":\
 | SuperMaster Desktop | 192.168.1.103 | SuperMaster/ohs | Control node, Claude Desktop, local repo, VS Code, PlatformIO, git |
 | Pi4 | 192.168.1.200 | pi/ohs | Runtime orchestration, wakeword, audio, web UI, cron, serial bridge - ssh-pi4 MCP |
 | GandalfAI | 192.168.1.3 | gandalf/5309 | Ollama, Whisper, Kokoro TTS (primary), Piper TTS (fallback), Chatterbox (rollback only), RTX 3090 inference - ssh-gandalf MCP |
-| Teensy 4.1 | USB via SuperMaster/Pi context | N/A | Embedded display controller |
+| Teensy 4.1 | USB -> Desktop PC (COM7) | N/A | Embedded display controller (eyes + mouth) — flash via PlatformIO |
+| Teensy 4.0 | USB -> Pi4 (/dev/ttyIRIS_SERVO) | N/A | Servo base mount controller — autonomous, no Pi4 commands in |
 
 Pi4 live mirror:
 `pi4/` in repo maps to `/home/pi/` on Pi4.

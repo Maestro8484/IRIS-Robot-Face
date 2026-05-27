@@ -23,6 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
 | GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model current. |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
+| Teensy 4.0 | Operational — servo + gesture controller. /dev/ttyIRIS_SERVO. APDS-9960 chip dead (S66). PAJ7620U2 pending install. |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
 | Wakeword | `hey_jarvis` (production). Experimental wakewords require explicit user approval, live Pi4 state confirmation, clean process restart, and one-model-at-a-time testing. Failed experiment names are in `CHANGELOG.md`. |
 
@@ -73,7 +74,7 @@ Steps:
 **Changes:**
 - `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — renamed from IRIS-BaseServoControlViaPerson_Sensor. Fixed: pin 2, baud 115200, VOL+/VOL-, base_mount_bridge.py comment reference.
 - `servo_teensy40/teensy40_base_mount/platformio.ini` — monitor_speed 115200.
-- `pi4/hardware/base_mount_bridge.py` — NEW. Daemon thread reads /dev/ttyACM1 at 115200, dispatches VOL+/VOL-/STOP.
+- `pi4/hardware/base_mount_bridge.py` — NEW. Daemon thread reads /dev/ttyACM1 at 115200, dispatches VOL+/VOL-/STOP. (Note: /dev/ttyACM1 was replaced by /dev/ttyIRIS_SERVO udev symlink in S63.)
 - `pi4/core/config.py` — BASE_MOUNT_ENABLED, BASE_MOUNT_PORT, BASE_MOUNT_BAUD added.
 - `pi4/assistant.py` — BaseMountBridge import + conditional startup after TeensyBridge init.
 - `IRIS_ARCH.md` — Teensy 4.0 pin section added, System Roles and Architecture tables updated.

@@ -169,7 +169,7 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 
 ## HW-001 — Teensy 4.1 Activity LED Suppression (Pin 13 / SPI SCK conflict)
 
-**Status:** DEFERRED — blocked on power distribution PCB rewiring.
+**Status:** CLOSED — covered with black electrical tape (S67 confirm). Physical solder jumper cut deferred indefinitely; tape is the accepted mitigation.
 
 **Priority:** HIGH — LED is visibly distracting during normal operation.
 
@@ -185,81 +185,24 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 
 ---
 
-## HW-002 — Servo Controller Flash + Rewire (ESP32 DevKit 1C)
+## HW-003 — PAJ7620U2 Gesture Sensor Integration
 
-**Status:** REPO-ONLY — firmware ready, hardware rewiring and flash pending.
+**Status:** Open — hardware received, not wired, not integrated.
 
-**Priority:** HIGH
+**Priority:** HIGH — required to restore gesture control (VOL+/VOL-/STOP) after APDS-9960 chip death (S66).
 
-**Context:** Pico W (previous servo controller) had hardware failure (no USB enumeration, S56). Replaced with Teensy 4.0 (S56), then replaced with ESP32 DevKit 1C (ESP32-WROOM-32, COM13, S57) — final board choice. Enclosure PCB rewiring required before first power-on.
+**Context:** APDS-9960 on Teensy 4.0 I2C bus confirmed dead S66 (0x0 from ID register, full no-response). PAJ7620U2 (HiLetgo, 3.3V I2C, address 0x73) received as replacement. Provides directional swipe gestures (up/down/left/right/forward/backward/clockwise/counter-clockwise).
 
-**Rewiring checklist (user action):**
-- Servo PWM signal → ESP32 pin 13
-- I2C SDA → ESP32 pin 21
-- I2C SCL → ESP32 pin 22
-- Sensor VCC → ESP32 3.3V pin
-- ESP32 micro-USB → Pi4 USB port (data cable)
-- Servo 5V → physical toggle switch → servo rail (unchanged)
-- HW-001 (Teensy 4.1 LED jumper cut): do in same session while PCB is open
+**I2C bus assignment:** TBD — pending enclosure access. Candidates:
+- Teensy 4.0 Wire (pins 18/19): same bus as Person Sensor (0x62); no address conflict. Requires T4.0 firmware update to PAJ7620 library.
+- Teensy 4.1 Wire (pins 18/19): separate firmware path; requires T4.1 firmware change.
+- USB-I2C bridge to Pi4: independent of Teensy firmware.
 
-**Flash procedure (Claude runs `pio run`, user clicks upload):**
-1. PlatformIO: open `servo_esp32/IRIS-BaseServoControlViaPerson_Sensor`, select `env:esp32`
-2. User clicks upload — ESP32 on COM13
-3. Plug ESP32 into Pi4 USB port
-4. SSH Pi4 → verify `/dev/ttyUSB0` appears: `ls /dev/ttyUSB*`
-5. Deploy updated `pi4/assistant.py` to Pi4 (standard persist protocol — `start_servo_listener`, `[SERVO]` log prefix)
-6. Tail logs: `journalctl -u assistant -f`
-7. Trigger APDS-9960 gestures — confirm `[SERVO]` log lines: VOL_UP, VOL_DOWN, STOP, LISTEN
-8. Verify servo tracks face on Person Sensor detection
+**Integration checklist (user action, enclosure open required):**
+1. Decide I2C bus placement.
+2. Wire PAJ7620U2: SDA/SCL to chosen bus, VCC→3.3V, GND→GND.
+3. Update firmware for chosen target (PAJ7620 library, gesture dispatch).
+4. Set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.py` after wiring confirmed.
+5. Verify gesture events in web UI Gestures tab.
 
-**Files:** `servo_esp32/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino`, `pi4/assistant.py`
-
----
-
-## RD-009 — Servo Controller USB Serial Integration
-
-**Status:** REPO-ONLY — Pi4 code complete, firmware updated for ESP32 DevKit 1C. Deploy pending HW-002 rewire + flash.
-
-**Summary:** Servo controller (ESP32 DevKit 1C) communicates with Pi4 via USB-UART bridge (/dev/ttyUSB0, 9600 baud). APDS-9960 gesture sensor drives volume, stop, and listen commands. No WiFi required.
-
-**Implemented (REPO-ONLY):**
-- Firmware: APDS-9960 gesture → `VOL_UP` / `VOL_DOWN` / `STOP` / `LISTEN` over USB serial. Proximity hold > 150 for 1s → `LISTEN`.
-- `pi4/assistant.py`: `start_servo_listener()` daemon thread reads `/dev/ttyUSB0` at 9600 baud, dispatches to `set_volume()`, `_stop_playback.set()`, `/tmp/iris_manual_listen`.
-- `pi4/iris_web.py`: `/api/stop` and `/api/listen` routes (web UI equivalents).
-- `pi4/services/wakeword.py`: `/tmp/iris_manual_listen` flag check in wait loop.
-
-**Deploy gate:** HW-002 (ESP32 rewire + flash) must complete first. See HW-002 for full procedure.
-
----
-
-## RD-010 — ESP32 Remote Flash via Pi4 USB
-
-**Status:** Open — implement after HW-002 hardware verify.
-
-**Goal:** Enable Claude to flash new ESP32 firmware over SSH to Pi4, with no physical access to SuperMaster or the enclosure. ESP32 is already permanently USB-connected to Pi4 (/dev/ttyUSB0), so Pi4 is the natural flash host.
-
-**Procedure (documented in platformio.ini comments):**
-1. `pio run` on SuperMaster — builds `.pio/build/esp32/firmware.bin`
-2. Claude SFTPs `firmware.bin` → Pi4 `/tmp/servo_firmware.bin`
-3. Claude SSH Pi4: `python3 -m esptool --port /dev/ttyUSB0 write_flash 0x0 /tmp/servo_firmware.bin`
-4. No BOOT button needed — CH340 auto-reset works once firmware is running
-
-**Pre-requisite:** `python3-esptool` on Pi4 — `sudo apt install python3-esptool` (one-time, persists to SD).
-
-**Risk:** Low. esptool write_flash is the same operation ESPHome Flasher uses. Auto-reset confirmed working after first manual flash.
-
-**Files:** `servo_esp32/.../platformio.ini` (procedure already documented in comments), Pi4 apt install.
-
----
-
-## RD-011 — APDS-9960 Proximity Sensor Verify (LISTEN trigger)
-
-**Status:** Open — verify after HW-002 hardware bring-up.
-
-**Issue:** Firmware calls `apds.enableProximitySensor(false)` then later calls `apds.readProximity()` for the LISTEN trigger. If the SparkFun library requires proximity mode explicitly enabled for `readProximity()` to return valid data, the LISTEN gesture will silently never fire.
-
-**Fix (if broken):** Change `enableProximitySensor(false)` → `enableProximitySensor(true)` in setup(). Verify gesture mode and proximity mode are not mutually exclusive on APDS-9960 with this library version (SparkFun APDS9960 @ 1.4.3).
-
-**How to verify:** SSH Pi4 → `tail -f /dev/ttyUSB0` (or `journalctl -u assistant -f`), hold hand ~3cm from sensor for 1s → should see `LISTEN` in serial output and `[SERVO] LISTEN` in assistant log.
-
-**Files:** `servo_esp32/IRIS-BaseServoControlViaPerson_Sensor/IRIS-BaseServoControlViaPerson_Sensor.ino` (setup() only)
+**Files:** `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` (if Teensy 4.0 path), `pi4/core/config.py` (GESTURE_SENSOR_REQUIRED). See IRIS_ARCH.md Pending Hardware section.
