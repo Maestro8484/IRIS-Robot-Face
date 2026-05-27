@@ -23,7 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
 | GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model current. |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
-| Teensy 4.0 | Operational — servo + gesture controller. /dev/ttyIRIS_SERVO. APDS-9960 chip dead (S66). PAJ7620U2 pending install. |
+| Teensy 4.0 | REPO-ONLY S69 — PAJ7620U2 firmware written, pending user PlatformIO upload (env:teensy40). DS3218MG constants set. /dev/ttyIRIS_SERVO. |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
 | Wakeword | `hey_jarvis` (production). Experimental wakewords require explicit user approval, live Pi4 state confirmation, clean process restart, and one-model-at-a-time testing. Failed experiment names are in `CHANGELOG.md`. |
 
@@ -41,17 +41,27 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**HARDWARE: APDS-9960 chip dead — reseat or swap breakout**
+**Flash Teensy 4.0 — PAJ7620U2 firmware REPO-ONLY S69**
 
-Chip returned 0x0 from ID register (expected 0xAB), then full no-response after reflash. Person Sensor on same I2C bus works — bus/pull-ups/3.3V rail confirmed healthy. Fault isolated to the APDS-9960 chip or its specific wiring.
+PAJ7620U2 bare I2C driver written and committed. APDS-9960 fully removed. DS3218MG constants set.
 
 Steps:
-1. Power off Pi4 and Teensy 4.0.
-2. Physically reseat (or swap) the APDS-9960 breakout board on the I2C header.
-3. Flash `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` via PlatformIO.
-4. Check web UI Gestures tab → Gesture Event Log for VOL+/VOL-/STOP events.
+1. Disconnect Teensy 4.0 from Pi4 USB. Connect to SuperMaster USB.
+2. Open `servo_teensy40/teensy40_base_mount/` in PlatformIO. Click Upload (env:teensy40).
+3. Open serial monitor at 115200. Confirm:
+   - `DIAG: PAJ7620U2 0x73 ACK=YES`
+   - `DIAG: PAJ7620U2 init=OK`
+   - `DIAG: touch3=NNN` each second (check baseline value for TOUCH3_THRESH tuning)
+4. Swipe gestures: verify VOL+/VOL-/STOP in serial output.
+5. Reconnect to Pi4 USB. Confirm `/dev/ttyIRIS_SERVO` present.
+6. Tune TOUCH3_THRESH (default 1500) based on observed baseline vs. touched values.
+7. Tune PAN_SPEED/PAN_DEAD_ZONE per DS3218MG servo behavior — see HANDOFF_SERVO_TUNING.md.
 
 ### Deploy state (current)
+- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY S69 (pending user PlatformIO upload)
+- `servo_teensy40/teensy40_base_mount/platformio.ini` — REPO-ONLY S69
+- `servo_teensy40/README.md` — REPO-ONLY S69
+- `docs/sysmap.json` — REPO-ONLY S69
 - `src/sleep_cfg.h`, `src/sleep_renderer.h`, `src/mouth_tft.cpp`, `src/main.cpp` — FLASHED (Teensy 4.1 S65)
 - `pi4/iris_post.py` — DEPLOYED+VERIFIED S67 (POST 21/22 PASS)
 - `pi4/core/config.py` — DEPLOYED+VERIFIED S67
@@ -59,10 +69,9 @@ Steps:
 - `pi4/iris_web.py` — DEPLOYED+VERIFIED S67
 - `pi4/iris_web.html` — DEPLOYED+VERIFIED S67
 - `pi4/scripts/iris_log_export.sh` — DEPLOYED+VERIFIED S67
-- S65/S66/S67 commits pushed to GitHub
+- S65/S66/S67/S68 commits pushed to GitHub
 
 ### Other pending
-- **Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`
 - **RD-003** — Duplicate sleep log cleanup (low priority)
 
 ---

@@ -1,5 +1,5 @@
 # IRIS Base Mount Controller — Wire & Pin Mapping
-**Last updated:** 2026-05-23 (planning session — Teensy 4.0 confirmed final board)
+**Last updated:** 2026-05-27 (PAJ7620U2 swap confirmed pending enclosure access; DS3218MG servo installed)
 **Board:** Teensy 4.0
 **Status:** CURRENT — active board
 
@@ -36,12 +36,13 @@ The PCB from iteration 4 was physically destroyed. This is a clean build.
 | Device | Address | Notes |
 |---|---|---|
 | Person Sensor (Useful Sensors) | 0x62 | Face detection, mounted right-side-up |
-| APDS-9960 | 0x39 | Gesture sensor — polling mode, INT unconnected |
+| PAJ7620U2 (HiLetgo) | 0x73 | Gesture sensor — replaces dead APDS-9960 (S66). INT unconnected. |
 
-No address conflict. Both on same SDA/SCL lines.
+APDS-9960 (0x39) confirmed dead S66 — I2C no-response, 0x0 from ID register. Physically removed and replaced with PAJ7620U2.
+
+No address conflict. Both devices on same SDA/SCL lines.
 
 **Required:** 4.7K pullup resistor from SDA to 3.3V. 4.7K pullup resistor from SCL to 3.3V.
-Solder one leg of each resistor to 3.3V rail, other leg to the respective bus line.
 Internal Teensy pullups are insufficient for two devices.
 
 ---
@@ -51,14 +52,14 @@ Internal Teensy pullups are insufficient for two devices.
 | Pin label | Wire color | Device / Label | Notes |
 |---|---|---|---|
 | micro-USB | — | Pi4 USB port | Board power + USB CDC serial comms |
-| 3.3V | Red/Orange | Sensor VCC bus | Person Sensor VCC + APDS-9960 VCC + APDS-9960 VL |
+| 3.3V | Red/Orange | Sensor VCC bus | Person Sensor VCC + PAJ7620U2 VCC |
 | GND | Black | Main GND bus | Sensor GND + servo signal GND + servo supply GND |
 
 ---
 
 ## Person Sensor Breakout — Pin to Wire
 
-Address 0x62. Shares I2C bus with APDS-9960.
+Address 0x62. Shares I2C bus with PAJ7620U2.
 
 | Board Pin | Wire | To |
 |---|---|---|
@@ -69,18 +70,34 @@ Address 0x62. Shares I2C bus with APDS-9960.
 
 ---
 
-## APDS-9960 Breakout — Pin to Wire
+## PAJ7620U2 Breakout (HiLetgo) — Pin to Wire
 
-Address 0x39. INT unconnected (polling mode). Keep clear line of sight to the two IR emitters on the board.
+Address 0x73. INT unconnected (polling mode). Keep clear line of sight to sensor window.
+Replaces APDS-9960 on same physical I2C bus wiring. VCC is 3.3V (module has onboard regulator on some variants — confirm 3.3V on VCC pin before wiring).
 
 | Board Pin | Wire | To | Notes |
 |---|---|---|---|
-| VCC | Solid orange | Teensy 4.0 3.3V pin | Twist with VL at Teensy end |
-| VL | Solid orange | Teensy 4.0 3.3V pin | Twist with VCC at Teensy end |
+| VCC | Solid orange | Teensy 4.0 3.3V pin | |
 | GND | Blue/white stripe | Teensy 4.0 GND pin | |
 | SDA | Solid blue | Teensy 4.0 pin 18 (SDA) | Parallel with Person Sensor SDA |
 | SCL | Blue/white stripe | Teensy 4.0 pin 19 (SCL) | Parallel with Person Sensor SCL |
-| INT | — | Unconnected | |
+| INT | — | Unconnected | Using polling mode |
+
+---
+
+## Pan Servo — DS3218MG (Miuzei)
+
+Replaces prior servo. Same pin, same power rail.
+
+| Spec | Value |
+|---|---|
+| Model | Miuzei DS3218MG Digital Servo |
+| Torque | 25kg/cm |
+| Speed | 0.16s/60deg at 6V |
+| Gears | Metal |
+| Signal pin | Teensy 4.0 pin 2 (PWM) |
+| Power | External 5V rail (toggle switch on enclosure) |
+| Range | 0-180 deg, center 90 |
 
 ---
 
@@ -89,7 +106,7 @@ Address 0x39. INT unconnected (polling mode). Keep clear line of sight to the tw
 | Rail | Source | Destination | Switch |
 |---|---|---|---|
 | USB (board power) | Pi4 USB port | Teensy micro-USB | None — always live |
-| 3.3V (sensors) | Teensy 3.3V pin | Person Sensor VCC, APDS-9960 VCC+VL | None |
+| 3.3V (sensors) | Teensy 3.3V pin | Person Sensor VCC, PAJ7620U2 VCC | None |
 | 5V (servo) | External 5V supply | Servo VCC | Physical toggle switch on enclosure |
 | GND | Teensy GND pin | Sensor GND, servo signal GND, servo supply GND | None |
 
@@ -98,20 +115,21 @@ Do not power servo from Teensy rail.
 
 ---
 
-## USB Serial Commands (Teensy 4.0 → Pi4)
+## USB Serial Commands (Teensy 4.0 to Pi4)
 
-| APDS-9960 input | Serial command | Pi4 behavior |
+| PAJ7620U2 input | Serial command | Pi4 behavior |
 |---|---|---|
 | Swipe UP | VOL+\n | Volume up |
 | Swipe DOWN | VOL-\n | Volume down |
 | Swipe LEFT | STOP\n | Interrupt current TTS playback |
 | Swipe RIGHT | STOP\n | Interrupt current TTS playback |
 
-Pi4 serial port: `/dev/ttyIRIS_SERVO` at 115200 baud (USB CDC, udev symlink S63 — hardware serial 12763490).
+Pi4 serial port: `/dev/ttyIRIS_SERVO` at 115200 baud (USB CDC, udev symlink — hardware serial 12763490).
 Teensy 4.1 display controller owns `/dev/ttyIRIS_EYES`.
 Pi4 handler: `hardware/base_mount_bridge.py` daemon thread in `assistant.py`.
 
-**Note:** APDS-9960 chip confirmed dead S66 (I2C no-response, 0x0 from ID register). PAJ7620U2 replacement (0x73) received, pending enclosure access and wiring.
+LISTEN trigger: capacitive touch3 only (no proximity channel on PAJ7620U2).
+Short tap (<1s) = STOP. Long hold (>=1s) = LISTEN.
 
 ---
 
@@ -119,7 +137,6 @@ Pi4 handler: `hardware/base_mount_bridge.py` daemon thread in `assistant.py`.
 
 - Pan only (rotation). No tilt.
 - Center position: 90 degrees
-- Clamp range: 45–135 degrees
-- Smooth incremental movement toward target each loop iteration — no snapping
-- Center on face lost — do not hold last position or sweep
-
+- Clamp range: 0-180 degrees (software constrained)
+- ServoEasing library: EASE_CUBIC_OUT tracking, EASE_SINE_OUT return
+- Smooth incremental movement toward target each loop iteration

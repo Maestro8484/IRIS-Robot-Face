@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S68 | **Date:** 2026-05-27 | **Branch:** `main` | **Last commit:** cf0b17b
+**Session:** S69 | **Date:** 2026-05-27 | **Branch:** `main` | **Last commit:** cf0b17b
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -8,9 +8,8 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **HARDWARE: APDS-9960 chip dead** — Reseat or swap breakout board, reflash T4.0, verify gesture events in web UI.
-2. **Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`, then reflash.
-3. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
+1. **Flash Teensy 4.0** — PAJ7620U2 firmware REPO-ONLY (S69). Connect Teensy 4.0 to SuperMaster USB, PlatformIO upload env:teensy40, reconnect to Pi4 USB. Verify 0x73 ACK + gesture events in web UI. After flash: tune TOUCH3_THRESH from SERIAL_DIAG output; iterate PAN_SPEED/PAN_DEAD_ZONE per DS3218MG behavior.
+2. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
 
 ---
 
@@ -22,7 +21,7 @@
 | Pi4 192.168.1.200 | Operational. S67 DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. POST 21/22 PASS (1 WARN gesture sensor expected). S65 sleep sliders live. S66 POST diagnostic live. S67 bench JSONL sync live. install_journald.sh run (journald 500MB/1yr). |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
-| Teensy 4.0 (servo + gesture) | DEPLOYED+VERIFIED S59. Servo pan works (tuning pending). APDS-9960 chip DEAD (S66 — I2C no-response). PAJ7620U2 replacement received, not yet wired. /dev/ttyIRIS_SERVO (udev symlink S63). |
+| Teensy 4.0 (servo + gesture) | REPO-ONLY S69. PAJ7620U2 bare I2C driver written (reg 0x43), APDS-9960 fully removed, DS3218MG constants set (PAN_SPEED 0.02, PAN_DEAD_ZONE 5.0, FACE_RETURN_MS 6000), touch3 LISTEN added (pin 15). Pending user PlatformIO upload (env:teensy40). /dev/ttyIRIS_SERVO active. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -30,8 +29,7 @@
 
 ## Active Issues
 
-- **HIGH: APDS-9960 chip dead** — I2C no-response confirmed S65/S66. Person Sensor on same bus works — bus healthy. Chip returned 0x0 from ID register (expected 0xAB); full no-response after reflash. PAJ7620U2 replacement received — pending enclosure access to install and wire. Reflash T4.0 after swap, verify gesture events in web UI.
-- **HIGH: Teensy 4.0 servo tuning** — Pan servo works but clunky/jerky. Tune PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS in servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. Flash after tuning.
+- **HIGH: Teensy 4.0 flash + tune** — PAJ7620U2 firmware REPO-ONLY S69. Flash via PlatformIO upload (env:teensy40). After flash: verify DIAG output (0x73 ACK, PAJ7620U2 init=OK), verify gesture serial events, tune TOUCH3_THRESH (default 1500, SERIAL_DIAG prints raw touchRead value each second). Tune PAN_SPEED/PAN_DEAD_ZONE per DS3218MG behavior (see HANDOFF_SERVO_TUNING.md).
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
@@ -39,6 +37,8 @@
 ---
 
 ## Session Scope
+
+S69: PAJ7620U2 + DS3218MG firmware. teensy40_base_mount.ino fully rewritten: APDS-9960 driver and SparkFun library removed, PAJ7620U2 bare I2C driver added (bank 0/1 init, register 0x43 gesture poll — UP/DOWN/LEFT/RIGHT → VOL+/VOL-/STOP/STOP), touch3 LISTEN/STOP added (pin 15, 1s threshold), DS3218MG starting constants set (PAN_SPEED 0.02, PAN_DEAD_ZONE 5.0, FACE_RETURN_MS 6000). platformio.ini: APDS9960 lib dep removed. README.md updated. sysmap.json: 6 patches applied (role, gpio 18/19, tunable_constants, servo field, _meta.last_updated, _meta.authority). REPO-ONLY — firmware pending user PlatformIO upload.
 
 S68: Docs-only audit and correction pass. Servo subsystem (Teensy 4.0) fully documented in IRIS_ARCH.md: System Roles/Architecture tables enhanced, firmware file/ServoEasing/autonomy/power-toggle added to T4.0 pin section, Serial Protocol section extended with T4.0 one-way serial, Repo Structure updated, Env Quick Ref updated, PAJ7620U2 pending hardware section added, stale /dev/ttyACM0 reference corrected. SNAPSHOT/HANDOFF updated. ROADMAP pruned: HW-002/RD-009/RD-010/RD-011 (ESP32, tombstoned) removed, HW-001 closed, HW-003 PAJ7620U2 added. CHANGELOG gains servo controller evolution history. Memory files corrected (flash workflow memories updated to Teensy 4.1, new project_servo_controller_hardware.md created). Commit cf0b17b.
 
@@ -56,7 +56,16 @@ S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was
 
 ---
 
-## Last Session Changes (S65)
+## Last Session Changes (S69)
+
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — FULL REWRITE. APDS-9960 driver removed (SparkFun include, apdsOk, prox LISTEN logic, raw ID read). PAJ7620U2 bare I2C driver added: paj_write/paj_read helpers, paj7620Init() (bank 0/1 config table, wakeup sequence), pollGesture() reads reg 0x43 (UP→VOL+, DOWN→VOL-, LEFT/RIGHT→STOP). touch3 LISTEN added: pollTouch3() on pin 15, short tap→STOP, hold 1s→LISTEN. SERIAL_DIAG: 0x73 ACK probe at boot, PAJ7620 init result, touch3 raw value each second. DS3218MG constants: PAN_SPEED 0.02, PAN_DEAD_ZONE 5.0, FACE_RETURN_MS 6000. REPO-ONLY pending flash.
+- **`servo_teensy40/teensy40_base_mount/platformio.ini`** — Removed stale SparkFun APDS9960 lib_deps comment. REPO-ONLY.
+- **`servo_teensy40/README.md`** — Updated hardware list (PAJ7620U2, DS3218MG, touch3 pin 15, /dev/ttyIRIS_SERVO). Removed stale "new firmware to be written" note. REPO-ONLY.
+- **`docs/sysmap.json`** — 6 patches from sysmap_patch_2026-05-27.md applied: teensy40.role, gpio pins 18/19 device, tunable_constants (PAN_SPEED/PAN_DEAD_ZONE_DEG/FACE_RETURN_MS), servo field added, _meta.last_updated, _meta.authority. REPO-ONLY.
+
+**Status:** All REPO-ONLY. No Pi4 changes. No GandalfAI changes. Teensy 4.0 firmware pending user PlatformIO upload (env:teensy40).
+
+## Previous Session Changes (S65)
 
 - **`src/sleep_cfg.h`** (NEW) — Minimal shared struct header: `SleepCfg` (25 fields) + `extern SleepCfg sleepCfg`. Allows mouth_tft.cpp to access sleepCfg without pulling in GC9A01A_t3n.h (header conflict with ILI9341).
 - **`src/sleep_renderer.h`** (FULL REWRITE) — Cosmic sleep animation v3: Saturn (rings, bands, specular), Moon (crescent, glow), 48 warp particles (LFSR-seeded), nebula overlay, starfield. ZZZ removed from eyes (moved to mouth). SR_FRAME_MS=155ms, speed=0.85. Moon: top-right eye (175,48) / top-left eye (65,48). Saturn: bottom-left eye (55,185) / bottom-right eye (185,185).
@@ -111,11 +120,10 @@ S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was
 
 ## Known TODO
 
-- **NEXT: Servo tuning** — Tune PAN_SPEED/PAN_DEAD_ZONE/FACE_HOLD_MS/FACE_RETURN_MS in teensy40_base_mount.ino, then re-flash
+- **NEXT: Flash Teensy 4.0** — PAJ7620U2 firmware REPO-ONLY S69. PlatformIO upload env:teensy40. Verify DIAG output + gesture events. Tune TOUCH3_THRESH and PAN constants per hardware behavior.
 - HW-001: cut LED/SCK solder jumper on Teensy 4.1 underside
 - Flash Teensy 4.1 firmware (PlatformIO upload, env:eyes, COM7, user clicks upload)
 - GandalfAI: set OLLAMA_KEEP_ALIVE=30m + restart Ollama service
-- RD-011: confirm APDS-9960 LISTEN trigger fires on Teensy 4.0
 
 ---
 
