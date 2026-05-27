@@ -311,6 +311,7 @@ HF cache: `C:\Users\gandalf\.cache\huggingface` - stays in user profile, intenti
 ## Teensy 4.0 Pin Assignment — Base Mount Controller
 
 **Firmware:** `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`
+**Wiring reference:** `docs/servo_teensy40_wiring.md` — complete pin-to-wire map with wire colors, I2C device addresses, power distribution.
 **Library:** ServoEasing (pan servo smooth motion control)
 **Autonomy:** Pan servo runs autonomously from Person Sensor face detection — Pi4 sends no commands to this board.
 **Serial direction:** One-way Teensy→Pi4 only. Teensy sends VOL+/VOL-/STOP on gesture events. Pi4 handler: `pi4/hardware/base_mount_bridge.py`. Only `base_mount_bridge.py` owns `/dev/ttyIRIS_SERVO`.
@@ -509,9 +510,9 @@ MOUTH_INTENSITY:n  -- set backlight level (0-15)
 
 **Teensy 4.0 -> Pi4 (one-way, `/dev/ttyIRIS_SERVO`, 115200 baud):**
 ```
-VOL+    -- volume up (APDS-9960 right swipe)
-VOL-    -- volume down (APDS-9960 left swipe)
-STOP    -- stop playback (APDS-9960 down swipe)
+VOL+    -- volume up (APDS-9960 swipe UP)
+VOL-    -- volume down (APDS-9960 swipe DOWN)
+STOP    -- stop playback (APDS-9960 swipe LEFT or RIGHT)
 ```
 Pi4 handler: `pi4/hardware/base_mount_bridge.py`. Only `base_mount_bridge.py` owns `/dev/ttyIRIS_SERVO`.
 Pi4 never sends commands to Teensy 4.0 — serial is one-way.
