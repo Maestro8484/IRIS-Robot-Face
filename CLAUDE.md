@@ -115,6 +115,7 @@ Documentation rules for this report:
 - Issue-specific status changes go in docs/iris_issue_log.md when relevant.
 - Do not claim any documentation file was updated unless it was actually edited this session.
 - Do not duplicate completed-history details into ROADMAP.md.
+- CHANGELOG.md MUST be updated before the session closes. Never defer it to "next session." A session is not done until CHANGELOG.md reflects everything that was completed in it. There is no valid reason to skip this.
 
 ---
 
@@ -132,7 +133,7 @@ Documentation rules for this report:
 - Preserve working behavior unless behavior is the identified bug.
 - Provide rollback steps.
 - Commit each batch separately.
-- Update docs after meaningful changes.
+- Update docs after meaningful changes. CHANGELOG.md is not optional — update it in the same session as the work, before closing. "Next session" is not a valid deferral.
 - Do not stack unverified changes.
 - Never push to GitHub unless explicitly authorized in the current session.
 - Never write to Pi4 or GandalfAI unless the user says DEPLOY.
