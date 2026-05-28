@@ -544,15 +544,44 @@ Commit cf0b17b pushed.
 
 **Status:** REPO-ONLY — Teensy 4.0 firmware pending user PlatformIO upload (env:teensy40)
 
-**Goal:** Replace dead APDS-9960 gesture sensor with PAJ7620U2 bare I2C driver. Tune servo constants for DS3218MG. Add touch3 LISTEN trigger to replace removed proximity channel.
+**Goal:** Replace dead APDS-9960 gesture sensor with PAJ7620U2 bare I2C driver. Tune servo constants for DS3218MG. Add touch3 LISTEN trigger to replace removed proximity channel. Add mount-orientation abstraction.
 
-**Changes:**
+**Firmware changes (servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino) — commits 35ffaf3 → bf304a8:**
 
-- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — Full rewrite of gesture driver. APDS-9960 removed: SparkFun include, apdsOk flag, raw 0x39 ID read, prox LISTEN logic (PROX_LISTEN_THRESHOLD, PROX_HOLD_MS) all gone. PAJ7620U2 bare I2C driver added: `paj_write()`/`paj_read()` helpers; `paj7620Init()` writes bank 0 + bank 1 config tables, returns bool; `pollGesture()` reads register 0x43 — bit 0 (UP)→VOL+, bit 1 (DOWN)→VOL-, bits 2-3 (LEFT/RIGHT)→STOP. Touch3 LISTEN added: `pollTouch3()` on pin 15 (T3), short tap→STOP, 1s hold→LISTEN. SERIAL_DIAG: 0x73 ACK probe at boot, PAJ7620 init result, touch3 raw value each second for threshold tuning. DS3218MG starting constants: PAN_SPEED 0.02 (was 0.04), PAN_DEAD_ZONE 5.0 (was 2.0), FACE_RETURN_MS 6000 (was 8000). Gesture serial contract unchanged (VOL+/VOL-/STOP/LISTEN).
-- **`servo_teensy40/teensy40_base_mount/platformio.ini`** — Removed stale SparkFun APDS9960 lib_deps comment.
+APDS-9960 removed entirely: SparkFun include, apdsOk flag, raw 0x39 ID probe, PROX_LISTEN_THRESHOLD/PROX_HOLD_MS, prox LISTEN logic.
+
+PAJ7620U2 bare I2C driver added:
+- `paj_write(reg, val)` / `paj_read(reg)` I2C helpers
+- `paj7620Init()` — wakeup sequence (any I2C contact, 700ms settle, ACK confirm), bank 0 (29 reg writes via 0xEF=0x00), bank 1 (20 writes via 0xEF=0x01), back to bank 0, unmask all gestures (0x41=0xFF), gesture mode (0x42=0x01); returns bool
+- `pollGesture()` — reads register 0x43 (IntFlag_1) each loop; non-zero = gesture; dispatches via GEST_* macros
+
+Register 0x43 correct bit layout (PAJ7620U2 datasheet v1.5 p.24 — confirmed before wiring):
+- Bit 0 (0x01) = Left, Bit 1 (0x02) = Right, Bit 2 (0x04) = Down, Bit 3 (0x08) = Up
+- Bit 4 (0x10) = Forward, Bit 5 (0x20) = Backward, Bit 6 (0x40) = CW, Bit 7 (0x80) = CCW
+
+Mount orientation abstraction (`#define GESTURE_MOUNT_DEGREES`):
+- Values 0/90/180/270 each compile to the correct GEST_UP/DOWN/LEFT/RIGHT macro mapping
+- `#error` fires at compile time for any other value
+- **Current setting: 270** (sensor mounted 90° CCW relative to viewer)
+- 270° mapping: phys UP=0x01, phys DOWN=0x02, phys LEFT=0x04, phys RIGHT=0x08
+
+Command dispatch: phys UP→`VOL+`, phys DOWN→`VOL-`, phys LEFT or RIGHT→`STOP`; Forward/Backward/CW/CCW ignored
+
+Touch3 LISTEN: `pollTouch3()` on pin 15 (T3 cap pad), `TOUCH3_THRESH=1500`, `TOUCH3_HOLD_MS=1000`. Short tap (release <1s) → `STOP`; hold ≥1s → `LISTEN`. Replaces proximity-LISTEN from removed APDS-9960.
+
+SERIAL_DIAG hardening: CODEX DIAGNOSTIC INSERT wrappers on all diagnostic blocks; pajOk printed in periodic telemetry (`pan=N pajOk=1`); raw gest byte printed on gesture detect; touch3 raw value printed each second for TOUCH3_THRESH tuning.
+
+DS3218MG constants: PAN_SPEED 0.02 (was 0.04), PAN_DEAD_ZONE 5.0 (was 2.0), FACE_RETURN_MS 6000 (was 8000).
+
+Serial contract unchanged: VOL+/VOL-/STOP/LISTEN (no Pi4 side changes required).
+
+**Other changes:**
+- **`servo_teensy40/teensy40_base_mount/platformio.ini`** — Removed stale SparkFun APDS9960 lib_deps comment. Platform URL auto-updated by PlatformIO.
 - **`servo_teensy40/README.md`** — Hardware list updated (PAJ7620U2 0x73, DS3218MG, touch3 pin 15, /dev/ttyIRIS_SERVO). Stale "new firmware to be written" note removed.
-- **`docs/sysmap.json`** — 6 patches applied (local-only, gitignored): teensy40.role, gpio pins 18/19 device field, tunable_constants (PAN_SPEED/PAN_DEAD_ZONE_DEG/FACE_RETURN_MS), servo field added, _meta.last_updated, _meta.authority.
+- **`docs/sysmap.json`** (local-only, gitignored) — Full S69 patch set: teensy40.role, gpio pin table (pin 15 touch3 added, pins 18/19 updated), PAJ7620U2 sensor block with register 0x43 bit table + rotation table for all 4 mount angles, GESTURE_MOUNT_DEGREES reference, TOUCH3_PIN/TOUCH3_THRESH/TOUCH3_HOLD_MS constants, servo field, _meta updated.
+- **`IRIS_ARCH.md`** — Architecture table Teensy 4.0 row updated (PAJ7620U2, touch3). Teensy 4.0 pin section rewritten: pin 15 added, I2C devices updated, serial command table adds LISTEN, PAJ7620U2 quick-reference section added with reg 0x43 bit table + rotation table for all 4 mount angles + command mapping. "Pending Hardware — PAJ7620U2" section removed. Repo Structure .ino comment updated. Serial Protocol Teensy 4.0 block updated (APDS-9960→PAJ7620U2, LISTEN added).
+- **`CLAUDE.md`** — CHANGELOG same-session enforcement rule added to Documentation rules and Hard Rules sections.
 - **`docs/handoffs/HANDOFF_PAJ7620U2_DS3218MG.md`** — Session handoff doc committed to repo.
 - **`docs/sysmap_patch_2026-05-27.md`** — Patch spec committed for reference.
 
-Commit 35ffaf3. Not pushed.
+Commits: 35ffaf3 (initial driver), f31e6ce (SERIAL_DIAG hardening), cb26e7e (reg 0x43 bit map + rotation fix), bf304a8 (GESTURE_MOUNT_DEGREES abstraction), + S69 doc update commit (IRIS_ARCH.md, platformio.ini, SNAPSHOT, HANDOFF, CHANGELOG).

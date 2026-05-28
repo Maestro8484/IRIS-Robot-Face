@@ -71,7 +71,7 @@ Final authority belongs to the human operator.
 | Pi4 | Voice pipeline orchestration, wakeword, mic/audio, LEDs, camera, web UI, cron sleep/wake, Teensy serial bridge |
 | GandalfAI | Ollama LLM, Modelfiles, Whisper STT, Kokoro TTS (primary), Piper TTS (fallback), Chatterbox (rollback only), RTX 3090 inference |
 | Teensy 4.1 (display controller) | Embedded controller for eyes, mouth, sleep renderer, person sensor integration, serial protocol |
-| Teensy 4.0 (base mount controller) | Pan servo: runs autonomously from Person Sensor face data (ServoEasing). APDS-9960 gesture (chip dead S66 — PAJ7620U2 replacement pending). USB-CDC serial to Pi4 /dev/ttyIRIS_SERVO, one-way (Teensy→Pi4: VOL+/VOL-/STOP; Pi4 sends nothing). Physical power toggle on enclosure rear. Firmware: servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. |
+| Teensy 4.0 (base mount controller) | Pan servo: runs autonomously from Person Sensor face data (ServoEasing). PAJ7620U2 gesture sensor (I2C 0x73, replaces dead APDS-9960 S66, polling reg 0x43). Touch3 pin 15 (STOP tap / LISTEN hold). USB-CDC serial to Pi4 /dev/ttyIRIS_SERVO, one-way (Teensy→Pi4: VOL+/VOL-/STOP/LISTEN; Pi4 sends nothing). Physical power toggle on enclosure rear. Firmware: servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED — replaced by Teensy 4.0 base mount controller |
 | GitHub | Secondary mirror, backup, version history, sharing remote |
 
@@ -228,7 +228,7 @@ On both rebooting simultaneously: GandalfAI must be up before assistant.py finis
 | GandalfAI | 192.168.1.3 | gandalf / &lt;password&gt; | Ollama LLM, Whisper STT, Piper TTS, Kokoro TTS, RTX 3090 |
 | Desktop PC | 192.168.1.103 | SuperMaster / &lt;password&gt; | PlatformIO firmware, VS Code, Claude Desktop. OpenSSH server enabled S29 - Claude can ssh_exec PowerShell commands and run git directly. |
 | Teensy 4.1 | USB -> Desktop PC | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
-| Teensy 4.0 | USB -> Pi4 (/dev/ttyIRIS_SERVO) | N/A | Base mount controller: pan servo (ServoEasing, autonomous), Person Sensor, APDS-9960 gesture (dead S66). Physical power toggle on enclosure rear. |
+| Teensy 4.0 | USB -> Pi4 (/dev/ttyIRIS_SERVO) | N/A | Base mount controller: pan servo (ServoEasing, autonomous), Person Sensor (0x62), PAJ7620U2 gesture sensor (0x73, I2C, replaces dead APDS-9960 S66), touch3 STOP/LISTEN (pin 15). Physical power toggle on enclosure rear. |
 | Synology NAS | 192.168.1.102 | Master / &lt;password&gt; | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
 **SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (SuperMaster 192.168.1.103, PowerShell). NAS SSH: port 2233 - connect via ssh MCP with explicit host override. Credentials in CLAUDE.md (user-level, not committed).
@@ -314,7 +314,7 @@ HF cache: `C:\Users\gandalf\.cache\huggingface` - stays in user profile, intenti
 **Wiring reference:** `docs/servo_teensy40_wiring.md` — complete pin-to-wire map with wire colors, I2C device addresses, power distribution.
 **Library:** ServoEasing (pan servo smooth motion control)
 **Autonomy:** Pan servo runs autonomously from Person Sensor face detection — Pi4 sends no commands to this board.
-**Serial direction:** One-way Teensy→Pi4 only. Teensy sends VOL+/VOL-/STOP on gesture events. Pi4 handler: `pi4/hardware/base_mount_bridge.py`. Only `base_mount_bridge.py` owns `/dev/ttyIRIS_SERVO`.
+**Serial direction:** One-way Teensy→Pi4 only. Teensy sends VOL+/VOL-/STOP/LISTEN on gesture and touch events. Pi4 handler: `pi4/hardware/base_mount_bridge.py`. Only `base_mount_bridge.py` owns `/dev/ttyIRIS_SERVO`.
 **Power toggle:** Physical switch on enclosure rear controls servo 5V rail. Pi4 USB power is unaffected.
 
 Connected: USB to Pi4 (`/dev/ttyIRIS_SERVO` — separate from Teensy 4.1 on `/dev/ttyIRIS_EYES`)
@@ -322,9 +322,10 @@ Powered: Pi4 USB port
 
 | GPIO | Signal | Device | Notes |
 |---|---|---|---|
-| 2  | Pan servo PWM | Pan servo | `panServo.attach(2)` |
-| 18 | SDA (Wire default) | Person Sensor 0x62 + APDS-9960 0x39 | Shared I2C bus |
-| 19 | SCL (Wire default) | Person Sensor 0x62 + APDS-9960 0x39 | Shared I2C bus |
+| 2  | Pan servo PWM | DS3218MG 25kg servo | `panServo.attach(2)`, external 5V rail |
+| 15 | Capacitive touch (T3) | Touch pad | `touchRead(15)` — tap=STOP, hold ≥1s=LISTEN |
+| 18 | SDA (Wire default) | Person Sensor 0x62 + PAJ7620U2 0x73 | Shared I2C bus, external 4.7K pullups |
+| 19 | SCL (Wire default) | Person Sensor 0x62 + PAJ7620U2 0x73 | Shared I2C bus, external 4.7K pullups |
 
 I2C pullups: 4.7K resistor SDA→3.3V, 4.7K resistor SCL→3.3V (external, required)
 Servo power: external 5V supply, physical toggle switch on enclosure
@@ -332,25 +333,65 @@ Sensors: 3.3V from Teensy 3.3V pin
 
 USB Serial commands (Teensy 4.0 → Pi4):
 
-| Command | Pi4 behavior |
-|---|---|
-| `VOL+` | volume up (`handle_volume_command("louder")`) |
-| `VOL-` | volume down (`handle_volume_command("quieter")`) |
-| `STOP` | UDP to 127.0.0.1:10500 |
+| Command | Trigger | Pi4 behavior |
+|---|---|---|
+| `VOL+` | PAJ7620U2 swipe UP (physical) | volume up (`handle_volume_command("louder")`) |
+| `VOL-` | PAJ7620U2 swipe DOWN (physical) | volume down (`handle_volume_command("quieter")`) |
+| `STOP` | PAJ7620U2 swipe LEFT or RIGHT, or touch3 short tap | UDP to 127.0.0.1:10500 |
+| `LISTEN` | touch3 pin 15 held ≥1s | activate listen mode |
 
 ---
 
-## Pending Hardware — PAJ7620U2 Gesture Sensor
+### PAJ7620U2 Gesture Sensor Quick-Reference
 
-**Part:** HiLetgo PAJ7620U2 gesture sensor, 3.3V I2C, address `0x73`
-**Status:** Received. Not wired. Not integrated.
-**Purpose:** Intended replacement for dead APDS-9960 (I2C no-response confirmed S66). Provides directional swipe gestures (up/down/left/right/forward/backward/clockwise/counter-clockwise).
-**I2C bus assignment:** TBD — pending enclosure access to confirm wiring feasibility. Candidates:
-- Teensy 4.0 Wire (pins 18/19) — same bus as Person Sensor (0x62); no address conflict with 0x73
-- Teensy 4.1 Wire (pins 18/19) — separate firmware path; requires T4.1 firmware change
-- USB-I2C bridge to Pi4 — independent of Teensy firmware
-**Integration gate:** Enclosure access required for physical install and wiring. I2C bus decision must precede firmware integration spec.
-`GESTURE_SENSOR_REQUIRED = False` in `pi4/core/config.py` until integration is confirmed. See ROADMAP.md HW-003.
+**I2C address:** `0x73`  **Init:** bank 0 (29 writes) + bank 1 (20 writes), 700 µs wakeup settle required before config writes  **Polling:** Register Bank 0, `0x43` (IntFlag_1) — read each loop, clear on read
+
+#### Register 0x43 — IntFlag_1 raw bit layout (datasheet v1.5 p.24)
+
+| Bit | Mask | Gesture |
+|---|---|---|
+| 0 | 0x01 | Left |
+| 1 | 0x02 | Right |
+| 2 | 0x04 | Down |
+| 3 | 0x08 | Up |
+| 4 | 0x10 | Forward |
+| 5 | 0x20 | Backward |
+| 6 | 0x40 | Clockwise |
+| 7 | 0x80 | Counter-Clockwise |
+
+#### Mount orientation remapping (`GESTURE_MOUNT_DEGREES` define in firmware)
+
+Physical gesture direction depends on how the sensor is mounted. Change `#define GESTURE_MOUNT_DEGREES` to one of `0 / 90 / 180 / 270`. A `#error` fires at compile time for any other value.
+
+| Mount rotation | Phys UP | Phys DOWN | Phys LEFT | Phys RIGHT |
+|---|---|---|---|---|
+| 0° (label up, standard) | 0x08 | 0x04 | 0x01 | 0x02 |
+| 90° CW | 0x02 | 0x01 | 0x08 | 0x04 |
+| 180° (upside-down) | 0x04 | 0x08 | 0x02 | 0x01 |
+| 270° CW / 90° CCW | 0x01 | 0x02 | 0x04 | 0x08 |
+
+**Current install:** `GESTURE_MOUNT_DEGREES 270` (sensor rotated 90° CCW relative to viewer)
+
+**Sensor axis → command mapping (all orientations):**
+- Physical UP → `VOL+`
+- Physical DOWN → `VOL-`
+- Physical LEFT → `STOP`
+- Physical RIGHT → `STOP`
+- Forward / Backward / CW / CCW → ignored (not wired to commands)
+
+**INT pin:** Not connected — firmware uses polling mode only. INT wiring not required.
+
+---
+
+### Touch3 — Pin 15 (T3)
+
+| Constant | Default | Purpose |
+|---|---|---|
+| `TOUCH3_PIN` | 15 | Teensy T3 capacitive pad |
+| `TOUCH3_THRESH` | 1500 | Touch detect threshold (tunable — SERIAL_DIAG prints raw value) |
+| `TOUCH3_HOLD_MS` | 1000 | Hold time to trigger LISTEN (ms) |
+
+Behavior: short tap (release before 1s) → `STOP`; hold ≥1s → `LISTEN`. Replaces proximity-LISTEN from removed APDS-9960.
 
 ---
 
@@ -386,7 +427,7 @@ IRIS-Robot-Face/
     iris_wake.py                -- cron wake script
   servo_teensy40/
     teensy40_base_mount/
-      teensy40_base_mount.ino   -- pan servo + gesture firmware (ServoEasing, Person Sensor, APDS-9960)
+      teensy40_base_mount.ino   -- pan servo + gesture firmware (ServoEasing, Person Sensor, PAJ7620U2 0x73, touch3 LISTEN/STOP pin 15)
       platformio.ini            -- env:t40, board teensy40, monitor_speed 115200
   ollama/
     iris_modelfile.txt          -- adult IRIS persona (gemma3:27b-it-qat) -- canonical
@@ -510,12 +551,14 @@ MOUTH_INTENSITY:n  -- set backlight level (0-15)
 
 **Teensy 4.0 -> Pi4 (one-way, `/dev/ttyIRIS_SERVO`, 115200 baud):**
 ```
-VOL+    -- volume up (APDS-9960 swipe UP)
-VOL-    -- volume down (APDS-9960 swipe DOWN)
-STOP    -- stop playback (APDS-9960 swipe LEFT or RIGHT)
+VOL+    -- volume up   (PAJ7620U2: physical swipe UP)
+VOL-    -- volume down (PAJ7620U2: physical swipe DOWN)
+STOP    -- stop playback (PAJ7620U2: physical swipe LEFT or RIGHT; touch3: short tap)
+LISTEN  -- activate listen mode (touch3 pin 15: hold >= 1s)
 ```
 Pi4 handler: `pi4/hardware/base_mount_bridge.py`. Only `base_mount_bridge.py` owns `/dev/ttyIRIS_SERVO`.
 Pi4 never sends commands to Teensy 4.0 — serial is one-way.
+See "PAJ7620U2 Gesture Sensor Quick-Reference" section for register 0x43 bit layout and mount rotation table.
 
 ---
 

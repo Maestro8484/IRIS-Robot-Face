@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S69 | **Date:** 2026-05-27 | **Branch:** `main` | **Last commit:** cf0b17b
+**Session:** S69 | **Date:** 2026-05-27 | **Branch:** `main` | **Last commit:** bf304a8 + doc update commit pending push
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -21,7 +21,7 @@
 | Pi4 192.168.1.200 | Operational. S67 DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. POST 21/22 PASS (1 WARN gesture sensor expected). S65 sleep sliders live. S66 POST diagnostic live. S67 bench JSONL sync live. install_journald.sh run (journald 500MB/1yr). |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
-| Teensy 4.0 (servo + gesture) | REPO-ONLY S69. PAJ7620U2 bare I2C driver written (reg 0x43), APDS-9960 fully removed, DS3218MG constants set (PAN_SPEED 0.02, PAN_DEAD_ZONE 5.0, FACE_RETURN_MS 6000), touch3 LISTEN added (pin 15). Pending user PlatformIO upload (env:teensy40). /dev/ttyIRIS_SERVO active. |
+| Teensy 4.0 (servo + gesture) | REPO-ONLY S69. PAJ7620U2 bare I2C driver written (reg 0x43 bit-correct per datasheet p.24). GESTURE_MOUNT_DEGREES 270 (90° CCW mount). APDS-9960 fully removed. DS3218MG constants set. Touch3 LISTEN pin 15. Pending user PlatformIO upload (env:teensy40). /dev/ttyIRIS_SERVO active. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -38,7 +38,7 @@
 
 ## Session Scope
 
-S69: PAJ7620U2 + DS3218MG firmware. teensy40_base_mount.ino fully rewritten: APDS-9960 driver and SparkFun library removed, PAJ7620U2 bare I2C driver added (bank 0/1 init, register 0x43 gesture poll — UP/DOWN/LEFT/RIGHT → VOL+/VOL-/STOP/STOP), touch3 LISTEN/STOP added (pin 15, 1s threshold), DS3218MG starting constants set (PAN_SPEED 0.02, PAN_DEAD_ZONE 5.0, FACE_RETURN_MS 6000). platformio.ini: APDS9960 lib dep removed. README.md updated. sysmap.json: 6 patches applied (role, gpio 18/19, tunable_constants, servo field, _meta.last_updated, _meta.authority). REPO-ONLY — firmware pending user PlatformIO upload.
+S69: PAJ7620U2 + DS3218MG firmware + docs. teensy40_base_mount.ino fully rewritten (commits 35ffaf3→bf304a8): APDS-9960 removed, PAJ7620U2 bare I2C driver (bank 0/1 init, reg 0x43 bit-correct per datasheet p.24, GESTURE_MOUNT_DEGREES 270 for 90° CCW mount), touch3 LISTEN/STOP (pin 15, T3, 1s threshold), DS3218MG constants (PAN_SPEED 0.02, PAN_DEAD_ZONE 5.0, FACE_RETURN_MS 6000), SERIAL_DIAG hardened (pajOk in telemetry, raw gest byte, CODEX wrappers). platformio.ini: APDS9960 lib dep removed. README.md updated. sysmap.json: full PAJ7620U2 patch set (reg 0x43 bit table, rotation table for 0/90/180/270°, GESTURE_MOUNT_DEGREES ref, touch3 constants, pin 15 added). IRIS_ARCH.md: Teensy 4.0 pin section rewritten with PAJ7620U2 quick-reference and rotation table; "Pending Hardware" section removed. CHANGELOG.md: S69 fully documented. CLAUDE.md: CHANGELOG enforcement rules added. REPO-ONLY — firmware pending user PlatformIO upload.
 
 S68: Docs-only audit and correction pass. Servo subsystem (Teensy 4.0) fully documented in IRIS_ARCH.md: System Roles/Architecture tables enhanced, firmware file/ServoEasing/autonomy/power-toggle added to T4.0 pin section, Serial Protocol section extended with T4.0 one-way serial, Repo Structure updated, Env Quick Ref updated, PAJ7620U2 pending hardware section added, stale /dev/ttyACM0 reference corrected. SNAPSHOT/HANDOFF updated. ROADMAP pruned: HW-002/RD-009/RD-010/RD-011 (ESP32, tombstoned) removed, HW-001 closed, HW-003 PAJ7620U2 added. CHANGELOG gains servo controller evolution history. Memory files corrected (flash workflow memories updated to Teensy 4.1, new project_servo_controller_hardware.md created). Commit cf0b17b.
 
@@ -58,10 +58,13 @@ S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was
 
 ## Last Session Changes (S69)
 
-- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — FULL REWRITE. APDS-9960 driver removed (SparkFun include, apdsOk, prox LISTEN logic, raw ID read). PAJ7620U2 bare I2C driver added: paj_write/paj_read helpers, paj7620Init() (bank 0/1 config table, wakeup sequence), pollGesture() reads reg 0x43 (UP→VOL+, DOWN→VOL-, LEFT/RIGHT→STOP). touch3 LISTEN added: pollTouch3() on pin 15, short tap→STOP, hold 1s→LISTEN. SERIAL_DIAG: 0x73 ACK probe at boot, PAJ7620 init result, touch3 raw value each second. DS3218MG constants: PAN_SPEED 0.02, PAN_DEAD_ZONE 5.0, FACE_RETURN_MS 6000. REPO-ONLY pending flash.
-- **`servo_teensy40/teensy40_base_mount/platformio.ini`** — Removed stale SparkFun APDS9960 lib_deps comment. REPO-ONLY.
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — FULL REWRITE (commits 35ffaf3→bf304a8). APDS-9960 driver removed (SparkFun include, apdsOk, prox LISTEN logic, raw ID read). PAJ7620U2 bare I2C driver added: paj_write/paj_read helpers; paj7620Init() (bank 0/1 config tables, 700ms wakeup settle, ACK confirm); pollGesture() reads reg 0x43 bit-correct per datasheet p.24 (bit3=UP/0x08, bit2=DOWN/0x04, bit1=RIGHT/0x02, bit0=LEFT/0x01); GESTURE_MOUNT_DEGREES 270 (90° CCW mount) maps phys UP=0x01/DOWN=0x02/LEFT=0x04/RIGHT=0x08. Physical UP→VOL+, DOWN→VOL-, LEFT/RIGHT→STOP. SERIAL_DIAG: pajOk in periodic telemetry, raw gest byte on detect, CODEX wrappers all blocks. Touch3 LISTEN: pollTouch3() pin 15 (T3), TOUCH3_THRESH=1500, short tap→STOP, hold 1s→LISTEN. DS3218MG constants: PAN_SPEED 0.02, PAN_DEAD_ZONE 5.0, FACE_RETURN_MS 6000. REPO-ONLY pending flash.
+- **`servo_teensy40/teensy40_base_mount/platformio.ini`** — Removed stale SparkFun APDS9960 lib_deps comment. Platform URL auto-updated by PlatformIO. REPO-ONLY.
 - **`servo_teensy40/README.md`** — Updated hardware list (PAJ7620U2, DS3218MG, touch3 pin 15, /dev/ttyIRIS_SERVO). Removed stale "new firmware to be written" note. REPO-ONLY.
-- **`docs/sysmap.json`** — 6 patches from sysmap_patch_2026-05-27.md applied: teensy40.role, gpio pins 18/19 device, tunable_constants (PAN_SPEED/PAN_DEAD_ZONE_DEG/FACE_RETURN_MS), servo field added, _meta.last_updated, _meta.authority. REPO-ONLY.
+- **`IRIS_ARCH.md`** — Architecture table Teensy 4.0 row updated (PAJ7620U2, touch3). Pin section rewritten: pin 15 added, I2C devices updated, serial command table adds LISTEN. PAJ7620U2 quick-reference section added with reg 0x43 bit layout table + rotation table for all 4 mount angles + command mapping. Touch3 constants table added. "Pending Hardware — PAJ7620U2" section removed. Repo Structure .ino comment updated. Serial Protocol Teensy 4.0 block updated.
+- **`CLAUDE.md`** — CHANGELOG same-session enforcement rule added (Hard Rules + Documentation rules).
+- **`docs/sysmap.json`** (local-only, gitignored) — Full PAJ7620U2 patch: pin 15 added to gpio, PAJ7620U2 sensor block (reg 0x43 bit table, rotation table, command map, replaced field), TOUCH3_PIN/TOUCH3_THRESH/TOUCH3_HOLD_MS in tunable_constants, gpio pin notes updated.
+- **`CHANGELOG.md`** — S69 entry fully documented including all sub-commits, correct bit layout, GESTURE_MOUNT_DEGREES.
 
 **Status:** All REPO-ONLY. No Pi4 changes. No GandalfAI changes. Teensy 4.0 firmware pending user PlatformIO upload (env:teensy40).
 
