@@ -159,20 +159,42 @@ void setup() {
 
   pajOk = paj7620Init();
 #if SERIAL_DIAG
+  // ===== CODEX DIAGNOSTIC INSERT BEGIN: PAJ7620U2 init result =====
   Serial.print("DIAG: PAJ7620U2 init=");
   Serial.println(pajOk ? "OK" : "FAIL");
+  // ===== CODEX DIAGNOSTIC INSERT END: PAJ7620U2 init result =====
 #endif
 }
 
 void pollGesture() {
   if (!pajOk) return;
-  paj_write(0xEF, 0x00);  // ensure bank 0
+  paj_write(0xEF, 0x00);  // ensure bank 0 before read (defensive — keeps bank state correct after any reset)
   uint8_t gest = paj_read(0x43);
   if (gest == 0) return;
-  if      (gest & 0x01) Serial.println("VOL+");  // UP
-  else if (gest & 0x02) Serial.println("VOL-");  // DOWN
-  else if (gest & 0x04) Serial.println("STOP");  // LEFT
-  else if (gest & 0x08) Serial.println("STOP");  // RIGHT
+#if SERIAL_DIAG
+  // ===== CODEX DIAGNOSTIC INSERT BEGIN: PAJ7620U2 raw gesture byte =====
+  // Prints raw register value so LEFT (0x04) and RIGHT (0x08) are distinguishable even though
+  // both map to STOP. Also surfaces bits 4-7 (FORWARD/BACKWARD/CW/CCW) that have no mapped command.
+  Serial.print("DIAG: PAJ7620 gest=0x");
+  Serial.print(gest, HEX);
+  // Label the direction bits for readability
+  if      (gest & 0x01) Serial.print(" UP");
+  else if (gest & 0x02) Serial.print(" DOWN");
+  else if (gest & 0x04) Serial.print(" LEFT");
+  else if (gest & 0x08) Serial.print(" RIGHT");
+  else if (gest & 0x10) Serial.print(" FORWARD");
+  else if (gest & 0x20) Serial.print(" BACKWARD");
+  else if (gest & 0x40) Serial.print(" CW");
+  else if (gest & 0x80) Serial.print(" CCW");
+  Serial.println();
+  // ===== CODEX DIAGNOSTIC INSERT END: PAJ7620U2 raw gesture byte =====
+#endif
+  // Emit the command that Pi4 base_mount_bridge.py expects — do not change these strings
+  if      (gest & 0x01) Serial.println("VOL+");   // UP
+  else if (gest & 0x02) Serial.println("VOL-");   // DOWN
+  else if (gest & 0x04) Serial.println("STOP");   // LEFT
+  else if (gest & 0x08) Serial.println("STOP");   // RIGHT
+  // bits 0x10-0x80 (FORWARD/BACKWARD/CW/CCW): no command mapped — visible in SERIAL_DIAG only
 }
 
 void pollTouch3() {
@@ -180,12 +202,16 @@ void pollTouch3() {
   static bool listenSent = false;
   uint16_t t3 = touchRead(TOUCH3_PIN);
 #if SERIAL_DIAG
+  // ===== CODEX DIAGNOSTIC INSERT BEGIN: touch3 threshold monitor =====
+  // Prints raw touchRead value every 1s. Use this to set TOUCH3_THRESH:
+  // note the idle baseline, then touch pin 15 and observe the delta.
   static unsigned long lastT3DiagMs = 0;
   if (millis() - lastT3DiagMs >= 1000) {
     Serial.print("DIAG: touch3=");
     Serial.println(t3);
     lastT3DiagMs = millis();
   }
+  // ===== CODEX DIAGNOSTIC INSERT END: touch3 threshold monitor =====
 #endif
   if (t3 > TOUCH3_THRESH) {
     if (holdMs == 0) holdMs = millis();
@@ -362,7 +388,9 @@ void loop() {
       Serial.print(faces[0].isFacing);
     }
     Serial.print(" pan=");
-    Serial.println((int)desiredPan);
+    Serial.print((int)desiredPan);
+    Serial.print(" pajOk=");
+    Serial.println(pajOk ? 1 : 0);
     lastPsDiagMs = millis();
   }
   // ===== CODEX DIAGNOSTIC INSERT END: visible face and pan telemetry =====
