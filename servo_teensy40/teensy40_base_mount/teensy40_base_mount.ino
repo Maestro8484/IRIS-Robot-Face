@@ -60,6 +60,39 @@ extern "C" void _reboot_Teensyduino_(void);
 // PAJ7620U2 gesture sensor
 #define PAJ7620_ADDR 0x73
 
+// Physical mount orientation of PAJ7620U2.
+// Set to match how the sensor is installed (degrees CW from default orientation).
+// Default orientation: sensor window facing user, connector/pins at bottom (datasheet Fig.20).
+//   0   = default (connector down)
+//   90  = rotated 90 deg clockwise
+//   180 = upside down (connector up)
+//   270 = rotated 90 deg counter-clockwise (CCW)
+#define GESTURE_MOUNT_DEGREES 270
+
+#if   GESTURE_MOUNT_DEGREES == 0
+  #define GEST_UP    0x08
+  #define GEST_DOWN  0x04
+  #define GEST_LEFT  0x01
+  #define GEST_RIGHT 0x02
+#elif GESTURE_MOUNT_DEGREES == 90
+  #define GEST_UP    0x01
+  #define GEST_DOWN  0x02
+  #define GEST_LEFT  0x04
+  #define GEST_RIGHT 0x08
+#elif GESTURE_MOUNT_DEGREES == 180
+  #define GEST_UP    0x04
+  #define GEST_DOWN  0x08
+  #define GEST_LEFT  0x02
+  #define GEST_RIGHT 0x01
+#elif GESTURE_MOUNT_DEGREES == 270
+  #define GEST_UP    0x02
+  #define GEST_DOWN  0x01
+  #define GEST_LEFT  0x08
+  #define GEST_RIGHT 0x04
+#else
+  #error "GESTURE_MOUNT_DEGREES must be 0, 90, 180, or 270"
+#endif
+
 // Touch3 LISTEN/STOP trigger (T3 = pin 15 on Teensy 4.0)
 #define TOUCH3_PIN     15
 #define TOUCH3_THRESH  1500   // tune: SERIAL_DIAG prints raw touchRead value each second
@@ -167,16 +200,10 @@ void setup() {
 }
 
 void pollGesture() {
-  // Register 0x43 (IntFlag_1) bit layout per PAJ7620U2 datasheet v1.5 p.24:
-  //   Bit[3]=Up(0x08)  Bit[2]=Down(0x04)  Bit[1]=Right(0x02)  Bit[0]=Left(0x01)
-  //   Bit[4]=Forward   Bit[5]=Backward    Bit[6]=CW            Bit[7]=CCW
-  //
-  // Module is mounted 90 DEG CCW from default (default: label facing user, Up at top).
-  // Rotation remapping (sensor axis → physical user gesture):
-  //   sensor Right (0x02) = physical UP   → VOL+
-  //   sensor Left  (0x01) = physical DOWN → VOL-
-  //   sensor Up    (0x08) = physical LEFT → STOP
-  //   sensor Down  (0x04) = physical RIGHT→ STOP
+  // Reg 0x43 raw bit layout (datasheet v1.5 p.24):
+  //   Bit[3]=Up(0x08) Bit[2]=Down(0x04) Bit[1]=Right(0x02) Bit[0]=Left(0x01)
+  //   Bit[4]=Fwd      Bit[5]=Back       Bit[6]=CW           Bit[7]=CCW
+  // GEST_UP/DOWN/LEFT/RIGHT are resolved at compile time by GESTURE_MOUNT_DEGREES above.
 
   if (!pajOk) return;
   paj_write(0xEF, 0x00);  // ensure bank 0 before read (defensive — keeps bank state correct after any reset)
@@ -184,27 +211,27 @@ void pollGesture() {
   if (gest == 0) return;
 #if SERIAL_DIAG
   // ===== CODEX DIAGNOSTIC INSERT BEGIN: PAJ7620U2 raw gesture byte =====
-  // Shows raw register value + sensor-axis label + physical direction for 90 DEG CCW mount.
-  // Left/Right both map to STOP but are distinguishable here for orientation verification.
+  // Prints raw register value and physical direction (already rotation-corrected via GEST_* defines).
+  // STOP fires on both LEFT and RIGHT; they're distinguishable here for orientation verification.
   // Bits 0x10-0x80 (Fwd/Back/CW/CCW) have no mapped command but are surfaced here.
   Serial.print("DIAG: PAJ7620 gest=0x");
   Serial.print(gest, HEX);
-  if      (gest & 0x08) Serial.print(" s:UP    phys:LEFT");
-  else if (gest & 0x04) Serial.print(" s:DOWN  phys:RIGHT");
-  else if (gest & 0x02) Serial.print(" s:RIGHT phys:UP");
-  else if (gest & 0x01) Serial.print(" s:LEFT  phys:DOWN");
-  else if (gest & 0x10) Serial.print(" s:FORWARD");
-  else if (gest & 0x20) Serial.print(" s:BACKWARD");
-  else if (gest & 0x40) Serial.print(" s:CW");
-  else if (gest & 0x80) Serial.print(" s:CCW");
+  if      (gest & GEST_UP)    Serial.print(" UP");
+  else if (gest & GEST_DOWN)  Serial.print(" DOWN");
+  else if (gest & GEST_LEFT)  Serial.print(" LEFT");
+  else if (gest & GEST_RIGHT) Serial.print(" RIGHT");
+  else if (gest & 0x10)       Serial.print(" FORWARD");
+  else if (gest & 0x20)       Serial.print(" BACKWARD");
+  else if (gest & 0x40)       Serial.print(" CW");
+  else if (gest & 0x80)       Serial.print(" CCW");
   Serial.println();
   // ===== CODEX DIAGNOSTIC INSERT END: PAJ7620U2 raw gesture byte =====
 #endif
   // Emit command — do not change these strings, Pi4 base_mount_bridge.py depends on them
-  if      (gest & 0x02) Serial.println("VOL+");   // sensor Right = physical UP
-  else if (gest & 0x01) Serial.println("VOL-");   // sensor Left  = physical DOWN
-  else if (gest & 0x08) Serial.println("STOP");   // sensor Up    = physical LEFT
-  else if (gest & 0x04) Serial.println("STOP");   // sensor Down  = physical RIGHT
+  if      (gest & GEST_UP)    Serial.println("VOL+");
+  else if (gest & GEST_DOWN)  Serial.println("VOL-");
+  else if (gest & GEST_LEFT)  Serial.println("STOP");
+  else if (gest & GEST_RIGHT) Serial.println("STOP");
   // 0x10/0x20/0x40/0x80: no command mapped — visible in SERIAL_DIAG only
 }
 
