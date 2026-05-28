@@ -584,4 +584,7 @@ Serial contract unchanged: VOL+/VOL-/STOP/LISTEN (no Pi4 side changes required).
 - **`docs/handoffs/HANDOFF_PAJ7620U2_DS3218MG.md`** — Session handoff doc committed to repo.
 - **`docs/sysmap_patch_2026-05-27.md`** — Patch spec committed for reference.
 
-Commits: 35ffaf3 (initial driver), f31e6ce (SERIAL_DIAG hardening), cb26e7e (reg 0x43 bit map + rotation fix), bf304a8 (GESTURE_MOUNT_DEGREES abstraction), + S69 doc update commit (IRIS_ARCH.md, platformio.ini, SNAPSHOT, HANDOFF, CHANGELOG).
+**Build fix — `touchRead` not implemented in PlatformIO Teensy 4.x framework:**
+PlatformIO `framework-arduinoteensy` declares `touchRead()` in `cores/teensy4/core_pins.h` but provides no implementation for Teensy 4.x (implementation only exists in `cores/teensy3/touch.c`). Resulted in linker error: `undefined reference to 'touchRead'`. Fix: added `capTouch(pin)` in the .ino — ADC discharge-float-sample approach (drive LOW, float INPUT_DISABLE, sample ADC). Returns 0–1023 (10-bit). TOUCH3_THRESH updated from 1500 to 100 to match ADC scale. SERIAL_DIAG prints raw capTouch value for threshold tuning.
+
+Commits: 35ffaf3 (initial driver), f31e6ce (SERIAL_DIAG hardening), cb26e7e (reg 0x43 bit map + rotation fix), bf304a8 (GESTURE_MOUNT_DEGREES abstraction), b0f6bcc (doc update: IRIS_ARCH.md, platformio.ini, SNAPSHOT, HANDOFF, CHANGELOG), + touchRead build fix commit.

@@ -95,7 +95,12 @@ extern "C" void _reboot_Teensyduino_(void);
 
 // Touch3 LISTEN/STOP trigger (T3 = pin 15 on Teensy 4.0)
 #define TOUCH3_PIN     15
-#define TOUCH3_THRESH  1500   // tune: SERIAL_DIAG prints raw touchRead value each second
+// PlatformIO framework-arduinoteensy declares touchRead for Teensy 4.x but provides no
+// implementation (only teensy3/touch.c exists). capTouch() below replaces it using an
+// ADC discharge-float-sample method. Return range is 0-1023 (10-bit ADC).
+// Typical idle: 0-30.  Touched with bare hand: 80-400+ (hardware-dependent).
+// SERIAL_DIAG prints the raw value every second — touch the pad and observe to set TOUCH3_THRESH.
+#define TOUCH3_THRESH  100    // tune via SERIAL_DIAG: idle baseline + margin
 #define TOUCH3_HOLD_MS 1000
 
 bool pajOk = false;
@@ -118,6 +123,20 @@ static uint8_t paj_read(uint8_t reg) {
   Wire.endTransmission();
   Wire.requestFrom((uint8_t)PAJ7620_ADDR, (uint8_t)1);
   return Wire.available() ? Wire.read() : 0;
+}
+
+// PlatformIO Teensy 4.x framework declares touchRead() but never implements it (no teensy4/touch.c).
+// Replacement: discharge the pin, float it, then read ADC. Body capacitance holds charge when touched.
+// Returns 0-1023. Tune TOUCH3_THRESH against SERIAL_DIAG output.
+static uint16_t capTouch(uint8_t pin) {
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, LOW);
+  delayMicroseconds(10);
+  pinMode(pin, INPUT_DISABLE);   // high-Z analog input, no pullup (Teensy 4.x)
+  delayMicroseconds(20);
+  uint16_t v = (uint16_t)analogRead(pin);
+  pinMode(pin, INPUT_DISABLE);   // leave as analog input for next call
+  return v;
 }
 
 static bool paj7620Init() {
@@ -238,7 +257,7 @@ void pollGesture() {
 void pollTouch3() {
   static unsigned long holdMs = 0;
   static bool listenSent = false;
-  uint16_t t3 = touchRead(TOUCH3_PIN);
+  uint16_t t3 = capTouch(TOUCH3_PIN);
 #if SERIAL_DIAG
   // ===== CODEX DIAGNOSTIC INSERT BEGIN: touch3 threshold monitor =====
   // Prints raw touchRead value every 1s. Use this to set TOUCH3_THRESH:

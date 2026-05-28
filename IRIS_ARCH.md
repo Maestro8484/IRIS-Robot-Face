@@ -388,8 +388,10 @@ Physical gesture direction depends on how the sensor is mounted. Change `#define
 | Constant | Default | Purpose |
 |---|---|---|
 | `TOUCH3_PIN` | 15 | Teensy T3 capacitive pad |
-| `TOUCH3_THRESH` | 1500 | Touch detect threshold (tunable — SERIAL_DIAG prints raw value) |
+| `TOUCH3_THRESH` | 100 | Touch detect threshold — ADC range 0–1023. Idle ~0–30, touched ~80–400+. Tune via SERIAL_DIAG. |
 | `TOUCH3_HOLD_MS` | 1000 | Hold time to trigger LISTEN (ms) |
+
+**Implementation note:** PlatformIO `framework-arduinoteensy` declares `touchRead()` for Teensy 4.x in `core_pins.h` but provides no implementation (only `teensy3/touch.c` exists). The firmware uses `capTouch(pin)` — an ADC discharge-float-sample replacement. Output is 0–1023 (10-bit ADC), not the Teensyduino TSI scale. Threshold default updated accordingly.
 
 Behavior: short tap (release before 1s) → `STOP`; hold ≥1s → `LISTEN`. Replaces proximity-LISTEN from removed APDS-9960.
 
