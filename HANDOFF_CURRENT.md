@@ -23,7 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
 | GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model current. |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
-| Teensy 4.0 | REPO-ONLY S69 — PAJ7620U2 firmware written (GESTURE_MOUNT_DEGREES 270, reg 0x43 bit-correct per datasheet), pending user PlatformIO upload (env:teensy40). DS3218MG constants set. Touch3 LISTEN pin 15. /dev/ttyIRIS_SERVO. |
+| Teensy 4.0 | REPO-ONLY S69 — PAJ7620U2 firmware written, build confirmed clean (6415676). capTouch() replaces missing touchRead(). TOUCH3_THRESH=100 (ADC). Pending user PlatformIO upload (env:teensy40). |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
 | Wakeword | `hey_jarvis` (production). Experimental wakewords require explicit user approval, live Pi4 state confirmation, clean process restart, and one-model-at-a-time testing. Failed experiment names are in `CHANGELOG.md`. |
 
@@ -51,7 +51,7 @@ Steps:
 3. Open serial monitor at 115200. Confirm:
    - `DIAG: PAJ7620U2 0x73 ACK=YES`
    - `DIAG: PAJ7620U2 init=OK`
-   - `DIAG: touch3=NNN` each second (NNN=baseline, touched≈3000+; tune TOUCH3_THRESH default 1500)
+   - `DIAG: touch3=NNN` each second (ADC 0-1023; idle ~0-30, touched ~80-400+; TOUCH3_THRESH default 100)
 4. Swipe gestures in physical UP/DOWN/LEFT/RIGHT directions. Verify VOL+/VOL-/STOP in serial output.
    - If gestures fire wrong commands, change `GESTURE_MOUNT_DEGREES` (0/90/180/270) and reflash.
 5. Reconnect to Pi4 USB. Confirm `/dev/ttyIRIS_SERVO` present.

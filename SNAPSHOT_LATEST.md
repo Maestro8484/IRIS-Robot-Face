@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S69 | **Date:** 2026-05-27 | **Branch:** `main` | **Last commit:** bf304a8 + doc update commit pending push
+**Session:** S69 | **Date:** 2026-05-27 | **Branch:** `main` | **Last commit:** 6415676
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -21,7 +21,7 @@
 | Pi4 192.168.1.200 | Operational. S67 DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. POST 21/22 PASS (1 WARN gesture sensor expected). S65 sleep sliders live. S66 POST diagnostic live. S67 bench JSONL sync live. install_journald.sh run (journald 500MB/1yr). |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
-| Teensy 4.0 (servo + gesture) | REPO-ONLY S69. PAJ7620U2 bare I2C driver written (reg 0x43 bit-correct per datasheet p.24). GESTURE_MOUNT_DEGREES 270 (90° CCW mount). APDS-9960 fully removed. DS3218MG constants set. Touch3 LISTEN pin 15. Pending user PlatformIO upload (env:teensy40). /dev/ttyIRIS_SERVO active. |
+| Teensy 4.0 (servo + gesture) | REPO-ONLY S69. PAJ7620U2 bare I2C driver (reg 0x43 bit-correct, GESTURE_MOUNT_DEGREES 270). capTouch() replaces missing touchRead() — PlatformIO Teensy 4.x framework has declaration but no implementation; ADC 0-1023, TOUCH3_THRESH=100. Build confirmed clean. Pending user PlatformIO upload (env:teensy40). /dev/ttyIRIS_SERVO active. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -66,7 +66,9 @@ S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was
 - **`docs/sysmap.json`** (local-only, gitignored) — Full PAJ7620U2 patch: pin 15 added to gpio, PAJ7620U2 sensor block (reg 0x43 bit table, rotation table, command map, replaced field), TOUCH3_PIN/TOUCH3_THRESH/TOUCH3_HOLD_MS in tunable_constants, gpio pin notes updated.
 - **`CHANGELOG.md`** — S69 entry fully documented including all sub-commits, correct bit layout, GESTURE_MOUNT_DEGREES.
 
-**Status:** All REPO-ONLY. No Pi4 changes. No GandalfAI changes. Teensy 4.0 firmware pending user PlatformIO upload (env:teensy40).
+- **Build fix** — `touchRead()` declared in `cores/teensy4/core_pins.h` but never implemented in PlatformIO Teensy 4.x framework (only `teensy3/touch.c` exists). First call ever in this codebase (S69 `pollTouch3()`). Fixed with `capTouch(pin)`: discharge pin LOW, float INPUT_DISABLE, read ADC. Returns 0-1023. TOUCH3_THRESH changed from 1500 → 100.
+
+**Status:** All REPO-ONLY. No Pi4 changes. No GandalfAI changes. Teensy 4.0 firmware pending user PlatformIO upload (env:teensy40). Build confirmed clean (6415676).
 
 ## Previous Session Changes (S65)
 
