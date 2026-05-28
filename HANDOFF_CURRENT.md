@@ -23,7 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
 | GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model current. |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
-| Teensy 4.0 | REPO-ONLY S69 — PAJ7620U2 firmware written, build confirmed clean (6415676). capTouch() replaces missing touchRead(). TOUCH3_THRESH=100 (ADC). Pending user PlatformIO upload (env:teensy40). |
+| Teensy 4.0 | FLASHED S69 (092cbc3). capTouch() replaces missing touchRead(). TOUCH3_THRESH=100 (ADC). Hardware install pending — PAJ7620U2 and touch pad not yet wired. |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
 | Wakeword | `hey_jarvis` (production). Experimental wakewords require explicit user approval, live Pi4 state confirmation, clean process restart, and one-model-at-a-time testing. Failed experiment names are in `CHANGELOG.md`. |
 
@@ -41,14 +41,13 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**Flash Teensy 4.0 — PAJ7620U2 firmware REPO-ONLY S69**
+**Teensy 4.0 hardware install — firmware FLASHED S69, hardware pending**
 
-PAJ7620U2 bare I2C driver written and committed. APDS-9960 fully removed. DS3218MG constants set. GESTURE_MOUNT_DEGREES 270 (sensor mounted 90° CCW) — change to 0 if mounting normally. Reg 0x43 bit map confirmed correct per datasheet p.24.
+Firmware FLASHED. APDS-9960 fully removed. DS3218MG constants set. GESTURE_MOUNT_DEGREES 270 (sensor mounted 90° CCW) — change to 0 if mounting normally. capTouch() replaces missing touchRead() (ADC-based, 0-1023).
 
-Steps:
-1. Disconnect Teensy 4.0 from Pi4 USB. Connect to SuperMaster USB.
-2. Open `servo_teensy40/teensy40_base_mount/` in PlatformIO. Click Upload (env:teensy40).
-3. Open serial monitor at 115200. Confirm:
+Next step is physical hardware install. After wiring PAJ7620U2 to I2C bus (pins 18/19) and touch pad to pin 15:
+1. Reconnect Teensy 4.0 to Pi4 USB. Confirm `/dev/ttyIRIS_SERVO` present.
+2. Open serial monitor at 115200. Confirm:
    - `DIAG: PAJ7620U2 0x73 ACK=YES`
    - `DIAG: PAJ7620U2 init=OK`
    - `DIAG: touch3=NNN` each second (ADC 0-1023; idle ~0-30, touched ~80-400+; TOUCH3_THRESH default 100)
@@ -60,8 +59,8 @@ Steps:
 8. After confirmed working: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.py` and DEPLOY to Pi4.
 
 ### Deploy state (current)
-- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY S69 (pending user PlatformIO upload)
-- `servo_teensy40/teensy40_base_mount/platformio.ini` — REPO-ONLY S69
+- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — FLASHED S69
+- `servo_teensy40/teensy40_base_mount/platformio.ini` — FLASHED S69
 - `servo_teensy40/README.md` — REPO-ONLY S69
 - `IRIS_ARCH.md` — REPO-ONLY S69 (PAJ7620U2 quick-ref + rotation table added)
 - `CHANGELOG.md` — REPO-ONLY S69
