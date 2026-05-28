@@ -502,3 +502,57 @@ Current servo controller is Teensy 4.0. ESP32 and Pico W are tombstoned. All HW-
 - **`pi4/iris_web.py`** — `/api/post` GET/POST route. POST: starts `run_post()` in daemon thread (single concurrent run enforced by `_post_running` Event), returns `{"ok":true,"started":true}` immediately. GET: returns `{"running":bool,"result":<last result dict>}`. Module-level `_post_last_result` holds last completed result.
 
 - **`pi4/iris_web.html`** — POST diagnostic card added to System tab (before Config Persistence card). "Run POST Diagnostic" button + status indicator. On trigger: polls `/api/post` GET every 2s. On completion: renders per-check result table (Layer / Check / Result / Detail) with color-coded PASS/WARN/FAIL. `runPost()`, `_pollPost()`, `_renderPostResult()` JS functions added.
+
+---
+
+## S67 — iris_bench.jsonl SD Persistence (2026-05-27)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Goal:** Persist bench log across reboots by appending RAM records to SD layer on each 15-min cron cycle.
+
+**Changes:**
+
+- **`pi4/scripts/iris_log_export.sh`** — Extended with byte-offset append block. On each cron run (as root), new records from RAM `/home/pi/logs/iris_bench.jsonl` are appended to SD `/media/root-ro/home/pi/logs/iris_bench.jsonl` using `/run/iris_bench_last_pos` stamp. Stamp resets on boot — each boot cycle appends its own records.
+- **`pi4/core/config.py`** — `BENCH_LOG` (RAM write path) and `SD_BENCH_LOG` (SD accumulation path) constants added.
+- **`pi4/assistant.py`** — `_bench_write` uses `BENCH_LOG` constant instead of hardcoded string.
+- **`install_journald.sh`** — Run on Pi4. journald retention extended to 500MB / 1 year (S50 pending step completed).
+
+All Pi4 files DEPLOYED+VERIFIED. Commit pushed.
+
+---
+
+## S68 — Docs Audit + Servo Subsystem Documentation (2026-05-27)
+
+**Status:** Complete (docs-only)
+
+**Goal:** Audit and correct all documentation to reflect confirmed hardware state after S59-S67 changes. Document Teensy 4.0 servo subsystem fully in preparation for PAJ7620U2 firmware work.
+
+**Changes:**
+
+- **`IRIS_ARCH.md`** — System Roles and Architecture tables enhanced for Teensy 4.0. T4.0 pin section adds firmware file, ServoEasing, autonomy behavior, and power-toggle notes. Serial Protocol section extended with Teensy 4.0 one-way serial. Repo Structure and Env Quick Ref updated. PAJ7620U2 pending hardware section added. Stale `/dev/ttyACM0` reference corrected.
+- **`ROADMAP.md`** — HW-002/RD-009/RD-010/RD-011 (ESP32 tombstoned items) removed. HW-001 closed. HW-003 (PAJ7620U2 swap) added.
+- **`CHANGELOG.md`** — Servo controller evolution history added (Pico → Pico W → ESP32 → Teensy 4.0).
+- Memory files corrected: flash workflow memories updated to Teensy 4.1; `project_servo_controller_hardware.md` created.
+- SNAPSHOT/HANDOFF updated to reflect confirmed state.
+
+Commit cf0b17b pushed.
+
+---
+
+## S69 — PAJ7620U2 Driver + DS3218MG Constants (2026-05-27)
+
+**Status:** REPO-ONLY — Teensy 4.0 firmware pending user PlatformIO upload (env:teensy40)
+
+**Goal:** Replace dead APDS-9960 gesture sensor with PAJ7620U2 bare I2C driver. Tune servo constants for DS3218MG. Add touch3 LISTEN trigger to replace removed proximity channel.
+
+**Changes:**
+
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — Full rewrite of gesture driver. APDS-9960 removed: SparkFun include, apdsOk flag, raw 0x39 ID read, prox LISTEN logic (PROX_LISTEN_THRESHOLD, PROX_HOLD_MS) all gone. PAJ7620U2 bare I2C driver added: `paj_write()`/`paj_read()` helpers; `paj7620Init()` writes bank 0 + bank 1 config tables, returns bool; `pollGesture()` reads register 0x43 — bit 0 (UP)→VOL+, bit 1 (DOWN)→VOL-, bits 2-3 (LEFT/RIGHT)→STOP. Touch3 LISTEN added: `pollTouch3()` on pin 15 (T3), short tap→STOP, 1s hold→LISTEN. SERIAL_DIAG: 0x73 ACK probe at boot, PAJ7620 init result, touch3 raw value each second for threshold tuning. DS3218MG starting constants: PAN_SPEED 0.02 (was 0.04), PAN_DEAD_ZONE 5.0 (was 2.0), FACE_RETURN_MS 6000 (was 8000). Gesture serial contract unchanged (VOL+/VOL-/STOP/LISTEN).
+- **`servo_teensy40/teensy40_base_mount/platformio.ini`** — Removed stale SparkFun APDS9960 lib_deps comment.
+- **`servo_teensy40/README.md`** — Hardware list updated (PAJ7620U2 0x73, DS3218MG, touch3 pin 15, /dev/ttyIRIS_SERVO). Stale "new firmware to be written" note removed.
+- **`docs/sysmap.json`** — 6 patches applied (local-only, gitignored): teensy40.role, gpio pins 18/19 device field, tunable_constants (PAN_SPEED/PAN_DEAD_ZONE_DEG/FACE_RETURN_MS), servo field added, _meta.last_updated, _meta.authority.
+- **`docs/handoffs/HANDOFF_PAJ7620U2_DS3218MG.md`** — Session handoff doc committed to repo.
+- **`docs/sysmap_patch_2026-05-27.md`** — Patch spec committed for reference.
+
+Commit 35ffaf3. Not pushed.
