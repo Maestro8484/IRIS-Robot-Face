@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # iris_sleep.py — Triggered by cron at 9:00 PM
-# Sends EYES:SLEEP + MOUTH:8 via UDP to assistant.py (which owns the serial port).
-import socket, subprocess, time, sys, os
+# Sends EYES:SLEEP via UDP to assistant.py. CMD listener calls _do_sleep() which
+# handles MOUTH:8 + MOUTH_INTENSITY directly. Extra MOUTH: UDP sends trigger auto-wake.
+import socket, subprocess, sys, os
 
 # Ensure log directory exists, then redirect stdout+stderr for cron visibility
 os.makedirs('/home/pi/logs', exist_ok=True)
@@ -17,9 +18,7 @@ def log(msg):
 try:
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.sendto(b'EYES:SLEEP\n', ('127.0.0.1', CMD_PORT))
-        time.sleep(0.1)
-        s.sendto(b'MOUTH:8\n', ('127.0.0.1', CMD_PORT))
-    log('[SLEEP] UDP commands sent to assistant.py')
+    log('[SLEEP] UDP command sent to assistant.py')
 except Exception as e:
     log(f'[SLEEP] UDP error: {e}')
 

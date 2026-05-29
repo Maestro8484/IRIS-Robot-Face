@@ -273,17 +273,17 @@ def api_sleep_state():
 
 @app.route("/api/sleep", methods=["POST"])
 def api_sleep():
-    send_teensy("EYES:SLEEP")
-    ok = send_teensy("MOUTH:8")
-    send_teensy("MOUTH_INTENSITY:1")
+    # EYES:SLEEP alone — CMD listener calls _do_sleep() which sends MOUTH:8 +
+    # MOUTH_INTENSITY directly to Teensy. Extra MOUTH: UDP sends trigger auto-wake.
+    ok = send_teensy("EYES:SLEEP")
     open(SLEEP_FLAG, "w").close()
     return jsonify(ok=ok, sleeping=True)
 
 @app.route("/api/wake", methods=["POST"])
 def api_wake():
-    send_teensy("EYES:WAKE")
-    ok = send_teensy("MOUTH:0")
-    send_teensy("MOUTH_INTENSITY:8")
+    # EYES:WAKE alone — CMD listener calls _do_wake() which sends MOUTH:0 +
+    # MOUTH_INTENSITY. Extra sends are redundant but harmless; removed for symmetry.
+    ok = send_teensy("EYES:WAKE")
     if os.path.exists(SLEEP_FLAG): os.remove(SLEEP_FLAG)
     return jsonify(ok=ok, sleeping=False)
 
