@@ -1,5 +1,5 @@
 # IRIS Base Mount Controller — Wire & Pin Mapping
-**Last updated:** 2026-05-27 (PAJ7620U2 swap confirmed pending enclosure access; DS3218MG servo installed)
+**Last updated:** 2026-05-28 (DS3218MG confirmed installed; ServoEasing async API notes updated to S70)
 **Board:** Teensy 4.0
 **Status:** CURRENT — active board
 
@@ -137,6 +137,8 @@ Short tap (<1s) = STOP. Long hold (>=1s) = LISTEN.
 
 - Pan only (rotation). No tilt.
 - Center position: 90 degrees
-- Clamp range: 0-180 degrees (software constrained)
-- ServoEasing library: EASE_CUBIC_OUT tracking, EASE_SINE_OUT return
-- Smooth incremental movement toward target each loop iteration
+- Clamp range: PAN_MIN 45° – PAN_MAX 135° (software constrained via constants)
+- ServoEasing library: EASE_CUBIC_IN_OUT (single easing type, set once at setup)
+- Motion API: `startEaseToD(target, 100)` — async, non-blocking 100ms move
+- `isMoving()` guard: new move only issued when servo is not already in motion
+- Return-to-center: same async pattern; triggers after FACE_RETURN_MS (6000ms) face-lost

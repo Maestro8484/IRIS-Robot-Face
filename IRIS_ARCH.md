@@ -323,7 +323,7 @@ Powered: Pi4 USB port
 | GPIO | Signal | Device | Notes |
 |---|---|---|---|
 | 2  | Pan servo PWM | DS3218MG 25kg servo | `panServo.attach(2)`, external 5V rail |
-| 15 | Capacitive touch (T3) | Touch pad | `touchRead(15)` — tap=STOP, hold ≥1s=LISTEN |
+| 15 | Capacitive touch (T3) | Touch pad | `capTouch(15)` (ADC-based; `touchRead` not implemented in Teensy 4.x framework) — tap=STOP, hold ≥1s=LISTEN |
 | 18 | SDA (Wire default) | Person Sensor 0x62 + PAJ7620U2 0x73 | Shared I2C bus, external 4.7K pullups |
 | 19 | SCL (Wire default) | Person Sensor 0x62 + PAJ7620U2 0x73 | Shared I2C bus, external 4.7K pullups |
 

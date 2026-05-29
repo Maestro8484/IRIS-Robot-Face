@@ -23,7 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
 | GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model current. |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
-| Teensy 4.0 | S69 FLASHED+INSTALLED. PAJ7620U2 on I2C bus, Touch3=T3 pad. S70 REPO-ONLY: ServoEasing async (EASE_CUBIC_IN_OUT, startEaseToD/isMoving), PAN_MIN=45/PAN_MAX=135, PAN? query. Pending user flash. |
+| Teensy 4.0 | S69 FLASHED+INSTALLED. DS3218MG confirmed installed. PAJ7620U2 on I2C bus, Touch3=T3 pad. S70 REPO-ONLY: ServoEasing async (EASE_CUBIC_IN_OUT, startEaseToD/isMoving), PAN_MIN=45/PAN_MAX=135, PAN? query. S71 docs-only. Pending user flash of S70. |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
 | Wakeword | `hey_jarvis` (production). Experimental wakewords require explicit user approval, live Pi4 state confirmation, clean process restart, and one-model-at-a-time testing. Failed experiment names are in `CHANGELOG.md`. |
 
@@ -59,9 +59,10 @@ After gesture issues resolved: flash S70, verify PAN limits + smooth motion, tun
 ### Deploy state (current)
 - `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY S70 (S69 currently on hardware)
 - `servo_teensy40/teensy40_base_mount/platformio.ini` — FLASHED S69
-- `servo_teensy40/README.md` — REPO-ONLY S69
-- `IRIS_ARCH.md` — REPO-ONLY S69 (PAJ7620U2 quick-ref + rotation table added)
-- `CHANGELOG.md` — REPO-ONLY S69
+- `servo_teensy40/README.md` — REPO-ONLY S71
+- `IRIS_ARCH.md` — REPO-ONLY S71 (touchRead→capTouch fix; PAJ7620U2 quick-ref from S69)
+- `docs/servo_teensy40_wiring.md` — REPO-ONLY S71 (ServoEasing async notes updated)
+- `CHANGELOG.md` — REPO-ONLY S71
 - `CLAUDE.md` — REPO-ONLY S69
 - `docs/sysmap.json` — LOCAL-ONLY (gitignored) S69 full PAJ7620U2 patch
 - `src/sleep_cfg.h`, `src/sleep_renderer.h`, `src/mouth_tft.cpp`, `src/main.cpp` — FLASHED (Teensy 4.1 S65)

@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S70 | **Date:** 2026-05-28 | **Branch:** `main` | **Last commit:** 03ef8e1
+**Session:** S71 | **Date:** 2026-05-28 | **Branch:** `main` | **Last commit:** pending
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -22,7 +22,7 @@
 | Pi4 192.168.1.200 | Operational. S67 DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. POST 21/22 PASS (1 WARN gesture sensor expected). S65 sleep sliders live. S66 POST diagnostic live. S67 bench JSONL sync live. install_journald.sh run (journald 500MB/1yr). |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
-| Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. PAJ7620U2 on I2C bus. Touch3=T3 pad. S70 REPO-ONLY: ServoEasing async (EASE_CUBIC_IN_OUT, enableServoEasingInterrupt, startEaseToD/isMoving), PAN_MIN=45/PAN_MAX=135, PAN? query. Pending user flash. |
+| Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG confirmed installed. PAJ7620U2 on I2C bus. Touch3=T3 pad. S70 REPO-ONLY: ServoEasing async (EASE_CUBIC_IN_OUT, enableServoEasingInterrupt, startEaseToD/isMoving), PAN_MIN=45/PAN_MAX=135, PAN? query. Pending user flash. S71 docs-only: wiring doc + IRIS_ARCH.md + README corrected. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -57,7 +57,18 @@ S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was
 
 ---
 
-## Last Session Changes (S70)
+## Last Session Changes (S71)
+
+- **`docs/servo_teensy40_wiring.md`** — Servo Control Notes rewritten: old EASE_CUBIC_OUT/EASE_SINE_OUT references removed; S70 API documented (EASE_CUBIC_IN_OUT, startEaseToD(target,100), isMoving() guard, FACE_RETURN_MS). PAN_MIN 45°/PAN_MAX 135° clamp noted. Last-updated date updated.
+- **`IRIS_ARCH.md`** — Pin 15 table row: `touchRead(15)` corrected to `capTouch(15)` with note that touchRead is not implemented in Teensy 4.x PlatformIO framework.
+- **`servo_teensy40/README.md`** — DS3218MG confirmed installed and operational; firmware status updated to S70.
+- **`CHANGELOG.md`** — S71 entry added.
+
+**Status:** Docs-only. No firmware changes. No Pi4 changes. No GandalfAI changes.
+
+---
+
+## Previous Session Changes (S70)
 
 - **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — ServoEasing async API. `PAN_MIN 45.0` / `PAN_MAX 135.0` defines added. All `constrain()` calls updated to PAN_MIN/PAN_MAX. setup(): `panServo.write()` cast removed, `panServo.setEasingType(EASE_CUBIC_IN_OUT)` + `enableServoEasingInterrupt()` added. Tracking branch: `setEasingType(EASE_CUBIC_OUT)` + `write()` replaced with `if (!panServo.isMoving()) { panServo.startEaseToD(desiredPan, 100); }`. Return-to-center branch: same pattern. PAN command handler: `toFloat()`, PAN_MIN/MAX, `startEaseToD`. PAN? query added (returns `getCurrentAngle()`). Build: clean (ServoEasing 3.6.0, `setUpdateInterval` absent — library default 20ms used). REPO-ONLY pending user flash.
 

@@ -614,3 +614,17 @@ Commits: 35ffaf3 (initial driver), f31e6ce (SERIAL_DIAG hardening), cb26e7e (reg
 6. **PAN? query command (SERIAL_DIAG)** — new branch: `cmd == "PAN?"` → `Serial.print("PAN="); Serial.println(panServo.getCurrentAngle());`. Returns live servo position as float.
 
 **Build:** Clean — `pio run -e teensy40` SUCCESS. FLASH/RAM well within Teensy 4.0 limits.
+
+---
+
+## S71 — Servo Docs Update: DS3218MG Confirmed Installed (2026-05-28)
+
+**Status:** Complete (docs-only)
+
+**Goal:** Update documentation to reflect DS3218MG servo confirmed physically installed and operational. Correct stale ServoEasing notes in wiring doc (still referenced old synchronous API). Fix `touchRead` → `capTouch` in IRIS_ARCH.md pin table (S69 build fix never propagated to docs).
+
+**Changes:**
+
+- **`docs/servo_teensy40_wiring.md`** — Servo Control Notes section rewritten: `EASE_CUBIC_OUT tracking / EASE_SINE_OUT return` replaced with S70 API (EASE_CUBIC_IN_OUT, `startEaseToD(target, 100)`, `isMoving()` guard, FACE_RETURN_MS 6000ms). PAN_MIN 45° / PAN_MAX 135° clamp range documented. Last-updated timestamp updated.
+- **`IRIS_ARCH.md`** — Pin 15 table row: `touchRead(15)` corrected to `capTouch(15)` with note that `touchRead` is not implemented in Teensy 4.x PlatformIO framework.
+- **`servo_teensy40/README.md`** — Status line updated: "Firmware current as of S69" → DS3218MG confirmed installed and operational, firmware current as of S70.

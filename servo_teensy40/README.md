@@ -1,7 +1,7 @@
 # IRIS Base Mount Controller — Teensy 4.0 Firmware
 
 **Board:** Teensy 4.0 (iteration 7 — current active board)
-**Status:** Active. Firmware current as of S69.
+**Status:** Active. DS3218MG installed and operational. Firmware current as of S70 (ServoEasing async, PAN_MIN/MAX, PAN? query).
 
 ## Hardware
 
