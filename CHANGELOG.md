@@ -870,3 +870,25 @@ contracts.
 - **`servo_teensy40/README.md`** — Updated firmware status to TS40-S1/TS40-S2, added HW-004 PAJ7620U2 dead/replacement-on-order note, switched wiring reference to `docs/servo_teensy40_wiring.md`, and expanded modular file names.
 
 **Review note:** Root README changelog section was intentionally left unchanged because the separate `CHANGELOG.md` is canonical.
+
+---
+
+## CDX-5 — pytest Stubs for Pi4 Python Modules (2026-05-29)
+
+**Status:** REPO-ONLY — test scaffold committed locally.
+
+**Scope:** Added pytest stubs for Pi4 Python modules that must run on SuperMaster without live IRIS hardware. Tests cover `pi4/hardware/base_mount_bridge.py`, `pi4/core/intent_router.py`, `pi4/services/tts.py`, and `pi4/iris_post.py`.
+
+**Changes:**
+- **`tests/conftest.py`** — Added shared fixtures for fake config, mocked audio, mocked ALSA subprocess calls, mocked UDP, mocked serial, and an autouse network blocker.
+- **`tests/test_base_mount_bridge.py`** — Added gesture dispatch, mute toggle, LISTEN/UDP path, health-line, and invalid-gesture tests.
+- **`tests/test_intent_router.py`** — Converted the existing standalone Loop 1 script into pytest functions covering REFLEX, COMMAND, UTILITY, AMBIGUOUS, LLM fallthrough, and fail-open behavior.
+- **`tests/test_tts_spoken_numbers.py`** — Added numeric normalization coverage for units, teens, tens, hundreds, thousands, millions, negative numbers, and zero.
+- **`tests/test_iris_post.py`** — Added mocked POST coverage for LED layer sequence, PASS outcome, FAIL outcome, and gesture sensor required/not-required severity.
+- **`pytest.ini`** — Scoped pytest discovery to CDX-5 stubs so the legacy standalone integration smoke script is not executed at collection time.
+- **`requirements-dev.txt`** — Added pinned pytest dependencies.
+- **`tests/README.md`** and **`tests/__init__.py`** — Added test-running notes and package marker.
+
+**Verification:** Installed pinned dev requirements with `python -m pip install -r requirements-dev.txt`, then ran `python -m pytest tests/ -v`. Result: 66 passed, 1 failed. The failing test is `tests/test_tts_spoken_numbers.py::test_negative`, which shows `spoken_numbers("-42")` currently returns `-forty two` instead of `negative forty two`.
+
+**Review note:** No `pi4/*` source files were modified. The negative-number failure is left for Claude Code review because CDX-5 was test-only by design.

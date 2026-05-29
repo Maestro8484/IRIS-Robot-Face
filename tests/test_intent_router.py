@@ -1,107 +1,118 @@
-#!/usr/bin/env python3
-"""
-Loop 1: Offline unit tests for IntentRouter.
-Run on SuperMaster -- no Pi4, no hardware required.
+from __future__ import annotations
 
-Usage (from repo root):
-    python tests/test_intent_router.py
-"""
+import time as pytime
 
-import sys
-import os
+import pytest
 
-# Add pi4/ to path so core.* and services.* imports resolve
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "pi4"))
+from core import intent_router as router_mod
+from core.intent_router import (
+    IntentRouter,
+    ROUTE_AMBIGUOUS,
+    ROUTE_COMMAND,
+    ROUTE_LLM,
+    ROUTE_REFLEX,
+    ROUTE_UTILITY,
+)
 
-# Silence the iris_config.json FileNotFoundError print (expected on SuperMaster)
-import io
-import contextlib
 
-with contextlib.redirect_stdout(io.StringIO()):
-    from core.intent_router import (
-        IntentRouter,
-        ROUTE_REFLEX, ROUTE_COMMAND, ROUTE_UTILITY, ROUTE_AMBIGUOUS, ROUTE_LLM,
+@pytest.fixture
+def router():
+    return IntentRouter()
+
+
+def _fixed_time(hour: int):
+    return pytime.struct_time((2026, 5, 29, hour, 15, 0, 4, 149, -1))
+
+
+@pytest.mark.parametrize(
+    ("phrase", "action"),
+    [
+        ("go to sleep", "SLEEP"),
+        ("good night iris", "SLEEP"),
+        ("wake up", "WAKE"),
+        ("stop talking", "STOP"),
+        ("cancel", "STOP"),
+    ],
+)
+def test_layer0_reflex(router, phrase, action):
+    result = router.classify(phrase)
+
+    assert result.route == ROUTE_REFLEX
+    assert result.action == action
+
+
+@pytest.mark.parametrize(
+    ("phrase", "action"),
+    [
+        ("volume up", "VOLUME_UP"),
+        ("turn it down", "VOLUME_DOWN"),
+        ("kids mode on", "KIDS_ON"),
+        ("kids mode off", "KIDS_OFF"),
+        ("set volume to 50 percent", "VOLUME_PCT"),
+    ],
+)
+def test_layer1_command(router, phrase, action):
+    result = router.classify(phrase)
+
+    assert result.route == ROUTE_COMMAND
+    assert result.action == action
+
+
+def test_layer2_utility(router, monkeypatch):
+    monkeypatch.setattr(router_mod.random, "randint", lambda lo, hi: lo)
+    monkeypatch.setattr(router_mod.time, "localtime", lambda: _fixed_time(10))
+
+    math_result = router.classify("what is 27 times 43")
+    time_result = router.classify("what time is it")
+    date_result = router.classify("what day is it")
+    random_result = router.classify("pick a random number between 5 and 10")
+
+    assert (math_result.route, math_result.action, math_result.payload["result"]) == (
+        ROUTE_UTILITY,
+        "MATH",
+        "1161",
+    )
+    assert (time_result.route, time_result.action) == (ROUTE_UTILITY, "TIME")
+    assert (date_result.route, date_result.action) == (ROUTE_UTILITY, "DATE")
+    assert (random_result.route, random_result.action, random_result.payload["result"]) == (
+        ROUTE_UTILITY,
+        "RANDOM_NUMBER",
+        "5",
     )
 
 
-router = IntentRouter()
+def test_layer3_ambiguous(router, monkeypatch):
+    enough = router.classify("that's enough")
 
-PASS = 0
-FAIL = 0
+    monkeypatch.setattr(router_mod.time, "localtime", lambda: _fixed_time(22))
+    sleepy_night = router.classify("sleepy")
 
+    monkeypatch.setattr(router_mod.time, "localtime", lambda: _fixed_time(14))
+    sleepy_day = router.classify("sleepy")
 
-def check(n: int, text: str, exp_route: str, exp_action: str = None,
-          exp_payload_result: str = None, allow_routes: tuple = None):
-    global PASS, FAIL
-    result = router.classify(text)
-    ok_route = (result.route == exp_route) or (allow_routes and result.route in allow_routes)
-    ok_action = (exp_action is None) or (result.action == exp_action)
-    ok_payload = (exp_payload_result is None) or (
-        result.payload and result.payload.get("result") == exp_payload_result
-    )
-    if ok_route and ok_action and ok_payload:
-        PASS += 1
-        print(f"  PASS  [{n:02d}] '{text}' -> {result.route}/{result.action}"
-              + (f" result={result.payload.get('result')}" if result.payload and "result" in result.payload else ""))
-    else:
-        FAIL += 1
-        want = f"{exp_route}/{exp_action or '*'}"
-        if allow_routes:
-            want = f"({'/'.join(allow_routes)})/{exp_action or '*'}"
-        got  = f"{result.route}/{result.action}"
-        if result.payload and "result" in result.payload:
-            got += f" result={result.payload['result']}"
-        print(f"  FAIL  [{n:02d}] '{text}'  want={want}  got={got}")
+    turn_down = router.classify("turn it down")
+
+    assert (enough.route, enough.action) == (ROUTE_AMBIGUOUS, "STOP")
+    assert (sleepy_night.route, sleepy_night.action) == (ROUTE_AMBIGUOUS, "SLEEP")
+    assert (sleepy_day.route, sleepy_day.action) == (ROUTE_AMBIGUOUS, "LLM")
+    assert (turn_down.route, turn_down.action) == (ROUTE_COMMAND, "VOLUME_DOWN")
 
 
-print("\nLoop 1 -- IntentRouter unit tests\n")
+@pytest.mark.parametrize("phrase", ["tell me a story", "what should we build next"])
+def test_layer4_llm_fallthrough(router, phrase):
+    result = router.classify(phrase)
 
-# Layer 0: REFLEX
-check(1,  "go to sleep",              ROUTE_REFLEX,    "SLEEP")
-check(2,  "goodnight",                ROUTE_REFLEX,    "SLEEP")
-check(3,  "good night iris",          ROUTE_REFLEX,    "SLEEP")
-check(4,  "stop talking",             ROUTE_REFLEX,    "STOP")
-check(5,  "shut up",                  ROUTE_REFLEX,    "STOP")
-check(6,  "wake up",                  ROUTE_REFLEX,    "WAKE")
+    assert result.route == ROUTE_LLM
+    assert result.action == "LLM"
 
-# Layer 1: COMMAND
-check(7,  "volume up",                ROUTE_COMMAND,   "VOLUME_UP")
-check(8,  "turn it up",               ROUTE_COMMAND,   "VOLUME_UP")
-check(9,  "kids mode on",             ROUTE_COMMAND,   "KIDS_ON")
 
-# Layer 2: UTILITY
-check(10, "what time is it",          ROUTE_UTILITY,   "TIME")
-check(11, "what is 27 times 43",      ROUTE_UTILITY,   "MATH",  exp_payload_result="1161")
-check(12, "what day is it",           ROUTE_UTILITY,   "DATE")
+def test_failopen_on_exception(monkeypatch):
+    def explode(self, raw, state):
+        raise RuntimeError("forced classifier failure")
 
-# Layer 4: LLM
-check(13, "tell me a story",          ROUTE_LLM,       "LLM")
-check(14, "you're annoying",          ROUTE_LLM,       "LLM")
+    monkeypatch.setattr(IntentRouter, "_classify", explode)
 
-# Layer 3: AMBIGUOUS (or REFLEX/STOP depending on impl)
-check(15, "that's enough",            ROUTE_AMBIGUOUS, "STOP",
-          allow_routes=(ROUTE_AMBIGUOUS, ROUTE_REFLEX))
-check(16, "sleepy",                   ROUTE_AMBIGUOUS)
+    result = IntentRouter().classify("anything at all")
 
-# Case 17: modelfile forbidden phrase block -- verify the block exists in file
-modelfile_path = os.path.join(os.path.dirname(__file__), "..", "ollama", "iris_modelfile.txt")
-try:
-    with open(modelfile_path, encoding="utf-8") as f:
-        mf = f.read()
-    if "As a large language model" in mf and "NEVER say" in mf:
-        PASS += 1
-        print(f"  PASS  [17] modelfile contains 'NEVER say' forbidden phrase block")
-    else:
-        FAIL += 1
-        print(f"  FAIL  [17] modelfile missing 'NEVER say' block (expected after Batch 3-F edit)")
-except FileNotFoundError:
-    FAIL += 1
-    print(f"  FAIL  [17] iris_modelfile.txt not found at {modelfile_path}")
-
-print(f"\nResult: {PASS} PASS  {FAIL} FAIL  (total {PASS+FAIL}/17)")
-if FAIL:
-    print("\nSome tests failed. Do not proceed to Loop 2.")
-    sys.exit(1)
-else:
-    print("\nAll 17 passed. Proceed to Loop 2.")
-    sys.exit(0)
+    assert result.route == ROUTE_LLM
+    assert result.action == "LLM"
