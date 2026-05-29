@@ -834,3 +834,25 @@ contracts.
 - Unlabeled sysmap tracking commit — `f740844`.
 
 **Review note:** Existing entries were not modified. Sparse records are intentionally marked where `SNAPSHOT_LATEST.md` did not describe the session.
+
+---
+
+## CDX-3 — sysmap.json + IRIS_ARCH.md Consistency (2026-05-29)
+
+**Status:** REPO-ONLY — documentation/map consistency pass committed locally.
+
+**Scope:** Cross-checked `docs/sysmap.json` against `IRIS_ARCH.md`, with spot checks against `SNAPSHOT_LATEST.md`, `pi4/core/config.py`, `src/sleep_renderer.h`, and current Teensy 4.0 firmware headers.
+
+**Changes:**
+- **`docs/sysmap.json`** — Updated metadata to reflect tracked status (`f740844`), added missing Teensy 4.0 serial commands (`FORWARD`, `BACKWARD`, `CW`, `CCW`) to `commands_from_teensy`, corrected `SR_FRAME_MS` to 155, and removed stale touch1/touch2 behavior entries.
+- **`IRIS_ARCH.md`** — Updated Teensy 4.0 serial direction wording to remove stale touch-event reference and list all 8 command strings; corrected repo-structure `SR_FRAME_MS` note to 155; refreshed the `core/config.py` constants block with current ports, Kokoro, serial symlinks, gesture sensor gate, and tiered `NUM_PREDICT_*` constants.
+
+**Mismatch report:**
+- MATCH: Pi4/GandalfAI/SuperMaster IPs; `/dev/ttyIRIS_EYES` and `/dev/ttyIRIS_SERVO` symlinks; PAJ7620U2 address `0x73`; Teensy 4.0 pins 2/18/19; PAJ7620U2 register `0x43` bit layout; mount rotation table; gesture command map; PAN_MIN/PAN_MAX; gesture debounce/cooldown.
+- MINOR_DRIFT: sysmap stores some values as structured JSON while `IRIS_ARCH.md` presents prose/tables.
+- MISSING_IN_SYSMAP fixed: extended Teensy 4.0 `commands_from_teensy` list.
+- MISSING_IN_ARCH fixed: current Kokoro/tiered-response/serial-port config constants.
+- VALUE_MISMATCH fixed from source/snapshot: `SR_FRAME_MS` 150 -> 155.
+- STALE_IN_SYSMAP fixed: tracked/gitignore metadata and touch1/touch2 behavior entries.
+
+**Review note:** No unresolved VALUE_MISMATCH items were auto-resolved beyond values verified in source files and `SNAPSHOT_LATEST.md`.

@@ -2,12 +2,12 @@
   "_meta": {
     "version": "1.0",
     "generated_session": "S50-planning",
-    "last_updated": "2026-05-27",
+    "last_updated": "2026-05-29",
     "authority": "Source files: IRIS_ARCH.md, IRIS_CONFIG_MAP.md, servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino",
-    "gitignore_required": true,
+    "gitignore_required": false,
     "notes": [
       "This file contains IPs. Credentials are intentionally omitted. Do not add credentials here.",
-      "This file must be listed in .gitignore. Do not push to GitHub.",
+      "This file is tracked as of commit f740844. It is the hand-maintained primary lookup map, not generated runtime state.",
       "sysmap.json is the surgical lookup layer for ports/paths/pins/config defaults.",
       "For architectural reasoning, pipeline design, or failure mode analysis: read IRIS_ARCH.md.",
       "For current live system state and active issues: read SNAPSHOT_LATEST.md.",
@@ -184,7 +184,7 @@
         "baud": 115200,
         "usb_serial_number": "12763490",
         "owner": "hardware/base_mount_bridge.py (BaseMountBridge daemon thread)",
-        "commands_from_teensy": ["VOL+", "VOL-", "STOP", "LISTEN"],
+        "commands_from_teensy": ["VOL+", "VOL-", "STOP", "LISTEN", "FORWARD", "BACKWARD", "CW", "CCW"],
         "note": "udev symlink bound to hardware serial number. Persists across Pi4 reboots and USB port swaps."
       },
       "udev_rules": {
@@ -445,7 +445,7 @@
         "EYE_IDX_DEFAULT": 0,
         "PERSON_SENSOR_SAMPLE_TIME_MS": 70,
         "PERSON_SENSOR_CONF_THRESHOLD": 60,
-        "SR_FRAME_MS": 150
+        "SR_FRAME_MS": 155
       },
 
       "protected_files": [
@@ -535,9 +535,7 @@
         "face_detected": "Pan to center largest detected face. Exponential smoothing applied.",
         "no_face": "Holds position, then slow center-return after FACE_RETURN_MS.",
         "face_lost": "Holds position FACE_HOLD_MS then begins center drift.",
-        "poll_rate_hz": 20,
-        "touch1": "Rising edge toggles servoEnabled in software. Starts disabled at boot. Separate from physical power switch (which cuts servo 5V rail entirely).",
-        "touch2": "Hold increases/decreases volume 5% per 200ms. Direction reverses on each new hold."
+        "poll_rate_hz": 20
       }
     },
 

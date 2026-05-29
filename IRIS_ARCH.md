@@ -314,7 +314,7 @@ HF cache: `C:\Users\gandalf\.cache\huggingface` - stays in user profile, intenti
 **Wiring reference:** `docs/servo_teensy40_wiring.md` — complete pin-to-wire map with wire colors, I2C device addresses, power distribution.
 **Library:** ServoEasing (pan servo smooth motion control)
 **Autonomy:** Pan servo runs autonomously from Person Sensor face detection — Pi4 sends no commands to this board.
-**Serial direction:** One-way Teensy→Pi4 only. Teensy sends VOL+/VOL-/STOP/LISTEN on gesture and touch events. Pi4 handler: `pi4/hardware/base_mount_bridge.py`. Only `base_mount_bridge.py` owns `/dev/ttyIRIS_SERVO`.
+**Serial direction:** One-way Teensy→Pi4 only. Teensy sends VOL+/VOL-/STOP/LISTEN/FORWARD/BACKWARD/CW/CCW on PAJ7620U2 gesture events. Pi4 handler: `pi4/hardware/base_mount_bridge.py`. Only `base_mount_bridge.py` owns `/dev/ttyIRIS_SERVO`.
 **Power toggle:** Physical switch on enclosure rear controls servo 5V rail. Pi4 USB power is unaffected.
 
 Connected: USB to Pi4 (`/dev/ttyIRIS_SERVO` — separate from Teensy 4.1 on `/dev/ttyIRIS_EYES`)
@@ -400,7 +400,7 @@ IRIS-Robot-Face/
   src/
     main.cpp                    -- serial parsing, emotion/tracking/sleep logic
     config.h                    -- eye definitions array (7 eyes), display pins
-    sleep_renderer.h            -- deep space starfield (SR_FRAME_MS=150)
+    sleep_renderer.h            -- deep space starfield (SR_FRAME_MS=155)
     displays/GC9A01A_Display.h  -- display driver
     eyes/EyeController.h        -- eye movement/blink/pupil (setTargetPosition seed fix intact)
     eyes/240x240/               -- nordicBlue/flame/hypnoRed/hazel/blueFlame1/dragon/bigBlue .h
@@ -477,31 +477,43 @@ lib_deps =
 
 ## Key Constants
 
-### core/config.py (as of S45 — TTS stack changed from Chatterbox to Kokoro primary at S38)
+### core/config.py (as of TS40-S1 — TTS stack changed from Chatterbox to Kokoro primary at S38)
 
 ```python
+WHISPER_PORT           = 10300
+PIPER_PORT             = 10200
+OLLAMA_PORT            = 11434
+OWW_PORT               = 10400
+CMD_PORT               = 10500
 OLLAMA_MODEL_ADULT      = "iris"
 OLLAMA_MODEL_KIDS       = "iris-kids"
 VISION_MODEL            = "iris"
 OWW_THRESHOLD           = 0.90
+KOKORO_BASE_URL         = "http://192.168.1.3:8004"
+KOKORO_VOICE            = "bm_lewis"
+KOKORO_ENABLED          = True
+KOKORO_SPEED            = 1.0
 CHATTERBOX_BASE_URL     = "http://192.168.1.3:8004"
 CHATTERBOX_VOICE        = "iris_voice.wav"
 CHATTERBOX_EXAGGERATION = 0.45
-CHATTERBOX_ENABLED      = True
-NUM_PREDICT             = 150     # overridden to 120 by iris_config.json
+CHATTERBOX_ENABLED      = True     # rollback only; Kokoro is primary
+TEENSY_PORT             = "/dev/ttyIRIS_EYES"
+BASE_MOUNT_PORT         = "/dev/ttyIRIS_SERVO"
+GESTURE_SENSOR_REQUIRED = False    # flip after PAJ7620U2 replacement is verified
+NUM_PREDICT             = 300      # legacy fallback; tier values below are primary
+NUM_PREDICT_SHORT       = 120
+NUM_PREDICT_MEDIUM      = 350
+NUM_PREDICT_LONG        = 700
+NUM_PREDICT_MAX         = 1200
 LED_SLEEP_PEAK          = 26
 LED_SLEEP_FLOOR         = 3
 LED_SLEEP_PERIOD        = 8.0
 LED_SLEEP_BRIGHT        = 0xFF
 ```
 
-### iris_config.json on Pi4 (current)
+### iris_config.json on Pi4
 
-```json
-{ "OWW_THRESHOLD": 0.9, "CHATTERBOX_ENABLED": true, "NUM_PREDICT": 120 }
-```
-
-Note: `ELEVENLABS_ENABLED` was removed in S20 — if present in iris_config.json it is silently ignored and safe to delete.
+Protected live override file. Keys override `core/config.py` only if listed in `_OVERRIDABLE`; unknown keys are silently ignored. `NUM_PREDICT` is legacy fallback only. `ELEVENLABS_ENABLED` was removed in S20 — if present it is ignored and safe to delete.
 
 ### src/main.cpp key constants
 
