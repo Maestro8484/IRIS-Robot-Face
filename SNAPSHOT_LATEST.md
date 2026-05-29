@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S69 | **Date:** 2026-05-27 | **Branch:** `main` | **Last commit:** 6415676
+**Session:** S70 | **Date:** 2026-05-28 | **Branch:** `main` | **Last commit:** 03ef8e1
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -8,8 +8,9 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **Teensy 4.0 hardware install** — Firmware FLASHED (S69). PAJ7620U2 pending physical wiring to I2C bus (pins 18/19 + VCC/GND). Touch3 is T3 pad on Teensy PCB — no external component. After wiring: reconnect to Pi4, verify DIAG output (0x73 ACK, init=OK), tune TOUCH3_THRESH from SERIAL_DIAG, iterate PAN_SPEED/PAN_DEAD_ZONE per DS3218MG behavior.
-2. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
+1. **Flash S70 firmware** — ServoEasing async + PAN_MIN/MAX + PAN? query. Build clean. Click Upload in PlatformIO IDE (env:teensy40). After flash: verify via serial — `PAN 45` (smooth to limit), `PAN 135` (smooth to opposite limit), `PAN?` (returns current angle), wave hand (tracks smoothly), remove hand (drifts smoothly back to 90).
+2. **Tune TOUCH3_THRESH / PAN_SPEED / PAN_DEAD_ZONE** — Observe SERIAL_DIAG output post-flash. Adjust constants to match DS3218MG behavior.
+3. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
 
 ---
 
@@ -21,7 +22,7 @@
 | Pi4 192.168.1.200 | Operational. S67 DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. POST 21/22 PASS (1 WARN gesture sensor expected). S65 sleep sliders live. S66 POST diagnostic live. S67 bench JSONL sync live. install_journald.sh run (journald 500MB/1yr). |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
-| Teensy 4.0 (servo + gesture) | FLASHED S69. PAJ7620U2 bare I2C driver (reg 0x43 bit-correct, GESTURE_MOUNT_DEGREES 270). capTouch() replaces missing touchRead(). TOUCH3_THRESH=100. PAJ7620U2 hardware install pending (I2C wiring). Touch3=T3 pad on Teensy PCB, no external component. /dev/ttyIRIS_SERVO active. |
+| Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. PAJ7620U2 on I2C bus. Touch3=T3 pad. S70 REPO-ONLY: ServoEasing async (EASE_CUBIC_IN_OUT, enableServoEasingInterrupt, startEaseToD/isMoving), PAN_MIN=45/PAN_MAX=135, PAN? query. Pending user flash. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -29,7 +30,7 @@
 
 ## Active Issues
 
-- **HIGH: Teensy 4.0 hardware install + verify** — Firmware FLASHED S69. PAJ7620U2 pending physical wiring to I2C bus (pins 18/19 + VCC/GND). Touch3 uses T3 pad on Teensy PCB — no external component. After install: reconnect to Pi4, verify SERIAL_DIAG output (0x73 ACK, init=OK, gesture events, touch3 baseline), tune TOUCH3_THRESH (default 100, ADC 0-1023). Tune PAN_SPEED/PAN_DEAD_ZONE per DS3218MG behavior.
+- **HIGH: Flash + verify S70 firmware** — ServoEasing async, PAN_MIN/MAX, PAN? query. Build clean. Pending user upload (env:teensy40). After flash: serial verify steps above. Tune TOUCH3_THRESH/PAN_SPEED/PAN_DEAD_ZONE per SERIAL_DIAG output.
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
@@ -56,7 +57,15 @@ S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was
 
 ---
 
-## Last Session Changes (S69)
+## Last Session Changes (S70)
+
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — ServoEasing async API. `PAN_MIN 45.0` / `PAN_MAX 135.0` defines added. All `constrain()` calls updated to PAN_MIN/PAN_MAX. setup(): `panServo.write()` cast removed, `panServo.setEasingType(EASE_CUBIC_IN_OUT)` + `enableServoEasingInterrupt()` added. Tracking branch: `setEasingType(EASE_CUBIC_OUT)` + `write()` replaced with `if (!panServo.isMoving()) { panServo.startEaseToD(desiredPan, 100); }`. Return-to-center branch: same pattern. PAN command handler: `toFloat()`, PAN_MIN/MAX, `startEaseToD`. PAN? query added (returns `getCurrentAngle()`). Build: clean (ServoEasing 3.6.0, `setUpdateInterval` absent — library default 20ms used). REPO-ONLY pending user flash.
+
+**Status:** REPO-ONLY. No Pi4 changes. No GandalfAI changes.
+
+---
+
+## Previous Session Changes (S69)
 
 - **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — FULL REWRITE (commits 35ffaf3→bf304a8). APDS-9960 driver removed (SparkFun include, apdsOk, prox LISTEN logic, raw ID read). PAJ7620U2 bare I2C driver added: paj_write/paj_read helpers; paj7620Init() (bank 0/1 config tables, 700ms wakeup settle, ACK confirm); pollGesture() reads reg 0x43 bit-correct per datasheet p.24 (bit3=UP/0x08, bit2=DOWN/0x04, bit1=RIGHT/0x02, bit0=LEFT/0x01); GESTURE_MOUNT_DEGREES 270 (90° CCW mount) maps phys UP=0x01/DOWN=0x02/LEFT=0x04/RIGHT=0x08. Physical UP→VOL+, DOWN→VOL-, LEFT/RIGHT→STOP. SERIAL_DIAG: pajOk in periodic telemetry, raw gest byte on detect, CODEX wrappers all blocks. Touch3 LISTEN: pollTouch3() pin 15 (T3), TOUCH3_THRESH=1500, short tap→STOP, hold 1s→LISTEN. DS3218MG constants: PAN_SPEED 0.02, PAN_DEAD_ZONE 5.0, FACE_RETURN_MS 6000. REPO-ONLY pending flash.
 - **`servo_teensy40/teensy40_base_mount/platformio.ini`** — Removed stale SparkFun APDS9960 lib_deps comment. Platform URL auto-updated by PlatformIO. REPO-ONLY.

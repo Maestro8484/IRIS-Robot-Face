@@ -23,7 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
 | GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model current. |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
-| Teensy 4.0 | FLASHED S69 (092cbc3). capTouch() replaces missing touchRead(). TOUCH3_THRESH=100 (ADC). Hardware install pending — PAJ7620U2 not yet wired to I2C bus. Touch3 is T3 pad on Teensy PCB, no external component. |
+| Teensy 4.0 | S69 FLASHED+INSTALLED. PAJ7620U2 on I2C bus, Touch3=T3 pad. S70 REPO-ONLY: ServoEasing async (EASE_CUBIC_IN_OUT, startEaseToD/isMoving), PAN_MIN=45/PAN_MAX=135, PAN? query. Pending user flash. |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
 | Wakeword | `hey_jarvis` (production). Experimental wakewords require explicit user approval, live Pi4 state confirmation, clean process restart, and one-model-at-a-time testing. Failed experiment names are in `CHANGELOG.md`. |
 
@@ -41,25 +41,23 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**Teensy 4.0 hardware install — firmware FLASHED S69, hardware pending**
+**Flash S70 firmware — ServoEasing async + PAN_MIN/MAX + PAN? query**
 
-Firmware FLASHED. APDS-9960 fully removed. DS3218MG constants set. GESTURE_MOUNT_DEGREES 270 (sensor mounted 90° CCW) — change to 0 if mounting normally. capTouch() replaces missing touchRead() (ADC-based, 0-1023).
+Build clean. Click Upload in PlatformIO IDE (env:teensy40). Then verify via serial at 115200:
 
-Next step is physical hardware install. After wiring PAJ7620U2 to I2C bus (pins 18/19 + VCC/GND). Touch3 uses T3 pad (pin 15) on the Teensy PCB directly — no external component needed.
-1. Reconnect Teensy 4.0 to Pi4 USB. Confirm `/dev/ttyIRIS_SERVO` present.
-2. Open serial monitor at 115200. Confirm:
-   - `DIAG: PAJ7620U2 0x73 ACK=YES`
-   - `DIAG: PAJ7620U2 init=OK`
-   - `DIAG: touch3=NNN` each second (ADC 0-1023; idle ~0-30, touched ~80-400+; TOUCH3_THRESH default 100)
-4. Swipe gestures in physical UP/DOWN/LEFT/RIGHT directions. Verify VOL+/VOL-/STOP in serial output.
-   - If gestures fire wrong commands, change `GESTURE_MOUNT_DEGREES` (0/90/180/270) and reflash.
-5. Reconnect to Pi4 USB. Confirm `/dev/ttyIRIS_SERVO` present.
-6. Tune TOUCH3_THRESH (default 1500) based on observed baseline vs. touched values.
-7. Tune PAN_SPEED/PAN_DEAD_ZONE per DS3218MG servo behavior — see HANDOFF_SERVO_TUNING.md.
-8. After confirmed working: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.py` and DEPLOY to Pi4.
+1. Send `PAN 45` — servo moves smoothly to 45° limit (not snap).
+2. Send `PAN 135` — servo moves smoothly to 135° limit.
+3. Send `PAN?` — returns `PAN=<float>` (live angle from ServoEasing).
+4. Wave hand in front of Person Sensor — pan tracks smoothly, no snapping.
+5. Remove hand — servo holds ~6s then drifts smoothly back toward 90°.
+6. Try `PAN 0` or `PAN 180` — should clamp to 45/135 (PAN_MIN/PAN_MAX enforced).
+
+**DEPLOYMENT EXPLICITLY DELAYED** — Do not flash until gesture sensor issues from initial hardware install are resolved in a dedicated session.
+
+After gesture issues resolved: flash S70, verify PAN limits + smooth motion, tune constants, then set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.py` and DEPLOY to Pi4.
 
 ### Deploy state (current)
-- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — FLASHED S69
+- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY S70 (S69 currently on hardware)
 - `servo_teensy40/teensy40_base_mount/platformio.ini` — FLASHED S69
 - `servo_teensy40/README.md` — REPO-ONLY S69
 - `IRIS_ARCH.md` — REPO-ONLY S69 (PAJ7620U2 quick-ref + rotation table added)

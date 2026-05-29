@@ -588,3 +588,29 @@ Serial contract unchanged: VOL+/VOL-/STOP/LISTEN (no Pi4 side changes required).
 PlatformIO `framework-arduinoteensy` declares `touchRead()` in `cores/teensy4/core_pins.h` but provides no implementation for Teensy 4.x (implementation only exists in `cores/teensy3/touch.c`). Resulted in linker error: `undefined reference to 'touchRead'`. Fix: added `capTouch(pin)` in the .ino — ADC discharge-float-sample approach (drive LOW, float INPUT_DISABLE, sample ADC). Returns 0–1023 (10-bit). TOUCH3_THRESH updated from 1500 to 100 to match ADC scale. SERIAL_DIAG prints raw capTouch value for threshold tuning.
 
 Commits: 35ffaf3 (initial driver), f31e6ce (SERIAL_DIAG hardening), cb26e7e (reg 0x43 bit map + rotation fix), bf304a8 (GESTURE_MOUNT_DEGREES abstraction), b0f6bcc (doc update: IRIS_ARCH.md, platformio.ini, SNAPSHOT, HANDOFF, CHANGELOG), + touchRead build fix commit.
+
+---
+
+## S70 — ServoEasing Async Smoothing + PAN_MIN/MAX + PAN? Query (2026-05-28)
+
+**Status:** REPO-ONLY — build clean, pending user PlatformIO upload (env:teensy40).
+
+**Goal:** Replace synchronous panServo.write() with ServoEasing interrupt-driven async API, add hard rotation limits, add PAN? angle query command.
+
+**File changed:** `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`
+
+**Changes:**
+
+1. **Constants block** — `PAN_MIN 45.0` and `PAN_MAX 135.0` added after `FACE_RETURN_MS`. All `constrain()` calls updated from hardcoded `0.0/180.0` to `PAN_MIN/PAN_MAX`.
+
+2. **setup()** — Easing type set once: `panServo.setEasingType(EASE_CUBIC_IN_OUT)`. Interrupt mode enabled: `enableServoEasingInterrupt()`. Initial `write()` cast removed (float arg now passed directly). `setUpdateInterval(20)` omitted — not present in ServoEasing 3.6.0 (library resolved to 3.6.0 from `^3.3.3`); 20ms is the library default (`REFRESH_INTERVAL = 20000µs`).
+
+3. **loop() — tracking branch** — `panServo.setEasingType(EASE_CUBIC_OUT)` removed. `panServo.write((int)desiredPan)` replaced with `if (!panServo.isMoving()) { panServo.startEaseToD(desiredPan, 100); }`.
+
+4. **loop() — return-to-center branch** — `panServo.setEasingType(EASE_SINE_OUT)` removed. `panServo.write((int)desiredPan)` replaced with `if (!panServo.isMoving()) { panServo.startEaseToD(desiredPan, 100); }`.
+
+5. **PAN command handler (SERIAL_DIAG)** — `toInt()` → `toFloat()`, limits updated to `PAN_MIN/PAN_MAX`, `write((int)desiredPan)` → `startEaseToD(desiredPan, 100)` (no isMoving guard — direct command always takes effect).
+
+6. **PAN? query command (SERIAL_DIAG)** — new branch: `cmd == "PAN?"` → `Serial.print("PAN="); Serial.println(panServo.getCurrentAngle());`. Returns live servo position as float.
+
+**Build:** Clean — `pio run -e teensy40` SUCCESS. FLASH/RAM well within Teensy 4.0 limits.

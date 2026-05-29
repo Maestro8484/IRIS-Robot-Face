@@ -51,6 +51,10 @@ extern "C" void _reboot_Teensyduino_(void);
 #define FACE_HOLD_MS   2500
 #define FACE_RETURN_MS 6000
 
+// Pan servo rotation limits
+#define PAN_MIN 45.0
+#define PAN_MAX 135.0
+
 // Set to 0 to disable the Person Sensor LED, 1 to enable
 #define PERSON_SENSOR_LED_ENABLED 0
 
@@ -192,7 +196,9 @@ void setup() {
   Wire.endTransmission();
 
   panServo.attach(2);
-  panServo.write((int)desiredPan);
+  panServo.write(desiredPan);
+  panServo.setEasingType(EASE_CUBIC_IN_OUT);
+  enableServoEasingInterrupt();
 
   Serial.begin(115200);
   while (!Serial && millis() < 3000) {}  // wait up to 3s for monitor to reconnect after reboot
@@ -295,10 +301,13 @@ void loop() {
 #if SERIAL_DIAG
     // ===== CODEX DIAGNOSTIC INSERT BEGIN: direct servo isolation command =====
     } else if (cmd.startsWith("PAN ")) {
-      desiredPan = constrain(cmd.substring(4).toInt(), 0, 180);
-      panServo.write((int)desiredPan);
+      desiredPan = constrain(cmd.substring(4).toFloat(), PAN_MIN, PAN_MAX);
+      panServo.startEaseToD(desiredPan, 100);
       Serial.print("DIAG: manual pan target=");
       Serial.println((int)desiredPan);
+    } else if (cmd == "PAN?") {
+      Serial.print("PAN=");
+      Serial.println(panServo.getCurrentAngle());
     // ===== CODEX DIAGNOSTIC INSERT END: direct servo isolation command =====
 #endif
     }
@@ -410,17 +419,19 @@ void loop() {
     float panDelta = (faceCenterX - 128) * PAN_SPEED;
     if (abs(panDelta) > PAN_DEAD_ZONE / 90.0) {
       desiredPan -= panDelta;
-      desiredPan = constrain(desiredPan, 0.0, 180.0);
-      panServo.setEasingType(EASE_CUBIC_OUT);
-      panServo.write((int)desiredPan);
+      desiredPan = constrain(desiredPan, PAN_MIN, PAN_MAX);
+      if (!panServo.isMoving()) {
+        panServo.startEaseToD(desiredPan, 100);
+      }
     }
 
   } else {
     unsigned long elapsed = millis() - lastFaceMs;
     if (elapsed > FACE_RETURN_MS) {
       desiredPan += (90.0 - desiredPan) * 0.03;
-      panServo.setEasingType(EASE_SINE_OUT);
-      panServo.write((int)desiredPan);
+      if (!panServo.isMoving()) {
+        panServo.startEaseToD(desiredPan, 100);
+      }
     }
     // 0..FACE_HOLD_MS and FACE_HOLD_MS..FACE_RETURN_MS: hold position, do nothing
   }
