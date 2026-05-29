@@ -761,3 +761,76 @@ contracts.
 - **`docs/iris_issue_log.md`** — Updated stale Status lines only: RD-002 emotion issue now `Fixed`; single-word STT/pre-STT intercept marked `Deferred` to match current active scope; local Piper TTS routing normalized to `Deferred`.
 
 **Review note:** HW-004 remains untouched and BLOCKED on hardware replacement. RD-003 remains Open.
+
+---
+
+## S60 — Gesture Config Tab Deployment Backfill (2026-05-23)
+
+**Status:** DEPLOYED+VERIFIED. Commits `c853709` (implementation + deploy state) and `eaba946` (snapshot status correction).
+
+**Source:** Recovered from `SNAPSHOT_LATEST.md` S60 prior-session block and commit messages.
+
+**Changes:**
+- **`pi4/hardware/base_mount_bridge.py`** — Config-driven gesture dispatch reads `GESTURE_MAP` from `iris_config.json` on each event; LISTEN action creates `/tmp/iris_manual_listen`; SKIP no-op and per-action error handling added.
+- **`pi4/iris_web.py`** — `/api/gesture_config` GET/POST endpoint added; validates gesture actions against whitelist, clamps proximity threshold, writes config via `write_cfg()`.
+- **`pi4/iris_web.html`** — Gestures tab added with four gesture-action dropdowns and proximity threshold slider.
+- **`SNAPSHOT_LATEST.md`** — Updated to mark S60 gesture config tab DEPLOYED+VERIFIED.
+
+---
+
+## S62b — Sleep Animation Tuning Backfill (2026-05-23)
+
+**Status:** REPO-ONLY — sparse record.
+
+**Commit:** `d6c33c6` — `S62b: tune sleep animation — slower pace, shorter trails, no warp streaks`
+
+**Changes:**
+- **`src/sleep_renderer.h`** — Tuned S62 sleep animation pacing and visual trail behavior.
+
+**Notes:** Details not recovered from `SNAPSHOT_LATEST.md` prior-session blocks; see commit message and diff for specifics.
+
+---
+
+## S68b — Wiring Doc + Gesture Direction Backfill (2026-05-27)
+
+**Status:** REPO-ONLY — sparse record.
+
+**Commit:** `22437e9` — `S68b: Commit wiring doc + fix gesture directions + wiring doc reference`
+
+**Changes:**
+- **`IRIS_ARCH.md`** — Gesture direction and wiring-reference corrections.
+- **`docs/servo_teensy40_wiring.md`** — Servo Teensy 4.0 wiring document committed.
+
+**Notes:** Details not recovered from `SNAPSHOT_LATEST.md` prior-session blocks; see commit message and diff for specifics.
+
+---
+
+## Unlabeled — docs/sysmap.json Tracking Backfill (2026-05-29)
+
+**Status:** REPO-ONLY — sparse record.
+
+**Commit:** `f740844` — `Track docs/sysmap.json (remove from .gitignore)`
+
+**Changes:**
+- **`.gitignore`** — Removed `docs/sysmap.json` from generated/runtime ignore group.
+- **`docs/sysmap.json`** — Added to version history as the hand-maintained primary lookup map.
+- **`HANDOFF_CURRENT.md`** — Deploy-state note updated to say `docs/sysmap.json` is now tracked.
+- **`CHANGELOG.md`** — Prior TS40-S1 docs note updated to include `.gitignore`.
+
+**Notes:** Commit message is the only available source for this unlabeled commit.
+
+---
+
+## CDX-2 — CHANGELOG Backfill Audit (2026-05-29)
+
+**Status:** REPO-ONLY — documentation audit committed locally.
+
+**Scope:** Compared `git log --oneline -80` against `CHANGELOG.md` labels and commit coverage from S60 onward.
+
+**Backfilled:**
+- S60 — commits `c853709`, `eaba946`.
+- S62b — commit `d6c33c6`.
+- S68b — commit `22437e9`.
+- Unlabeled sysmap tracking commit — `f740844`.
+
+**Review note:** Existing entries were not modified. Sparse records are intentionally marked where `SNAPSHOT_LATEST.md` did not describe the session.
