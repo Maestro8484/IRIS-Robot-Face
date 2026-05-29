@@ -23,7 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
 | GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model current. |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
-| Teensy 4.0 | FLASHED S69 (092cbc3). capTouch() replaces missing touchRead(). TOUCH3_THRESH=100 (ADC). Hardware install pending — PAJ7620U2 and touch pad not yet wired. |
+| Teensy 4.0 | FLASHED S69 (092cbc3). capTouch() replaces missing touchRead(). TOUCH3_THRESH=100 (ADC). Hardware install pending — PAJ7620U2 not yet wired to I2C bus. Touch3 is T3 pad on Teensy PCB, no external component. |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
 | Wakeword | `hey_jarvis` (production). Experimental wakewords require explicit user approval, live Pi4 state confirmation, clean process restart, and one-model-at-a-time testing. Failed experiment names are in `CHANGELOG.md`. |
 
@@ -45,7 +45,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 Firmware FLASHED. APDS-9960 fully removed. DS3218MG constants set. GESTURE_MOUNT_DEGREES 270 (sensor mounted 90° CCW) — change to 0 if mounting normally. capTouch() replaces missing touchRead() (ADC-based, 0-1023).
 
-Next step is physical hardware install. After wiring PAJ7620U2 to I2C bus (pins 18/19) and touch pad to pin 15:
+Next step is physical hardware install. After wiring PAJ7620U2 to I2C bus (pins 18/19 + VCC/GND). Touch3 uses T3 pad (pin 15) on the Teensy PCB directly — no external component needed.
 1. Reconnect Teensy 4.0 to Pi4 USB. Confirm `/dev/ttyIRIS_SERVO` present.
 2. Open serial monitor at 115200. Confirm:
    - `DIAG: PAJ7620U2 0x73 ACK=YES`

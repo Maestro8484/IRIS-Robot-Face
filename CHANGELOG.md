@@ -542,7 +542,7 @@ Commit cf0b17b pushed.
 
 ## S69 — PAJ7620U2 Driver + DS3218MG Constants (2026-05-27)
 
-**Status:** FLASHED — Teensy 4.0 firmware flashed. Hardware install pending (PAJ7620U2 and touch pad not yet wired).
+**Status:** FLASHED — Teensy 4.0 firmware flashed. Hardware install pending (PAJ7620U2 not yet wired to I2C bus). Touch3 is pin 15 (T3 pad on Teensy PCB) — no external component.
 
 **Goal:** Replace dead APDS-9960 gesture sensor with PAJ7620U2 bare I2C driver. Tune servo constants for DS3218MG. Add touch3 LISTEN trigger to replace removed proximity channel. Add mount-orientation abstraction.
 

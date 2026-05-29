@@ -8,7 +8,7 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **Teensy 4.0 hardware install** — Firmware FLASHED (S69). PAJ7620U2 sensor and touch pad (pin 15) pending physical wiring to Teensy 4.0 I2C bus. After wiring: reconnect to Pi4, verify DIAG output (0x73 ACK, init=OK), tune TOUCH3_THRESH from SERIAL_DIAG, iterate PAN_SPEED/PAN_DEAD_ZONE per DS3218MG behavior.
+1. **Teensy 4.0 hardware install** — Firmware FLASHED (S69). PAJ7620U2 pending physical wiring to I2C bus (pins 18/19 + VCC/GND). Touch3 is T3 pad on Teensy PCB — no external component. After wiring: reconnect to Pi4, verify DIAG output (0x73 ACK, init=OK), tune TOUCH3_THRESH from SERIAL_DIAG, iterate PAN_SPEED/PAN_DEAD_ZONE per DS3218MG behavior.
 2. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
 
 ---
@@ -21,7 +21,7 @@
 | Pi4 192.168.1.200 | Operational. S67 DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. POST 21/22 PASS (1 WARN gesture sensor expected). S65 sleep sliders live. S66 POST diagnostic live. S67 bench JSONL sync live. install_journald.sh run (journald 500MB/1yr). |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
-| Teensy 4.0 (servo + gesture) | FLASHED S69. PAJ7620U2 bare I2C driver (reg 0x43 bit-correct, GESTURE_MOUNT_DEGREES 270). capTouch() replaces missing touchRead(). TOUCH3_THRESH=100. Hardware install pending — sensor and touch pad not yet wired. /dev/ttyIRIS_SERVO active. |
+| Teensy 4.0 (servo + gesture) | FLASHED S69. PAJ7620U2 bare I2C driver (reg 0x43 bit-correct, GESTURE_MOUNT_DEGREES 270). capTouch() replaces missing touchRead(). TOUCH3_THRESH=100. PAJ7620U2 hardware install pending (I2C wiring). Touch3=T3 pad on Teensy PCB, no external component. /dev/ttyIRIS_SERVO active. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -29,7 +29,7 @@
 
 ## Active Issues
 
-- **HIGH: Teensy 4.0 hardware install + verify** — Firmware FLASHED S69. PAJ7620U2 sensor and touch pad (pin 15) pending physical wiring. After install: reconnect to Pi4, verify SERIAL_DIAG output (0x73 ACK, init=OK, gesture events, touch3 baseline), tune TOUCH3_THRESH (default 100, ADC 0-1023). Tune PAN_SPEED/PAN_DEAD_ZONE per DS3218MG behavior.
+- **HIGH: Teensy 4.0 hardware install + verify** — Firmware FLASHED S69. PAJ7620U2 pending physical wiring to I2C bus (pins 18/19 + VCC/GND). Touch3 uses T3 pad on Teensy PCB — no external component. After install: reconnect to Pi4, verify SERIAL_DIAG output (0x73 ACK, init=OK, gesture events, touch3 baseline), tune TOUCH3_THRESH (default 100, ADC 0-1023). Tune PAN_SPEED/PAN_DEAD_ZONE per DS3218MG behavior.
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
