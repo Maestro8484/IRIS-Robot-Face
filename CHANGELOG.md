@@ -709,6 +709,7 @@ Live `assistant.py` calls `BaseMountBridge(_bm_cfg, leds)` (two positional args)
 - **`docs/sysmap.json`** — removed `TOUCH3_PIN/THRESH/THRESH_NOTE/HOLD_MS` from `tunable_constants`, pin 15 from `gpio`, touch3 from `behavior`.
 - **`IRIS_ARCH.md`** — removed pin 15 row, Touch3 section, and touch3 references from System Roles / Architecture / Repo Structure / Serial Protocol. LISTEN retained (gesture action / web UI paths).
 - **`servo_teensy40/README.md`** — removed touch3 hardware line; firmware description updated to note modular layout.
+- **`.gitignore`** — removed `docs/sysmap.json` from the ignore list. It had been misfiled under "Generated runtime state," but nothing generates it — it is the hand-maintained primary lookup map (PRIMER.md: read before IRIS_ARCH.md). Being ignored excluded it from version history, GitHub backup, and fresh clones. Now tracked. Contains no credentials (IPs only, already present in tracked IRIS_ARCH.md).
 
 **Rollback:** `git checkout -- servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino docs/sysmap.json IRIS_ARCH.md servo_teensy40/README.md && rm servo_teensy40/teensy40_base_mount/person_sensor.h servo_teensy40/teensy40_base_mount/person_sensor.cpp servo_teensy40/teensy40_base_mount/pan_servo.h servo_teensy40/teensy40_base_mount/pan_servo.cpp servo_teensy40/teensy40_base_mount/diag.h`
 

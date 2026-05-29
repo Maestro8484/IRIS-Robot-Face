@@ -85,7 +85,7 @@ After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.p
 - `pi4/iris_web.html` — DEPLOYED+VERIFIED S72 (Gestures tab: PAJ7620U2 full, log inversion fix)
 - `CHANGELOG.md` — REPO-ONLY TS40-S1
 - `CLAUDE.md` — REPO-ONLY S69
-- `docs/sysmap.json` — LOCAL-ONLY (gitignored) TS40-S1 (touch3 constants/pin 15 removed)
+- `docs/sysmap.json` — NOW TRACKED (un-gitignored TS40-S1). TS40-S1 edits: touch3 constants/pin 15 removed.
 - `src/sleep_cfg.h`, `src/sleep_renderer.h`, `src/mouth_tft.cpp`, `src/main.cpp` — FLASHED (Teensy 4.1 S65)
 - `pi4/iris_post.py` — DEPLOYED+VERIFIED S67 (POST 21/22 PASS)
 - `pi4/core/config.py` — DEPLOYED+VERIFIED S67
