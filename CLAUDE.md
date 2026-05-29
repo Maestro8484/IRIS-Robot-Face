@@ -87,8 +87,9 @@ What changed, what now works, or what was decided? Write this for the human oper
 
 **Pi4 deploy** - N/A if no files were deployed to Pi4:
 - Direct /media/root-ro persistence completed: Y/N
+- System-path files (outside /home/pi/) persisted: list each one — /etc/udev/rules.d/, /etc/systemd/, etc. must be written to /media/root-ro/<same path> individually. The standard /home/pi/ procedure does NOT cover these automatically.
 - Sync completed: Y/N
-- md5 verified: Y/N
+- md5 verified: Y/N (for every file deployed, including system-path files)
 - Service restarted: Y/N
 - Logs checked post-restart: Y/N
 - Rollback position if revert needed:
@@ -138,6 +139,7 @@ Documentation rules for this report:
 - Never push to GitHub unless explicitly authorized in the current session.
 - Never write to Pi4 or GandalfAI unless the user says DEPLOY.
 - Never hardcode `/dev/ttyACM*` in code, config, or commands. Always use `/dev/ttyIRIS_EYES` (Teensy 4.1 eyes + mouth) or `/dev/ttyIRIS_SERVO` (Teensy 4.0 servo + gesture). These are udev symlinks bound to hardware USB serial numbers — they survive USB port swaps and reboots. ttyACM* numbers are port-position-based and change when cables are moved (confirmed failure S63).
+- Every Pi4 file deployment must be persisted to `/media/root-ro`. The Pi4 runs a read-only overlay filesystem — all changes land in RAM and are lost on reboot unless explicitly copied to SD. This applies to ALL paths: `/home/pi/`, `/etc/udev/rules.d/`, `/etc/systemd/system/`, and any other system path. A deploy is not complete and must not be marked DEPLOYED until the file exists in `/media/root-ro/<same relative path>` with md5 verified. (Confirmed failure S63: `99-iris-teensy.rules` deployed to `/etc/udev/rules.d/` RAM only, never persisted to SD, lost on reboot 2026-05-28, caused 8-hour display outage.)
 
 ---
 
@@ -176,3 +178,21 @@ Do not touch unless explicitly requested:
 - `alsa-init.sh`
 - `src/TeensyEyes.ino`
 - `src/eyes/EyeController.h`
+
+---
+
+## Hard Rule: Source-of-Truth Before Any Technical Claim
+
+All factual claims about IRIS hardware, firmware, pin assignments, serial
+protocol, deploy state, file paths, ports, models, or sensors must be
+verified against the live repo via filesystem MCP in every session. Memory
+and prior conversation context are not authoritative.
+
+Never reference `/dev/ttyACM*` by number. Use `/dev/ttyIRIS_EYES` or
+`/dev/ttyIRIS_SERVO`.
+
+Never claim a file is REPO-ONLY, DEPLOYED, or VERIFIED without reading the
+current `HANDOFF_CURRENT.md` deploy state list this session.
+
+Before writing driver code for any sensor, button, display, or hardware
+feature, confirm with the user that the hardware is physically installed.
