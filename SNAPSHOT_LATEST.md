@@ -72,7 +72,7 @@ Codex secondary-coder session (CDX-1..CDX-5) reviewed and accepted. Doc-audit it
 - **`pi4/services/llm.py` — `clean_llm_reply()`** — Three new regex passes: strip `*multi-word*` / `_multi-word_` blocks entirely; collapse `\.{2,}` to `.`. DEPLOYED+VERIFIED. md5 RAM=SD `e9e7e770c8f99597a492fd1ebeddaccd`.
 - **`ollama/iris_modelfile.txt` — HOW YOU SPEAK** — Expanded from format checklist to full voice/character framework. GandalfAI `iris` model rebuilt. DEPLOYED+VERIFIED: adult SYSTEM + PT-001 + expanded HOW YOU SPEAK confirmed via `ollama show iris --modelfile`.
 
-**Verification:** Pi4 active. POST L2 emotion sweep + EYES:SLEEP/WAKE passing. GandalfAI: adult persona + expanded HOW YOU SPEAK confirmed.
+**Verification:** Pi4 active. POST L2 emotion sweep + EYES:SLEEP/WAKE passing. GandalfAI: adult persona + expanded HOW YOU SPEAK confirmed. **Live behavior confirmed by user — responses clean, adult dry persona active, no stage directions or ellipsis in TTS output.**
 
 ---
 

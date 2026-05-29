@@ -370,4 +370,4 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Fix 2 (Pi4 / llm.py):** Added regex passes to strip multi-word `*...*` / `_..._` blocks entirely and collapse `\.{2,}` to `.`.
 **Fix 3 (modelfile / identity):** Expanded HOW YOU SPEAK with positive identity framing — "personality lives entirely in word choice, no gesture, no expression, no aside" — making stage directions behaviorally incompatible with the persona rather than explicitly forbidden.
 **Files:** `pi4/services/llm.py`, `ollama/iris_modelfile.txt`
-**Status:** Fixed — DEPLOYED+VERIFIED S74
+**Status:** Fixed — DEPLOYED+VERIFIED S74. Live behavior confirmed by user 2026-05-29: responses clean, adult persona active, no stage directions or ellipsis in TTS output.
