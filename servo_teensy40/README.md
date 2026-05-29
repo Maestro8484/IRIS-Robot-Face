@@ -5,7 +5,7 @@
 
 ## Hardware
 
-- Pan servo: DS3218MG (Miuzei, 25kg metal gear), pin 2 (hardware PWM)
+- Pan servo: Miuzei DS3218MG MS24 Digital Servo (25kg metal gear), pin 2 (hardware PWM), shared I2C bus with Person Sensor
 - I2C SDA: pin 18 (Wire default, shared bus)
 - I2C SCL: pin 19 (Wire default, shared bus)
 - Person Sensor: addr 0x62

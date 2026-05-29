@@ -91,7 +91,7 @@ Replaces prior servo. Same pin, same power rail.
 
 | Spec | Value |
 |---|---|
-| Model | Miuzei DS3218MG Digital Servo |
+| Model | Miuzei DS3218MG Digital Servo MS24 |
 | Torque | 25kg/cm |
 | Speed | 0.16s/60deg at 6V |
 | Gears | Metal |

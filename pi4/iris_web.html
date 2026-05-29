@@ -667,8 +667,9 @@ function _saTabHook() { if (!_saLoaded) { _saLoaded = true; _loadSaSliders(); } 
 <div class="section" id="sec-gestures">
   <div class="card">
     <h2>Gesture Sensor Mapping</h2>
-    <p class="hint">Map APDS-9960 gesture events (Teensy 4.0, /dev/ttyACM1) to actions. Changes take effect immediately — no restart needed.</p>
-    <div class="field-row" style="margin-top:12px">
+    <p class="hint">PAJ7620U2 gesture events (Teensy 4.0, /dev/ttyIRIS_SERVO). Map each gesture to an action. Changes take effect immediately — no restart needed.</p>
+    <p class="hint" style="margin-top:4px;margin-bottom:12px">Basic gestures: swipe direction. Extended gestures: push/pull toward sensor, rotate wrist CW/CCW.</p>
+    <div class="field-row" style="margin-top:4px">
       <label>VOL+ (swipe up)</label>
       <select id="gesture-VOL+"></select>
     </div>
@@ -677,26 +678,34 @@ function _saTabHook() { if (!_saLoaded) { _saLoaded = true; _loadSaSliders(); } 
       <select id="gesture-VOL-"></select>
     </div>
     <div class="field-row">
-      <label>STOP (swipe left/right)</label>
+      <label>STOP (swipe left)</label>
       <select id="gesture-STOP"></select>
     </div>
     <div class="field-row">
-      <label>LISTEN (proximity hold)</label>
+      <label>LISTEN (touch3 hold, pin 15)</label>
       <select id="gesture-LISTEN"></select>
     </div>
-    <div class="field-row" style="margin-top:14px">
-      <label>Proximity threshold (0–255)</label>
-      <input type="range" id="GESTURE_PROXIMITY_THRESHOLD" min="0" max="255" step="1" value="150"
-             style="width:180px;accent-color:var(--blue);height:6px;cursor:pointer"
-             oninput="document.getElementById('prox-display').textContent=this.value">
-      <span id="prox-display" style="width:30px;color:var(--text);font-size:13px;flex-shrink:0">150</span>
+    <div class="field-row" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+      <label>FORWARD (push toward sensor)</label>
+      <select id="gesture-FORWARD"></select>
     </div>
-    <p class="hint" style="margin-bottom:14px">Proximity threshold stored in config — reserved for future Teensy firmware use.</p>
-    <button class="btn btn-primary" onclick="saveGestureConfig()">Save Gesture Config</button>
+    <div class="field-row">
+      <label>BACKWARD (pull away from sensor)</label>
+      <select id="gesture-BACKWARD"></select>
+    </div>
+    <div class="field-row">
+      <label>CW (clockwise wrist rotation)</label>
+      <select id="gesture-CW"></select>
+    </div>
+    <div class="field-row">
+      <label>CCW (counter-clockwise rotation)</label>
+      <select id="gesture-CCW"></select>
+    </div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="saveGestureConfig()">Save Gesture Config</button>
   </div>
   <div class="card">
     <h2>Gesture Event Log</h2>
-    <p class="hint" style="margin-bottom:10px">APDS-9960 gesture events from Teensy 4.0. History persists across reboots via SD daily logs (30-day retention).</p>
+    <p class="hint" style="margin-bottom:10px">PAJ7620U2 events from Teensy 4.0 (/dev/ttyIRIS_SERVO). Newest events at top. History persists across reboots via SD daily logs.</p>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
       <button class="btn btn-sm" style="background:var(--input-bg);border:1px solid var(--border);color:var(--text)" onclick="fetchGestureLog()">Refresh</button>
       <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer">
@@ -1259,16 +1268,17 @@ function toggleBenchAuto(cb) {
 }
 
 // ── Gesture config ────────────────────────────────────────────────────────────
-const _GESTURE_KEYS    = ['VOL+', 'VOL-', 'STOP', 'LISTEN'];
-const _GESTURE_ACTIONS = ['VOL+', 'VOL-', 'STOP', 'LISTEN', 'SLEEP', 'WAKE', 'SKIP'];
+const _GESTURE_KEYS    = ['VOL+', 'VOL-', 'STOP', 'LISTEN', 'FORWARD', 'BACKWARD', 'CW', 'CCW'];
+const _GESTURE_ACTIONS = ['VOL+', 'VOL-', 'STOP', 'LISTEN', 'SLEEP', 'WAKE', 'MUTE', 'SKIP'];
 const _GESTURE_LABELS  = {
-  'VOL+':   'VOL+ — volume up',
-  'VOL-':   'VOL- — volume down',
-  'STOP':   'STOP — stop playback',
-  'LISTEN': 'LISTEN — trigger listen',
-  'SLEEP':  'SLEEP — full sleep sequence (starfield + snore)',
-  'WAKE':   'WAKE — full wake sequence (restore eyes + NEUTRAL)',
-  'SKIP':   'SKIP — do nothing',
+  'VOL+':    'VOL+ — volume up',
+  'VOL-':    'VOL- — volume down',
+  'STOP':    'STOP — stop playback',
+  'LISTEN':  'LISTEN — trigger listen',
+  'SLEEP':   'SLEEP — full sleep sequence',
+  'WAKE':    'WAKE — full wake sequence',
+  'MUTE':    'MUTE — toggle mute/unmute',
+  'SKIP':    'SKIP — do nothing',
 };
 
 function _populateGestureSelects() {
@@ -1295,11 +1305,6 @@ async function loadGestureConfig() {
       const sel = document.getElementById('gesture-' + key);
       if (sel && map[key]) sel.value = map[key];
     });
-    const thr = document.getElementById('GESTURE_PROXIMITY_THRESHOLD');
-    if (thr) {
-      thr.value = j.GESTURE_PROXIMITY_THRESHOLD != null ? j.GESTURE_PROXIMITY_THRESHOLD : 150;
-      document.getElementById('prox-display').textContent = thr.value;
-    }
   } catch(e) { toast('Failed to load gesture config', false); }
 }
 
@@ -1309,12 +1314,10 @@ async function saveGestureConfig() {
     const sel = document.getElementById('gesture-' + key);
     if (sel) map[key] = sel.value;
   });
-  const thrEl = document.getElementById('GESTURE_PROXIMITY_THRESHOLD');
-  const thr = thrEl ? parseInt(thrEl.value) : 150;
   const r = await fetch('/api/gesture_config', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({GESTURE_MAP: map, GESTURE_PROXIMITY_THRESHOLD: thr})
+    body: JSON.stringify({GESTURE_MAP: map})
   });
   const j = await r.json();
   toast(j.ok ? 'Gesture config saved' : 'Error saving gesture config', j.ok);
@@ -1335,9 +1338,10 @@ async function fetchGestureLog() {
     const evs = j.events || [];
     if (cnt) cnt.textContent = evs.length + ' event' + (evs.length !== 1 ? 's' : '');
     if (!evs.length) {
-      box.innerHTML = '<div style="color:var(--muted);padding:16px;text-align:center">No gesture events yet — wave hand over APDS-9960 sensor</div>';
+      box.innerHTML = '<div style="color:var(--muted);padding:16px;text-align:center">No gesture events yet — swipe, push, or rotate over PAJ7620U2 sensor</div>';
       return;
     }
+    // Reverse so newest is first in DOM; rAF ensures scrollTop=0 takes effect after paint
     box.innerHTML = evs.slice().reverse().map(e => {
       const dateStr = (e.t || '').slice(0, 10);
       const timeStr = e.ts || '';
@@ -1348,7 +1352,7 @@ async function fetchGestureLog() {
              `<span class="log-msg">${_esc(e.msg || '')}</span>` +
              `</div>`;
     }).join('');
-    box.scrollTop = 0;
+    window.requestAnimationFrame(function() { box.scrollTop = 0; });
   } catch(e) {
     box.innerHTML = `<div style="color:var(--red);padding:12px">Error: ${_esc(String(e))}</div>`;
   }

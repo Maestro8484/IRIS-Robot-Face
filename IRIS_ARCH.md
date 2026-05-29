@@ -322,7 +322,7 @@ Powered: Pi4 USB port
 
 | GPIO | Signal | Device | Notes |
 |---|---|---|---|
-| 2  | Pan servo PWM | DS3218MG 25kg servo | `panServo.attach(2)`, external 5V rail |
+| 2  | Pan servo PWM | Miuzei DS3218MG MS24 Digital Servo | `panServo.attach(2)`, external 5V rail, shared I2C bus with Person Sensor |
 | 15 | Capacitive touch (T3) | Touch pad | `capTouch(15)` (ADC-based; `touchRead` not implemented in Teensy 4.x framework) — tap=STOP, hold ≥1s=LISTEN |
 | 18 | SDA (Wire default) | Person Sensor 0x62 + PAJ7620U2 0x73 | Shared I2C bus, external 4.7K pullups |
 | 19 | SCL (Wire default) | Person Sensor 0x62 + PAJ7620U2 0x73 | Shared I2C bus, external 4.7K pullups |
@@ -333,12 +333,18 @@ Sensors: 3.3V from Teensy 3.3V pin
 
 USB Serial commands (Teensy 4.0 → Pi4):
 
-| Command | Trigger | Pi4 behavior |
+| Command | Trigger | Default Pi4 action |
 |---|---|---|
-| `VOL+` | PAJ7620U2 swipe UP (physical) | volume up (`handle_volume_command("louder")`) |
-| `VOL-` | PAJ7620U2 swipe DOWN (physical) | volume down (`handle_volume_command("quieter")`) |
-| `STOP` | PAJ7620U2 swipe LEFT or RIGHT, or touch3 short tap | UDP to 127.0.0.1:10500 |
+| `VOL+` | PAJ7620U2 swipe UP (physical) | volume up |
+| `VOL-` | PAJ7620U2 swipe DOWN (physical) | volume down |
+| `STOP` | PAJ7620U2 swipe LEFT or RIGHT; touch3 short tap | UDP STOP to 127.0.0.1:10500 |
 | `LISTEN` | touch3 pin 15 held ≥1s | activate listen mode |
+| `FORWARD` | PAJ7620U2 push toward sensor | LISTEN (configurable via web UI) |
+| `BACKWARD` | PAJ7620U2 pull away from sensor | SLEEP (configurable via web UI) |
+| `CW` | PAJ7620U2 clockwise wrist rotation | VOL+ (configurable via web UI) |
+| `CCW` | PAJ7620U2 counter-clockwise rotation | VOL- (configurable via web UI) |
+
+Actions: VOL+, VOL-, STOP, LISTEN, SLEEP, WAKE, MUTE, SKIP — configurable per gesture in IRIS Control Panel → Gestures tab.
 
 ---
 
@@ -377,7 +383,12 @@ Physical gesture direction depends on how the sensor is mounted. Change `#define
 - Physical DOWN → `VOL-`
 - Physical LEFT → `STOP`
 - Physical RIGHT → `STOP`
-- Forward / Backward / CW / CCW → ignored (not wired to commands)
+- FORWARD (push toward sensor) → `FORWARD` (default action: LISTEN)
+- BACKWARD (pull away from sensor) → `BACKWARD` (default action: SLEEP)
+- CW (clockwise rotation) → `CW` (default action: VOL+)
+- CCW (counter-clockwise rotation) → `CCW` (default action: VOL-)
+
+All 8 gesture command strings are dispatched via `base_mount_bridge.py`. Actions are configurable per-gesture in `iris_config.json` GESTURE_MAP (web UI: Gestures tab).
 
 **INT pin:** Not connected — firmware uses polling mode only. INT wiring not required.
 
@@ -553,13 +564,16 @@ MOUTH_INTENSITY:n  -- set backlight level (0-15)
 
 **Teensy 4.0 -> Pi4 (one-way, `/dev/ttyIRIS_SERVO`, 115200 baud):**
 ```
-VOL+    -- volume up   (PAJ7620U2: physical swipe UP)
-VOL-    -- volume down (PAJ7620U2: physical swipe DOWN)
-STOP    -- stop playback (PAJ7620U2: physical swipe LEFT or RIGHT; touch3: short tap)
-LISTEN  -- activate listen mode (touch3 pin 15: hold >= 1s)
+VOL+     -- volume up          (PAJ7620U2: physical swipe UP)
+VOL-     -- volume down        (PAJ7620U2: physical swipe DOWN)
+STOP     -- stop playback      (PAJ7620U2: swipe LEFT or RIGHT; touch3: short tap)
+LISTEN   -- activate listen    (touch3 pin 15: hold >= 1s)
+FORWARD  -- push toward sensor (PAJ7620U2 extended gesture)
+BACKWARD -- pull away          (PAJ7620U2 extended gesture)
+CW       -- clockwise rotation (PAJ7620U2 extended gesture)
+CCW      -- counter-clockwise  (PAJ7620U2 extended gesture)
 ```
-Pi4 handler: `pi4/hardware/base_mount_bridge.py`. Only `base_mount_bridge.py` owns `/dev/ttyIRIS_SERVO`.
-Pi4 never sends commands to Teensy 4.0 — serial is one-way.
+All 8 commands are dispatched via `base_mount_bridge.py`. Actions configurable via GESTURE_MAP in `iris_config.json` (web UI: Gestures tab). Only `base_mount_bridge.py` owns `/dev/ttyIRIS_SERVO`. Pi4 never sends commands to Teensy 4.0 — serial is one-way.
 See "PAJ7620U2 Gesture Sensor Quick-Reference" section for register 0x43 bit layout and mount rotation table.
 
 ---

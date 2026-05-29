@@ -20,7 +20,7 @@ _MSG_RE       = _re.compile(r'(?:python3|assistant|iris[\-_]web)\[\d+\]:\s*(.*)'
 _TAG_RE       = _re.compile(
     r'\[(INFO|ERR|WARN|STT|LLM|TTS|ROUTE|WAKEWORD|STOP|CMD|GESTURE)\](.*)')
 _GESTURE_RE   = _re.compile(r'\[GESTURE\]\s+gesture=(\S+)\s+action=(\S+)')
-_BASE_GEST_RE = _re.compile(r'\[BASE\]\s+(VOL[+\-]|STOP|LISTEN)\s*$')
+_BASE_GEST_RE = _re.compile(r'\[BASE\]\s+(VOL[+\-]|STOP|LISTEN|FORWARD|BACKWARD|CW|CCW)\s*$')
 # SD daily log line: "May 22 17:30:00 pi4-satellite python3[1139]: message"
 _SD_LINE_RE   = _re.compile(
     r'^(\w{3})\s+(\d{1,2})\s+(\d{2}):(\d{2}):(\d{2})\s+\S+\s+'
@@ -718,12 +718,16 @@ def api_post():
 
 
 _DEFAULT_GESTURE_MAP = {
-    "VOL+":   "VOL+",
-    "VOL-":   "VOL-",
-    "STOP":   "STOP",
-    "LISTEN": "LISTEN",
+    "VOL+":    "VOL+",
+    "VOL-":    "VOL-",
+    "STOP":    "STOP",
+    "LISTEN":  "LISTEN",
+    "FORWARD": "LISTEN",
+    "BACKWARD":"SLEEP",
+    "CW":      "VOL+",
+    "CCW":     "VOL-",
 }
-_VALID_GESTURE_ACTIONS = {"VOL+", "VOL-", "STOP", "LISTEN", "SKIP"}
+_VALID_GESTURE_ACTIONS = {"VOL+", "VOL-", "STOP", "LISTEN", "SLEEP", "WAKE", "MUTE", "SKIP"}
 
 
 @app.route("/api/gesture_config", methods=["GET", "POST"])
@@ -736,8 +740,11 @@ def api_gesture_config():
         write_cfg({"GESTURE_MAP": cleaned, "GESTURE_PROXIMITY_THRESHOLD": threshold})
         return jsonify(ok=True)
     cfg = read_cfg()
+    stored = cfg.get("GESTURE_MAP", {})
+    merged = dict(_DEFAULT_GESTURE_MAP)
+    merged.update(stored)   # overlay stored values; new keys keep defaults
     return jsonify(
-        GESTURE_MAP=cfg.get("GESTURE_MAP", _DEFAULT_GESTURE_MAP),
+        GESTURE_MAP=merged,
         GESTURE_PROXIMITY_THRESHOLD=cfg.get("GESTURE_PROXIMITY_THRESHOLD", 150),
     )
 

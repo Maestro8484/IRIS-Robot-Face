@@ -9,11 +9,18 @@ from hardware.audio_io import handle_volume_command
 _CONFIG_PATH = "/home/pi/iris_config.json"
 
 _DEFAULT_GESTURE_MAP = {
-    "VOL+":   "VOL+",
-    "VOL-":   "VOL-",
-    "STOP":   "STOP",
-    "LISTEN": "LISTEN",
+    "VOL+":    "VOL+",
+    "VOL-":    "VOL-",
+    "STOP":    "STOP",
+    "LISTEN":  "LISTEN",
+    "FORWARD": "LISTEN",
+    "BACKWARD":"SLEEP",
+    "CW":      "VOL+",
+    "CCW":     "VOL-",
 }
+
+# Restore level used by MUTE toggle (mutable single-element list for closure capture)
+_mute_restore = [70]
 
 
 def _load_gesture_map():
@@ -75,6 +82,20 @@ class BaseMountBridge:
                     s.sendto(b"EYES:WAKE", ("127.0.0.1", CMD_PORT))
             except Exception as e:
                 print(f"[BASE] WAKE error: {e}", flush=True)
+        elif action == "MUTE":
+            try:
+                from hardware.audio_io import get_volume, set_volume
+                v = get_volume()
+                if v > 0:
+                    _mute_restore[0] = v
+                    set_volume(0)
+                    print("[BASE] MUTE: muted", flush=True)
+                else:
+                    restore = _mute_restore[0] if _mute_restore[0] > 0 else 70
+                    set_volume(restore)
+                    print(f"[BASE] MUTE: unmuted to {restore}", flush=True)
+            except Exception as e:
+                print(f"[BASE] MUTE error: {e}", flush=True)
         elif action == "SKIP":
             pass
         else:

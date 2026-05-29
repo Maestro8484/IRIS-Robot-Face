@@ -11,13 +11,17 @@ Pin#   Label
 
 USB serial / Pi4 integration:
 - USB CDC serial to Pi4 (/dev/ttyIRIS_SERVO, baud 115200)
-- Commands sent: VOL+, VOL-, STOP, LISTEN
+- Commands sent: VOL+, VOL-, STOP, LISTEN, FORWARD, BACKWARD, CW, CCW
 - Pi4 hardware/base_mount_bridge.py daemon thread reads and dispatches these.
 - Commands triggered by PAJ7620U2:
-    UP gesture    → VOL+
-    DOWN gesture  → VOL-
-    LEFT gesture  → STOP
-    RIGHT gesture → STOP
+    UP gesture       → VOL+
+    DOWN gesture     → VOL-
+    LEFT gesture     → STOP
+    RIGHT gesture    → STOP
+    FORWARD gesture  → FORWARD
+    BACKWARD gesture → BACKWARD
+    CW gesture       → CW
+    CCW gesture      → CCW
 - Commands triggered by touch3 (pin 15):
     Short tap (<1s)  → STOP
     Long hold (>=1s) → LISTEN
@@ -257,7 +261,10 @@ void pollGesture() {
   else if (gest & GEST_DOWN)  Serial.println("VOL-");
   else if (gest & GEST_LEFT)  Serial.println("STOP");
   else if (gest & GEST_RIGHT) Serial.println("STOP");
-  // 0x10/0x20/0x40/0x80: no command mapped — visible in SERIAL_DIAG only
+  else if (gest & 0x10)       Serial.println("FORWARD");
+  else if (gest & 0x20)       Serial.println("BACKWARD");
+  else if (gest & 0x40)       Serial.println("CW");
+  else if (gest & 0x80)       Serial.println("CCW");
 }
 
 void pollTouch3() {

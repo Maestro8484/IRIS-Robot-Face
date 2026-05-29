@@ -23,7 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
 | GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model current. |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
-| Teensy 4.0 | S69 FLASHED+INSTALLED. DS3218MG confirmed installed. PAJ7620U2 on I2C bus, Touch3=T3 pad. S70 REPO-ONLY: ServoEasing async (EASE_CUBIC_IN_OUT, startEaseToD/isMoving), PAN_MIN=45/PAN_MAX=135, PAN? query. S71 docs-only. Pending user flash of S70. |
+| Teensy 4.0 | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. PAJ7620U2 on I2C bus. Touch3=T3 pad. S70+S72 REPO-ONLY: ServoEasing async, PAN_MIN/MAX, PAN?, all 8 PAJ7620U2 gestures (FORWARD/BACKWARD/CW/CCW). Pending user flash. Pi4 bridge/web REPO-ONLY pending DEPLOY. |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
 | Wakeword | `hey_jarvis` (production). Experimental wakewords require explicit user approval, live Pi4 state confirmation, clean process restart, and one-model-at-a-time testing. Failed experiment names are in `CHANGELOG.md`. |
 
@@ -57,11 +57,14 @@ Build clean. Click Upload in PlatformIO IDE (env:teensy40). Then verify via seri
 After gesture issues resolved: flash S70, verify PAN limits + smooth motion, tune constants, then set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.py` and DEPLOY to Pi4.
 
 ### Deploy state (current)
-- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY S70 (S69 currently on hardware)
+- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY S72 (S69 on hardware; S70+S72 pending user flash)
 - `servo_teensy40/teensy40_base_mount/platformio.ini` — FLASHED S69
-- `servo_teensy40/README.md` — REPO-ONLY S71
-- `IRIS_ARCH.md` — REPO-ONLY S71 (touchRead→capTouch fix; PAJ7620U2 quick-ref from S69)
-- `docs/servo_teensy40_wiring.md` — REPO-ONLY S71 (ServoEasing async notes updated)
+- `servo_teensy40/README.md` — REPO-ONLY S72
+- `IRIS_ARCH.md` — REPO-ONLY S72
+- `docs/servo_teensy40_wiring.md` — REPO-ONLY S72
+- `pi4/hardware/base_mount_bridge.py` — REPO-ONLY S72 (4 new gesture defaults, MUTE action)
+- `pi4/iris_web.py` — REPO-ONLY S72 (new gesture keys + MUTE in validator)
+- `pi4/iris_web.html` — REPO-ONLY S72 (Gestures tab: PAJ7620U2 full, log inversion fix)
 - `CHANGELOG.md` — REPO-ONLY S71
 - `CLAUDE.md` — REPO-ONLY S69
 - `docs/sysmap.json` — LOCAL-ONLY (gitignored) S69 full PAJ7620U2 patch

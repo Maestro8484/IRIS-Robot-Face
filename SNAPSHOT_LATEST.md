@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S71 | **Date:** 2026-05-28 | **Branch:** `main` | **Last commit:** b342168
+**Session:** S72 | **Date:** 2026-05-28 | **Branch:** `main` | **Last commit:** pending
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -22,7 +22,7 @@
 | Pi4 192.168.1.200 | Operational. S67 DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. POST 21/22 PASS (1 WARN gesture sensor expected). S65 sleep sliders live. S66 POST diagnostic live. S67 bench JSONL sync live. install_journald.sh run (journald 500MB/1yr). |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
-| Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG confirmed installed. PAJ7620U2 on I2C bus. Touch3=T3 pad. S70 REPO-ONLY: ServoEasing async (EASE_CUBIC_IN_OUT, enableServoEasingInterrupt, startEaseToD/isMoving), PAN_MIN=45/PAN_MAX=135, PAN? query. Pending user flash. S71 docs-only: wiring doc + IRIS_ARCH.md + README corrected. |
+| Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. PAJ7620U2 on I2C bus. Touch3=T3 pad. S70 REPO-ONLY: ServoEasing async, PAN_MIN=45/PAN_MAX=135, PAN? query. S72 REPO-ONLY: all 8 PAJ7620U2 gestures wired (FORWARD/BACKWARD/CW/CCW). Pending user flash of S70+S72. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -57,14 +57,18 @@ S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was
 
 ---
 
-## Last Session Changes (S71)
+## Last Session Changes (S72)
 
-- **`docs/servo_teensy40_wiring.md`** — Servo Control Notes rewritten: old EASE_CUBIC_OUT/EASE_SINE_OUT references removed; S70 API documented (EASE_CUBIC_IN_OUT, startEaseToD(target,100), isMoving() guard, FACE_RETURN_MS). PAN_MIN 45°/PAN_MAX 135° clamp noted. Last-updated date updated.
-- **`IRIS_ARCH.md`** — Pin 15 table row: `touchRead(15)` corrected to `capTouch(15)` with note that touchRead is not implemented in Teensy 4.x PlatformIO framework.
-- **`servo_teensy40/README.md`** — DS3218MG confirmed installed and operational; firmware status updated to S70.
-- **`CHANGELOG.md`** — S71 entry added.
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — `pollGesture()` emit block: FORWARD/BACKWARD/CW/CCW now emit Serial commands (were silently ignored). Header updated. REPO-ONLY pending flash.
+- **`pi4/hardware/base_mount_bridge.py`** — 4 new gesture keys in `_DEFAULT_GESTURE_MAP`. MUTE action added (get/set_volume toggle). `_mute_restore` state added.
+- **`pi4/iris_web.py`** — `_DEFAULT_GESTURE_MAP` + `_VALID_GESTURE_ACTIONS` extended (SLEEP/WAKE/MUTE). GET merges defaults with stored config (new keys always get defaults). `_BASE_GEST_RE` updated for new gesture strings.
+- **`pi4/iris_web.html`** — Gestures tab: APDS-9960→PAJ7620U2 throughout; proximity threshold removed; 4 new gesture rows (FORWARD/BACKWARD/CW/CCW); MUTE added to actions; gesture log `requestAnimationFrame` scroll fix (newest at top reliable); empty-state hint updated.
+- **`IRIS_ARCH.md`** — Serial command table + command mapping + serial protocol block: all 8 gestures documented. Pin 2: servo model → DS3218MG MS24.
+- **`servo_teensy40/README.md`** — Servo model → DS3218MG MS24.
+- **`docs/servo_teensy40_wiring.md`** — Servo model → DS3218MG MS24.
+- **`docs/sysmap.json`** — command_map: all 8 gestures. servo/gpio/tunable_constants: MS24, capTouch, PAN_MIN/MAX, S70 easing API.
 
-**Status:** Docs-only. No firmware changes. No Pi4 changes. No GandalfAI changes.
+**Status:** Firmware REPO-ONLY (pending user flash). Pi4 files REPO-ONLY (pending DEPLOY).
 
 ---
 

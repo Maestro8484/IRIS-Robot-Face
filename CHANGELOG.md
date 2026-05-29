@@ -628,3 +628,29 @@ Commits: 35ffaf3 (initial driver), f31e6ce (SERIAL_DIAG hardening), cb26e7e (reg
 - **`docs/servo_teensy40_wiring.md`** — Servo Control Notes section rewritten: `EASE_CUBIC_OUT tracking / EASE_SINE_OUT return` replaced with S70 API (EASE_CUBIC_IN_OUT, `startEaseToD(target, 100)`, `isMoving()` guard, FACE_RETURN_MS 6000ms). PAN_MIN 45° / PAN_MAX 135° clamp range documented. Last-updated timestamp updated.
 - **`IRIS_ARCH.md`** — Pin 15 table row: `touchRead(15)` corrected to `capTouch(15)` with note that `touchRead` is not implemented in Teensy 4.x PlatformIO framework.
 - **`servo_teensy40/README.md`** — Status line updated: "Firmware current as of S69" → DS3218MG confirmed installed and operational, firmware current as of S70.
+
+---
+
+## S72 — PAJ7620U2 Full Gesture Expansion + DS3218MG MS24 + Web UI Update (2026-05-28)
+
+**Status:** REPO-ONLY (Pi4 files pending DEPLOY; firmware pending user flash)
+
+**Goal:** Wire all 8 PAJ7620U2 gesture types to firmware + bridge + web UI. Add MUTE action. Correct servo model to DS3218MG MS24. Fix gesture event log inversion. Update all hardware mapping docs.
+
+**Changes:**
+
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — `pollGesture()` emit block extended: FORWARD (0x10), BACKWARD (0x20), CW (0x40), CCW (0x80) now emit `Serial.println()` strings (previously silently ignored). File header comment updated to list all 8 commands. REPO-ONLY pending user flash.
+
+- **`pi4/hardware/base_mount_bridge.py`** — `_DEFAULT_GESTURE_MAP` extended: FORWARD→LISTEN, BACKWARD→SLEEP, CW→VOL+, CCW→VOL-. `_mute_restore` module-level state added. `MUTE` action added to `_dispatch()`: toggles between vol=0 and saved restore level using `get_volume`/`set_volume` from `hardware.audio_io`.
+
+- **`pi4/iris_web.py`** — `_BASE_GEST_RE` updated to match FORWARD/BACKWARD/CW/CCW in legacy `[BASE]` log lines. `_DEFAULT_GESTURE_MAP` extended (4 new keys). `_VALID_GESTURE_ACTIONS` extended: SLEEP, WAKE, MUTE added. `api_gesture_config()` GET: now merges stored GESTURE_MAP with defaults so new gesture keys always appear with sensible defaults even if `iris_config.json` was written before S72.
+
+- **`pi4/iris_web.html`** — Gestures card: APDS-9960/ttyACM1 stale refs → PAJ7620U2/ttyIRIS_SERVO; LISTEN label corrected (was "proximity hold" → "touch3 hold, pin 15"); proximity threshold slider removed (APDS-9960 specific); FORWARD/BACKWARD/CW/CCW select rows added with divider. `_GESTURE_KEYS` extended (8 total). `_GESTURE_ACTIONS` extended: MUTE added; SLEEP/WAKE labels shortened. `loadGestureConfig`: proximity threshold DOM refs removed. `saveGestureConfig`: GESTURE_PROXIMITY_THRESHOLD removed from POST body. `fetchGestureLog`: empty-state hint updated (PAJ7620U2); `box.scrollTop=0` replaced with `window.requestAnimationFrame(() => box.scrollTop=0)` to guarantee paint-after-reset for reliable newest-at-top behavior.
+
+- **`IRIS_ARCH.md`** — Serial command table: 4 new rows (FORWARD/BACKWARD/CW/CCW with default actions). "command mapping" section: FORWARD/BACKWARD/CW/CCW described. Serial protocol block: all 8 commands listed. Pin 2 row: servo model updated to Miuzei DS3218MG MS24.
+
+- **`servo_teensy40/README.md`** — Servo model updated to DS3218MG MS24; shared I2C bus with Person Sensor noted.
+
+- **`docs/servo_teensy40_wiring.md`** — Servo model row updated to DS3218MG MS24.
+
+- **`docs/sysmap.json`** (local-only, gitignored) — `serial_commands` updated (8 commands). `servo` field: MS24 added. `gpio` pin 2/15 rows corrected (MS24, capTouch note). `command_map`: all 8 gestures documented with default actions and note on configurability. `tunable_constants`: PAN_MIN/PAN_MAX added; EASING_TRACK/EASING_RETURN replaced with EASING_TYPE/EASING_MOVE_MS (S70 async API).
