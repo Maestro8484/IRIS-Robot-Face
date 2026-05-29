@@ -856,3 +856,17 @@ contracts.
 - STALE_IN_SYSMAP fixed: tracked/gitignore metadata and touch1/touch2 behavior entries.
 
 **Review note:** No unresolved VALUE_MISMATCH items were auto-resolved beyond values verified in source files and `SNAPSHOT_LATEST.md`.
+
+---
+
+## CDX-4 — README.md Audit: Root + servo_teensy40 (2026-05-29)
+
+**Status:** REPO-ONLY — documentation audit committed locally.
+
+**Scope:** Audited root `README.md` and `servo_teensy40/README.md` against `SNAPSHOT_LATEST.md`, `CLAUDE.md`, and `IRIS_ARCH.md` system/pin sections.
+
+**Changes:**
+- **`README.md`** — Added Teensy 4.0 base mount to project/hardware descriptions; added POST diagnostic, persistent USB identity, and base-mount gesture feature rows; updated GandalfAI TTS wording to Kokoro/Piper; refreshed sleep animation text; added Teensy 4.0 gesture serial block; fixed Web UI "all 9 styles" and "mouth matrix" stale text.
+- **`servo_teensy40/README.md`** — Updated firmware status to TS40-S1/TS40-S2, added HW-004 PAJ7620U2 dead/replacement-on-order note, switched wiring reference to `docs/servo_teensy40_wiring.md`, and expanded modular file names.
+
+**Review note:** Root README changelog section was intentionally left unchanged because the separate `CHANGELOG.md` is canonical.

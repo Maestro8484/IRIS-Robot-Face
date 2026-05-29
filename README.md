@@ -7,8 +7,8 @@
 
 ## What Is IRIS?
 
-IRIS is a conversational AI robot face built from scratch on a Raspberry Pi 4
-and Teensy 4.1. It listens for a wake word, processes speech, queries a local
+IRIS is a conversational AI robot face built from scratch on a Raspberry Pi 4,
+Teensy 4.1 display controller, and Teensy 4.0 base mount controller. It listens for a wake word, processes speech, queries a local
 LLM, speaks a response, and animates its eyes and mouth in real time based on
 the detected emotion -- all within a few seconds on consumer hardware.
 
@@ -42,6 +42,9 @@ per session. Camera input for visual Q&A. Deep space sleep display at night.
 | Wake-on-LAN | GandalfAI auto-wakes when wakeword fires during sleep |
 | Web UI | Full config + diagnostic panel at http://[pi4]:5000 |
 | Interruptible TTS | Stop phrase kills playback mid-sentence |
+| Power-on self-test | `iris_post.py` 5-layer diagnostic with LED fault indication |
+| Persistent USB identity | udev symlinks: `/dev/ttyIRIS_EYES` and `/dev/ttyIRIS_SERVO` |
+| Base mount + gestures | Teensy 4.0 DS3218MG pan servo + PAJ7620U2 gesture controller |
 
 ---
 
@@ -51,6 +54,7 @@ per session. Camera input for visual Q&A. Deep space sleep display at night.
 |---|---|
 | Raspberry Pi 4 | Voice pipeline, LEDs, camera, Teensy serial bridge |
 | Teensy 4.1 | Dual GC9A01A eyes + ILI9341 2.8" TFT mouth |
+| Teensy 4.0 | Base mount controller: DS3218MG pan servo + PAJ7620U2 gestures |
 | ReSpeaker 2-Mic Pi HAT | Dual mic, WM8960 codec, 3x APA102 LEDs |
 | GC9A01A displays x2 | 1.28" round 240x240 TFT -- animated eyes |
 | ILI9341 2.8" TFT | SPI mouth display (KurtE/ILI9341_t3n hardware SPI2) |
@@ -58,7 +62,7 @@ per session. Camera input for visual Q&A. Deep space sleep display at night.
 | Person Sensor (I2C) | Face detection and tracking |
 | Arducam IMX708 | Vision input for camera queries |
 | PAM8403 amp | Audio output to 2x 3W speakers |
-| GandalfAI (Windows PC) | RTX 3090 -- Ollama, Whisper, Piper |
+| GandalfAI (Windows PC) | RTX 3090 -- Ollama, Whisper, Kokoro, Piper fallback |
 
 ---
 
@@ -150,11 +154,10 @@ Context history clears on mode switch.
 ## Sleep Mode
 
 **9:00 PM (cron)** -- IRIS enters sleep:
-- Both TFT displays render a deep space scene: crescent moon with slow drift,
-  3-depth star field with twinkling, nebula color washes, expanding pulse rings,
-  shooting stars, drifting ZZZ chain
-- TFT mouth plays 12s snore animation at minimum brightness
-  (inhale -- flat line brightens, hold, exhale -- sine wave rolls left to right)
+- Both TFT displays render a deep space scene: Saturn, crescent moon, warp
+  particles, starfield, and nebula overlay
+- TFT mouth plays the sleep animation at minimum brightness:
+  symmetric ZZZ pairs over a 3-wave snore band
 - APA102 breathes dim indigo
 - Wakeword listener stays active -- `hey_jarvis` wakes GandalfAI via
   Wake-on-LAN and resumes full assistant mode
@@ -199,16 +202,23 @@ FACE:1        -- face detected (30s cooldown between sends)
 FACE:0        -- face lost
 ```
 
+**Teensy 4.0 → Pi4 (`/dev/ttyIRIS_SERVO`):**
+```
+VOL+ / VOL- / STOP / LISTEN
+FORWARD / BACKWARD / CW / CCW
+```
+All 8 gesture commands are dispatched by `pi4/hardware/base_mount_bridge.py` and mapped in the Web UI Gestures tab.
+
 ---
 
 ## Web Config Panel
 
 Flask UI at `http://192.168.1.200:5000`:
 
-- System status (CPU temp, uptime, assistant service state)
-- Eye switcher (all 9 styles, live preview on hardware)
+- System status (CPU temp, uptime, assistant service state, POST results)
+- Eye switcher (all 7 compiled styles, live preview on hardware)
 - Emotion tester (fires both EMOTION:x and MOUTH:x simultaneously)
-- Mouth matrix expression tester (independent from emotion system)
+- TFT mouth expression tester (independent from emotion system)
 - Live assistant log tail
 - Chat interface (text input to LLM with optional spoken response)
 - Config editor (model names, thresholds, voice ID)
