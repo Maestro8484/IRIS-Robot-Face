@@ -33,7 +33,7 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 
 ## RD-001 — Stop/Cancel Pre-STT Intercept
 
-**Status:** Complete — Option 1 (post-STT STOP phrase gate) deployed to Pi4 (commit 54d576c, 2026-05-02). Pre-STT RMS intercept (Option 2) deferred — not required.
+**Status:** Deferred — Option 1 (post-STT STOP phrase gate) deployed to Pi4 (commit 54d576c, 2026-05-02). Pre-STT RMS intercept (Option 2) is not currently active scope.
 
 **Problem:** Whisper hallucinates on very short post-wakeword audio (< ~0.5s). Single-word utterances like "stop" are transcribed as unrelated phrases. The intent router then classifies the hallucinated text rather than the intended command, causing IRIS to respond incorrectly instead of aborting.
 
@@ -48,22 +48,6 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 **Rollback:** Revert the changed Pi4 files to prior commit and redeploy to Pi4.
 
 **Files:** `pi4/assistant.py`, possibly `pi4/services/stt.py`; `pi4/core/intent_router.py` only if command routing is changed.
-
----
-
-## RD-002 — AMUSED Emotion: Full Implementation
-
-**Status:** FULLY DEPLOYED (2026-05-03) — Pi4, Teensy 4.1, GandalfAI iris-kids all live.
-
-**Decision:** Full implementation chosen over removal. AMUSED = dry amusement at teasing, insults, or identity challenges — distinct from CONFUSED (genuinely baffling input).
-
-**Implemented (S47):**
-- `pi4/core/config.py` — AMUSED added to VALID_EMOTIONS; MOUTH_MAP → index 2 (smirk/CURIOUS expression)
-- `pi4/hardware/led.py` — AMUSED: sinusoidal breathe, amber [255,160,0], floor=10, peak=80, period=1.5s, gamma=1.8, duration=3s (special case in show_emotion)
-- `src/main.cpp` — AMUSED added to EmotionID enum (=8), emotionTable ({0.55f, false, 3000}), parseEmotion
-- `pi4/iris_web.html` — AMUSED button added to Emotion Test grid
-- `ollama/iris_modelfile.txt` — AMUSED already present and correctly described; no change needed
-- `ollama/iris-kids_modelfile.txt` — AMUSED added to valid emotion list
 
 ---
 
@@ -129,7 +113,7 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 
 ## RD-006 — Custom Wakeword Experiment (Future)
 
-**Status:** Open — deferred, no active timeline
+**Status:** Deferred — no active timeline
 
 **Problem:** The production wakeword (`hey_jarvis`) is functional but not IRIS-specific. A custom wakeword trained on real household voice samples would improve ownership and recognition accuracy.
 
@@ -149,7 +133,7 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 
 ## RD-007 — Bench Trend Viewer in iris_web
 
-**Status:** Open — deferred, blocked on JSONL data accumulation (deploy S50 first)
+**Status:** Deferred — waiting for enough `iris_bench.jsonl` data to accumulate before building trend UI.
 
 **Problem:** `iris_bench.jsonl` (added S50) stores per-turn timing data but is only readable via SSH. The existing Bench tab in the web UI shows current-session timings from journald only. No trend view exists.
 
@@ -167,42 +151,3 @@ git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
 
 ---
 
-## HW-001 — Teensy 4.1 Activity LED Suppression (Pin 13 / SPI SCK conflict)
-
-**Status:** CLOSED — covered with black electrical tape (S67 confirm). Physical solder jumper cut deferred indefinitely; tape is the accepted mitigation.
-
-**Priority:** HIGH — LED is visibly distracting during normal operation.
-
-**Problem:** Teensy 4.1 pin 13 is simultaneously the built-in activity LED and the SPI SCK line for the GC9A01A eye displays. The eye render loop runs at ~60fps, keeping SPI active continuously. The SCK toggling causes the LED to glow solid during all eye operation. Software suppression (`pinMode(13, OUTPUT); digitalWrite(13, LOW)`) has no effect — the SPI hardware peripheral immediately reclaims pin 13 control.
-
-**Fix:** Cut the LED/SCK solder jumper on the underside of the Teensy 4.1 board. This disconnects the LED pad from pin 13 without affecting SPI function. One-time physical mod, ~10 seconds with a hobby knife.
-
-**Blocked on:** The Teensy 4.1 is header-soldered onto the main power supply distribution PCB. Accessing the underside of the Teensy (where the solder jumper sits) requires desoldering it from the PCB headers, or doing the cut in-situ with limited clearance. The power distribution PCB is scheduled for a large rewiring — cut the LED jumper during that work before re-seating the Teensy.
-
-**No code change required.** The two-line stub (`pinMode(13, OUTPUT); digitalWrite(13, LOW)`) was added and then removed in S54 — confirmed ineffective.
-
-**Files:** None (hardware-only fix).
-
----
-
-## HW-003 — PAJ7620U2 Gesture Sensor Integration
-
-**Status:** Open — hardware received, not wired, not integrated.
-
-**Priority:** HIGH — required to restore gesture control (VOL+/VOL-/STOP) after APDS-9960 chip death (S66).
-
-**Context:** APDS-9960 on Teensy 4.0 I2C bus confirmed dead S66 (0x0 from ID register, full no-response). PAJ7620U2 (HiLetgo, 3.3V I2C, address 0x73) received as replacement. Provides directional swipe gestures (up/down/left/right/forward/backward/clockwise/counter-clockwise).
-
-**I2C bus assignment:** TBD — pending enclosure access. Candidates:
-- Teensy 4.0 Wire (pins 18/19): same bus as Person Sensor (0x62); no address conflict. Requires T4.0 firmware update to PAJ7620 library.
-- Teensy 4.1 Wire (pins 18/19): separate firmware path; requires T4.1 firmware change.
-- USB-I2C bridge to Pi4: independent of Teensy firmware.
-
-**Integration checklist (user action, enclosure open required):**
-1. Decide I2C bus placement.
-2. Wire PAJ7620U2: SDA/SCL to chosen bus, VCC→3.3V, GND→GND.
-3. Update firmware for chosen target (PAJ7620 library, gesture dispatch).
-4. Set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.py` after wiring confirmed.
-5. Verify gesture events in web UI Gestures tab.
-
-**Files:** `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` (if Teensy 4.0 path), `pi4/core/config.py` (GESTURE_SENSOR_REQUIRED). See IRIS_ARCH.md Pending Hardware section.

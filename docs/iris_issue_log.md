@@ -264,7 +264,7 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Fix (RD-002):** Full implementation. AMUSED added to all five locations. Mouth reuses index 2 (CURIOUS/smirk). LED: sinusoidal breathe, amber [255,160,0], floor=10, peak=80, period=1.5s, gamma=1.8, duration=3s. Firmware: EmotionID=8, EmotionParams {0.55f, false, 3000}, no eye swap. Kids modelfile: AMUSED added to valid emotion list.
 **Files:** `pi4/core/config.py`, `pi4/hardware/led.py`, `src/main.cpp`, `pi4/iris_web.html`, `ollama/iris-kids_modelfile.txt`
 **Commit:** pending
-**Status:** Fixed in local repo — pending Pi4 deploy + firmware upload
+**Status:** Fixed
 
 ---
 
@@ -277,7 +277,7 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Symptom:** Single-word utterances ("stop", "quiet") transcribed incorrectly by Whisper — "stop" → "What are you doing?" Intent router then classifies correctly for the hallucinated phrase, not the intended command.
 **Root cause:** Whisper is unreliable on sub-1-second audio with minimal phonetic content. Hallucination rate spikes on very short recordings.
 **Proposed fix:** Pre-STT RMS duration gate — if post-wakeword audio < ~0.5s, route directly to local keyword match (stop/cancel/quiet) without Whisper. OR add known short-command words to a local keyword list checked before STT.
-**Status:** Open — HIGH priority
+**Status:** Deferred — Option 1 STOP gate is deployed; pre-STT intercept is not current active scope.
 
 ---
 
@@ -306,7 +306,7 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 
 **Symptom:** Sleep wakeword greeting routed through Wyoming Piper on GandalfAI:10200 instead of local Piper. Local `/usr/local/bin/piper` binary broken.
 **Root cause:** Local Piper install corrupted or missing dependency. Kokoro is primary TTS — this only affects the specific sleep-wakeword greeting path.
-**Status:** Deferred/Closed — LOCAL-PIPER BROKEN, LOW-LOW priority. Not worth fixing until Kokoro primary fails. Closing from active tracking.
+**Status:** Deferred — LOCAL-PIPER BROKEN, LOW-LOW priority. Not worth fixing until Kokoro primary fails.
 
 ---
 

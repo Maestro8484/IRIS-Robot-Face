@@ -734,3 +734,30 @@ Live `assistant.py` calls `BaseMountBridge(_bm_cfg, leds)` (two positional args)
 - **`docs/iris_issue_log.md`** — HW-004 entry added.
 
 **Next step:** When replacement GY-PAJ7620 arrives, seat identically, confirm `ACK=YES` + `init=OK` at boot, then flash TS40-S1 firmware and verify debounce.
+
+---
+
+## CODEX SECONDARY-CODER SESSION — 2026-05-29
+
+The following CDX-N entries were produced by ChatGPT Codex 5.5 (extra-high
+effort) as a secondary coder during a Claude usage gap. All work is
+repo-only. Each CDX-N entry was reviewed by Claude Code on session resume;
+the review outcome is noted at the end of each entry.
+
+Codex scope was bounded to: doc audits, consistency passes, test stubs.
+No firmware. No live system edits. No protected files. No multi-file
+contracts.
+
+---
+
+## CDX-1 — ROADMAP + Issue Log Audit Pass (2026-05-29)
+
+**Status:** REPO-ONLY — documentation audit committed locally.
+
+**Scope:** Audited `ROADMAP.md` and `docs/iris_issue_log.md` against `SNAPSHOT_LATEST.md`, `HANDOFF_CURRENT.md`, `CLAUDE.md`, and S60 onward `CHANGELOG.md` entries.
+
+**Changes:**
+- **`ROADMAP.md`** — Removed resolved or superseded active items: RD-002 (AMUSED emotion full implementation, completed in S47), HW-001 (Teensy 4.1 LED mitigation accepted in S67), and HW-003 (PAJ7620U2 integration superseded by HW-004 dead-sensor tracking). Updated stale active status labels for RD-001, RD-006, and RD-007 without renumbering any identifiers.
+- **`docs/iris_issue_log.md`** — Updated stale Status lines only: RD-002 emotion issue now `Fixed`; single-word STT/pre-STT intercept marked `Deferred` to match current active scope; local Piper TTS routing normalized to `Deferred`.
+
+**Review note:** HW-004 remains untouched and BLOCKED on hardware replacement. RD-003 remains Open.
