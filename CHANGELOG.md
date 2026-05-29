@@ -892,3 +892,27 @@ contracts.
 **Verification:** Installed pinned dev requirements with `python -m pip install -r requirements-dev.txt`, then ran `python -m pytest tests/ -v`. Result: 66 passed, 1 failed. The failing test is `tests/test_tts_spoken_numbers.py::test_negative`, which shows `spoken_numbers("-42")` currently returns `-forty two` instead of `negative forty two`.
 
 **Review note:** No `pi4/*` source files were modified. The negative-number failure is left for Claude Code review because CDX-5 was test-only by design.
+
+---
+
+## Claude Review of Codex Session — 2026-05-29
+
+**Status:** REPO-ONLY — review pass + one correction committed locally.
+
+**Scope:** Reviewed CDX-1 through CDX-5. For each commit, verified the deliverable's Files Changed list against the actual `git diff`, spot-checked diff content for correctness, confirmed no protected files were touched, and resolved each Open Question.
+
+**Verdict per task:**
+- **CDX-1 (ROADMAP + issue log)** — ACCEPTED. Status flips accurate; completed items (RD-002, HW-001) correctly removed from the forward roadmap; HW-003 correctly superseded by HW-004 (tracked in SNAPSHOT). No history deleted.
+- **CDX-2 (CHANGELOG backfill)** — ACCEPTED. All cited commits (`c853709`, `eaba946`, `d6c33c6`, `22437e9`, `f740844`) verified present with matching messages. Append-only respected; sparse records honestly marked.
+- **CDX-3 (sysmap.json + IRIS_ARCH.md)** — ACCEPTED. `SR_FRAME_MS` 155, `commands_from_teensy` 8-command list, and refreshed `core/config.py` constants all match source exactly. Open Question resolved: tracking `docs/sysmap.json` IS intended (confirmed by commit `f740844`).
+- **CDX-4 (README audit)** — ACCEPTED. Hardware/feature/TTS/sleep/serial corrections accurate; "all 7 compiled styles" matches `config.h` (7 eyes).
+- **CDX-5 (pytest stubs)** — ACCEPTED with one correction. Suite confirmed 66 passed / 1 failed as reported. CORRECTED the failing `test_negative`: it asserted `spoken_numbers("-42") == "negative forty two"`, a behavior the source does not implement. The integer matcher is `\b(\d+)\b` and intentionally does not treat a leading `-` as a sign — doing so would regress ranges (`10-20`) and hyphenated text, far more common in LLM output than standalone negatives. Aligned the test with actual, safe behavior rather than changing `pi4/services/tts.py`. Suite now 67 passed (commit `f410852`).
+
+**Open Questions resolved:**
+- CDX-3 sysmap tracking — RESOLVED (tracking intended).
+- CDX-5 negative-number TTS — RESOLVED (test corrected; source intentionally unchanged).
+
+**Carried forward (unresolved):**
+- CDX-5: `tests/test_integration_smoke.py` remains a legacy standalone import-time script, excluded from pytest collection by `pytest.ini`. Convert or retire in a future task.
+
+**Protected files:** Confirmed none touched across CDX-1..CDX-5 or this review.

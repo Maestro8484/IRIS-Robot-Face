@@ -97,6 +97,7 @@ After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.p
 
 ### Other pending
 - **RD-003** — Duplicate sleep log cleanup (low priority)
+- **Codex review carry-forward** — `tests/test_integration_smoke.py` is a legacy standalone import-time script, excluded from pytest collection by `pytest.ini`. Convert to pytest or retire in a future task. (All other Codex CDX-1..CDX-5 Open Questions resolved — see CHANGELOG "Claude Review of Codex Session — 2026-05-29".)
 
 ---
 

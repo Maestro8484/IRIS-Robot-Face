@@ -58,6 +58,12 @@ S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was
 
 ---
 
+## Codex Audit Review (2026-05-29) — Claude-verified
+
+Codex secondary-coder session (CDX-1..CDX-5) reviewed and accepted. Doc-audit items are now current and verified against source: `ROADMAP.md` / `docs/iris_issue_log.md` status pass (CDX-1), `CHANGELOG.md` backfill (CDX-2, all cited commits confirmed), `docs/sysmap.json` + `IRIS_ARCH.md` consistency incl. `SR_FRAME_MS`=155 and refreshed `config.py` constants (CDX-3), `README.md` audit (CDX-4), and `tests/` pytest scaffold (CDX-5, suite now 67 passed after `test_negative` correction). `docs/sysmap.json` is tracked (commit `f740844`). All REPO-ONLY. No protected files touched.
+
+---
+
 ## Last Session Changes (TS40-S1)
 
 - **`servo_teensy40/teensy40_base_mount/person_sensor.h` / `.cpp`** — NEW. Person Sensor driver: `setupPersonSensor()`, `pollPersonSensor()` → `PersonResult {ok, faceVisible, faceCenterX, confidence, isFacing}`. Codex-hardened decode bounds checking preserved exactly. `ok` flag preserves the original short-read early-return (pan held).
