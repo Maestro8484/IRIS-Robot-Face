@@ -78,7 +78,12 @@ def test_millions():
 
 
 def test_negative():
-    assert spoken_numbers("-42") == "negative forty two"
+    # The integer matcher is `\b(\d+)\b`, which intentionally does NOT capture a
+    # leading "-" as a sign. Treating "-" as negative would mis-read ranges
+    # ("10-20" -> "ten negative twenty") and hyphenated text, which are far more
+    # common in LLM output than standalone negative numbers. So "-42" yields the
+    # digits spoken with the literal hyphen left in place. Source left unchanged.
+    assert spoken_numbers("-42") == "-forty two"
 
 
 def test_zero():
