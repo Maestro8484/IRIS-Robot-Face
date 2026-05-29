@@ -337,3 +337,24 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Files:** `pi4/scripts/99-iris-teensy.rules` (NEW), `pi4/core/config.py`, `pi4/assistant.py`
 **Hard rule added:** Never hardcode `/dev/ttyACM*` in code, config, or commands. Always use `/dev/ttyIRIS_EYES` (Teensy 4.1) or `/dev/ttyIRIS_SERVO` (Teensy 4.0).
 **Status:** Fixed and deployed to Pi4 (S63)
+
+---
+
+## open | HW-004 | Teensy 4.0 — PAJ7620U2 gesture sensor dead
+
+**Symptom:** `DIAG: PAJ7620U2 0x73 ACK=NO` and `init=FAIL` on every boot. No gesture commands fire. `pajOk=0` in all telemetry. I2C scan (full 1–127 sweep) finds no device at 0x73 or any valid PAJ7620U2 address (0x13, 0x1B, 0x23, 0x2B, 0x5B, 0x63, 0x6B, 0x73).
+**Root cause:** Sensor IC hardware failure. Ruled out: I2C bus fault (Person Sensor 0x62 responds correctly), VIN power (3.3V confirmed with multimeter), SDA/SCL wiring (continuity confirmed to Teensy pins 18/19), VBUS (GY-PAJ7620 5-pin breakout ties VBUS to VIN internally), cold joint on header pins (reflow attempted — no change).
+**Fix:** Replace GY-PAJ7620 breakout module. Replacement on order.
+**Blocked:** TS40-S1 firmware flash, gesture debounce verify, GESTURE_SENSOR_REQUIRED=True Pi4 deploy.
+**Files:** None — firmware complete (TS40-S1 + TS40-S2 REPO-ONLY), blocked on hardware only.
+**Status:** Open — BLOCKED on hardware replacement (2026-05-29)
+
+---
+
+## 2026-05-29 | TS40-S1 | Firmware / Teensy 4.0 base mount
+
+**Symptom:** `teensy40_base_mount.ino` carried a full capacitive touch pad subsystem on pin 15 (T3): `TOUCH3_PIN/THRESH/HOLD_MS` defines, `capTouch()` ADC-discharge sampler, `pollTouch3()` with STOP-tap / LISTEN-hold logic and a `DIAG: touch3=` monitor. No such pad was ever physically wired to the board.
+**Root cause:** S69 introduced the touch3 code (plus a build-fix comment claiming `touchRead()` is unimplemented in the PlatformIO Teensy 4.x framework) for hardware that was never installed — a hallucinated-hardware addition that shipped as dead weight into S70/S72/TS40-S2.
+**Fix:** Removed all touch3 code from the sketch (defines, `capTouch()`, `pollTouch3()` + its SERIAL_DIAG block, the `loop()` call, header pin/trigger comments, build-fix comment). Removed touch3 / pin 15 references from `docs/sysmap.json`, `IRIS_ARCH.md`, `servo_teensy40/README.md`. `LISTEN` preserved as a valid command/action (invoked via FORWARD-gesture default and web UI). Same pass completed the modular split (`person_sensor.*`, `pan_servo.*`, `diag.h`); `.ino` 345 → 94 lines.
+**Files:** `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`, `person_sensor.h/.cpp` (NEW), `pan_servo.h/.cpp` (NEW), `diag.h` (NEW), `docs/sysmap.json`, `IRIS_ARCH.md`, `servo_teensy40/README.md`
+**Status:** Fixed — REPO-ONLY, pending user PlatformIO flash (flash itself blocked by HW-004, dead PAJ7620U2)

@@ -71,7 +71,7 @@ Final authority belongs to the human operator.
 | Pi4 | Voice pipeline orchestration, wakeword, mic/audio, LEDs, camera, web UI, cron sleep/wake, Teensy serial bridge |
 | GandalfAI | Ollama LLM, Modelfiles, Whisper STT, Kokoro TTS (primary), Piper TTS (fallback), Chatterbox (rollback only), RTX 3090 inference |
 | Teensy 4.1 (display controller) | Embedded controller for eyes, mouth, sleep renderer, person sensor integration, serial protocol |
-| Teensy 4.0 (base mount controller) | Pan servo: runs autonomously from Person Sensor face data (ServoEasing). PAJ7620U2 gesture sensor (I2C 0x73, replaces dead APDS-9960 S66, polling reg 0x43). Touch3 pin 15 (STOP tap / LISTEN hold). USB-CDC serial to Pi4 /dev/ttyIRIS_SERVO, one-way (Teensy→Pi4: VOL+/VOL-/STOP/LISTEN; Pi4 sends nothing). Physical power toggle on enclosure rear. Firmware: servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino. |
+| Teensy 4.0 (base mount controller) | Pan servo: runs autonomously from Person Sensor face data (ServoEasing). PAJ7620U2 gesture sensor (I2C 0x73, replaces dead APDS-9960 S66, polling reg 0x43). USB-CDC serial to Pi4 /dev/ttyIRIS_SERVO, one-way (Teensy→Pi4: VOL+/VOL-/STOP/LISTEN; Pi4 sends nothing). Physical power toggle on enclosure rear. Firmware: servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino (modular: paj7620.*, person_sensor.*, pan_servo.*, diag.h). |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED — replaced by Teensy 4.0 base mount controller |
 | GitHub | Secondary mirror, backup, version history, sharing remote |
 
@@ -228,7 +228,7 @@ On both rebooting simultaneously: GandalfAI must be up before assistant.py finis
 | GandalfAI | 192.168.1.3 | gandalf / &lt;password&gt; | Ollama LLM, Whisper STT, Piper TTS, Kokoro TTS, RTX 3090 |
 | Desktop PC | 192.168.1.103 | SuperMaster / &lt;password&gt; | PlatformIO firmware, VS Code, Claude Desktop. OpenSSH server enabled S29 - Claude can ssh_exec PowerShell commands and run git directly. |
 | Teensy 4.1 | USB -> Desktop PC | N/A | Dual GC9A01A 1.28" round TFT eyes + ILI9341 2.8" TFT mouth |
-| Teensy 4.0 | USB -> Pi4 (/dev/ttyIRIS_SERVO) | N/A | Base mount controller: pan servo (ServoEasing, autonomous), Person Sensor (0x62), PAJ7620U2 gesture sensor (0x73, I2C, replaces dead APDS-9960 S66), touch3 STOP/LISTEN (pin 15). Physical power toggle on enclosure rear. |
+| Teensy 4.0 | USB -> Pi4 (/dev/ttyIRIS_SERVO) | N/A | Base mount controller: pan servo (ServoEasing, autonomous), Person Sensor (0x62), PAJ7620U2 gesture sensor (0x73, I2C, replaces dead APDS-9960 S66). Physical power toggle on enclosure rear. |
 | Synology NAS | 192.168.1.102 | Master / &lt;password&gt; | SSH port 2233. Backup: \\192.168.1.102\BACKUPS\IRIS-Robot-Face\ |
 
 **SSH MCP tools:** `ssh-pi4` (192.168.1.200), `ssh-gandalf` (192.168.1.3), `ssh` (SuperMaster 192.168.1.103, PowerShell). NAS SSH: port 2233 - connect via ssh MCP with explicit host override. Credentials in CLAUDE.md (user-level, not committed).
@@ -323,7 +323,6 @@ Powered: Pi4 USB port
 | GPIO | Signal | Device | Notes |
 |---|---|---|---|
 | 2  | Pan servo PWM | Miuzei DS3218MG MS24 Digital Servo | `panServo.attach(2)`, external 5V rail, shared I2C bus with Person Sensor |
-| 15 | Capacitive touch (T3) | Touch pad | `capTouch(15)` (ADC-based; `touchRead` not implemented in Teensy 4.x framework) — tap=STOP, hold ≥1s=LISTEN |
 | 18 | SDA (Wire default) | Person Sensor 0x62 + PAJ7620U2 0x73 | Shared I2C bus, external 4.7K pullups |
 | 19 | SCL (Wire default) | Person Sensor 0x62 + PAJ7620U2 0x73 | Shared I2C bus, external 4.7K pullups |
 
@@ -337,8 +336,8 @@ USB Serial commands (Teensy 4.0 → Pi4):
 |---|---|---|
 | `VOL+` | PAJ7620U2 swipe UP (physical) | volume up |
 | `VOL-` | PAJ7620U2 swipe DOWN (physical) | volume down |
-| `STOP` | PAJ7620U2 swipe LEFT or RIGHT; touch3 short tap | UDP STOP to 127.0.0.1:10500 |
-| `LISTEN` | touch3 pin 15 held ≥1s | activate listen mode |
+| `STOP` | PAJ7620U2 swipe LEFT or RIGHT | UDP STOP to 127.0.0.1:10500 |
+| `LISTEN` | gesture action (configurable, e.g. FORWARD) / web UI | activate listen mode |
 | `FORWARD` | PAJ7620U2 push toward sensor | LISTEN (configurable via web UI) |
 | `BACKWARD` | PAJ7620U2 pull away from sensor | SLEEP (configurable via web UI) |
 | `CW` | PAJ7620U2 clockwise wrist rotation | VOL+ (configurable via web UI) |
@@ -394,20 +393,6 @@ All 8 gesture command strings are dispatched via `base_mount_bridge.py`. Actions
 
 ---
 
-### Touch3 — Pin 15 (T3)
-
-| Constant | Default | Purpose |
-|---|---|---|
-| `TOUCH3_PIN` | 15 | Teensy T3 capacitive pad |
-| `TOUCH3_THRESH` | 100 | Touch detect threshold — ADC range 0–1023. Idle ~0–30, touched ~80–400+. Tune via SERIAL_DIAG. |
-| `TOUCH3_HOLD_MS` | 1000 | Hold time to trigger LISTEN (ms) |
-
-**Implementation note:** PlatformIO `framework-arduinoteensy` declares `touchRead()` for Teensy 4.x in `core_pins.h` but provides no implementation (only `teensy3/touch.c` exists). The firmware uses `capTouch(pin)` — an ADC discharge-float-sample replacement. Output is 0–1023 (10-bit ADC), not the Teensyduino TSI scale. Threshold default updated accordingly.
-
-Behavior: short tap (release before 1s) → `STOP`; hold ≥1s → `LISTEN`. Replaces proximity-LISTEN from removed APDS-9960.
-
----
-
 ## Repo Structure
 
 ```
@@ -440,7 +425,7 @@ IRIS-Robot-Face/
     iris_wake.py                -- cron wake script
   servo_teensy40/
     teensy40_base_mount/
-      teensy40_base_mount.ino   -- pan servo + gesture firmware (ServoEasing, Person Sensor, PAJ7620U2 0x73, touch3 LISTEN/STOP pin 15)
+      teensy40_base_mount.ino   -- orchestration: setup/loop (modules: paj7620.*, person_sensor.*, pan_servo.*, diag.h)
       platformio.ini            -- env:t40, board teensy40, monitor_speed 115200
   ollama/
     iris_modelfile.txt          -- adult IRIS persona (gemma3:27b-it-qat) -- canonical
@@ -566,8 +551,8 @@ MOUTH_INTENSITY:n  -- set backlight level (0-15)
 ```
 VOL+     -- volume up          (PAJ7620U2: physical swipe UP)
 VOL-     -- volume down        (PAJ7620U2: physical swipe DOWN)
-STOP     -- stop playback      (PAJ7620U2: swipe LEFT or RIGHT; touch3: short tap)
-LISTEN   -- activate listen    (touch3 pin 15: hold >= 1s)
+STOP     -- stop playback      (PAJ7620U2: swipe LEFT or RIGHT)
+LISTEN   -- activate listen    (gesture action / web UI; e.g. FORWARD default)
 FORWARD  -- push toward sensor (PAJ7620U2 extended gesture)
 BACKWARD -- pull away          (PAJ7620U2 extended gesture)
 CW       -- clockwise rotation (PAJ7620U2 extended gesture)

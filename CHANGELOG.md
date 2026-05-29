@@ -662,3 +662,74 @@ Live `assistant.py` calls `BaseMountBridge(_bm_cfg, leds)` (two positional args)
 - `/home/pi/hardware/base_mount_bridge.py` — a69b1a7c (leds=None fix included)
 - `/home/pi/iris_web.py` — 575eabecc5
 - `/home/pi/iris_web.html` — d95f9c6461
+
+---
+
+## TS40-S2 — PAJ7620U2 Gesture Debounce + Cooldown State Machine (2026-05-29)
+
+**Status:** REPO-ONLY — firmware pending user PlatformIO flash (env:teensy40).
+
+**Goal:** Eliminate the 3-5× repeat-fire problem where one hand swipe emits multiple gesture commands. Each physical gesture should fire exactly once.
+
+**Changes:**
+
+- **`servo_teensy40/teensy40_base_mount/paj7620.h`** — NEW FILE. Extracts PAJ7620U2 public interface from `.ino` (TS40-S1 refactor + TS40-S2 debounce in one session). Exports: `PAJ7620_ADDR`, `GESTURE_MOUNT_DEGREES`, `GESTURE_DEBOUNCE_MS` (400), `GESTURE_COOLDOWN_MS` (200), `SERIAL_DIAG`, `extern bool pajOk`, `paj7620Init()`, `pollGesture()`.
+
+- **`servo_teensy40/teensy40_base_mount/paj7620.cpp`** — NEW FILE. All PAJ7620U2 driver code: `paj_write`, `paj_read`, `paj7620Init`, `pollGesture` with debounce state machine. Debounce logic in `pollGesture()`: (1) first-poll discard — reads and drops reg 0x43 on first call after init (PAJ7620U2 stale-data hardware behavior); (2) global cooldown — any gesture within `GESTURE_COOLDOWN_MS` of the last fired gesture is suppressed; (3) per-gesture debounce — same gesture within `GESTURE_DEBOUNCE_MS` is suppressed. Suppressed gestures emit `DIAG: PAJ7620 gest=0xNN SUPPRESSED debounce|cooldown` when `SERIAL_DIAG=1`. Emit block and command strings unchanged.
+
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — Removed: `SERIAL_DIAG` define, `PAJ7620_ADDR` + `GESTURE_MOUNT_DEGREES` + `GEST_*` rotation table, `bool pajOk`, `paj_write`, `paj_read`, `paj7620Init`, `pollGesture`. Added: `#include "paj7620.h"`. Person Sensor, servo, and touch3 code untouched.
+
+- **`docs/sysmap.json`** — `tunable_constants`: `GESTURE_DEBOUNCE_MS` (400) and `GESTURE_COOLDOWN_MS` (200) added with notes.
+
+**Rollback:** `git checkout -- servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino && rm servo_teensy40/teensy40_base_mount/paj7620.h servo_teensy40/teensy40_base_mount/paj7620.cpp`
+
+---
+
+## TS40-S1 — Modular Subsystem Extraction + Phantom Touch3 Removal (2026-05-29)
+
+**Status:** REPO-ONLY — firmware pending user PlatformIO flash (env:teensy40).
+
+**Note on numbering:** Follows TS40-S2 chronologically. TS40-S2 extracted the PAJ7620U2 gesture driver (`paj7620.h/.cpp`); those files are NOT duplicated or modified here. This session completes the modular split of the remaining inline subsystems and removes dead touch-pad code.
+
+**Goal:** Finish the modular refactor of `teensy40_base_mount.ino` and delete the phantom capacitive touch3 code introduced in S69 for hardware that was never wired.
+
+**Phantom hardware removed (S69 hallucination):** S69 added a capacitive touch pad on pin 15 (T3) with `capTouch()` ADC-discharge sampling, `pollTouch3()`, and `TOUCH3_PIN/THRESH/HOLD_MS` constants. The touch pad was never physically installed. All of it is removed: defines, `capTouch()`, `pollTouch3()` + its SERIAL_DIAG block, the `loop()` call, the build-fix comment about `touchRead()` missing from the PlatformIO Teensy 4.x framework, and the header pin/trigger comments. `LISTEN` is preserved as a valid command/action — it has other invocation paths (FORWARD gesture default action, web UI).
+
+**Modules extracted:**
+
+- **`servo_teensy40/teensy40_base_mount/person_sensor.h` / `.cpp`** — NEW. Person Sensor I2C driver: `setupPersonSensor()` (LED-disable register write) and `pollPersonSensor()` returning `PersonResult {ok, faceVisible, faceCenterX, confidence, isFacing}`. Codex-hardened packet decode (header skip, payload/checksum decode, fixed four-face consume, invalid-count rejection, confidence+facing gate) preserved exactly. `ok` field distinguishes a short-read cycle (caller holds pan, matching the original early-return) from a valid no-face read (caller runs idle return). SERIAL_DIAG telemetry preserved.
+
+- **`servo_teensy40/teensy40_base_mount/pan_servo.h` / `.cpp`** — NEW. ServoEasing wrapper: `setupPanServo()`, `updatePanFromFace(faceCenterX)`, `updatePanIdle(faceLostMs)`, `handleSerialPanCmd(cmd)` (PAN/PAN?, SERIAL_DIAG-gated). All constants (PAN_SPEED, PAN_DEAD_ZONE, FACE_HOLD_MS, FACE_RETURN_MS, PAN_MIN, PAN_MAX) and `desiredPan` live here. `ServoEasing.hpp` is now included in this one translation unit only.
+
+- **`servo_teensy40/teensy40_base_mount/diag.h`** — NEW. `DIAG_PRINT/DIAG_PRINTLN/DIAG_PRINTF` macros gated on `SERIAL_DIAG` (defensive `#ifndef`; canonical define stays in paj7620.h per TS40-S2). paj7620.cpp's existing SERIAL_DIAG usage was intentionally NOT refactored to use diag.h — deferred to a future unify pass.
+
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — Reduced to orchestration only: `setup()` calls each module's setup + `paj7620Init()`, `loop()` parses REBOOT (delegates PAN/PAN? to `handleSerialPanCmd`), calls `pollGesture()`, then dispatches `pollPersonSensor()` results to `updatePanFromFace`/`updatePanIdle`. Boot I2C presence probe and one-time `I2C_SCAN_DIAG` block retained. **345 lines → 94 lines** (header comment 25 lines; orchestration code ~69). No constant changed; no logic changed apart from touch3 removal. Behavior preserved bit-for-bit (one diagnostic-only nuance: the `pan=` field in the rate-limited PS telemetry now reflects the prior cycle's pan target since the pan update moved to the caller — no functional servo change).
+
+**Docs:**
+- **`docs/sysmap.json`** — removed `TOUCH3_PIN/THRESH/THRESH_NOTE/HOLD_MS` from `tunable_constants`, pin 15 from `gpio`, touch3 from `behavior`.
+- **`IRIS_ARCH.md`** — removed pin 15 row, Touch3 section, and touch3 references from System Roles / Architecture / Repo Structure / Serial Protocol. LISTEN retained (gesture action / web UI paths).
+- **`servo_teensy40/README.md`** — removed touch3 hardware line; firmware description updated to note modular layout.
+
+**Rollback:** `git checkout -- servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino docs/sysmap.json IRIS_ARCH.md servo_teensy40/README.md && rm servo_teensy40/teensy40_base_mount/person_sensor.h servo_teensy40/teensy40_base_mount/person_sensor.cpp servo_teensy40/teensy40_base_mount/pan_servo.h servo_teensy40/teensy40_base_mount/pan_servo.cpp servo_teensy40/teensy40_base_mount/diag.h`
+
+---
+
+## HW-004 — PAJ7620U2 Hardware Failure Diagnosis (2026-05-29)
+
+**Status:** BLOCKED — replacement GY-PAJ7620 on order.
+
+**Finding:** PAJ7620U2 gesture sensor confirmed dead. Does not ACK at 0x73 or any valid address (0x13, 0x1B, 0x23, 0x2B, 0x5B, 0x63, 0x6B, 0x73). I2C bus confirmed healthy (Person Sensor at 0x62 responds correctly). VIN=3.3V confirmed with multimeter. SDA/SCL continuity to Teensy pins 18/19 confirmed. Reflow of breakout board header pins attempted — no change. Sensor IC is dead; replacement ordered.
+
+**Diagnostic steps taken:**
+- Extended `delay(8000)` boot hold in `setup()` (replacing non-functional `while (!Serial && millis() < 3000)` — Teensy 4.x USB CDC makes `Serial` always truthy, so the original loop was a no-op). Allows serial monitor to connect before boot DIAG lines print.
+- Added + used + reverted `I2C_SCAN_DIAG` (full 1–127 address scan 10s after boot). Scan found 0x39, 0x4F, 0x62, 0x79 — all consistent with Person Sensor module internal endpoints + Person Sensor at 0x62. No PAJ7620U2 address present.
+- Read PAJ7620U2 datasheet v1.5 sections 5.1.1 (I2C address list) and 6.1.2 (power-on sequence: VBUS before VDD). GY-PAJ7620 5-pin breakout confirmed to tie VBUS internally to VIN — not a wiring issue.
+- touch3 idle ADC readings (127–130) confirmed above `TOUCH3_THRESH=100`, causing continuous false LISTEN triggers. Moot — touch3 code fully removed in TS40-S1.
+
+**Changes:**
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — `delay(8000)` boot hold replacing `while (!Serial && millis() < 3000)` no-op. `I2C_SCAN_DIAG` restored to 0 after use.
+- **`SNAPSHOT_LATEST.md`** — Teensy 4.0 row updated: HW-004 BLOCKED, sensor dead, replacement on order. Active Issues updated. WHAT'S NEXT gated behind sensor arrival.
+- **`HANDOFF_CURRENT.md`** — Next Work pointer updated: BLOCKED on HW-004, sensor replacement steps documented.
+- **`docs/iris_issue_log.md`** — HW-004 entry added.
+
+**Next step:** When replacement GY-PAJ7620 arrives, seat identically, confirm `ACK=YES` + `init=OK` at boot, then flash TS40-S1 firmware and verify debounce.

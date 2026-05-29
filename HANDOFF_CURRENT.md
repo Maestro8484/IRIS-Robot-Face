@@ -23,7 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
 | GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model current. |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
-| Teensy 4.0 | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. PAJ7620U2 on I2C bus. Touch3=T3 pad. S70+S72 REPO-ONLY: ServoEasing async, PAN_MIN/MAX, PAN?, all 8 PAJ7620U2 gestures (FORWARD/BACKWARD/CW/CCW). Pending user flash. Pi4 bridge/web REPO-ONLY pending DEPLOY. |
+| Teensy 4.0 | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. PAJ7620U2 on I2C bus. REPO-ONLY (pending user flash): S70 ServoEasing async + PAN_MIN/MAX + PAN?, S72 all 8 gestures, TS40-S2 gesture debounce, TS40-S1 full modular split + phantom touch3 removal. Pi4 bridge/web DEPLOYED S72. |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
 | Wakeword | `hey_jarvis` (production). Experimental wakewords require explicit user approval, live Pi4 state confirmation, clean process restart, and one-model-at-a-time testing. Failed experiment names are in `CHANGELOG.md`. |
 
@@ -41,33 +41,51 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**Flash S70 firmware — ServoEasing async + PAN_MIN/MAX + PAN? query**
+**[BLOCKED — HW-004] PAJ7620U2 confirmed dead. Replacement GY-PAJ7620 on order.**
 
-Build clean. Click Upload in PlatformIO IDE (env:teensy40). Then verify via serial at 115200:
+When replacement arrives:
+1. Seat identically: VIN→3.3V, GND, SDA→pin 18, SCL→pin 19.
+2. Power cycle. Open serial monitor within 8s.
+3. Confirm `DIAG: PAJ7620U2 0x73 ACK=YES` and `DIAG: PAJ7620U2 init=OK`.
+4. Then flash TS40-S1 firmware (see below).
 
-1. Send `PAN 45` — servo moves smoothly to 45° limit (not snap).
-2. Send `PAN 135` — servo moves smoothly to 135° limit.
-3. Send `PAN?` — returns `PAN=<float>` (live angle from ServoEasing).
-4. Wave hand in front of Person Sensor — pan tracks smoothly, no snapping.
-5. Remove hand — servo holds ~6s then drifts smoothly back toward 90°.
-6. Try `PAN 0` or `PAN 180` — should clamp to 45/135 (PAN_MIN/PAN_MAX enforced).
+---
 
-**DEPLOYMENT EXPLICITLY DELAYED** — Do not flash until gesture sensor issues from initial hardware install are resolved in a dedicated session.
+**Flash TS40-S1 firmware — full modular split + phantom touch3 removal (after sensor confirmed on I2C)**
 
-After gesture issues resolved: flash S70, verify PAN limits + smooth motion, tune constants, then set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.py` and DEPLOY to Pi4.
+Build clean (verify no link errors — `ServoEasing.hpp` now lives only in `pan_servo.cpp`). Click Upload in PlatformIO IDE (env:teensy40). Then verify via serial at 115200:
+
+1. Open serial monitor (115200 baud). Confirm boot DIAG: servo center=90, Person Sensor 0x62 ACK, PAJ7620U2 0x73 ACK + init OK.
+2. Confirm there are **NO** `DIAG: touch3=` lines (phantom touch pad code removed).
+3. Wave hand UP once — exactly one `VOL+`. Wait 1s, wave again — one more `VOL+`. Rapid repeats within 400ms → `SUPPRESSED debounce`.
+4. Wave UP then immediately DOWN — second shows `SUPPRESSED cooldown` (200ms global window).
+5. Wave all 8 directions (UP, DOWN, LEFT, RIGHT, FORWARD, BACKWARD, CW, CCW) — each fires exactly once per swipe.
+6. Send `PAN 45` / `PAN 135` / `PAN?` — servo responds (S70 features intact).
+7. Person Sensor face tracking + center-return behave exactly as before flash.
+
+**Contains:** S70 (ServoEasing async + PAN_MIN/MAX + PAN?) + S72 (all 8 gestures) + TS40-S2 (debounce) + TS40-S1 (modular split, touch3 removal).
+
+After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.py` and DEPLOY to Pi4.
 
 ### Deploy state (current)
-- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY S72 (S69 on hardware; S70+S72 pending user flash)
+- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY TS40-S1 (S69 on hardware; pending user flash)
+- `servo_teensy40/teensy40_base_mount/person_sensor.h` — REPO-ONLY TS40-S1 (new file)
+- `servo_teensy40/teensy40_base_mount/person_sensor.cpp` — REPO-ONLY TS40-S1 (new file)
+- `servo_teensy40/teensy40_base_mount/pan_servo.h` — REPO-ONLY TS40-S1 (new file)
+- `servo_teensy40/teensy40_base_mount/pan_servo.cpp` — REPO-ONLY TS40-S1 (new file)
+- `servo_teensy40/teensy40_base_mount/diag.h` — REPO-ONLY TS40-S1 (new file)
+- `servo_teensy40/teensy40_base_mount/paj7620.h` — REPO-ONLY TS40-S2 (new file)
+- `servo_teensy40/teensy40_base_mount/paj7620.cpp` — REPO-ONLY TS40-S2 (new file)
 - `servo_teensy40/teensy40_base_mount/platformio.ini` — FLASHED S69
-- `servo_teensy40/README.md` — REPO-ONLY S72
-- `IRIS_ARCH.md` — REPO-ONLY S72
+- `servo_teensy40/README.md` — REPO-ONLY TS40-S1 (touch3 line removed, modular note)
+- `IRIS_ARCH.md` — REPO-ONLY TS40-S1 (pin 15 / touch3 removed, LISTEN kept)
 - `docs/servo_teensy40_wiring.md` — REPO-ONLY S72
 - `pi4/hardware/base_mount_bridge.py` — DEPLOYED+VERIFIED S72 (4 new gesture defaults, MUTE action, leds=None fix)
 - `pi4/iris_web.py` — DEPLOYED+VERIFIED S72 (new gesture keys + MUTE in validator)
 - `pi4/iris_web.html` — DEPLOYED+VERIFIED S72 (Gestures tab: PAJ7620U2 full, log inversion fix)
-- `CHANGELOG.md` — REPO-ONLY S71
+- `CHANGELOG.md` — REPO-ONLY TS40-S1
 - `CLAUDE.md` — REPO-ONLY S69
-- `docs/sysmap.json` — LOCAL-ONLY (gitignored) S69 full PAJ7620U2 patch
+- `docs/sysmap.json` — LOCAL-ONLY (gitignored) TS40-S1 (touch3 constants/pin 15 removed)
 - `src/sleep_cfg.h`, `src/sleep_renderer.h`, `src/mouth_tft.cpp`, `src/main.cpp` — FLASHED (Teensy 4.1 S65)
 - `pi4/iris_post.py` — DEPLOYED+VERIFIED S67 (POST 21/22 PASS)
 - `pi4/core/config.py` — DEPLOYED+VERIFIED S67

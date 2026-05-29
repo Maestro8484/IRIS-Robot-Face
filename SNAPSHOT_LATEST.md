@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S72 | **Date:** 2026-05-28 | **Branch:** `main` | **Last commit:** 11d3131
+**Session:** TS40-S1 | **Date:** 2026-05-29 | **Branch:** `main` | **Last commit:** b6e6d12
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -8,9 +8,10 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **Flash S70 firmware** — ServoEasing async + PAN_MIN/MAX + PAN? query. Build clean. Click Upload in PlatformIO IDE (env:teensy40). After flash: verify via serial — `PAN 45` (smooth to limit), `PAN 135` (smooth to opposite limit), `PAN?` (returns current angle), wave hand (tracks smoothly), remove hand (drifts smoothly back to 90).
-2. **Tune TOUCH3_THRESH / PAN_SPEED / PAN_DEAD_ZONE** — Observe SERIAL_DIAG output post-flash. Adjust constants to match DS3218MG behavior.
-3. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
+1. **[BLOCKED — HW-004] Replace PAJ7620U2** — Sensor confirmed dead (ACK=NO, reflowed, still fails). New GY-PAJ7620 on order. Once arrived: seat identically (VIN=3.3V, GND, SDA→pin18, SCL→pin19), power cycle, confirm `PAJ7620U2 0x73 ACK=YES` + `init=OK` in boot DIAG.
+2. **Flash TS40-S1 firmware** — After sensor replacement confirmed on I2C. Full modular split + touch3 removal + TS40-S2 debounce. Build clean. Upload (env:teensy40). Verify: NO `touch3` DIAG lines, single-fire gestures with `SUPPRESSED` on rapid repeats, face tracking + PAN unchanged.
+3. **Set GESTURE_SENSOR_REQUIRED=True** — After flash + gesture verify, deploy to Pi4: `pi4/core/config.py` GESTURE_SENSOR_REQUIRED → True, restart service, confirm POST 22/22.
+4. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
 
 ---
 
@@ -22,7 +23,7 @@
 | Pi4 192.168.1.200 | Operational. S72 DEPLOYED+VERIFIED. iris-web + assistant services running. POST 21/22 PASS AUTHORIZED. base_mount_bridge.py (leds=None fix), iris_web.py, iris_web.html deployed. All 8 PAJ7620U2 gesture actions live. MUTE action live. Gesture log newest-at-top live. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
-| Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. PAJ7620U2 on I2C bus. Touch3=T3 pad. S70 REPO-ONLY: ServoEasing async, PAN_MIN=45/PAN_MAX=135, PAN? query. S72 REPO-ONLY: all 8 PAJ7620U2 gestures wired (FORWARD/BACKWARD/CW/CCW). Pending user flash of S70+S72. |
+| Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. **HW-004 BLOCKED: PAJ7620U2 confirmed dead** (ACK=NO, reflow attempted, I2C absent — replacement GY-PAJ7620 on order). Firmware REPO-ONLY (TS40-S1 + TS40-S2 complete, awaiting sensor + flash). Person Sensor face tracking + servo pan operational on live S69 firmware. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -30,7 +31,7 @@
 
 ## Active Issues
 
-- **HIGH: Flash + verify S70 firmware** — ServoEasing async, PAN_MIN/MAX, PAN? query. Build clean. Pending user upload (env:teensy40). After flash: serial verify steps above. Tune TOUCH3_THRESH/PAN_SPEED/PAN_DEAD_ZONE per SERIAL_DIAG output.
+- **HIGH: HW-004 — PAJ7620U2 dead. Replacement GY-PAJ7620 on order.** Sensor confirmed absent from I2C bus (ACK=NO, reflow failed, I2C scan shows 0x73 missing). Flash + gesture verify blocked until replacement arrives and seats at 0x73.
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
@@ -57,7 +58,28 @@ S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was
 
 ---
 
-## Last Session Changes (S72)
+## Last Session Changes (TS40-S1)
+
+- **`servo_teensy40/teensy40_base_mount/person_sensor.h` / `.cpp`** — NEW. Person Sensor driver: `setupPersonSensor()`, `pollPersonSensor()` → `PersonResult {ok, faceVisible, faceCenterX, confidence, isFacing}`. Codex-hardened decode bounds checking preserved exactly. `ok` flag preserves the original short-read early-return (pan held).
+- **`servo_teensy40/teensy40_base_mount/pan_servo.h` / `.cpp`** — NEW. ServoEasing wrapper: `setupPanServo()`, `updatePanFromFace()`, `updatePanIdle()`, `handleSerialPanCmd()`. All PAN_* / FACE_* constants + `desiredPan` here. `ServoEasing.hpp` included in this TU only.
+- **`servo_teensy40/teensy40_base_mount/diag.h`** — NEW. `DIAG_PRINT/PRINTLN/PRINTF` macros gated on SERIAL_DIAG. paj7620.* NOT refactored to use it (deferred).
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — Reduced to orchestration (345→94 lines). Phantom touch3 code removed (capTouch, pollTouch3, TOUCH3_* defines, header comments — pin 15 hardware never installed, S69 hallucination). No constant or logic change beyond touch3 removal.
+- **`docs/sysmap.json` / `IRIS_ARCH.md` / `servo_teensy40/README.md`** — touch3 / pin 15 references removed. LISTEN kept (gesture action / web UI paths).
+
+**Status:** REPO-ONLY — firmware pending user PlatformIO flash.
+
+---
+
+## Previous Session Changes (TS40-S2)
+
+- **`servo_teensy40/teensy40_base_mount/paj7620.h`** — NEW. PAJ7620U2 public header: `SERIAL_DIAG`, `PAJ7620_ADDR`, `GESTURE_MOUNT_DEGREES`, `GESTURE_DEBOUNCE_MS=400`, `GESTURE_COOLDOWN_MS=200`, `extern bool pajOk`, `paj7620Init()`, `pollGesture()`.
+- **`servo_teensy40/teensy40_base_mount/paj7620.cpp`** — NEW. Full PAJ7620U2 driver + debounce state machine: first-poll discard, 200ms global cooldown, 400ms per-gesture debounce, SERIAL_DIAG suppression logging. Emit block unchanged.
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — Stripped: all PAJ7620 code moved to paj7620.cpp/h. Added `#include "paj7620.h"`.
+- **`docs/sysmap.json`** — `tunable_constants`: `GESTURE_DEBOUNCE_MS` + `GESTURE_COOLDOWN_MS` added.
+
+---
+
+## Earlier Session Changes (S72)
 
 - **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — `pollGesture()` emit block: FORWARD/BACKWARD/CW/CCW now emit Serial commands (were silently ignored). Header updated. REPO-ONLY pending flash.
 - **`pi4/hardware/base_mount_bridge.py`** — 4 new gesture keys in `_DEFAULT_GESTURE_MAP`. MUTE action added (get/set_volume toggle). `_mute_restore` state added.
