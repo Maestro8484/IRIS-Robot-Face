@@ -203,30 +203,28 @@ void mouthSetIntensity(uint8_t level) {
 
 // Sleep animation state — file-scope so mouthSleepReset() can zero it
 static uint32_t _sleepFrameCount = 0;
+// Previous integer Y positions for each ZZZ pair (-999 = undrawn, forces first draw)
+static int16_t _prevZY[3] = {-999, -999, -999};
 
 void mouthSleepReset() {
     _sleepFrameCount = 0;
+    _prevZY[0] = _prevZY[1] = _prevZY[2] = -999;
 }
 
 void mouthSleepFrame() {
     if (!_tft) return;
 
-    // Frame timing reference — slow oscillation period
-    float phase = (float)_sleepFrameCount * 0.018f;  // ~0.018 rad/frame
+    float phase = (float)_sleepFrameCount * 0.018f;
 
-    // ── ZZZ region (top area): clear then draw symmetric pairs ────────────
-    // y=4..70 cleared each frame; 3 Z-pairs (large/med/small), left+right.
-    _tft->fillRect(0, 4, 320, 67, MTFT_BLACK);
-
-    // ZZZ pair definitions: {xRight, xLeft, baseY, w, h, driftAmp, phaseOffset}
+    // ── ZZZ region: erase+redraw each Z only when its integer Y position changes.
+    // Eliminates the full-band black flash from the old clear-all-then-draw approach.
     struct ZPair { int16_t xR, xL, baseY, w, h; float da, ph; };
     static const ZPair ZP[3] = {
-        { 246, 38, 44, 34, 28, 11.0f, 0.00f },  // large (outermost)
-        { 222, 58, 35, 26, 22,  8.5f, 0.70f },  // medium
-        { 202, 78, 27, 20, 17,  6.0f, 1.40f },  // small (innermost)
+        { 246, 38, 44, 34, 28, 4.0f, 0.00f },  // large — drift amp reduced (was 11)
+        { 222, 58, 35, 26, 22, 3.0f, 0.70f },  // medium — (was 8.5)
+        { 202, 78, 27, 20, 17, 2.0f, 1.40f },  // small  — (was 6)
     };
 
-    // Map zzzAlpha to 3-step color brightness
     auto zCol = [](uint8_t alpha) -> uint16_t {
         if (alpha > 170) return 0x07FF;  // bright cyan
         if (alpha > 120) return 0x0466;  // mid cyan
@@ -240,22 +238,33 @@ void mouthSleepFrame() {
         const ZPair& z = ZP[i];
         int16_t drift = (int16_t)(z.da * sinf(phase * 0.38f + z.ph));
         int16_t ty = z.baseY + drift;
-        if (ty >= 5 && ty + z.h < 71) {
+        if (ty < 5) ty = 5;
+        if (ty + z.h >= 71) ty = 71 - z.h;
+
+        if (ty != _prevZY[i]) {
+            // Erase previous Z bounding box (small targeted clear, not full band)
+            if (_prevZY[i] != -999) {
+                _tft->fillRect(z.xR, _prevZY[i], z.w, z.h, MTFT_BLACK);
+                _tft->fillRect(z.xL, _prevZY[i], z.w, z.h, MTFT_BLACK);
+            }
             uint16_t col = zCol(*alphaPtr[i]);
-            _draw_Z(z.xR, ty, z.w, z.h, col);  // right-side Z
-            _draw_Z(z.xL, ty, z.w, z.h, col);  // left-side Z (symmetric)
+            _draw_Z(z.xR, ty, z.w, z.h, col);
+            _draw_Z(z.xL, ty, z.w, z.h, col);
+            _prevZY[i] = ty;
         }
     }
 
-    // ── Waveform band: 3 layered sine waves ───────────────────────────────
-    // cy oscillates based on sleepCfg.waveOscAmp; constrained to keep waves in band.
+    // ── Waveform band: single fillRect clear + per-column stroke draws ────────
+    // Old approach: 27,520 drawPixel calls (320 cols × 86 rows including background).
+    // New approach: 1 fillRect (hardware burst clear) + 3 fillRect strokes per column.
+    // Secondary harmonics removed — gives a clean, readable oscillating sine wave.
     float oscAmp = (float)sleepCfg.waveOscAmp;
-    if (oscAmp > 14.0f) oscAmp = 14.0f;  // SWSPI band constraint
+    if (oscAmp > 14.0f) oscAmp = 14.0f;
     float oscY = sinf(phase * 0.22f) * oscAmp;
 
-    int16_t cy0 = 116 + (int16_t)oscY;          // primary wave center (blue)
-    int16_t cy1 = cy0 - 22;                      // secondary (purple, above)
-    int16_t cy2 = cy0 + 20;                      // tertiary (teal, below)
+    int16_t cy0 = 116 + (int16_t)oscY;
+    int16_t cy1 = cy0 - 22;
+    int16_t cy2 = cy0 + 20;
 
     float amp0 = (float)sleepCfg.waveAmp0;
     float amp1 = (float)sleepCfg.waveAmp1;
@@ -263,35 +272,35 @@ void mouthSleepFrame() {
 
     static constexpr int16_t BAND_Y0 = 76;
     static constexpr int16_t BAND_Y1 = 162;
-    static constexpr int16_t S0 = 6;   // primary half-stroke (blue)
-    static constexpr int16_t S1 = 4;   // secondary half-stroke (purple)
-    static constexpr int16_t S2 = 3;   // tertiary half-stroke (teal)
+    static constexpr int16_t BH      = BAND_Y1 - BAND_Y0 + 1;
+    static constexpr int16_t S0 = 6;
+    static constexpr int16_t S1 = 4;
+    static constexpr int16_t S2 = 3;
 
-    // Wave colors: blue / purple / dim teal — matches HTML v8 hues 210/270/185
-    static constexpr uint16_t W_BLUE   = 0x001F;  // hue 210 → pure blue
-    static constexpr uint16_t W_PURPLE = 0x780F;  // hue 270 → purple
-    static constexpr uint16_t W_TEAL   = 0x0318;  // hue 185 → dim teal
+    static constexpr uint16_t W_BLUE   = 0x001F;
+    static constexpr uint16_t W_PURPLE = 0x780F;
+    static constexpr uint16_t W_TEAL   = 0x0318;
 
+    // Clear entire band in one hardware fill (single SPI transaction)
+    _tft->fillRect(0, BAND_Y0, 320, BH, MTFT_BLACK);
+
+    // Draw clean sine strokes — no secondary harmonic, visible oscillation
+    float ph0 = phase * 0.85f;
+    float ph1 = phase * 1.22f;
+    float ph2 = phase * 1.70f;
     for (int16_t x = 0; x < 320; x++) {
         float dx = (float)x;
-        // Each wave: primary + secondary harmonic (0.35× amplitude, 1.7× frequency)
-        float ph0 = phase * 0.85f;
-        float ph1 = phase * 1.22f;
-        float ph2 = phase * 1.70f;
-        int16_t sy0 = cy0 + (int16_t)(amp0 * sinf(0.028f * dx + ph0)
-                                    + amp0 * 0.35f * sinf(0.028f * 1.7f * dx + ph0 * 1.3f));
-        int16_t sy1 = cy1 + (int16_t)(amp1 * sinf(0.031f * dx + ph1 + 0.9f)
-                                    + amp1 * 0.35f * sinf(0.031f * 1.7f * dx + ph1 * 1.3f));
-        int16_t sy2 = cy2 + (int16_t)(amp2 * sinf(0.052f * dx + ph2 + 1.8f)
-                                    + amp2 * 0.35f * sinf(0.052f * 1.7f * dx + ph2 * 1.3f));
+        int16_t sy0 = cy0 + (int16_t)(amp0 * sinf(0.028f * dx + ph0));
+        int16_t sy1 = cy1 + (int16_t)(amp1 * sinf(0.031f * dx + ph1 + 0.9f));
+        int16_t sy2 = cy2 + (int16_t)(amp2 * sinf(0.052f * dx + ph2 + 1.8f));
 
-        for (int16_t y = BAND_Y0; y <= BAND_Y1; y++) {
-            uint16_t col = MTFT_BLACK;
-            if      (y >= sy0 - S0 && y <= sy0 + S0) col = W_BLUE;
-            else if (y >= sy1 - S1 && y <= sy1 + S1) col = W_PURPLE;
-            else if (y >= sy2 - S2 && y <= sy2 + S2) col = W_TEAL;
-            _tft->drawPixel(x, y, col);
-        }
+        int16_t y0a = max((int16_t)(sy0 - S0), BAND_Y0), y0b = min((int16_t)(sy0 + S0), BAND_Y1);
+        int16_t y1a = max((int16_t)(sy1 - S1), BAND_Y0), y1b = min((int16_t)(sy1 + S1), BAND_Y1);
+        int16_t y2a = max((int16_t)(sy2 - S2), BAND_Y0), y2b = min((int16_t)(sy2 + S2), BAND_Y1);
+
+        if (y0b >= y0a) _tft->fillRect(x, y0a, 1, y0b - y0a + 1, W_BLUE);
+        if (y1b >= y1a) _tft->fillRect(x, y1a, 1, y1b - y1a + 1, W_PURPLE);
+        if (y2b >= y2a) _tft->fillRect(x, y2a, 1, y2b - y2a + 1, W_TEAL);
     }
 
     _sleepFrameCount++;
