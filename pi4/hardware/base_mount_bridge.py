@@ -33,7 +33,7 @@ def _load_gesture_map():
 
 
 class BaseMountBridge:
-    def __init__(self, config):
+    def __init__(self, config, leds=None):
         self._port = getattr(config, "BASE_MOUNT_PORT", "/dev/ttyACM1")
         self._baud = getattr(config, "BASE_MOUNT_BAUD", 115200)
         self._ser = None

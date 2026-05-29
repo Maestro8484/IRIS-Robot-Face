@@ -633,7 +633,7 @@ Commits: 35ffaf3 (initial driver), f31e6ce (SERIAL_DIAG hardening), cb26e7e (reg
 
 ## S72 — PAJ7620U2 Full Gesture Expansion + DS3218MG MS24 + Web UI Update (2026-05-28)
 
-**Status:** REPO-ONLY (Pi4 files pending DEPLOY; firmware pending user flash)
+**Status:** Pi4 files DEPLOYED+VERIFIED. Firmware REPO-ONLY (pending user flash).
 
 **Goal:** Wire all 8 PAJ7620U2 gesture types to firmware + bridge + web UI. Add MUTE action. Correct servo model to DS3218MG MS24. Fix gesture event log inversion. Update all hardware mapping docs.
 
@@ -654,3 +654,11 @@ Commits: 35ffaf3 (initial driver), f31e6ce (SERIAL_DIAG hardening), cb26e7e (reg
 - **`docs/servo_teensy40_wiring.md`** — Servo model row updated to DS3218MG MS24.
 
 - **`docs/sysmap.json`** (local-only, gitignored) — `serial_commands` updated (8 commands). `servo` field: MS24 added. `gpio` pin 2/15 rows corrected (MS24, capTouch note). `command_map`: all 8 gestures documented with default actions and note on configurability. `tunable_constants`: PAN_MIN/PAN_MAX added; EASING_TRACK/EASING_RETURN replaced with EASING_TYPE/EASING_MOVE_MS (S70 async API).
+
+**Deploy fix — `BaseMountBridge.__init__` signature mismatch:**
+Live `assistant.py` calls `BaseMountBridge(_bm_cfg, leds)` (two positional args). S72 `base_mount_bridge.py` `__init__` only accepted `(self, config)`. Fixed by adding `leds=None` parameter. Pi4 RAM and SD updated; md5 verified. Services restarted: assistant POST 21/22 PASS AUTHORIZED, iris-web active.
+
+**Pi4 deploy — md5 verified (RAM = SD):**
+- `/home/pi/hardware/base_mount_bridge.py` — a69b1a7c (leds=None fix included)
+- `/home/pi/iris_web.py` — 575eabecc5
+- `/home/pi/iris_web.html` — d95f9c6461

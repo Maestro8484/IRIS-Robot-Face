@@ -62,9 +62,9 @@ After gesture issues resolved: flash S70, verify PAN limits + smooth motion, tun
 - `servo_teensy40/README.md` — REPO-ONLY S72
 - `IRIS_ARCH.md` — REPO-ONLY S72
 - `docs/servo_teensy40_wiring.md` — REPO-ONLY S72
-- `pi4/hardware/base_mount_bridge.py` — REPO-ONLY S72 (4 new gesture defaults, MUTE action)
-- `pi4/iris_web.py` — REPO-ONLY S72 (new gesture keys + MUTE in validator)
-- `pi4/iris_web.html` — REPO-ONLY S72 (Gestures tab: PAJ7620U2 full, log inversion fix)
+- `pi4/hardware/base_mount_bridge.py` — DEPLOYED+VERIFIED S72 (4 new gesture defaults, MUTE action, leds=None fix)
+- `pi4/iris_web.py` — DEPLOYED+VERIFIED S72 (new gesture keys + MUTE in validator)
+- `pi4/iris_web.html` — DEPLOYED+VERIFIED S72 (Gestures tab: PAJ7620U2 full, log inversion fix)
 - `CHANGELOG.md` — REPO-ONLY S71
 - `CLAUDE.md` — REPO-ONLY S69
 - `docs/sysmap.json` — LOCAL-ONLY (gitignored) S69 full PAJ7620U2 patch

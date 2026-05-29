@@ -18,8 +18,8 @@
 
 | System | Status |
 |---|---|
-| SuperMaster Desktop | Canonical repo — S67 committed. S65/S66/S67 Pi4 files DEPLOYED+VERIFIED. |
-| Pi4 192.168.1.200 | Operational. S67 DEPLOYED+VERIFIED. iris-web + assistant services running. [INFO] Ready. POST 21/22 PASS (1 WARN gesture sensor expected). S65 sleep sliders live. S66 POST diagnostic live. S67 bench JSONL sync live. install_journald.sh run (journald 500MB/1yr). |
+| SuperMaster Desktop | Canonical repo — S72 committed. S72 Pi4 files DEPLOYED+VERIFIED. |
+| Pi4 192.168.1.200 | Operational. S72 DEPLOYED+VERIFIED. iris-web + assistant services running. POST 21/22 PASS AUTHORIZED. base_mount_bridge.py (leds=None fix), iris_web.py, iris_web.html deployed. All 8 PAJ7620U2 gesture actions live. MUTE action live. Gesture log newest-at-top live. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
 | Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. PAJ7620U2 on I2C bus. Touch3=T3 pad. S70 REPO-ONLY: ServoEasing async, PAN_MIN=45/PAN_MAX=135, PAN? query. S72 REPO-ONLY: all 8 PAJ7620U2 gestures wired (FORWARD/BACKWARD/CW/CCW). Pending user flash of S70+S72. |
@@ -68,7 +68,9 @@ S61: Event log persistence + gesture monitoring. Fixed critical _MSG_RE bug (was
 - **`docs/servo_teensy40_wiring.md`** — Servo model → DS3218MG MS24.
 - **`docs/sysmap.json`** — command_map: all 8 gestures. servo/gpio/tunable_constants: MS24, capTouch, PAN_MIN/MAX, S70 easing API.
 
-**Status:** Firmware REPO-ONLY (pending user flash). Pi4 files REPO-ONLY (pending DEPLOY).
+**Status:** Firmware REPO-ONLY (pending user flash). Pi4 files DEPLOYED+VERIFIED.
+
+**Deploy fix:** `BaseMountBridge.__init__` gained `leds=None` parameter — live `assistant.py` passes `(_bm_cfg, leds)` which would have caused a TypeError crash on startup without this fix.
 
 ---
 
