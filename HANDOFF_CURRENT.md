@@ -68,6 +68,8 @@ Build clean (verify no link errors — `ServoEasing.hpp` now lives only in `pan_
 After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.py` and DEPLOY to Pi4.
 
 ### Deploy state (current)
+- `/etc/udev/rules.d/99-iris-teensy.rules` — DEPLOYED+VERIFIED S73. Also persisted to SD at `/media/root-ro/etc/udev/rules.d/99-iris-teensy.rules`. md5 verified.
+- `pi4/hardware/teensy_bridge.py` — DEPLOYED+VERIFIED S73 (drop logging + docstring fix). md5 RAM=SD.
 - `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY TS40-S1 (S69 on hardware; pending user flash)
 - `servo_teensy40/teensy40_base_mount/person_sensor.h` — REPO-ONLY TS40-S1 (new file)
 - `servo_teensy40/teensy40_base_mount/person_sensor.cpp` — REPO-ONLY TS40-S1 (new file)

@@ -915,4 +915,32 @@ contracts.
 **Carried forward (unresolved):**
 - CDX-5: `tests/test_integration_smoke.py` remains a legacy standalone import-time script, excluded from pytest collection by `pytest.ini`. Convert or retire in a future task.
 
+---
+
+## S73 — Sleep/WebUI Bridge Fix: udev Rules Lost on Reboot (2026-05-29)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Root cause:** `/etc/udev/rules.d/99-iris-teensy.rules` was deployed to the Pi4 RAM overlay during S63 but never persisted to SD (`/media/root-ro`). A Pi4 reboot at approximately 19:04 MDT on 2026-05-28 erased the RAM overlay, removing the udev rules. On the next boot, `/dev/ttyIRIS_EYES` symlink was never created. The assistant restarted at 20:36 with a TeensyBridge that could not open the port. All `send_command()` calls silently returned False (no log). The 21:00 cron sleep and webui sleep buttons both sent the correct UDP commands — the assistant received them and the APA102 LEDs (driven directly from Python, not serial) responded — but no serial commands reached the Teensy 4.1. Displays never entered sleep animation.
+
+**Secondary:** `teensy_bridge.py` had no logging when the serial port could not be opened or when commands were dropped. Future port failures will now be visible in the journal.
+
+**Changes:**
+
+- **`/etc/udev/rules.d/99-iris-teensy.rules`** — Redeployed from `pi4/scripts/99-iris-teensy.rules` (repo copy was correct; Teensy 4.1 serial `13625440`, Teensy 4.0 serial `12763490`). udevadm reload + trigger applied. `/dev/ttyIRIS_EYES -> ttyACM1` confirmed.
+- **`/media/root-ro/etc/udev/rules.d/99-iris-teensy.rules`** — NEW. Persisted to SD for reboot survival. md5 verified RAM=SD.
+- **`pi4/hardware/teensy_bridge.py`** — Three fixes: (1) docstring corrected from "Teensy 4.0 serial bridge / `/dev/ttyACM0`" to "Teensy 4.1 / `/dev/ttyIRIS_EYES`"; (2) `_open()` now logs `[EYES] Cannot open {port}: {e} -- will retry` on failure instead of silently returning None; (3) `send_command()` and `send_emotion()` now log `[EYES] DROP {cmd} -- port not open` when the serial is not connected. Deployed+Verified. md5 RAM=SD match.
+
+**Verification:** TeensyBridge auto-reconnected within 5s of udev trigger (journal: `[EYES] Teensy connected on /dev/ttyIRIS_EYES`). POST rerun after assistant restart: 21/22 PASS AUTHORIZED. Teensy responded to EYES:SLEEP with `[DBG] EYES:SLEEP -- displays blanked` + `starfield starting` in journal.
+
+**Rollback:**
+```bash
+# udev rules: just remove and reload — symlinks disappear, serial reachable via /dev/ttyACM1 only
+sudo rm /etc/udev/rules.d/99-iris-teensy.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+# teensy_bridge.py: restore from git
+git checkout -- pi4/hardware/teensy_bridge.py
+# then redeploy previous version to Pi4 RAM + SD
+```
+
 **Protected files:** Confirmed none touched across CDX-1..CDX-5 or this review.

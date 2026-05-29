@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** TS40-S1 | **Date:** 2026-05-29 | **Branch:** `main` | **Last commit:** b6e6d12
+**Session:** S73 | **Date:** 2026-05-29 | **Branch:** `main` | **Last commit:** pending
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -20,7 +20,7 @@
 | System | Status |
 |---|---|
 | SuperMaster Desktop | Canonical repo — S72 committed. S72 Pi4 files DEPLOYED+VERIFIED. |
-| Pi4 192.168.1.200 | Operational. S72 DEPLOYED+VERIFIED. iris-web + assistant services running. POST 21/22 PASS AUTHORIZED. base_mount_bridge.py (leds=None fix), iris_web.py, iris_web.html deployed. All 8 PAJ7620U2 gesture actions live. MUTE action live. Gesture log newest-at-top live. |
+| Pi4 192.168.1.200 | Operational. S73 DEPLOYED+VERIFIED. udev rules persisted to SD — `/dev/ttyIRIS_EYES` survives reboots. teensy_bridge.py updated (drop logging). Sleep cron + webui sleep pipeline fully restored. POST 21/22 PASS AUTHORIZED. |
 | GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
 | Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. **HW-004 BLOCKED: PAJ7620U2 confirmed dead** (ACK=NO, reflow attempted, I2C absent — replacement GY-PAJ7620 on order). Firmware REPO-ONLY (TS40-S1 + TS40-S2 complete, awaiting sensor + flash). Person Sensor face tracking + servo pan operational on live S69 firmware. |
@@ -32,9 +32,11 @@
 ## Active Issues
 
 - **HIGH: HW-004 — PAJ7620U2 dead. Replacement GY-PAJ7620 on order.** Sensor confirmed absent from I2C bus (ACK=NO, reflow failed, I2C scan shows 0x73 missing). Flash + gesture verify blocked until replacement arrives and seats at 0x73.
+- **HIGH: HW-004 — PAJ7620U2 dead. Replacement GY-PAJ7620 on order.** Sensor confirmed absent from I2C bus.
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
+- **RESOLVED S73: Sleep/webui bridge** — udev rules lost on Pi4 reboot (S63 deploy never persisted to SD). Now persisted. TeensyBridge drop-logging added.
 
 ---
 
@@ -64,7 +66,19 @@ Codex secondary-coder session (CDX-1..CDX-5) reviewed and accepted. Doc-audit it
 
 ---
 
-## Last Session Changes (TS40-S1)
+## Last Session Changes (S73)
+
+**Root cause:** `/etc/udev/rules.d/99-iris-teensy.rules` was deployed to Pi4 RAM overlay in S63 but never persisted to SD. Pi4 rebooted ~19:04 MDT 2026-05-28 — rules vanished, `/dev/ttyIRIS_EYES` symlink gone. TeensyBridge silently failed (serial port missing). Sleep cron (21:00) and webui sleep button both sent correct UDP — LEDs responded (direct Python path), Teensy displays never received commands.
+
+- **`/etc/udev/rules.d/99-iris-teensy.rules`** — Redeployed from repo. `/dev/ttyIRIS_EYES -> ttyACM1` confirmed. DEPLOYED+VERIFIED.
+- **`/media/root-ro/etc/udev/rules.d/99-iris-teensy.rules`** — NEW. First-time SD persistence. md5 verified. Survives all reboots.
+- **`pi4/hardware/teensy_bridge.py`** — Docstring corrected (4.0→4.1, ttyACM0→ttyIRIS_EYES). `_open()` logs failure instead of silent None. `send_command()`/`send_emotion()` log `DROP` when port is not open. DEPLOYED+VERIFIED. md5 RAM=SD.
+
+**Verification:** TeensyBridge reconnected within 5s of udev trigger. POST 21/22 PASS AUTHORIZED. Teensy confirmed EYES:SLEEP + starfield in journal.
+
+---
+
+## Previous Session Changes (TS40-S1)
 
 - **`servo_teensy40/teensy40_base_mount/person_sensor.h` / `.cpp`** — NEW. Person Sensor driver: `setupPersonSensor()`, `pollPersonSensor()` → `PersonResult {ok, faceVisible, faceCenterX, confidence, isFacing}`. Codex-hardened decode bounds checking preserved exactly. `ok` flag preserves the original short-read early-return (pan held).
 - **`servo_teensy40/teensy40_base_mount/pan_servo.h` / `.cpp`** — NEW. ServoEasing wrapper: `setupPanServo()`, `updatePanFromFace()`, `updatePanIdle()`, `handleSerialPanCmd()`. All PAN_* / FACE_* constants + `desiredPan` here. `ServoEasing.hpp` included in this TU only.

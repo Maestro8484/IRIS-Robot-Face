@@ -1,6 +1,6 @@
 """
-hardware/teensy_bridge.py - Teensy 4.0 serial bridge
-SINGLE OWNER of /dev/ttyACM0. No other module may open this port.
+hardware/teensy_bridge.py - Teensy 4.1 serial bridge (eyes + mouth TFT)
+SINGLE OWNER of /dev/ttyIRIS_EYES. No other module may open this port.
 All other callers (iris_web.py, cron scripts) must use UDP → 127.0.0.1:CMD_PORT.
 
 Provides:
@@ -33,7 +33,8 @@ class TeensyBridge:
             s.reset_input_buffer()
             print(f"[EYES] Teensy connected on {self._port}", flush=True)
             return s
-        except (serial.SerialException, OSError):
+        except (serial.SerialException, OSError) as e:
+            print(f"[EYES] Cannot open {self._port}: {e} -- will retry", flush=True)
             return None
 
     def _reader(self):
@@ -61,6 +62,7 @@ class TeensyBridge:
     def send_emotion(self, emotion: str) -> bool:
         with self._lock:
             if self._ser is None or not self._ser.is_open:
+                print(f"[EYES] DROP EMOTION:{emotion} -- port not open", flush=True)
                 return False
             try:
                 self._ser.write(f"EMOTION:{emotion}\n".encode())
@@ -80,6 +82,7 @@ class TeensyBridge:
         """Send a raw command string (no EMOTION: prefix) to the Teensy."""
         with self._lock:
             if self._ser is None or not self._ser.is_open:
+                print(f"[EYES] DROP {cmd} -- port not open", flush=True)
                 return False
             try:
                 self._ser.write(f"{cmd}\n".encode())
