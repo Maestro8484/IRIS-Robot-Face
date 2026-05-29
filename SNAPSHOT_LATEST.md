@@ -32,7 +32,6 @@
 ## Active Issues
 
 - **HIGH: HW-004 — PAJ7620U2 dead. Replacement GY-PAJ7620 on order.** Sensor confirmed absent from I2C bus (ACK=NO, reflow failed, I2C scan shows 0x73 missing). Flash + gesture verify blocked until replacement arrives and seats at 0x73.
-- **HIGH: HW-004 — PAJ7620U2 dead. Replacement GY-PAJ7620 on order.** Sensor confirmed absent from I2C bus.
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
