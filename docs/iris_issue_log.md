@@ -358,3 +358,16 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Fix:** Removed all touch3 code from the sketch (defines, `capTouch()`, `pollTouch3()` + its SERIAL_DIAG block, the `loop()` call, header pin/trigger comments, build-fix comment). Removed touch3 / pin 15 references from `docs/sysmap.json`, `IRIS_ARCH.md`, `servo_teensy40/README.md`. `LISTEN` preserved as a valid command/action (invoked via FORWARD-gesture default and web UI). Same pass completed the modular split (`person_sensor.*`, `pan_servo.*`, `diag.h`); `.ino` 345 → 94 lines.
 **Files:** `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`, `person_sensor.h/.cpp` (NEW), `pan_servo.h/.cpp` (NEW), `diag.h` (NEW), `docs/sysmap.json`, `IRIS_ARCH.md`, `servo_teensy40/README.md`
 **Status:** Fixed — REPO-ONLY, pending user PlatformIO flash (flash itself blocked by HW-004, dead PAJ7620U2)
+
+---
+
+## 2026-05-29 | S74 | GandalfAI / LLM output contamination — stage directions + ellipsis in TTS
+
+**Symptom:** TTS spoke stage directions aloud ("makes a dramatically disgusted face", "crosses arms and glares") and spoke `...` as "dot dot dot." IRIS response tone was incongruent with adult persona (playful, not dry) on insults. Example webui log: `{NEUTRAL}: Ugh. makes a dramatically disgusted face`.
+**Root cause (primary):** GandalfAI `iris` model was running the `iris-kids` SYSTEM prompt. Kids persona has no voice-interface constraints and a more expressive/demonstrative style. GandalfAI clone was at S61b; `iris` model was rebuilt at an unknown point with the wrong modelfile.
+**Root cause (secondary):** `clean_llm_reply()` in `pi4/services/llm.py` stripped `*` characters individually — left action-phrase text from `*...*` blocks intact. No ellipsis handling.
+**Fix 1 (GandalfAI):** Wrote correct adult `iris_modelfile.txt` to GandalfAI clone. Ran `ollama create iris`. Adult SYSTEM + PT-001 confirmed via `ollama show iris --modelfile`.
+**Fix 2 (Pi4 / llm.py):** Added regex passes to strip multi-word `*...*` / `_..._` blocks entirely and collapse `\.{2,}` to `.`.
+**Fix 3 (modelfile / identity):** Expanded HOW YOU SPEAK with positive identity framing — "personality lives entirely in word choice, no gesture, no expression, no aside" — making stage directions behaviorally incompatible with the persona rather than explicitly forbidden.
+**Files:** `pi4/services/llm.py`, `ollama/iris_modelfile.txt`
+**Status:** Fixed — DEPLOYED+VERIFIED S74

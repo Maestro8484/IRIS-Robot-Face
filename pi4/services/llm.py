@@ -37,6 +37,13 @@ def clean_llm_reply(text: str) -> str:
     Strip markdown artifacts from LLM output.
     Does NOT strip the emotion tag -- call extract_emotion_from_reply first.
     """
+    # Strip *multi-word action phrases* and _multi-word phrases_ entirely --
+    # removes stage directions while preserving single-word emphasis
+    # (e.g. *very* survives to the char-strip below as just "very")
+    text = re.sub(r'\*[^*]*\s+[^*]*\*', '', text)
+    text = re.sub(r'_[^_]*\s+[^_]*_', '', text)
+    # Collapse ellipsis -- TTS speaks "..." as "dot dot dot"
+    text = re.sub(r'\.{2,}', '.', text)
     text = re.sub(r'[*_#`]', '', text)
     text = re.sub(r'^[-=]{3,}\s*$', '', text, flags=re.MULTILINE)
     text = re.sub(r'\n+', ' ', text)

@@ -21,7 +21,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | System | State |
 |---|---|
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
-| GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model current. |
+| GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model rebuilt S74 (adult persona + HOW YOU SPEAK expansion). |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
 | Teensy 4.0 | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. PAJ7620U2 on I2C bus. REPO-ONLY (pending user flash): S70 ServoEasing async + PAN_MIN/MAX + PAN?, S72 all 8 gestures, TS40-S2 gesture debounce, TS40-S1 full modular split + phantom touch3 removal. Pi4 bridge/web DEPLOYED S72. |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
@@ -70,6 +70,7 @@ After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.p
 ### Deploy state (current)
 - `/etc/udev/rules.d/99-iris-teensy.rules` — DEPLOYED+VERIFIED S73. Also persisted to SD at `/media/root-ro/etc/udev/rules.d/99-iris-teensy.rules`. md5 verified.
 - `pi4/hardware/teensy_bridge.py` — DEPLOYED+VERIFIED S73 (drop logging + docstring fix). md5 RAM=SD.
+- `pi4/services/llm.py` — DEPLOYED+VERIFIED S74 (clean_llm_reply: stage direction strip + ellipsis collapse). md5 RAM=SD `e9e7e770c8f99597a492fd1ebeddaccd`.
 - `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY TS40-S1 (S69 on hardware; pending user flash)
 - `servo_teensy40/teensy40_base_mount/person_sensor.h` — REPO-ONLY TS40-S1 (new file)
 - `servo_teensy40/teensy40_base_mount/person_sensor.cpp` — REPO-ONLY TS40-S1 (new file)

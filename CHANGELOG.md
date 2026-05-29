@@ -944,3 +944,33 @@ git checkout -- pi4/hardware/teensy_bridge.py
 ```
 
 **Protected files:** Confirmed none touched across CDX-1..CDX-5 or this review.
+
+---
+
+## S74 — TTS Stage Direction + Ellipsis Fix: GandalfAI Model Desync + clean_llm_reply Hardening (2026-05-29)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Root cause:** GandalfAI `iris` model was running the `iris-kids` SYSTEM prompt (playful, expressive persona) instead of the adult SYSTEM prompt. The kids model has no voice-interface constraint and a more demonstrative output style, producing stage directions (`*makes a dramatically disgusted face*`, `*crosses arms and glares*`) and ellipsis (`...`). Current `clean_llm_reply()` stripped `*` chars individually but left the content of `*...*` blocks intact, so stage direction text survived to TTS. Ellipsis had no handling at all — Kokoro TTS spoke `...` as "dot dot dot." GandalfAI clone was at S61b (12 sessions behind); `iris` model was last rebuilt at an unknown point with the wrong modelfile.
+
+**Secondary:** HOW YOU SPEAK section of the adult modelfile was a sparse format checklist — it specified output shape but not vocal character, providing no identity-level reason for the model to avoid expressive/performative output.
+
+**Changes:**
+
+- **`pi4/services/llm.py` — `clean_llm_reply()`** — Added three new passes before the char-strip: (1) `re.sub(r'\*[^*]*\s+[^*]*\*', '', text)` strips `*multi-word action phrases*` entirely while preserving single-word emphasis (e.g. `*very*` → "very" via the subsequent char-strip); (2) `re.sub(r'_[^_]*\s+[^_]*_', '', text)` same for `_underscored_` blocks; (3) `re.sub(r'\.{2,}', '.', text)` collapses ellipsis to a single period. DEPLOYED+VERIFIED Pi4. md5 RAM=SD match.
+
+- **`ollama/iris_modelfile.txt` — HOW YOU SPEAK section** — Expanded from a format checklist into a full voice/character framework. Key additions: medium-defines-form framing (positive constraint over prohibition list); cadence description (dry economy, deadpan, natural rhythm, uneven texture); "personality lives entirely in word choice" paragraph (makes stage directions behaviorally incompatible with identity, not explicitly forbidden); filler described as service-counter language; contractions as natural register. Deployed to GandalfAI: `iris_modelfile.txt` written to `C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt`, `ollama create iris` run, adult SYSTEM prompt + full HOW YOU SPEAK confirmed via `ollama show iris --modelfile`.
+
+**Verification:**
+- GandalfAI: `ollama show iris --modelfile` confirms adult SYSTEM prompt, expanded HOW YOU SPEAK, PT-001 block, correct parameters (temperature 0.82, repeat_penalty 1.1, num_ctx 4096).
+- Pi4: `md5sum` RAM=SD `e9e7e770c8f99597a492fd1ebeddaccd`. `systemctl is-active assistant` = active. POST L2 emotion sweep and EYES:SLEEP/WAKE passing in journal.
+
+**Rollback:**
+```bash
+# llm.py: restore previous version on Pi4
+git checkout -- pi4/services/llm.py
+# redeploy + persist + restart (standard procedure)
+
+# iris model: rebuild from kids modelfile (reverts to broken state) or prior adult version
+# ollama create iris -f "C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt"
+```

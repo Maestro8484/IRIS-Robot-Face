@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S73 | **Date:** 2026-05-29 | **Branch:** `main` | **Last commit:** 79bb06e
+**Session:** S74 | **Date:** 2026-05-29 | **Branch:** `main` | **Last commit:** S74 (pending commit)
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -21,7 +21,7 @@
 |---|---|
 | SuperMaster Desktop | Canonical repo — S72 committed. S72 Pi4 files DEPLOYED+VERIFIED. |
 | Pi4 192.168.1.200 | Operational. S73 DEPLOYED+VERIFIED. udev rules persisted to SD — `/dev/ttyIRIS_EYES` survives reboots. teensy_bridge.py updated (drop logging). Sleep cron + webui sleep pipeline fully restored. POST 21/22 PASS AUTHORIZED. |
-| GandalfAI 192.168.1.3 | Operational. iris + iris-kids models current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
+| GandalfAI 192.168.1.3 | Operational. iris model rebuilt S74 (adult persona + HOW YOU SPEAK expansion). iris-kids current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
 | Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. **HW-004 BLOCKED: PAJ7620U2 confirmed dead** (ACK=NO, reflow attempted, I2C absent — replacement GY-PAJ7620 on order). Firmware REPO-ONLY (TS40-S1 + TS40-S2 complete, awaiting sensor + flash). Person Sensor face tracking + servo pan operational on live S69 firmware. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
@@ -65,7 +65,18 @@ Codex secondary-coder session (CDX-1..CDX-5) reviewed and accepted. Doc-audit it
 
 ---
 
-## Last Session Changes (S73)
+## Last Session Changes (S74)
+
+**Root cause:** GandalfAI `iris` model was running the `iris-kids` SYSTEM prompt — playful/expressive persona, no voice-interface constraints — instead of the adult SYSTEM prompt. Produced stage directions and ellipsis in TTS. `clean_llm_reply()` stripped `*` chars individually but left action-phrase text intact. GandalfAI clone was at S61b (12 sessions behind S73).
+
+- **`pi4/services/llm.py` — `clean_llm_reply()`** — Three new regex passes: strip `*multi-word*` / `_multi-word_` blocks entirely; collapse `\.{2,}` to `.`. DEPLOYED+VERIFIED. md5 RAM=SD `e9e7e770c8f99597a492fd1ebeddaccd`.
+- **`ollama/iris_modelfile.txt` — HOW YOU SPEAK** — Expanded from format checklist to full voice/character framework. GandalfAI `iris` model rebuilt. DEPLOYED+VERIFIED: adult SYSTEM + PT-001 + expanded HOW YOU SPEAK confirmed via `ollama show iris --modelfile`.
+
+**Verification:** Pi4 active. POST L2 emotion sweep + EYES:SLEEP/WAKE passing. GandalfAI: adult persona + expanded HOW YOU SPEAK confirmed.
+
+---
+
+## Previous Session Changes (S73)
 
 **Root cause:** `/etc/udev/rules.d/99-iris-teensy.rules` was deployed to Pi4 RAM overlay in S63 but never persisted to SD. Pi4 rebooted ~19:04 MDT 2026-05-28 — rules vanished, `/dev/ttyIRIS_EYES` symlink gone. TeensyBridge silently failed (serial port missing). Sleep cron (21:00) and webui sleep button both sent correct UDP — LEDs responded (direct Python path), Teensy displays never received commands.
 
