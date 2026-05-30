@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S77 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** 8744a63
+**Session:** S77 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** 8ad2d5d
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
