@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S79 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** 04e7f9f
+**Session:** S79b | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** b498e8b
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -19,7 +19,7 @@
 
 | System | Status |
 |---|---|
-| SuperMaster Desktop | Canonical repo — S79 committed (04e7f9f). S79: nordicBlue polarDist fix + strikingBlue eye REPO-ONLY. S76 Pi4 files DEPLOYED+VERIFIED. |
+| SuperMaster Desktop | Canonical repo — S79b committed (b498e8b). S79: nordicBlue polarDist fix + strikingBlue eye REPO-ONLY. S79b: Pi4 deploy + SD fix DEPLOYED+VERIFIED. |
 | Pi4 192.168.1.200 | Operational. S79b DEPLOYED+VERIFIED. iris_web.html (Striking Blue button) + iris_log_export.sh (SD bench log removed). SD card 19% used (was 100% — iris_bench.jsonl grew to 24GB, truncated+fixed). S76 Pi4 files DEPLOYED+VERIFIED. |
 | GandalfAI 192.168.1.3 | Operational. **S77: iris + iris-kids rebuilt on qwen2.5vl:32b-q4_K_M** (gemma3:27b-it-qat retired, kept as rollback). Adult persona sharpened; smoke-tested 5/5 (no RLHF boilerplate, vision OK). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups. |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed. **S79 REPO-ONLY** — nordicBlue polarDist fix (_60_0→_69_0), strikingBlue new eye (index 7). Build clean (env:eyes). Pending user PlatformIO upload. |
