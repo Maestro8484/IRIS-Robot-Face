@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S77 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** 8ad2d5d
+**Session:** S78 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** (S78 pending)
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -19,7 +19,7 @@
 
 | System | Status |
 |---|---|
-| SuperMaster Desktop | Canonical repo — S76 committed. S76 Pi4 files DEPLOYED+VERIFIED. nordicBlue firmware REPO-ONLY. |
+| SuperMaster Desktop | Canonical repo — S78 committed. S78: persona/drift harness REPO-ONLY (`tools/persona_harness/`). S76 Pi4 files DEPLOYED+VERIFIED. nordicBlue firmware REPO-ONLY. |
 | Pi4 192.168.1.200 | Operational. S76 DEPLOYED+VERIFIED. audio_io.py + assistant.py updated (emotion-driven speech animation). POST 21/22 PASS AUTHORIZED 2026-05-30. |
 | GandalfAI 192.168.1.3 | Operational. **S77: iris + iris-kids rebuilt on qwen2.5vl:32b-q4_K_M** (gemma3:27b-it-qat retired, kept as rollback). Adult persona sharpened; smoke-tested 5/5 (no RLHF boilerplate, vision OK). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups. |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed. **S76 nordicBlue.h REPO-ONLY** — iris radius 69, pupilMin 0.25, build clean (env:eyes), pending user flash. |
@@ -40,6 +40,8 @@
 ---
 
 ## Session Scope
+
+S78: Persona/drift test harness (REPO-ONLY). New `tools/persona_harness/` — `run_harness.py`, `scorer.py`, `tts_client.py`, `turn_scripts/starter.txt`. Reuses production `extract_emotion_from_reply` + `clean_llm_reply` + `IntentRouter` via pi4/ sys.path injection. Verified run: 37 turns (31 LLM, 6 router-intercepted), 4 flags, drift=MEDIUM. Notable: T36 "As an AI, I don't feel anything" RLHF tell in multi-turn — candidate for next modelfile NEVER-say block. Kokoro endpoint verified: `POST /v1/audio/speech`, OpenAI-compatible, `input`+optional `voice`/`speed`/`response_format`/`stream`. TTS integration ready (wired, not exercised this session). No production files touched.
 
 S77: qwen2.5vl model swap + adult persona sharpening. `iris_modelfile.txt`: FROM qwen2.5vl:32b-q4_K_M, stop `<|im_end|>`, temp 0.92; proactive-opinion + blunt paragraphs; EMOTIONAL STATE section rewritten (proactive character over defensive composure); sharper few-shot + new GENUINE OPINIONS block; 7 new NEVER-say RLHF tells. `iris-kids_modelfile.txt`: model swap + stop token + temp 0.88 only (kids persona unchanged). Both SFTP'd to GandalfAI and rebuilt via `ollama create` on qwen2.5vl. Smoke-tested 5/5 (Ollama REST API): adversarial→AMUSED, opinion→ANGRY no-hedge, time→NEUTRAL, "delete you"→AMUSED, vision→read "HELLO IRIS". Zero RLHF boilerplate; vision intact. gemma3:27b-it-qat retained as rollback. DEPLOYED+VERIFIED.
 

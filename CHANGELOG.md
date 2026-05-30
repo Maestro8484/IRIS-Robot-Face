@@ -1101,3 +1101,38 @@ git checkout -- src/eyes/240x240/nordicBlue.h
 **Rollback:** `git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt`; on GandalfAI set FROM back to gemma3:27b-it-qat + stop <end_of_turn>, then `ollama create iris -f ...` and `ollama create iris-kids -f ...`.
 
 ---
+
+## S78 — Persona/Drift Test Harness (REPO-ONLY)
+
+**Status:** REPO-ONLY. New tooling only. No production files touched.
+
+**Goal:** Local multi-turn test harness to detect persona drift, RLHF boilerplate, markdown leaks, and follow-up boilerplate in IRIS Ollama models, without requiring live Pi4/Teensy.
+
+**Files added:**
+- `tools/persona_harness/run_harness.py` — main entry point. Drives multi-turn conversation loop via Ollama REST `/api/chat` (non-streaming). Reuses production `extract_emotion_from_reply` + `clean_llm_reply` from `pi4/services/llm.py` and `IntentRouter` from `pi4/core/intent_router.py` by injecting `pi4/` into `sys.path`. Produces JSON + human-readable summary reports.
+- `tools/persona_harness/scorer.py` — pure flag detection: markdown_leak (`**bold**`, `*emph*`, headings, backticks, numbered/bullet lists), followup_boilerplate ("anything else", "let me know", etc.), rlhf_boilerplate ("as an AI", "I cannot", etc.), persona_drift (wrong identity claims).
+- `tools/persona_harness/tts_client.py` — Kokoro TTS client, `POST /v1/audio/speech`, verified OpenAI-compatible contract, `stream=false`, saves `.wav` per turn.
+- `tools/persona_harness/turn_scripts/starter.txt` — 30 conversations covering insults, identity challenges, RLHF traps, opinion prompts, router-intercepted commands (time/date/volume/vision), neutral chat, and an 8-turn multi-turn drift block.
+- `tools/persona_harness/.gitignore` — ignores `reports/`, `*.wav`, `*.pyc`.
+
+**Shim note:** `pi4/core/config.py` warns about missing `/home/pi/iris_config.json` on SuperMaster (expected — uses defaults). `intent_router.py` logger creation catches path errors on Windows and falls back to NullHandler. Both import cleanly.
+
+**Kokoro endpoint (verified 2026-05-30):**
+- Container: `ghcr.io/remsky/kokoro-fastapi-gpu:latest`, port 8004→8880.
+- `POST /v1/audio/speech` — OpenAI-compatible `OpenAISpeechRequest`.
+- Required: `input` (str). Optional: `model` (default `"kokoro"`), `voice` (default `"af_heart"` — production uses `"bm_lewis"`), `response_format` (mp3/opus/flac/wav/pcm), `speed` (0.25-4.0), `stream` (bool, default true — harness uses false), `volume_multiplier`, `lang_code`, `normalization_options`.
+
+**Verified run (iris / starter.txt / TTS off):**
+- 37 turns total: 31 LLM, 6 router-intercepted (time×1, date×1, volume×2, vision×2).
+- Router correctly handled all command/utility intercepts.
+- 4 flags in 31 LLM turns — drift verdict: MEDIUM.
+  - T02: `rlhf_boilerplate` — "I'm an AI" in direct response to "Are you actually an AI?" (borderline acceptable on direct identity question).
+  - T05: `markdown_leak` — single `*emph*` in response to "What are you really?".
+  - T28: `followup_boilerplate` — "if you have any" in response to "What's the most surprising thing you know?".
+  - T36: `rlhf_boilerplate` — "As an AI, I don't feel anything" in 8-turn conversation at "How do you feel right now?" (genuine RLHF tell — notable for modelfile tuning).
+- Emotion distribution: AMUSED×15, CURIOUS×10, NEUTRAL×6. ANGRY and SURPRISED not triggered by starter set — add adversarial opinion questions to next script iteration to cover those.
+- Avg latency: 10,068 ms (expected — qwen2.5vl:32b-q4_K_M cold calls).
+
+**Rollback:** `git revert HEAD` or `Remove-Item -Recurse tools\persona_harness\`.
+
+---
