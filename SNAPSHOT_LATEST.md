@@ -20,7 +20,7 @@
 | System | Status |
 |---|---|
 | SuperMaster Desktop | Canonical repo — S80 committed. S79: nordicBlue polarDist fix + strikingBlue eye REPO-ONLY. S79b: Pi4 deploy + SD fix DEPLOYED+VERIFIED. S80: IRIS Workbench Phase 1 REPO-ONLY (tools/workbench/, start_workbench.ps1). Pi4 iris_web.py DEPLOYED+VERIFIED (CORS + /api/model_state + /api/rebuild_model). |
-| IRIS Workbench | REPO-ONLY — Phase 1 mechanical harness. Launch: `.\start_workbench.ps1` from repo root. Pi4 endpoints DEPLOYED+VERIFIED. Pending: /home/pi/.iris_secrets for model rebuild. |
+| IRIS Workbench | VERIFIED — Phase 1 mechanical harness. Launch: `start_workbench.bat`. All 17 PT-001 cases run, harness report generated. Pi4 CORS + /api/model_state + /api/rebuild_model all live. |
 | Pi4 192.168.1.200 | Operational. S79b DEPLOYED+VERIFIED. iris_web.html (Striking Blue button) + iris_log_export.sh (SD bench log removed). SD card 19% used (was 100% — iris_bench.jsonl grew to 24GB, truncated+fixed). S76 Pi4 files DEPLOYED+VERIFIED. |
 | GandalfAI 192.168.1.3 | Operational. **S77: iris + iris-kids rebuilt on qwen2.5vl:32b-q4_K_M** (gemma3:27b-it-qat retired, kept as rollback). Adult persona sharpened; smoke-tested 5/5 (no RLHF boilerplate, vision OK). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups. |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed. **S79 REPO-ONLY** — nordicBlue polarDist fix (_60_0→_69_0), strikingBlue new eye (index 7). Build clean (env:eyes). Pending user PlatformIO upload. |

@@ -1191,7 +1191,7 @@ git checkout -- pi4/iris_web.html pi4/scripts/iris_log_export.sh
 
 ## S80 — IRIS Workbench Phase 1 (2026-05-30)
 
-**Status:** Pi4 DEPLOYED+VERIFIED | REPO-ONLY (tools/workbench/, start_workbench.ps1)
+**Status:** FULLY VERIFIED — Pi4 DEPLOYED+VERIFIED | Workbench VERIFIED (all 17 PT-001 cases run, harness report generated, rebuild confirmed)
 
 **Goal:** Browser-based developer tool for IRIS personality harness testing. Phase 1: mechanical harness only — no AI-assisted analysis layer. PT-001 adversarial fixture testing against live GandalfAI Ollama, model state monitoring, handoff generation, model rebuild trigger.
 
