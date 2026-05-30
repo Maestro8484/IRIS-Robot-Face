@@ -1,5 +1,5 @@
 # IRIS Base Mount Controller — Wire & Pin Mapping
-**Last updated:** 2026-05-28 (DS3218MG confirmed installed; ServoEasing async API notes updated to S70)
+**Last updated:** 2026-05-29 (S75: servo control constants updated; PAJ7620U2 dead HW-004, GY-PAJ7620 replacement pending install)
 **Board:** Teensy 4.0
 **Status:** CURRENT — active board
 
@@ -36,11 +36,13 @@ The PCB from iteration 4 was physically destroyed. This is a clean build.
 | Device | Address | Notes |
 |---|---|---|
 | Person Sensor (Useful Sensors) | 0x62 | Face detection, mounted right-side-up |
-| PAJ7620U2 (HiLetgo) | 0x73 | Gesture sensor — replaces dead APDS-9960 (S66). INT unconnected. |
+| GY-PAJ7620 (replacement) | 0x73 | Gesture sensor — **HW-004: current HiLetgo PAJ7620U2 dead** (ACK=NO, reflow failed). GY-PAJ7620 replacement on order. Seats identically — same address, same wiring. INT unconnected (polling mode). |
 
-APDS-9960 (0x39) confirmed dead S66 — I2C no-response, 0x0 from ID register. Physically removed and replaced with PAJ7620U2.
+APDS-9960 (0x39) confirmed dead S66 — removed and replaced with PAJ7620U2 (HiLetgo).
+HiLetgo PAJ7620U2 confirmed dead S69 — ACK=NO, I2C scan shows 0x73 absent, reflow attempted and failed.
+GY-PAJ7620 replacement module on order — seats identically at 0x73 on same SDA/SCL wiring.
 
-No address conflict. Both devices on same SDA/SCL lines.
+No address conflict between 0x62 and 0x73. Both on same SDA/SCL lines.
 
 **Required:** 4.7K pullup resistor from SDA to 3.3V. 4.7K pullup resistor from SCL to 3.3V.
 Internal Teensy pullups are insufficient for two devices.
@@ -52,7 +54,7 @@ Internal Teensy pullups are insufficient for two devices.
 | Pin label | Wire color | Device / Label | Notes |
 |---|---|---|---|
 | micro-USB | — | Pi4 USB port | Board power + USB CDC serial comms |
-| 3.3V | Red/Orange | Sensor VCC bus | Person Sensor VCC + PAJ7620U2 VCC |
+| 3.3V | Red/Orange | Sensor VCC bus | Person Sensor VCC + GY-PAJ7620 VCC (module has onboard regulator on some variants — confirm 3.3V on VIN pin) |
 | GND | Black | Main GND bus | Sensor GND + servo signal GND + servo supply GND |
 
 ---
@@ -70,18 +72,27 @@ Address 0x62. Shares I2C bus with PAJ7620U2.
 
 ---
 
-## PAJ7620U2 Breakout (HiLetgo) — Pin to Wire
+## GY-PAJ7620 Breakout — Pin to Wire
+
+**HW-004 STATUS:** HiLetgo PAJ7620U2 (original) confirmed dead — ACK=NO on I2C scan, reflow attempted, 0x73 absent from bus. Physically still seated. GY-PAJ7620 replacement module on order.
 
 Address 0x73. INT unconnected (polling mode). Keep clear line of sight to sensor window.
-Replaces APDS-9960 on same physical I2C bus wiring. VCC is 3.3V (module has onboard regulator on some variants — confirm 3.3V on VCC pin before wiring).
+Seats identically to the dead HiLetgo PAJ7620U2 — no rewiring required on install.
+VIN is 3.3V (GY-PAJ7620 module has onboard LDO — connect VIN, not VCC, if the board has both; confirm pinout on delivery).
 
 | Board Pin | Wire | To | Notes |
 |---|---|---|---|
-| VCC | Solid orange | Teensy 4.0 3.3V pin | |
+| VIN | Solid orange | Teensy 4.0 3.3V pin | Some GY modules label this VCC — confirm before powering |
 | GND | Blue/white stripe | Teensy 4.0 GND pin | |
 | SDA | Solid blue | Teensy 4.0 pin 18 (SDA) | Parallel with Person Sensor SDA |
 | SCL | Blue/white stripe | Teensy 4.0 pin 19 (SCL) | Parallel with Person Sensor SCL |
 | INT | — | Unconnected | Using polling mode |
+
+**Install checklist (future session):**
+1. Remove dead HiLetgo PAJ7620U2. Seat GY-PAJ7620 identically.
+2. Power cycle. Open serial monitor within 8s.
+3. Confirm `DIAG: PAJ7620U2 0x73 ACK=YES` and `DIAG: PAJ7620U2 init=OK`.
+4. Then flash TS40-S1 firmware (see HANDOFF_CURRENT.md).
 
 ---
 
@@ -117,19 +128,23 @@ Do not power servo from Teensy rail.
 
 ## USB Serial Commands (Teensy 4.0 to Pi4)
 
-| PAJ7620U2 input | Serial command | Pi4 behavior |
+All 8 gesture commands dispatched via `hardware/base_mount_bridge.py`. Default Pi4 actions are configurable per-gesture in `iris_config.json` (GESTURE_MAP) via the web UI Gestures tab.
+
+| GY-PAJ7620 gesture (physical) | Serial command | Default Pi4 action |
 |---|---|---|
-| Swipe UP | VOL+\n | Volume up |
-| Swipe DOWN | VOL-\n | Volume down |
-| Swipe LEFT | STOP\n | Interrupt current TTS playback |
-| Swipe RIGHT | STOP\n | Interrupt current TTS playback |
+| Swipe UP | `VOL+\n` | Volume up |
+| Swipe DOWN | `VOL-\n` | Volume down |
+| Swipe LEFT | `STOP\n` | Interrupt current TTS playback |
+| Swipe RIGHT | `STOP\n` | Interrupt current TTS playback |
+| Push toward sensor | `FORWARD\n` | LISTEN (activate listen mode) |
+| Pull away from sensor | `BACKWARD\n` | SLEEP |
+| Clockwise wrist rotation | `CW\n` | VOL+ |
+| Counter-clockwise rotation | `CCW\n` | VOL- |
 
-Pi4 serial port: `/dev/ttyIRIS_SERVO` at 115200 baud (USB CDC, udev symlink — hardware serial 12763490).
-Teensy 4.1 display controller owns `/dev/ttyIRIS_EYES`.
+Pi4 serial port: `/dev/ttyIRIS_SERVO` at 115200 baud (udev symlink — hardware serial 12763490).
+Teensy 4.1 display controller owns `/dev/ttyIRIS_EYES` (hardware serial 13625440).
 Pi4 handler: `hardware/base_mount_bridge.py` daemon thread in `assistant.py`.
-
-LISTEN trigger: capacitive touch3 only (no proximity channel on PAJ7620U2).
-Short tap (<1s) = STOP. Long hold (>=1s) = LISTEN.
+Valid configurable actions: VOL+, VOL-, STOP, LISTEN, SLEEP, WAKE, MUTE, SKIP.
 
 ---
 
@@ -137,8 +152,10 @@ Short tap (<1s) = STOP. Long hold (>=1s) = LISTEN.
 
 - Pan only (rotation). No tilt.
 - Center position: 90 degrees
-- Clamp range: PAN_MIN 45° – PAN_MAX 135° (software constrained via constants)
-- ServoEasing library: EASE_CUBIC_IN_OUT (single easing type, set once at setup)
-- Motion API: `startEaseToD(target, 100)` — async, non-blocking 100ms move
-- `isMoving()` guard: new move only issued when servo is not already in motion
-- Return-to-center: same async pattern; triggers after FACE_RETURN_MS (6000ms) face-lost
+- Clamp range: `PAN_MIN` 65° – `PAN_MAX` 115° (software constrained)
+- ServoEasing library: dual easing — `EASE_LINEAR` for face tracking (set per-call), `EASE_CUBIC_IN_OUT` for idle center-return (set per-call)
+- Tracking API: `startEaseTo(filteredPan, PAN_TRACK_SPEED)` — constant 8 deg/sec, no `isMoving()` guard (servo continuously chases face)
+- Low-pass filter: `filteredPan` (alpha=0.15) smooths direction reversals over ~130ms; damps momentum asymmetry in top-heavy mount
+- Torque release: `panServo.detach()` when within 1° of center at idle — releases DS3218MG holding torque; re-attach before next move
+- Return-to-center: `startEaseToD(desiredPan, 100)` with `isMoving()` guard; triggers after `FACE_RETURN_MS` (6000ms) face-lost
+- Tuning constants (pan_servo.h): `PAN_TRACK_SPEED` 8.0, `PAN_FILTER_ALPHA` 0.15, `PAN_DEAD_ZONE` 5.0, `FACE_HOLD_MS` 2500, `FACE_RETURN_MS` 6000

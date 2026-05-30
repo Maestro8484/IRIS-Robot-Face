@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>IRIS Base Mount Controller (Teensy 4.0) — Wiring Reference</title>
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; margin: 20px; color: #222; }
+  h1 { font-size: 16pt; font-weight: bold; background: #1f3864; color: #fff; padding: 8px 12px; margin-bottom: 4px; }
+  h2 { font-size: 12pt; font-weight: bold; background: #2e75b6; color: #fff; padding: 5px 10px; margin-top: 18px; margin-bottom: 0; }
+  table { border-collapse: collapse; width: 100%; margin-top: 2px; }
+  th { background: #dae3f3; font-weight: bold; text-align: left; padding: 4px 8px; border: 1px solid #aaa; }
+  td { padding: 4px 8px; border: 1px solid #ccc; vertical-align: middle; }
+  tr:nth-child(even) { background: #f5f8fd; }
+  .swatch { display: inline-block; width: 14px; height: 14px; border: 1px solid #666; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+  .note { font-size: 9pt; color: #555; margin-top: 4px; margin-bottom: 0; padding-left: 4px; }
+  .warn { font-size: 9pt; color: #c00; margin-top: 4px; margin-bottom: 0; padding-left: 4px; font-weight: bold; }
+  .hw-dead { font-size: 9pt; color: #a00; background: #fff0f0; border-left: 3px solid #c00; padding: 4px 8px; margin-top: 6px; margin-bottom: 0; }
+  .hw-pending { font-size: 9pt; color: #7a5000; background: #fffbe6; border-left: 3px solid #e6a817; padding: 4px 8px; margin-top: 4px; margin-bottom: 0; }
+  code { font-family: Consolas, monospace; background: #eef; padding: 1px 4px; border-radius: 2px; font-size: 10pt; }
+  .w { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+  ol.checklist { font-size: 9pt; color: #444; margin: 6px 0 0 18px; padding: 0; }
+  ol.checklist li { margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<h1>IRIS BASE MOUNT CONTROLLER (TEENSY 4.0) &mdash; Pin &amp; Wire Reference</h1>
+<p class="note">
+  <strong>Last updated:</strong> 2026-05-29 (S75 &mdash; servo constants, udev symlinks, GY-PAJ7620 replacement, all 8 gestures)
+  &nbsp;|&nbsp; <strong>Board:</strong> Teensy 4.0
+  &nbsp;|&nbsp; <strong>Port (Pi4):</strong> <code>/dev/ttyIRIS_SERVO</code> &nbsp;|&nbsp; <strong>Baud:</strong> 115200
+</p>
+<p class="warn">Teensy 4.1 (display controller) owns /dev/ttyIRIS_EYES (serial 13625440). This board is /dev/ttyIRIS_SERVO (serial 12763490). Udev symlinks survive USB port swaps and reboots. Do NOT use /dev/ttyACM* numbers &mdash; they change when cables move.</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>1. Signal Pins</h2>
+<table>
+  <tr><th>Pin</th><th>Wire Color</th><th>Device / Label</th><th>Notes</th></tr>
+  <tr>
+    <td><strong>2</strong></td>
+    <td><span class="swatch" style="background:#ffd700;"></span> Yellow/Orange</td>
+    <td>Pan servo PWM</td>
+    <td><code>panServo.attach(2)</code> &mdash; hardware PWM, no conflicts. ServoEasing.</td>
+  </tr>
+  <tr>
+    <td><strong>18</strong></td>
+    <td><span class="swatch" style="background:#4472c4;"></span> Solid blue</td>
+    <td>SDA &mdash; I2C shared bus</td>
+    <td><code>Wire.begin()</code> &mdash; fixed pin. Person Sensor 0x62 + GY-PAJ7620 0x73 in parallel.</td>
+  </tr>
+  <tr>
+    <td><strong>19</strong></td>
+    <td><span class="swatch" style="background:#ffd700;"></span> Yellow</td>
+    <td>SCL &mdash; I2C shared bus</td>
+    <td><code>Wire.begin()</code> &mdash; fixed pin.</td>
+  </tr>
+</table>
+<p class="warn">Required: 4.7K pullup resistor SDA&rarr;3.3V. 4.7K pullup resistor SCL&rarr;3.3V. Internal Teensy pullups insufficient for two I2C devices.</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>2. Power Pins</h2>
+<table>
+  <tr><th>Pin Label</th><th>Wire Color</th><th>Device / Label</th><th>Notes</th></tr>
+  <tr>
+    <td><strong>micro-USB</strong></td>
+    <td>&mdash;</td>
+    <td>Pi4 USB &rarr; Teensy 4.0</td>
+    <td>Board power + USB CDC serial comms. No bridge chip.</td>
+  </tr>
+  <tr>
+    <td><strong>3.3V</strong></td>
+    <td><span class="swatch" style="background:#ff4400;"></span> Orange/Red</td>
+    <td>Sensor VCC bus</td>
+    <td>Person Sensor VCC + GY-PAJ7620 VIN. Confirm VIN (not VCC) pin on GY module if both are labelled.</td>
+  </tr>
+  <tr>
+    <td><strong>GND</strong></td>
+    <td><span class="swatch" style="background:#222;"></span> Black</td>
+    <td>Main GND bus</td>
+    <td>Sensor GND + servo signal GND + servo supply GND</td>
+  </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>3. Person Sensor Breakout &mdash; Pin to Wire</h2>
+<p class="note">Address 0x62. Mounted right-side-up. Shares I2C bus with GY-PAJ7620 (0x73).</p>
+<table>
+  <tr><th>Board Pin</th><th>Wire</th><th>To</th></tr>
+  <tr><td>VCC</td><td><span class="w" style="background:#e07820;"></span> Solid orange</td><td>Teensy 4.0 3.3V pin</td></tr>
+  <tr><td>GND</td><td><span class="w" style="background:#4a7ab5; outline:1px solid #aaa;"></span> Blue/white stripe</td><td>Teensy 4.0 GND pin</td></tr>
+  <tr><td>SDA</td><td><span class="w" style="background:#1a6fd4;"></span> Solid blue</td><td>Teensy 4.0 pin 18 (SDA)</td></tr>
+  <tr><td>SCL</td><td><span class="w" style="background:#e6a817; border:1px solid #b07c00;"></span> Yellow</td><td>Teensy 4.0 pin 19 (SCL)</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>4. GY-PAJ7620 Breakout &mdash; Pin to Wire</h2>
+<div class="hw-dead">HW-004: HiLetgo PAJ7620U2 (original unit) DEAD &mdash; I2C ACK=NO, 0x73 absent from bus scan, reflow failed. Physically still seated in enclosure.</div>
+<div class="hw-pending">PENDING: GY-PAJ7620 replacement module on order. Seats identically &mdash; same address 0x73, same VIN/GND/SDA/SCL wiring, no firmware changes required. INT unconnected (polling mode).</div>
+<p class="note" style="margin-top:6px;">Address 0x73. Keep clear line of sight to sensor window. GY-PAJ7620 module has onboard LDO &mdash; connect VIN pin to 3.3V (some modules label this VCC; confirm pinout on delivery).</p>
+<table>
+  <tr><th>Board Pin</th><th>Wire</th><th>To</th><th>Notes</th></tr>
+  <tr><td>VIN</td><td><span class="w" style="background:#e07820;"></span> Solid orange</td><td>Teensy 4.0 3.3V pin</td><td>Some GY modules label this VCC &mdash; confirm before powering</td></tr>
+  <tr><td>GND</td><td><span class="w" style="background:#4a7ab5; outline:1px solid #aaa;"></span> Blue/white stripe</td><td>Teensy 4.0 GND pin</td><td></td></tr>
+  <tr><td>SDA</td><td><span class="w" style="background:#1a6fd4;"></span> Solid blue</td><td>Teensy 4.0 pin 18 (SDA)</td><td>Parallel with Person Sensor SDA</td></tr>
+  <tr><td>SCL</td><td><span class="w" style="background:#4a7ab5; outline:1px solid #aaa;"></span> Blue/white stripe</td><td>Teensy 4.0 pin 19 (SCL)</td><td>Parallel with Person Sensor SCL</td></tr>
+  <tr><td>INT</td><td>&mdash;</td><td>Unconnected</td><td>Polling mode only</td></tr>
+</table>
+<p class="note"><strong>Install checklist (future session):</strong></p>
+<ol class="checklist">
+  <li>Remove dead HiLetgo PAJ7620U2. Seat GY-PAJ7620 identically.</li>
+  <li>Power cycle. Open serial monitor at 115200 within 8s.</li>
+  <li>Confirm <code>DIAG: PAJ7620U2 0x73 ACK=YES</code> and <code>DIAG: PAJ7620U2 init=OK</code>.</li>
+  <li>Flash TS40-S1 firmware (see HANDOFF_CURRENT.md). Set GESTURE_SENSOR_REQUIRED=True in config.py and deploy to Pi4.</li>
+</ol>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>5. Servo Power &mdash; Independent 5V Rail</h2>
+<table>
+  <tr><th>Wire</th><th>From</th><th>To</th><th>Notes</th></tr>
+  <tr>
+    <td><span class="w" style="background:#d42020;"></span> Red</td>
+    <td>External 5V supply +</td>
+    <td>Toggle switch &rarr; servo VCC</td>
+    <td>Switch cuts servo only &mdash; Teensy stays live on USB</td>
+  </tr>
+  <tr>
+    <td><span class="w" style="background:#222;"></span> Black</td>
+    <td>External 5V supply &minus;</td>
+    <td>Servo GND + Teensy GND</td>
+    <td>Supply GND tied to Teensy GND</td>
+  </tr>
+  <tr>
+    <td><span class="w" style="background:#e6a817; border:1px solid #b07c00;"></span> Yel/Org</td>
+    <td>Teensy 4.0 pin 2</td>
+    <td>Servo signal wire</td>
+    <td><code>panServo.attach(2)</code></td>
+  </tr>
+</table>
+<p class="note">Do not power servo from Teensy 3.3V or USB rail. External 5V supply only.</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>6. USB Serial Commands (Teensy 4.0 &rarr; Pi4)</h2>
+<p class="note">All 8 gesture commands dispatched via <code>hardware/base_mount_bridge.py</code>. Default Pi4 actions are configurable per-gesture in <code>iris_config.json</code> (GESTURE_MAP) via the web UI Gestures tab.</p>
+<table>
+  <tr><th>GY-PAJ7620 Gesture (physical)</th><th>Serial Command</th><th>Default Pi4 Action</th></tr>
+  <tr><td>Swipe UP</td><td><code>VOL+\n</code></td><td>Volume up</td></tr>
+  <tr><td>Swipe DOWN</td><td><code>VOL-\n</code></td><td>Volume down</td></tr>
+  <tr><td>Swipe LEFT</td><td><code>STOP\n</code></td><td>Interrupt current TTS playback</td></tr>
+  <tr><td>Swipe RIGHT</td><td><code>STOP\n</code></td><td>Interrupt current TTS playback</td></tr>
+  <tr><td>Push toward sensor</td><td><code>FORWARD\n</code></td><td>LISTEN (activate listen mode)</td></tr>
+  <tr><td>Pull away from sensor</td><td><code>BACKWARD\n</code></td><td>SLEEP</td></tr>
+  <tr><td>Clockwise wrist rotation</td><td><code>CW\n</code></td><td>VOL+</td></tr>
+  <tr><td>Counter-clockwise rotation</td><td><code>CCW\n</code></td><td>VOL-</td></tr>
+</table>
+<p class="note">
+  Pi4 serial: <code>/dev/ttyIRIS_SERVO</code> (udev symlink, hardware serial 12763490) at 115200 baud &mdash; USB CDC native (no bridge chip).<br>
+  Pi4 handler: <code>hardware/base_mount_bridge.py</code> daemon thread started by <code>assistant.py</code>.<br>
+  Teensy 4.1 display controller owns <code>/dev/ttyIRIS_EYES</code> (hardware serial 13625440) via <code>hardware/teensy_bridge.py</code>.<br>
+  Valid configurable Pi4 actions: VOL+, VOL-, STOP, LISTEN, SLEEP, WAKE, MUTE, SKIP.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>7. Servo Control Constants (pan_servo.h)</h2>
+<table>
+  <tr><th>Constant</th><th>Value</th><th>Notes</th></tr>
+  <tr><td><code>PAN_MIN</code></td><td>65.0&deg;</td><td>Left soft limit (software constrained)</td></tr>
+  <tr><td><code>PAN_MAX</code></td><td>115.0&deg;</td><td>Right soft limit (software constrained)</td></tr>
+  <tr><td><code>PAN_TRACK_SPEED</code></td><td>8.0 deg/sec</td><td>Angular velocity for face tracking and manual PAN command</td></tr>
+  <tr><td><code>PAN_FILTER_ALPHA</code></td><td>0.15</td><td>Low-pass filter weight per loop tick &mdash; smooths direction reversals (~130ms time constant)</td></tr>
+  <tr><td><code>PAN_DEAD_ZONE</code></td><td>5.0&deg;</td><td>Face offset below this threshold is ignored</td></tr>
+  <tr><td><code>PAN_SPEED</code></td><td>0.02</td><td>Legacy delta scale (face pixel offset &rarr; pan degrees). Still active.</td></tr>
+  <tr><td><code>FACE_HOLD_MS</code></td><td>2500 ms</td><td>Hold position after face lost before returning</td></tr>
+  <tr><td><code>FACE_RETURN_MS</code></td><td>6000 ms</td><td>Time after face lost before center-return begins</td></tr>
+</table>
+<p class="note">
+  Tracking: <code>EASE_LINEAR</code>, <code>startEaseTo(filteredPan, PAN_TRACK_SPEED)</code> &mdash; no <code>isMoving()</code> guard, servo continuously chases face.<br>
+  Idle return: <code>EASE_CUBIC_IN_OUT</code>, <code>startEaseToD(desiredPan, 100)</code> &mdash; <code>isMoving()</code> guard active.<br>
+  Torque release: <code>panServo.detach()</code> when within 1&deg; of center at idle. Re-attach before next move.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>8. Board History</h2>
+<table>
+  <tr><th>Iteration</th><th>Board</th><th>Outcome</th></tr>
+  <tr><td>1</td><td>Raspberry Pi Pico (original)</td><td>Failed &mdash; wiring/board issues, standalone only</td></tr>
+  <tr><td>2</td><td>Raspberry Pi Pico W</td><td>Failed &mdash; Pi4 interface unreliable</td></tr>
+  <tr><td>3</td><td>Teensy 4.0 (first attempt)</td><td>Abandoned mid-attempt</td></tr>
+  <tr><td>4</td><td>ESP32 DevKit1C</td><td>Failed &mdash; clone board, chronic flakiness. PCB destroyed.</td></tr>
+  <tr><td>5</td><td>ESP32-C3 XIAO</td><td>Rejected &mdash; insufficient clean GPIO</td></tr>
+  <tr><td>6</td><td>Waveshare ESP32-S3-Zero</td><td>Rejected &mdash; manual BOOT button required every flash</td></tr>
+  <tr><td><strong>7 (current)</strong></td><td><strong>Teensy 4.0</strong></td><td><strong>Confirmed. Auto-reset, known toolchain, clean pins.</strong></td></tr>
+</table>
+
+</body>
+</html>
