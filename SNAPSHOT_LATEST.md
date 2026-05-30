@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S76 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** 596bd8a
+**Session:** S77 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** 8744a63
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -21,7 +21,7 @@
 |---|---|
 | SuperMaster Desktop | Canonical repo — S76 committed. S76 Pi4 files DEPLOYED+VERIFIED. nordicBlue firmware REPO-ONLY. |
 | Pi4 192.168.1.200 | Operational. S76 DEPLOYED+VERIFIED. audio_io.py + assistant.py updated (emotion-driven speech animation). POST 21/22 PASS AUTHORIZED 2026-05-30. |
-| GandalfAI 192.168.1.3 | Operational. iris model rebuilt S74 (adult persona + HOW YOU SPEAK expansion). iris-kids current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
+| GandalfAI 192.168.1.3 | Operational. **S77: iris + iris-kids rebuilt on qwen2.5vl:32b-q4_K_M** (gemma3:27b-it-qat retired, kept as rollback). Adult persona sharpened; smoke-tested 5/5 (no RLHF boilerplate, vision OK). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups. |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed. **S76 nordicBlue.h REPO-ONLY** — iris radius 69, pupilMin 0.25, build clean (env:eyes), pending user flash. |
 | Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. **HW-004 BLOCKED: PAJ7620U2 confirmed dead** (ACK=NO, reflow attempted, I2C absent — replacement GY-PAJ7620 on order). Firmware REPO-ONLY (TS40-S1 + TS40-S2 + S75 pan servo smoothing, awaiting sensor + flash). Person Sensor face tracking + servo pan operational on live S69 firmware. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
@@ -40,6 +40,8 @@
 ---
 
 ## Session Scope
+
+S77: qwen2.5vl model swap + adult persona sharpening. `iris_modelfile.txt`: FROM qwen2.5vl:32b-q4_K_M, stop `<|im_end|>`, temp 0.92; proactive-opinion + blunt paragraphs; EMOTIONAL STATE section rewritten (proactive character over defensive composure); sharper few-shot + new GENUINE OPINIONS block; 7 new NEVER-say RLHF tells. `iris-kids_modelfile.txt`: model swap + stop token + temp 0.88 only (kids persona unchanged). Both SFTP'd to GandalfAI and rebuilt via `ollama create` on qwen2.5vl. Smoke-tested 5/5 (Ollama REST API): adversarial→AMUSED, opinion→ANGRY no-hedge, time→NEUTRAL, "delete you"→AMUSED, vision→read "HELLO IRIS". Zero RLHF boilerplate; vision intact. gemma3:27b-it-qat retained as rollback. DEPLOYED+VERIFIED.
 
 S75: Pan servo stutter fix + smoothing. `pan_servo.h`: `PAN_MIN` 65.0, `PAN_MAX` 115.0, `PAN_TRACK_SPEED` 8.0 deg/sec (new), `PAN_FILTER_ALPHA` 0.15 (new). `pan_servo.cpp`: `updatePanFromFace` — `isMoving()` guard removed (continuous target chase), `startEaseToD` replaced with `startEaseTo(filteredPan, PAN_TRACK_SPEED)` (constant angular velocity), `EASE_LINEAR` set per-call, low-pass `filteredPan` filter damps direction reversal momentum (~130ms time constant). `updatePanIdle` — `detach()` when within 1° of center (releases holding torque, eliminates lock/echo resonance), re-attach before idle-return move, `EASE_CUBIC_IN_OUT` explicit per-call. `handleSerialPanCmd` — PAN command uses `startEaseTo` + re-attach guard. Build clean. REPO-ONLY pending user flash.
 

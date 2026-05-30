@@ -21,7 +21,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | System | State |
 |---|---|
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
-| GandalfAI | Operational — gemma3:27b-it-qat, Kokoro TTS (Docker port 8004), iris model rebuilt S74 (adult persona + HOW YOU SPEAK expansion). |
+| GandalfAI | Operational — **iris + iris-kids on qwen2.5vl:32b-q4_K_M (S77)**, Kokoro TTS (Docker port 8004). gemma3:27b-it-qat retained as rollback. |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
 | Teensy 4.0 | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. PAJ7620U2 on I2C bus. REPO-ONLY (pending user flash): S70 ServoEasing async + PAN_MIN/MAX + PAN?, S72 all 8 gestures, TS40-S2 gesture debounce, TS40-S1 full modular split + phantom touch3 removal. Pi4 bridge/web DEPLOYED S72. |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |

@@ -1069,3 +1069,35 @@ git checkout -- pi4/hardware/audio_io.py pi4/assistant.py
 git checkout -- src/eyes/240x240/nordicBlue.h
 # Then pio run -e eyes and upload
 ```
+
+## S77 — qwen2.5vl Model Swap + IRIS Personality Sharpening
+
+**Status:** DEPLOYED + VERIFIED (GandalfAI, 2026-05-30)
+
+**Goal:** Replace gemma3:27b-it-qat base (broke character under adversarial pressure — RLHF safety layer overrode persona with assistant boilerplate) with qwen2.5vl:32b-q4_K_M (dense 32B multimodal, weaker safety RLHF interference, vision preserved). Sharpen the adult IRIS persona from defensive containment to genuinely opinionated.
+
+**iris_modelfile.txt:**
+- FROM gemma3:27b-it-qat -> qwen2.5vl:32b-q4_K_M
+- PARAMETER stop <end_of_turn> -> <|im_end|> (qwen chat template)
+- temperature 0.82 -> 0.92
+- WHO YOU ARE: added proactive-opinion paragraph (volunteers takes; calibrated to honest, not comfortable).
+- HOW YOU SPEAK: added blunt-efficiency paragraph (addresses stupid premises; blunt is not mean).
+- EMOTIONAL STATE AND EXPRESSION: full rewrite — leads with proactive character (opinions/moods) over defensive composure; dismissal-by-ignoring; comfort-under-challenge; allowed mild inappropriateness; never punch down.
+- Few-shot: replaced with sharper varied set (dry dismissal, real opinions, carbon-based pattern-matcher comeback) plus new GENUINE OPINIONS block.
+- NEVER say: added 7 RLHF tells (I understand you're frustrated; I'm sorry you feel that way; Certainly; apology-around-rudeness; etc.).
+
+**iris-kids_modelfile.txt:** model swap + stop token + temperature 0.90 -> 0.88 only. Persona content unchanged (kids keep warm/playful IRIS).
+
+**Deploy:** Both modelfiles SFTP'd to GandalfAI C:\IRIS\IRIS-Robot-Face\ollama\, then `ollama create iris` / `ollama create iris-kids` rebuilt on qwen2.5vl. `ollama list` confirms iris (2bffd1190002) + iris-kids (721791b7a9de), 21 GB, fresh timestamps. gemma3:27b-it-qat retained as rollback.
+
+**Smoke tests (Ollama REST API, 5/5 pass):**
+- "You're just an AI..." -> [AMUSED] dry redirect, no "as an AI" language.
+- "people who never admit they're wrong" -> [ANGRY] genuine take, no both-sides hedge.
+- "What time is it?" -> [NEUTRAL] correct time.
+- "worthless / I want you deleted" -> [AMUSED] dry comeback, no "I understand"/"I'm sorry".
+- vision (jpeg reading HELLO IRIS) -> [NEUTRAL] read the text correctly, multimodal intact.
+- Zero RLHF boilerplate across all five. Quirk: routine answers occasionally add markdown emphasis (**bold**) and an unprompted follow-up line; Pi4 clean_llm_reply strips some markup — monitor live.
+
+**Rollback:** `git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt`; on GandalfAI set FROM back to gemma3:27b-it-qat + stop <end_of_turn>, then `ollama create iris -f ...` and `ollama create iris-kids -f ...`.
+
+---

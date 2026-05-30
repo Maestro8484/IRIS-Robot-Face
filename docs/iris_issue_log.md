@@ -387,3 +387,14 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 - Follow-up loop: `emotion=emotion, restore_mouth_idx=MOUTH_MAP.get(emotion, 0)` passed through.
 **Files:** `pi4/hardware/audio_io.py`, `pi4/assistant.py`
 **Status:** Fixed — DEPLOYED+VERIFIED S76. POST 21/22 PASS AUTHORIZED confirmed 2026-05-30.
+
+## 2026-05-30 | S77 | GandalfAI / LLM persona
+
+**Symptom:** IRIS broke character under adversarial/pressure input — produced helpful-AI-assistant boilerplate ("I understand", "as an AI...") regardless of modelfile quality.
+**Root cause:** gemma3:27b-it-qat RLHF safety layer overrode the persona system prompt on confrontational input.
+**Fix:** Swapped base model to qwen2.5vl:32b-q4_K_M (weaker safety RLHF interference, multimodal preserved); rebuilt iris + iris-kids; sharpened adult persona. Smoke-tested 5/5, zero boilerplate, vision intact.
+**File:** `ollama/iris_modelfile.txt`, `ollama/iris-kids_modelfile.txt`
+**Commit:** S77
+**Status:** Fixed
+
+---
