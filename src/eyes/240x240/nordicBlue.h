@@ -2,7 +2,7 @@
 
 #include "../eyes.h"
 #include "polarAngle_240.h"
-#include "polarDist_240_125_60_0.h"
+#include "polarDist_240_125_69_0.h"
 #include "disp_240_125.h"
 
 namespace nordicBlue {
@@ -9304,7 +9304,7 @@ namespace nordicBlue {
       { 69, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },
       { eyeUpper, eyeLower, 0 },
-      { 240, polarAngle_240, polarDist_240_125_60_0 }
+      { 240, polarAngle_240, polarDist_240_125_69_0 }
   };
 }
 

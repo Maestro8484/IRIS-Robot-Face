@@ -54,7 +54,8 @@ static constexpr uint32_t EYE_IDX_HAZEL        = 3; // web UI
 static constexpr uint32_t EYE_IDX_BLUEFLAME1   = 4; // web UI
 static constexpr uint32_t EYE_IDX_DRAGON       = 5; // web UI
 static constexpr uint32_t EYE_IDX_BIGBLUE      = 6; // web UI
-static constexpr uint32_t EYE_IDX_COUNT        = 7; // total entries in eyeDefinitions
+static constexpr uint32_t EYE_IDX_STRIKINGBLUE = 7; // web UI
+static constexpr uint32_t EYE_IDX_COUNT        = 8; // total entries in eyeDefinitions
 
 // ---------------------------------------------------------------------------
 // EMOTION -> EYE PARAMETER MAPPING
