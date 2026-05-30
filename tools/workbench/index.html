@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IRIS Workbench</title>
+  <link rel="stylesheet" href="workbench.css">
+</head>
+<body>
+
+  <!-- Status bar -->
+  <div id="status-bar">
+    <span class="app-title">IRIS Workbench</span>
+
+    <div class="status-item">
+      <div class="dot" id="pi4-dot"></div>
+      <span id="pi4-label">Pi4 checking...</span>
+    </div>
+
+    <div class="status-item">
+      <div class="dot" id="gandalf-dot"></div>
+      <span id="gandalf-label">GandalfAI checking...</span>
+    </div>
+
+    <div id="model-info">
+      <div id="model-info-wrap">
+        <span class="model-name">iris</span>
+        <span class="model-ts">loading...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div id="tab-bar">
+    <button class="tab-btn active" data-tab="harness"
+            onclick="switchTab('harness')">Personality Harness</button>
+    <button class="tab-btn" data-tab="latency"
+            disabled>Latency Bench</button>
+    <button class="tab-btn" data-tab="post"
+            disabled>POST / Diagnostics</button>
+    <button class="tab-btn" data-tab="feature"
+            disabled>Feature Setup</button>
+  </div>
+
+  <!-- Content -->
+  <div id="content">
+
+    <!-- ── Tab: Personality Harness ──────────────────────────────────────── -->
+    <div class="tab-panel active" id="tab-harness">
+
+      <!-- Left: fixture list + model state + rebuild -->
+      <div class="panel-left">
+
+        <div id="fixture-scroll">
+          <div id="fixture-list"></div>
+        </div>
+
+        <div class="controls">
+          <button class="btn primary"
+                  onclick="runHarness(getSelectedCases())">Run Selected</button>
+          <button class="btn"
+                  onclick="runHarness(state.fixtureCases)">Run All</button>
+        </div>
+
+        <div class="card" id="model-state-card">
+          <div class="card-title">Model State</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">
+            Modified: <span id="model-ts-card">—</span>
+          </div>
+          <div id="model-state-excerpt"></div>
+        </div>
+
+        <div class="card" id="rebuild-card">
+          <div class="card-title">Rebuild Model</div>
+          <div class="rebuild-row">
+            <select id="rebuild-target">
+              <option value="iris">iris</option>
+              <option value="iris-kids">iris-kids</option>
+              <option value="both">both</option>
+            </select>
+            <button class="btn" id="rebuild-btn"
+                    onclick="rebuildModel(document.getElementById('rebuild-target').value)">
+              Rebuild
+            </button>
+          </div>
+          <div id="rebuild-status"></div>
+        </div>
+
+      </div>
+
+      <!-- Right: results -->
+      <div class="panel-right">
+
+        <div id="results-scroll">
+          <div id="results-area">
+            <div class="empty-state">Run harness to see results</div>
+          </div>
+        </div>
+
+        <div id="summary-bar"></div>
+
+        <div id="result-actions">
+          <button class="btn primary" onclick="generateHandoff()">Generate Handoff</button>
+          <button class="btn" disabled title="Coming Phase 2">Run AI Analysis</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Tab: Latency Bench ─────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-latency">
+      <div class="placeholder">Latency Bench — Coming Phase 2</div>
+    </div>
+
+    <!-- ── Tab: POST / Diagnostics ───────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-post">
+      <div class="placeholder">POST / Diagnostics — Coming Phase 2</div>
+    </div>
+
+    <!-- ── Tab: Feature Setup ────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-feature">
+      <div class="placeholder">Feature Setup — Coming Phase 2</div>
+    </div>
+
+  </div>
+
+  <!-- Handoff modal -->
+  <div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-title">Session Handoff</div>
+      <div class="modal-body">
+        <textarea id="handoff-textarea" placeholder="Generating..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">Close</button>
+        <button class="btn primary" id="copy-btn" onclick="copyHandoff()">
+          Copy to Clipboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="workbench.js"></script>
+</body>
+</html>

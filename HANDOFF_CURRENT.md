@@ -41,6 +41,18 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
+**IRIS Workbench Phase 1 — pre-flight before Phase 2:**
+1. Run `.\start_workbench.ps1` from repo root. Browser should open to http://localhost:8080.
+2. Confirm Pi4 status dot goes green (requires Pi4 reachable on LAN).
+3. Confirm GandalfAI status dot (Ollama /api/tags may block from browser due to Ollama CORS — if red, set `OLLAMA_ORIGINS=http://localhost:8080` on GandalfAI and restart Ollama, or run harness via Pi4 proxy path).
+4. Click "Run All" — verify 17 cases run progressively and download fires on completion.
+5. Create `/home/pi/.iris_secrets` on Pi4 and persist to SD (see CHANGELOG S80 for format + persist pattern). Then verify Rebuild Model button connects.
+6. When Phase 1 verified on live LAN: proceed to Phase 2 (AI-assisted harness layer, Anthropic API integration).
+
+**Note:** ROADMAP.md does not currently include the workbench. Add in a separate doc session if you want it tracked there.
+
+---
+
 **[BLOCKED — HW-004] PAJ7620U2 confirmed dead. Replacement GY-PAJ7620 on order.**
 
 When replacement arrives:

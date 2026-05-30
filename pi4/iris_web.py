@@ -3,10 +3,12 @@
 import json, os, subprocess, time, wave, tempfile, threading, re as _re, glob as _glob
 import requests
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import sys; sys.path.insert(0, "/home/pi")
 from core.config import CMD_PORT
 
 app = Flask(__name__)
+CORS(app, origins=["http://localhost:8080", "http://127.0.0.1:8080"])
 
 # ── Log parsing — module-level constants ───────────────────────────────────────
 _SD_LOG_DIR   = "/media/root-ro/home/pi/logs"
@@ -747,6 +749,78 @@ def api_gesture_config():
         GESTURE_MAP=merged,
         GESTURE_PROXIMITY_THRESHOLD=cfg.get("GESTURE_PROXIMITY_THRESHOLD", 150),
     )
+
+
+@app.route("/api/model_state")
+def api_model_state():
+    try:
+        r = requests.post(f"http://{GANDALF}:{OLLAMA_PORT}/api/show",
+                          json={"name": "iris"}, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        modelfile = data.get("modelfile", "")
+        return jsonify(
+            ok=True,
+            model="iris",
+            modelfile_excerpt=modelfile[:300],
+            modified_at=data.get("modified_at"),
+            raw=data
+        )
+    except Exception as e:
+        return jsonify(ok=False, error=str(e))
+
+
+@app.route("/api/rebuild_model", methods=["POST"])
+def api_rebuild_model():
+    data = request.get_json(force=True) or {}
+    target = data.get("model", "iris")
+    if target not in ("iris", "iris-kids", "both"):
+        return jsonify(ok=False, error="model must be iris, iris-kids, or both"), 400
+
+    secrets_path = "/home/pi/.iris_secrets"
+    try:
+        secrets = {}
+        with open(secrets_path) as sf:
+            for line in sf:
+                line = line.strip()
+                if "=" in line:
+                    k, _, v = line.partition("=")
+                    secrets[k.strip()] = v.strip()
+        ssh_user = secrets.get("GANDALF_SSH_USER", "")
+        ssh_pass = secrets.get("GANDALF_SSH_PASS", "")
+        if not ssh_user or not ssh_pass:
+            return jsonify(ok=False,
+                           error="Configure /home/pi/.iris_secrets on Pi4 to enable model rebuild"), 500
+    except FileNotFoundError:
+        return jsonify(ok=False,
+                       error="Configure /home/pi/.iris_secrets on Pi4 to enable model rebuild"), 500
+    except Exception as e:
+        return jsonify(ok=False, error=f"Secrets file error: {e}"), 500
+
+    model_files = {
+        "iris":      r"C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt",
+        "iris-kids": r"C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt",
+    }
+    targets = ["iris", "iris-kids"] if target == "both" else [target]
+    outputs = []
+    for t in targets:
+        cmd = f"ollama create {t} -f {model_files[t]}"
+        try:
+            result = subprocess.run(
+                ["sshpass", "-p", ssh_pass, "ssh",
+                 "-o", "StrictHostKeyChecking=no",
+                 f"{ssh_user}@192.168.1.3", cmd],
+                capture_output=True, text=True, timeout=120
+            )
+            outputs.append(f"=== {t} ===\n{result.stdout}{result.stderr}".strip())
+        except FileNotFoundError:
+            return jsonify(ok=False,
+                           error="sshpass not found on Pi4; install: apt-get install sshpass"), 500
+        except subprocess.TimeoutExpired:
+            return jsonify(ok=False, error=f"Rebuild of {t} timed out after 120s"), 500
+        except Exception as e:
+            return jsonify(ok=False, error=str(e)), 500
+    return jsonify(ok=True, output="\n\n".join(outputs))
 
 
 if __name__ == "__main__":

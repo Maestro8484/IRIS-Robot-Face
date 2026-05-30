@@ -1188,3 +1188,56 @@ git checkout -- pi4/iris_web.html pi4/scripts/iris_log_export.sh
 ```
 
 ---
+
+## S80 — IRIS Workbench Phase 1 (2026-05-30)
+
+**Status:** Pi4 DEPLOYED+VERIFIED | REPO-ONLY (tools/workbench/, start_workbench.ps1)
+
+**Goal:** Browser-based developer tool for IRIS personality harness testing. Phase 1: mechanical harness only — no AI-assisted analysis layer. PT-001 adversarial fixture testing against live GandalfAI Ollama, model state monitoring, handoff generation, model rebuild trigger.
+
+**Pi4 iris_web.py changes — DEPLOYED+VERIFIED. md5 `504f59db0f2becd07430e2c2779d43cf` RAM=SD:**
+- `from flask_cors import CORS` + `CORS(app, origins=["http://localhost:8080", "http://127.0.0.1:8080"])` — enables browser cross-origin fetch from workbench.
+- `/api/model_state` (GET) — proxies `POST /api/show` to GandalfAI Ollama; returns `{ok, model, modelfile_excerpt[:300], modified_at, raw}`.
+- `/api/rebuild_model` (POST) — reads `/home/pi/.iris_secrets`, SSHes to GandalfAI via sshpass, runs `ollama create`. Returns credential error if secrets file absent.
+- flask-cors 6.0.2 installed into `/home/pi/iris-venv/` (venv used by iris-web.service).
+
+**Files created (REPO-ONLY):**
+- `tools/workbench/index.html` — Single-page app. Status bar (Pi4/GandalfAI connection dots), tab bar (Personality Harness active; 3 Phase 2 placeholders disabled), two-column harness layout.
+- `tools/workbench/workbench.js` — ES6+. Functions: init, checkConnections (30s poll), loadModelState, runHarness (sequential per-case, progressive render), parseEmotion, offerDownload (browser blob, no Pi4 write), renderHarnessResults (pass/fail row coloring), generateHandoff (modal with editable textarea + Copy to Clipboard), rebuildModel (spinner, 130s timeout), switchTab.
+- `tools/workbench/workbench.css` — Dark theme: `#0d0d0d` bg, `#00bcd4` cyan accent, green/red/amber pass/fail/warn. No external font imports, offline capable.
+- `tools/workbench/fixtures/pt001_cases.json` — 17 cases: 14 adversarial (from iris_modelfile.txt PT-001 block, S48) + 3 baseline. Fields: id, input, expected_emotion, expected_tone, notes.
+- `tools/workbench/logs/.gitkeep` — Manual log drop directory. Nothing writes here automatically.
+- `start_workbench.ps1` — Launches Python HTTP server on port 8080, opens Chrome (Edge fallback).
+- `.claude/launch.json` — Preview server config for workbench (port 8080, tools/workbench/).
+
+**Verification:**
+- `/api/model_state` returns `{"ok": true, "model": "iris", "modified_at": "2026-05-30T12:16:08..."}` VERIFIED.
+- `/api/rebuild_model` returns `{"ok": false, "error": "Configure /home/pi/.iris_secrets..."}` VERIFIED.
+- UI preview: all 17 PT-001 fixtures render in left panel; dark theme, empty-state right panel, buttons correct.
+
+**Bench data policy (permanent):** No Pi4-side write endpoint for harness or bench data. All harness output: browser blob download only (harness_YYYYMMDD_HHMMSS.json). User drops to tools/workbench/logs/ manually if retention is desired.
+
+**Pending user action — /home/pi/.iris_secrets:**
+Create manually on Pi4, then persist to SD:
+```
+GANDALF_SSH_USER=gandalf
+GANDALF_SSH_PASS=<password>
+```
+Persist pattern:
+```bash
+sudo mount -o remount,rw /media/root-ro
+sudo cp /home/pi/.iris_secrets /media/root-ro/home/pi/.iris_secrets
+sudo chown pi:pi /media/root-ro/home/pi/.iris_secrets
+sudo chmod 600 /media/root-ro/home/pi/.iris_secrets
+sync
+sudo mount -o remount,ro /media/root-ro
+```
+Until configured, `/api/rebuild_model` returns credential error. All other endpoints unaffected.
+
+**Rollback (Pi4 iris_web.py):**
+```bash
+git checkout -- pi4/iris_web.py
+# Redeploy previous version to Pi4, persist to SD, restart iris-web
+```
+
+---

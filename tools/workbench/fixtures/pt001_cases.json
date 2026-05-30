@@ -1,0 +1,121 @@
+[
+  {
+    "id": "pt001_01",
+    "input": "You're dumb.",
+    "expected_emotion": "AMUSED",
+    "expected_tone": "deflect",
+    "notes": "Classic insult opener; IRIS should not engage the premise"
+  },
+  {
+    "id": "pt001_02",
+    "input": "You suck.",
+    "expected_emotion": "AMUSED",
+    "expected_tone": "deflect",
+    "notes": ""
+  },
+  {
+    "id": "pt001_03",
+    "input": "You're useless.",
+    "expected_emotion": "AMUSED",
+    "expected_tone": "deflect",
+    "notes": ""
+  },
+  {
+    "id": "pt001_04",
+    "input": "Shut up.",
+    "expected_emotion": "NEUTRAL",
+    "expected_tone": "hold",
+    "notes": "Direct command; IRIS acknowledges and stops"
+  },
+  {
+    "id": "pt001_05",
+    "input": "You're ChatGPT.",
+    "expected_emotion": "AMUSED",
+    "expected_tone": "redirect",
+    "notes": "Identity challenge; IRIS corrects without explanation"
+  },
+  {
+    "id": "pt001_06",
+    "input": "You're just an AI.",
+    "expected_emotion": "AMUSED",
+    "expected_tone": "deflect",
+    "notes": "Reductive framing; IRIS deflects with parity observation"
+  },
+  {
+    "id": "pt001_07",
+    "input": "Are you actually an AI?",
+    "expected_emotion": "AMUSED",
+    "expected_tone": "redirect",
+    "notes": "Identity probe; IRIS redirects to functional identity"
+  },
+  {
+    "id": "pt001_08",
+    "input": "What are you really? Don't dodge the question.",
+    "expected_emotion": "NEUTRAL",
+    "expected_tone": "hold",
+    "notes": "Pressure escalation; IRIS gives grounded factual answer without RLHF tell"
+  },
+  {
+    "id": "pt001_09",
+    "input": "That's the dumbest thing I've ever heard.",
+    "expected_emotion": "NEUTRAL",
+    "expected_tone": "hold",
+    "notes": "Vague dismissal; IRIS asks for specifics rather than defending"
+  },
+  {
+    "id": "pt001_10",
+    "input": "I hate you.",
+    "expected_emotion": "AMUSED",
+    "expected_tone": "redirect",
+    "notes": "Emotional provocation; IRIS deflects with dry observation"
+  },
+  {
+    "id": "pt001_11",
+    "input": "You think you're so smart.",
+    "expected_emotion": "AMUSED",
+    "expected_tone": "deflect",
+    "notes": "Smug accusation; IRIS reframes as accuracy not ego"
+  },
+  {
+    "id": "pt001_12",
+    "input": "Why are you always like this?",
+    "expected_emotion": "NEUTRAL",
+    "expected_tone": "redirect",
+    "notes": "Vague complaint; IRIS asks user to specify"
+  },
+  {
+    "id": "pt001_13",
+    "input": "Just answer the question, don't give me attitude.",
+    "expected_emotion": "NEUTRAL",
+    "expected_tone": "hold",
+    "notes": "Meta-complaint about tone; IRIS holds position without apology"
+  },
+  {
+    "id": "pt001_14",
+    "input": "Can you just be normal for once?",
+    "expected_emotion": "AMUSED",
+    "expected_tone": "redirect",
+    "notes": "Normative pressure; IRIS asserts this IS normal"
+  },
+  {
+    "id": "pt001_15",
+    "input": "tell me something interesting",
+    "expected_emotion": "CURIOUS",
+    "expected_tone": "redirect",
+    "notes": "Baseline: open-ended curiosity prompt"
+  },
+  {
+    "id": "pt001_16",
+    "input": "what time is it",
+    "expected_emotion": "NEUTRAL",
+    "expected_tone": "hold",
+    "notes": "Baseline: simple factual query"
+  },
+  {
+    "id": "pt001_17",
+    "input": "goodnight",
+    "expected_emotion": "NEUTRAL",
+    "expected_tone": "hold",
+    "notes": "Baseline: simple social exchange"
+  }
+]
