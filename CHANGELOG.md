@@ -1217,8 +1217,12 @@ git checkout -- pi4/iris_web.html pi4/scripts/iris_log_export.sh
 
 **Bench data policy (permanent):** No Pi4-side write endpoint for harness or bench data. All harness output: browser blob download only (harness_YYYYMMDD_HHMMSS.json). User drops to tools/workbench/logs/ manually if retention is desired.
 
-**Pending user action — /home/pi/.iris_secrets:**
-Create manually on Pi4, then persist to SD:
+**Rebuild Model — FULLY VERIFIED:**
+- `/home/pi/.iris_secrets` created and persisted to SD. md5 `cc81f8d2618c18d12f0cd178f9028e00` RAM=SD.
+- `sshpass` 1.10 installed and binary persisted to `/media/root-ro/usr/bin/sshpass`. md5 `91ff6b4273fe8ae0d2513f297150a85d` RAM=SD. Deps (libc, ld-linux) are base system — survive reboots.
+- End-to-end test PASS: `POST /api/rebuild_model {"model":"iris"}` → `{"ok": true, "output": "=== iris ===\n...success"}`. GandalfAI ollama create completed.
+
+**Secrets file format (reference):**
 ```
 GANDALF_SSH_USER=gandalf
 GANDALF_SSH_PASS=<password>

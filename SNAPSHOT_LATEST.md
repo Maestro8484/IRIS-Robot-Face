@@ -36,7 +36,7 @@
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
-- **LOW: Workbench /api/rebuild_model credential config pending** — Create /home/pi/.iris_secrets (GANDALF_SSH_USER + GANDALF_SSH_PASS) on Pi4 and persist to SD. All other workbench endpoints unaffected.
+- ~~LOW: Workbench /api/rebuild_model credential config pending~~ — RESOLVED S80. .iris_secrets + sshpass deployed+persisted. Rebuild verified end-to-end.
 - **RESOLVED S73: Sleep/webui bridge** — udev rules lost on Pi4 reboot (S63 deploy never persisted to SD). Now persisted. TeensyBridge drop-logging added.
 
 ---
