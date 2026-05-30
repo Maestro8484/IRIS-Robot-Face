@@ -203,12 +203,17 @@ void mouthSetIntensity(uint8_t level) {
 
 // Sleep animation state — file-scope so mouthSleepReset() can zero it
 static uint32_t _sleepFrameCount = 0;
-// Previous integer Y positions for each ZZZ pair (-999 = undrawn, forces first draw)
+// ZZZ: previous integer Y per pair (-999 = not yet drawn, forces first draw)
 static int16_t _prevZY[3] = {-999, -999, -999};
+// Wave: previous stroke center Y per wave per column (-999 = not yet drawn)
+// 3 waves × 320 columns × 2 bytes = 1920 bytes — fine for Teensy 4.1 512KB RAM
+static int16_t _prevSY[3][320];
+static bool    _waveInit = false;  // false → full clear on next sleep entry
 
 void mouthSleepReset() {
     _sleepFrameCount = 0;
     _prevZY[0] = _prevZY[1] = _prevZY[2] = -999;
+    _waveInit = false;  // trigger band clear + cache init on next frame
 }
 
 void mouthSleepFrame() {
@@ -254,10 +259,19 @@ void mouthSleepFrame() {
         }
     }
 
-    // ── Waveform band: single fillRect clear + per-column stroke draws ────────
-    // Old approach: 27,520 drawPixel calls (320 cols × 86 rows including background).
-    // New approach: 1 fillRect (hardware burst clear) + 3 fillRect strokes per column.
-    // Secondary harmonics removed — gives a clean, readable oscillating sine wave.
+    // ── Waveform band: incremental update — no full-band clear, no flash ─────
+    // Each column is only redrawn when its wave position changes by ≥1 pixel.
+    // Eliminates the "black flash" from clearing 320×87 every frame.
+    static constexpr int16_t BAND_Y0 = 76;
+    static constexpr int16_t BAND_Y1 = 162;
+    static constexpr int16_t BH      = BAND_Y1 - BAND_Y0 + 1;
+    static constexpr int16_t S0 = 6;
+    static constexpr int16_t S1 = 4;
+    static constexpr int16_t S2 = 3;
+    static constexpr uint16_t W_BLUE   = 0x001F;
+    static constexpr uint16_t W_PURPLE = 0x780F;
+    static constexpr uint16_t W_TEAL   = 0x0318;
+
     float oscAmp = (float)sleepCfg.waveOscAmp;
     if (oscAmp > 14.0f) oscAmp = 14.0f;
     float oscY = sinf(phase * 0.22f) * oscAmp;
@@ -266,41 +280,67 @@ void mouthSleepFrame() {
     int16_t cy1 = cy0 - 22;
     int16_t cy2 = cy0 + 20;
 
+    // Dynamic amplitude cap: clamp to fit within band regardless of config values.
+    // Accounts for current wave center position (which shifts with oscY).
     float amp0 = (float)sleepCfg.waveAmp0;
     float amp1 = (float)sleepCfg.waveAmp1;
     float amp2 = (float)sleepCfg.waveAmp2;
+    {
+        int16_t c = cy0 - S0 - 2 - BAND_Y0; int16_t d = BAND_Y1 - cy0 - S0 - 2;
+        int16_t cap = (c < d) ? c : d; if (cap < 4) cap = 4;
+        if (amp0 > (float)cap) amp0 = (float)cap;
+    }
+    {
+        int16_t c = cy1 - S1 - 2 - BAND_Y0; int16_t d = BAND_Y1 - cy1 - S1 - 2;
+        int16_t cap = (c < d) ? c : d; if (cap < 4) cap = 4;
+        if (amp1 > (float)cap) amp1 = (float)cap;
+    }
+    {
+        int16_t c = cy2 - S2 - 2 - BAND_Y0; int16_t d = BAND_Y1 - cy2 - S2 - 2;
+        int16_t cap = (c < d) ? c : d; if (cap < 4) cap = 4;
+        if (amp2 > (float)cap) amp2 = (float)cap;
+    }
 
-    static constexpr int16_t BAND_Y0 = 76;
-    static constexpr int16_t BAND_Y1 = 162;
-    static constexpr int16_t BH      = BAND_Y1 - BAND_Y0 + 1;
-    static constexpr int16_t S0 = 6;
-    static constexpr int16_t S1 = 4;
-    static constexpr int16_t S2 = 3;
+    // First frame after sleep entry: clear band once and initialise position cache
+    if (!_waveInit) {
+        _tft->fillRect(0, BAND_Y0, 320, BH, MTFT_BLACK);
+        for (int x = 0; x < 320; x++) {
+            _prevSY[0][x] = -999;
+            _prevSY[1][x] = -999;
+            _prevSY[2][x] = -999;
+        }
+        _waveInit = true;
+    }
 
-    static constexpr uint16_t W_BLUE   = 0x001F;
-    static constexpr uint16_t W_PURPLE = 0x780F;
-    static constexpr uint16_t W_TEAL   = 0x0318;
-
-    // Clear entire band in one hardware fill (single SPI transaction)
-    _tft->fillRect(0, BAND_Y0, 320, BH, MTFT_BLACK);
-
-    // Draw clean sine strokes — no secondary harmonic, visible oscillation
     float ph0 = phase * 0.85f;
     float ph1 = phase * 1.22f;
     float ph2 = phase * 1.70f;
+
     for (int16_t x = 0; x < 320; x++) {
         float dx = (float)x;
         int16_t sy0 = cy0 + (int16_t)(amp0 * sinf(0.028f * dx + ph0));
         int16_t sy1 = cy1 + (int16_t)(amp1 * sinf(0.031f * dx + ph1 + 0.9f));
         int16_t sy2 = cy2 + (int16_t)(amp2 * sinf(0.052f * dx + ph2 + 1.8f));
 
-        int16_t y0a = max((int16_t)(sy0 - S0), BAND_Y0), y0b = min((int16_t)(sy0 + S0), BAND_Y1);
-        int16_t y1a = max((int16_t)(sy1 - S1), BAND_Y0), y1b = min((int16_t)(sy1 + S1), BAND_Y1);
-        int16_t y2a = max((int16_t)(sy2 - S2), BAND_Y0), y2b = min((int16_t)(sy2 + S2), BAND_Y1);
+        // Helper macro: erase old stroke and draw new one for a single wave
+        #define _WAVE_UPDATE(wi, sy, prv, S, col) \
+            if ((sy) != (prv)) { \
+                if ((prv) != -999) { \
+                    int16_t oa = (prv)-(S); if(oa<BAND_Y0) oa=BAND_Y0; \
+                    int16_t ob = (prv)+(S); if(ob>BAND_Y1) ob=BAND_Y1; \
+                    if(ob>=oa) _tft->fillRect(x, oa, 1, ob-oa+1, MTFT_BLACK); \
+                } \
+                int16_t na = (sy)-(S); if(na<BAND_Y0) na=BAND_Y0; \
+                int16_t nb = (sy)+(S); if(nb>BAND_Y1) nb=BAND_Y1; \
+                if(nb>=na) _tft->fillRect(x, na, 1, nb-na+1, col); \
+                (prv) = (sy); \
+            }
 
-        if (y0b >= y0a) _tft->fillRect(x, y0a, 1, y0b - y0a + 1, W_BLUE);
-        if (y1b >= y1a) _tft->fillRect(x, y1a, 1, y1b - y1a + 1, W_PURPLE);
-        if (y2b >= y2a) _tft->fillRect(x, y2a, 1, y2b - y2a + 1, W_TEAL);
+        _WAVE_UPDATE(0, sy0, _prevSY[0][x], S0, W_BLUE)
+        _WAVE_UPDATE(1, sy1, _prevSY[1][x], S1, W_PURPLE)
+        _WAVE_UPDATE(2, sy2, _prevSY[2][x], S2, W_TEAL)
+
+        #undef _WAVE_UPDATE
     }
 
     _sleepFrameCount++;

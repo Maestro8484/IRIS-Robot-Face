@@ -316,55 +316,72 @@ static void srDrawSaturn(GC9A01A_t3n* d, int baseCx, int baseCy, bool mirrorDrif
     int cx = baseCx + sdx;
     int cy = baseCy + sdy;
 
-    const float tilt = 0.42f;
-    const int   r    = (int)sleepCfg.saturnR;
-    const float rO   = r * 2.6f;   // outer ring
-    const float rM   = r * 2.1f;   // mid ring
-    const float rCas = r * 2.32f;  // Cassini division
+    // tilt = sin(view elevation). 0.62 ≈ 38° — ring clearly oval, 12px visible
+    // above/below planet vs only 2px with old 0.42.
+    const float tilt  = 0.62f;
+    const int   r     = (int)sleepCfg.saturnR;
+    const float rO    = r * 2.6f;    // outer ring (A ring outer edge)
+    const float rCas  = r * 2.32f;   // Cassini division outer (A ring inner)
+    const float rM    = r * 2.05f;   // B ring outer edge (Cassini inner)
     const int   ringH = (int)(rO * tilt) + 1;
 
-    // 1. Back rings (above planet center)
+    // Helper: planet half-width at SCREEN offset ry (circular planet on screen,
+    // not the scaled ellipse coordinate — fixes inner ring cutout shape).
+    auto planetHW = [&](int ry) -> float {
+        return (ry < r) ? sqrtf((float)r*r - (float)ry*ry) : 0.0f;
+    };
+
+    // 1. Back rings — above planet center (drawn first; planet body covers overlap)
     for (int ry = 1; ry <= ringH; ry++) {
-        float rySc = (float)ry / tilt;
-        float xO = sqrtf(max(0.0f, rO*rO - rySc*rySc));
-        float xM = sqrtf(max(0.0f, rM*rM - rySc*rySc));
-        float xP = (rySc < (float)r) ? sqrtf((float)r*(float)r - rySc*rySc) : 0.0f;
-        int ixO = (int)xO, ixM = (int)xM, ixP = (int)xP;
+        float rySc = (float)ry / tilt;   // ellipse y-scale for ring projection
+        float xO    = sqrtf(max(0.0f, rO*rO   - rySc*rySc));  // A ring outer
+        float xCas  = sqrtf(max(0.0f, rCas*rCas - rySc*rySc)); // Cassini outer
+        float xM    = sqrtf(max(0.0f, rM*rM   - rySc*rySc));  // B ring outer
+        float xP    = planetHW(ry);                              // planet surface
+        int ixO = (int)xO, ixCas = (int)xCas;
+        int ixM = (int)xM, ixP  = (int)xP;
         int y = cy - ry;
-        if (y < 0 || y >= SR_H) continue;
-        if (ixO <= 0) continue;
-        if (ixP > 0) {
-            // Left side (outer to planet)
-            if (ixO > ixP) d->drawFastHLine(cx - ixO, y, ixO - ixP, SR_RING_BACK);
-            // Right side
-            if (ixO > ixP) d->drawFastHLine(cx + ixP, y, ixO - ixP, SR_RING_BACK);
-        } else {
-            d->drawFastHLine(cx - ixO, y, 2 * ixO, SR_RING_BACK);
+        if (y < 0 || y >= SR_H || ixO <= 0) continue;
+        // A ring (outer, brighter): Cassini outer → ring outer
+        if (ixO > ixCas) {
+            d->drawFastHLine(cx - ixO,   y, ixO - ixCas, SR_RING_FRONT);
+            d->drawFastHLine(cx + ixCas, y, ixO - ixCas, SR_RING_FRONT);
+        }
+        // B ring (inner, dimmer): planet surface → B ring outer
+        int ixBinner = ixP; if (ixBinner < 0) ixBinner = 0;
+        if (ixM > ixBinner) {
+            d->drawFastHLine(cx - ixM,     y, ixM - ixBinner, SR_RING_BACK);
+            d->drawFastHLine(cx + ixBinner, y, ixM - ixBinner, SR_RING_BACK);
         }
     }
 
     // 2. Planet body
     d->fillCircle(cx, cy, r, SR_SAT_BODY);
-    // Band stripes
     d->drawFastHLine(cx - r + 2, cy - r / 4, 2 * r - 4, SR_SAT_BAND);
     d->drawFastHLine(cx - r + 2, cy + r / 4, 2 * r - 4, SR_SAT_BAND);
-    // Specular highlight (top-left)
     d->fillCircle(cx - r / 3, cy - r / 3, r / 3 + 1, SR_SAT_SPEC);
 
-    // 3. Front rings (below planet center, over planet body)
+    // 3. Front rings — below planet center, drawn over planet body
     for (int ry = 0; ry <= ringH; ry++) {
         float rySc = (float)ry / tilt;
-        float xO = sqrtf(max(0.0f, rO*rO - rySc*rySc));
-        float xP = (rySc < (float)r) ? sqrtf((float)r*(float)r - rySc*rySc) : 0.0f;
-        int ixO = (int)xO, ixP = (int)xP;
+        float xO    = sqrtf(max(0.0f, rO*rO   - rySc*rySc));
+        float xCas  = sqrtf(max(0.0f, rCas*rCas - rySc*rySc));
+        float xM    = sqrtf(max(0.0f, rM*rM   - rySc*rySc));
+        float xP    = planetHW(ry);
+        int ixO = (int)xO, ixCas = (int)xCas;
+        int ixM = (int)xM, ixP  = (int)xP;
         int y = cy + ry;
-        if (y < 0 || y >= SR_H) continue;
-        if (ixO <= 0) continue;
-        if (ixP > 0 && ixP < ixO) {
-            d->drawFastHLine(cx - ixO, y, ixO - ixP, SR_RING_FRONT);
-            d->drawFastHLine(cx + ixP, y, ixO - ixP, SR_RING_FRONT);
-        } else if (ixP == 0) {
-            d->drawFastHLine(cx - ixO, y, 2 * ixO, SR_RING_FRONT);
+        if (y < 0 || y >= SR_H || ixO <= 0) continue;
+        // A ring
+        if (ixO > ixCas) {
+            d->drawFastHLine(cx - ixO,   y, ixO - ixCas, SR_RING_FRONT);
+            d->drawFastHLine(cx + ixCas, y, ixO - ixCas, SR_RING_FRONT);
+        }
+        // B ring (planet surface to B outer)
+        int ixBinner = ixP; if (ixBinner < 0) ixBinner = 0;
+        if (ixM > ixBinner) {
+            d->drawFastHLine(cx - ixM,     y, ixM - ixBinner, SR_RING_BACK);
+            d->drawFastHLine(cx + ixBinner, y, ixM - ixBinner, SR_RING_BACK);
         }
     }
 }
