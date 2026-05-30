@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S74 | **Date:** 2026-05-29 | **Branch:** `main` | **Last commit:** 9e36670
+**Session:** S75 | **Date:** 2026-05-29 | **Branch:** `main` | **Last commit:** 9e36670
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -23,7 +23,7 @@
 | Pi4 192.168.1.200 | Operational. S73 DEPLOYED+VERIFIED. udev rules persisted to SD — `/dev/ttyIRIS_EYES` survives reboots. teensy_bridge.py updated (drop logging). Sleep cron + webui sleep pipeline fully restored. POST 21/22 PASS AUTHORIZED. |
 | GandalfAI 192.168.1.3 | Operational. iris model rebuilt S74 (adult persona + HOW YOU SPEAK expansion). iris-kids current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
-| Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. **HW-004 BLOCKED: PAJ7620U2 confirmed dead** (ACK=NO, reflow attempted, I2C absent — replacement GY-PAJ7620 on order). Firmware REPO-ONLY (TS40-S1 + TS40-S2 complete, awaiting sensor + flash). Person Sensor face tracking + servo pan operational on live S69 firmware. |
+| Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. **HW-004 BLOCKED: PAJ7620U2 confirmed dead** (ACK=NO, reflow attempted, I2C absent — replacement GY-PAJ7620 on order). Firmware REPO-ONLY (TS40-S1 + TS40-S2 + S75 pan servo smoothing, awaiting sensor + flash). Person Sensor face tracking + servo pan operational on live S69 firmware. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -40,6 +40,8 @@
 ---
 
 ## Session Scope
+
+S75: Pan servo stutter fix + smoothing. `pan_servo.h`: `PAN_MIN` 65.0, `PAN_MAX` 115.0, `PAN_TRACK_SPEED` 8.0 deg/sec (new), `PAN_FILTER_ALPHA` 0.15 (new). `pan_servo.cpp`: `updatePanFromFace` — `isMoving()` guard removed (continuous target chase), `startEaseToD` replaced with `startEaseTo(filteredPan, PAN_TRACK_SPEED)` (constant angular velocity), `EASE_LINEAR` set per-call, low-pass `filteredPan` filter damps direction reversal momentum (~130ms time constant). `updatePanIdle` — `detach()` when within 1° of center (releases holding torque, eliminates lock/echo resonance), re-attach before idle-return move, `EASE_CUBIC_IN_OUT` explicit per-call. `handleSerialPanCmd` — PAN command uses `startEaseTo` + re-attach guard. Build clean. REPO-ONLY pending user flash.
 
 S69: PAJ7620U2 + DS3218MG firmware + docs. teensy40_base_mount.ino fully rewritten (commits 35ffaf3→bf304a8): APDS-9960 removed, PAJ7620U2 bare I2C driver (bank 0/1 init, reg 0x43 bit-correct per datasheet p.24, GESTURE_MOUNT_DEGREES 270 for 90° CCW mount), touch3 LISTEN/STOP (pin 15, T3, 1s threshold), DS3218MG constants (PAN_SPEED 0.02, PAN_DEAD_ZONE 5.0, FACE_RETURN_MS 6000), SERIAL_DIAG hardened (pajOk in telemetry, raw gest byte, CODEX wrappers). platformio.ini: APDS9960 lib dep removed. README.md updated. sysmap.json: full PAJ7620U2 patch set (reg 0x43 bit table, rotation table for 0/90/180/270°, GESTURE_MOUNT_DEGREES ref, touch3 constants, pin 15 added). IRIS_ARCH.md: Teensy 4.0 pin section rewritten with PAJ7620U2 quick-reference and rotation table; "Pending Hardware" section removed. CHANGELOG.md: S69 fully documented. CLAUDE.md: CHANGELOG enforcement rules added. REPO-ONLY — firmware pending user PlatformIO upload.
 
@@ -65,7 +67,20 @@ Codex secondary-coder session (CDX-1..CDX-5) reviewed and accepted. Doc-audit it
 
 ---
 
-## Last Session Changes (S74)
+## Last Session Changes (S75)
+
+**Root cause:** Pan servo had two distinct problems. First: `isMoving()` guard in tracking branch blocked new commands while the servo was moving — face movement produced jump-wait-jump stutter. Second: `startEaseToD(angle, 100ms)` used fixed duration regardless of distance, giving inconsistent angular velocity. Direction reversals (face crossing center) sent hard opposite commands that the top-heavy load could not follow symmetrically — momentum carried the head through center while the servo tried to reverse, causing visible jerk on one axis.
+
+- **`servo_teensy40/teensy40_base_mount/pan_servo.h`** — Constants updated: `PAN_MIN` 65.0 (was 45.0 via S70), `PAN_MAX` 115.0 (was 135.0 via S70). New: `PAN_TRACK_SPEED` 8.0 deg/sec (speed-based move), `PAN_FILTER_ALPHA` 0.15 (low-pass weight). `PAN_SPEED` 0.02 retained with legacy annotation.
+- **`servo_teensy40/teensy40_base_mount/pan_servo.cpp`** — Four behavioral changes: (1) `updatePanFromFace()`: `isMoving()` guard removed — servo continuously chases face target; `startEaseToD` replaced with `startEaseTo(filteredPan, PAN_TRACK_SPEED)` (constant 8 deg/sec); `EASE_LINEAR` set before each tracking call. (2) Low-pass filter `filteredPan` (`static float`, seeded to `desiredPan` at setup) applied to servo command — direction reversals ease over ~130ms rather than snapping, damping momentum asymmetry in the top-heavy mount. (3) `updatePanIdle()`: `panServo.detach()` when within 1° of center and not moving — releases DS3218MG holding torque, eliminates lock/echo resonance; `EASE_CUBIC_IN_OUT` set explicitly before each idle-return call; re-attach before `startEaseToD`. (4) `handleSerialPanCmd()`: PAN command uses `startEaseTo(angle, PAN_TRACK_SPEED)`; re-attach guard added.
+
+**Build:** `pio run env:teensy40` — [SUCCESS] 48616 bytes flash, no warnings.
+
+**Status:** REPO-ONLY — firmware pending user PlatformIO flash.
+
+---
+
+## Previous Session Changes (S74)
 
 **Root cause:** GandalfAI `iris` model was running the `iris-kids` SYSTEM prompt — playful/expressive persona, no voice-interface constraints — instead of the adult SYSTEM prompt. Produced stage directions and ellipsis in TTS. `clean_llm_reply()` stripped `*` chars individually but left action-phrase text intact. GandalfAI clone was at S61b (12 sessions behind S73).
 

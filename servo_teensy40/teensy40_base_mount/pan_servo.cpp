@@ -3,14 +3,18 @@
 #include "diag.h"            // SERIAL_DIAG gating for PAN command
 
 static ServoEasing panServo;
+static bool servoAttached = true;
+static float filteredPan = 90.0;  // low-pass smoothed command sent to servo
 
 float desiredPan = 90.0;
 
 void setupPanServo() {
   panServo.attach(2);
   panServo.write(desiredPan);
+  filteredPan = desiredPan;
   panServo.setEasingType(EASE_CUBIC_IN_OUT);
   enableServoEasingInterrupt();
+  servoAttached = true;
 }
 
 void updatePanFromFace(float faceCenterX) {
@@ -18,9 +22,13 @@ void updatePanFromFace(float faceCenterX) {
   if (abs(panDelta) > PAN_DEAD_ZONE / 90.0) {
     desiredPan -= panDelta;
     desiredPan = constrain(desiredPan, PAN_MIN, PAN_MAX);
-    if (!panServo.isMoving()) {
-      panServo.startEaseToD(desiredPan, 100);
+    filteredPan += (desiredPan - filteredPan) * PAN_FILTER_ALPHA;
+    if (!servoAttached) {
+      panServo.attach(2);
+      servoAttached = true;
     }
+    panServo.setEasingType(EASE_LINEAR);
+    panServo.startEaseTo(filteredPan, PAN_TRACK_SPEED);
   }
 }
 
@@ -28,7 +36,19 @@ void updatePanIdle(unsigned long faceLostMs) {
   if (faceLostMs > FACE_RETURN_MS) {
     desiredPan += (90.0 - desiredPan) * 0.03;
     if (!panServo.isMoving()) {
-      panServo.startEaseToD(desiredPan, 100);
+      if (abs(desiredPan - 90.0) > 1.0) {
+        // Still returning to center
+        if (!servoAttached) {
+          panServo.attach(2);
+          servoAttached = true;
+        }
+        panServo.setEasingType(EASE_CUBIC_IN_OUT);
+        panServo.startEaseToD(desiredPan, 100);
+      } else if (servoAttached) {
+        // At center — release holding torque
+        panServo.detach();
+        servoAttached = false;
+      }
     }
   }
   // 0..FACE_HOLD_MS and FACE_HOLD_MS..FACE_RETURN_MS: hold position, do nothing
@@ -39,7 +59,11 @@ bool handleSerialPanCmd(String cmd) {
   // ===== CODEX DIAGNOSTIC INSERT BEGIN: direct servo isolation command =====
   if (cmd.startsWith("PAN ")) {
     desiredPan = constrain(cmd.substring(4).toFloat(), PAN_MIN, PAN_MAX);
-    panServo.startEaseToD(desiredPan, 100);
+    if (!servoAttached) {
+      panServo.attach(2);
+      servoAttached = true;
+    }
+    panServo.startEaseTo(desiredPan, PAN_TRACK_SPEED);
     Serial.print("DIAG: manual pan target=");
     Serial.println((int)desiredPan);
     return true;

@@ -60,7 +60,7 @@ Build clean (verify no link errors — `ServoEasing.hpp` now lives only in `pan_
 3. Wave hand UP once — exactly one `VOL+`. Wait 1s, wave again — one more `VOL+`. Rapid repeats within 400ms → `SUPPRESSED debounce`.
 4. Wave UP then immediately DOWN — second shows `SUPPRESSED cooldown` (200ms global window).
 5. Wave all 8 directions (UP, DOWN, LEFT, RIGHT, FORWARD, BACKWARD, CW, CCW) — each fires exactly once per swipe.
-6. Send `PAN 45` / `PAN 135` / `PAN?` — servo responds (S70 features intact).
+6. Send `PAN 65` / `PAN 115` / `PAN?` — servo responds at 8 deg/sec (S75 limits: 65–115).
 7. Person Sensor face tracking + center-return behave exactly as before flash.
 
 **Contains:** S70 (ServoEasing async + PAN_MIN/MAX + PAN?) + S72 (all 8 gestures) + TS40-S2 (debounce) + TS40-S1 (modular split, touch3 removal).
@@ -74,8 +74,8 @@ After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.p
 - `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY TS40-S1 (S69 on hardware; pending user flash)
 - `servo_teensy40/teensy40_base_mount/person_sensor.h` — REPO-ONLY TS40-S1 (new file)
 - `servo_teensy40/teensy40_base_mount/person_sensor.cpp` — REPO-ONLY TS40-S1 (new file)
-- `servo_teensy40/teensy40_base_mount/pan_servo.h` — REPO-ONLY TS40-S1 (new file)
-- `servo_teensy40/teensy40_base_mount/pan_servo.cpp` — REPO-ONLY TS40-S1 (new file)
+- `servo_teensy40/teensy40_base_mount/pan_servo.h` — REPO-ONLY S75 (PAN_MIN=65, PAN_MAX=115, PAN_TRACK_SPEED=8.0 deg/sec, PAN_FILTER_ALPHA=0.15)
+- `servo_teensy40/teensy40_base_mount/pan_servo.cpp` — REPO-ONLY S75 (startEaseTo speed-based, isMoving guard removed, EASE_LINEAR tracking, low-pass filteredPan, detach-at-idle torque release)
 - `servo_teensy40/teensy40_base_mount/diag.h` — REPO-ONLY TS40-S1 (new file)
 - `servo_teensy40/teensy40_base_mount/paj7620.h` — REPO-ONLY TS40-S2 (new file)
 - `servo_teensy40/teensy40_base_mount/paj7620.cpp` — REPO-ONLY TS40-S2 (new file)

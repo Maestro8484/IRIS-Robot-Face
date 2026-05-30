@@ -974,3 +974,42 @@ git checkout -- pi4/services/llm.py
 # iris model: rebuild from kids modelfile (reverts to broken state) or prior adult version
 # ollama create iris -f "C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt"
 ```
+
+---
+
+## S75 — Pan Servo Stutter Fix + Smoothing (2026-05-29)
+
+**Status:** REPO-ONLY — firmware pending user PlatformIO flash
+
+**Root cause:** Two compounding problems. First: `isMoving()` guard in `updatePanFromFace()` blocked new servo commands while a move was in progress — face movement produced jump-wait-jump stutter instead of continuous tracking. Second: `startEaseToD(angle, 100ms)` used a fixed 100ms duration for every move regardless of distance, giving inconsistent angular velocity (short moves crawled, long moves snapped). A third problem emerged after the initial fix: direction reversals (face crossing center frame) sent abrupt opposite commands that the top-heavy pan mount could not follow symmetrically — rotational inertia carried the head past center while the servo tried to reverse, producing visible asymmetric jerk.
+
+**Changes:**
+
+- **`servo_teensy40/teensy40_base_mount/pan_servo.h`**
+  - `PAN_MIN` 65.0 (confirmed from S70), `PAN_MAX` 115.0 (confirmed from S70)
+  - `PAN_TRACK_SPEED` 8.0 deg/sec — new constant; governs `startEaseTo()` for all tracking and manual PAN commands
+  - `PAN_FILTER_ALPHA` 0.15 — new constant; low-pass filter weight per loop tick
+  - `PAN_SPEED` 0.02 retained with legacy annotation (still used for face-offset delta calculation)
+
+- **`servo_teensy40/teensy40_base_mount/pan_servo.cpp`**
+  - `setupPanServo()`: seeds `filteredPan = desiredPan` at init
+  - `updatePanFromFace()`: `isMoving()` guard removed — `startEaseTo` called every loop tick when delta exceeds dead zone, servo continuously chases face. `startEaseToD` replaced with `startEaseTo(filteredPan, PAN_TRACK_SPEED)` for constant angular velocity. `EASE_LINEAR` set before each tracking call. Low-pass filter `filteredPan += (desiredPan - filteredPan) * PAN_FILTER_ALPHA` applied — direction reversals ease in over ~130ms, damping momentum asymmetry. Re-attach guard: `panServo.attach(2)` + `servoAttached = true` if servo was detached.
+  - `updatePanIdle()`: `EASE_CUBIC_IN_OUT` set explicitly before each idle-return call. `panServo.detach()` called when `abs(desiredPan - 90.0) <= 1.0` and not moving — releases DS3218MG holding torque, eliminates lock/echo resonance at rest. Re-attach before `startEaseToD` if detached.
+  - `handleSerialPanCmd()`: PAN command uses `startEaseTo(desiredPan, PAN_TRACK_SPEED)` instead of `startEaseToD`. Re-attach guard added.
+
+- **`docs/sysmap.json`**: `tunable_constants` updated — `PAN_TRACK_SPEED_DEGSEC` 8.0, `PAN_FILTER_ALPHA` 0.15 added; `PAN_MIN_DEG` 65, `PAN_MAX_DEG` 115, `SERVO_RANGE_DEG`, `EASING_TYPE`, `TORQUE_RELEASE` corrected. Pin 2 GPIO note updated.
+
+**Build:** `pio run env:teensy40` — [SUCCESS] 48616 bytes flash, no warnings.
+
+**Tuning knobs (pan_servo.h):**
+- `PAN_TRACK_SPEED` — increase for faster tracking response, decrease for slower/smoother
+- `PAN_FILTER_ALPHA` — increase (→ 0.3) for faster response, decrease (→ 0.08) for more reversal damping
+- `PAN_DEAD_ZONE` — increase to reduce micro-corrections near center
+
+**Rollback:**
+```cpp
+// Revert pan_servo.h to: PAN_SPEED 0.02, PAN_DEAD_ZONE 5.0, PAN_MIN 65, PAN_MAX 115 (no PAN_TRACK_SPEED, no PAN_FILTER_ALPHA)
+// Revert pan_servo.cpp: restore isMoving() guard, startEaseToD(desiredPan, 100), remove filteredPan and detach logic
+git checkout -- servo_teensy40/teensy40_base_mount/pan_servo.h servo_teensy40/teensy40_base_mount/pan_servo.cpp
+// Then pio run env:teensy40 and upload
+```

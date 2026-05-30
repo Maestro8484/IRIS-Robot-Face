@@ -466,7 +466,7 @@
       "servo": "Miuzei DS3218MG MS24 Digital Servo, 25kg, 0.16s/60deg, metal gear. Pin 2. External 5V rail. Shared I2C bus with Person Sensor (PAJ7620U2 on same bus).",
 
       "gpio": [
-        { "pin": 2,  "signal": "PWM",    "device": "Miuzei DS3218MG MS24 Digital Servo", "notes": "panServo.attach(2), ServoEasing async, EASE_CUBIC_IN_OUT, startEaseToD, PAN_MIN=45 PAN_MAX=135, external 5V rail" },
+        { "pin": 2,  "signal": "PWM",    "device": "Miuzei DS3218MG MS24 Digital Servo", "notes": "panServo.attach(2), ServoEasing async, EASE_LINEAR(tracking)/EASE_CUBIC_IN_OUT(idle), startEaseTo(speed-based), PAN_MIN=65 PAN_MAX=115, detach-at-idle torque release, external 5V rail" },
         { "pin": 18, "signal": "SDA",    "device": "Person Sensor 0x62 + PAJ7620U2 0x73", "notes": "Shared I2C bus, Wire default. 4.7K external pullup. APDS-9960 dead S66 removed." },
         { "pin": 19, "signal": "SCL",    "device": "Person Sensor 0x62 + PAJ7620U2 0x73", "notes": "Shared I2C bus, Wire default. 4.7K external pullup." }
       ],
@@ -514,15 +514,18 @@
 
       "tunable_constants": {
         "PAN_SPEED":              0.02,
+        "PAN_TRACK_SPEED_DEGSEC": 8.0,
+        "PAN_FILTER_ALPHA":       0.15,
         "PAN_DEAD_ZONE_DEG":      5.0,
         "FACE_HOLD_MS":           2500,
         "FACE_RETURN_MS":         6000,
         "PERSON_SENSOR_DELAY_MS": 50,
-        "PAN_MIN_DEG":            45,
-        "PAN_MAX_DEG":            135,
-        "SERVO_RANGE_DEG":        "PAN_MIN 45 – PAN_MAX 135 (software constrained), center 90",
-        "EASING_TYPE":            "EASE_CUBIC_IN_OUT (single type, set at init via enableServoEasingInterrupt)",
-        "EASING_MOVE_MS":         100,
+        "PAN_MIN_DEG":            65,
+        "PAN_MAX_DEG":            115,
+        "SERVO_RANGE_DEG":        "PAN_MIN 65 – PAN_MAX 115 (software constrained), center 90",
+        "EASING_TYPE":            "EASE_LINEAR (tracking, set per-call in updatePanFromFace) / EASE_CUBIC_IN_OUT (idle return, set per-call in updatePanIdle)",
+        "TORQUE_RELEASE":         "panServo.detach() when within 1deg of center at idle — releases DS3218MG holding torque. Re-attach before next move.",
+        "EASING_MOVE_MS_LEGACY":  "100 (startEaseToD legacy, idle return only — tracking uses startEaseTo deg/sec)",
         "VOL_TICK_INTERVAL_MS":   200,
         "VOL_STEP":               5,
         "GESTURE_DEBOUNCE_MS":    400,
