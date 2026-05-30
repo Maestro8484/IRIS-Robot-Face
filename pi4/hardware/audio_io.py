@@ -293,20 +293,34 @@ def play_pcm(pcm_bytes: bytes, pa, rate: int = 48000):
     return was_interrupted
 
 
-def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, restore_mouth_idx: int = 0,
-                      rate: int = 48000) -> bool:
-    """play_pcm with mouth animation. Cycles open/close bitmaps at 120 ms/frame.
+_EMOTION_SPEAK_FRAMES = {
+    'NEUTRAL':   [0, 5, 0, 5],
+    'HAPPY':     [1, 5, 1, 5],
+    'CURIOUS':   [2, 5, 2, 0],
+    'ANGRY':     [3, 0, 3, 0],
+    'SLEEPY':    [4, 0, 4, 0],
+    'SURPRISED': [5, 0, 5, 0],
+    'SAD':       [6, 0, 6, 0],
+    'CONFUSED':  [7, 0, 7, 5],
+    'AMUSED':    [2, 0, 2, 5],
+}
+
+
+def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, emotion: str = 'NEUTRAL',
+                      restore_mouth_idx: int = 0, rate: int = 48000) -> bool:
+    """play_pcm with emotion-driven mouth animation. Cycles per-emotion frames at 120 ms/frame.
     Returns True if playback was interrupted mid-stream."""
-    _SPEAK_FRAMES = [0, 1, 5, 1]   # neutral → happy → surprised → happy
+    frames = _EMOTION_SPEAK_FRAMES.get(emotion.upper(), _EMOTION_SPEAK_FRAMES['NEUTRAL'])
     stop_evt = threading.Event()
 
     def _animate():
         i = 0
         while not stop_evt.wait(0.12):
-            teensy.send_command(f"MOUTH:{_SPEAK_FRAMES[i % len(_SPEAK_FRAMES)]}")
+            teensy.send_command(f"MOUTH:{frames[i % len(frames)]}")
             i += 1
         teensy.send_command(f"MOUTH:{restore_mouth_idx}")
 
+    time.sleep(0.35)
     t = threading.Thread(target=_animate, daemon=True)
     t.start()
     was_interrupted = play_pcm(pcm_bytes, pa, rate)

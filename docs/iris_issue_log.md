@@ -371,3 +371,19 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Fix 3 (modelfile / identity):** Expanded HOW YOU SPEAK with positive identity framing — "personality lives entirely in word choice, no gesture, no expression, no aside" — making stage directions behaviorally incompatible with the persona rather than explicitly forbidden.
 **Files:** `pi4/services/llm.py`, `ollama/iris_modelfile.txt`
 **Status:** Fixed — DEPLOYED+VERIFIED S74. Live behavior confirmed by user 2026-05-29: responses clean, adult persona active, no stage directions or ellipsis in TTS output.
+
+---
+
+## 2026-05-30 | S76 | Pi4 / audio_io.py + assistant.py — Emotion expression invisible during speech
+
+**Symptom:** IRIS emits an emotion (HAPPY, ANGRY, SLEEPY, etc.) when the LLM reply arrives, but the emotion mouth is never visible during speech. After speech, NEUTRAL mouth is always restored regardless of what emotion was active. Eyes remain in the emotion's pupil state (SLEEPY drooped, SAD pupil ratio) while IRIS is talking, which looks wrong.
+**Root cause (3-part):**
+1. `play_pcm_speaking()` used `_SPEAK_FRAMES = [0, 1, 5, 1]` (neutral/happy/surprised cycling) regardless of emotion. Every speech utterance showed the same neutral-to-happy animation overwriting the LLM emotion.
+2. No hold between `emit_emotion()` and animation thread start — emotion mouth expression was visible for 0ms before speech animation began.
+3. `restore_mouth_idx` defaulted to 0 (NEUTRAL) at every call site — emotion mouth never restored after speech.
+**Fix:**
+- `play_pcm_speaking()`: per-emotion `_EMOTION_SPEAK_FRAMES` dict; `emotion` parameter; 350ms hold before animation thread; restores to `restore_mouth_idx` (caller-supplied emotion's static mouth index).
+- `assistant.py` main LLM path: `_current_emotion` tracking variable; `EMOTION:NEUTRAL` command before speech (resets pupil ratio without changing eye definition); `emotion=_current_emotion` + `restore_mouth_idx=MOUTH_MAP.get(_current_emotion, 0)` passed to `play_pcm_speaking`; `emit_emotion(teensy, leds, _current_emotion)` after speech to restore.
+- Follow-up loop: `emotion=emotion, restore_mouth_idx=MOUTH_MAP.get(emotion, 0)` passed through.
+**Files:** `pi4/hardware/audio_io.py`, `pi4/assistant.py`
+**Status:** Fixed — DEPLOYED+VERIFIED S76. POST 21/22 PASS AUTHORIZED confirmed 2026-05-30.

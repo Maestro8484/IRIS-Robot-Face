@@ -9300,8 +9300,8 @@ namespace nordicBlue {
 
   const EyeDefinition eye PROGMEM = {
       "nordicBlue", 125, 0, true, 1.0, disp_240_125,
-      { 0, 0, 0.21, 0.47 },
-      { 60, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
+      { 0, 0, 0.25, 0.47 },
+      { 69, { eyeIris, eyeIrisWidth, eyeIrisHeight }, 0, 0, 0, 0, 0 },
       { { eyeSclera, eyeScleraWidth, eyeScleraHeight }, 0, 0, 0, 0, 0 },
       { eyeUpper, eyeLower, 0 },
       { 240, polarAngle_240, polarDist_240_125_60_0 }

@@ -804,6 +804,7 @@ def main():
             reply_parts = []
             _interrupted = False
             _emotion_set = False
+            _current_emotion = "NEUTRAL"
             _bench_first_chunk = True
 
             try:
@@ -812,6 +813,7 @@ def main():
                 ):
                     if chunk_emotion is not None and not _emotion_set:
                         emit_emotion(teensy, leds, chunk_emotion)
+                        _current_emotion = chunk_emotion
                         _emotion_set = True
                     if _bench_first_chunk:
                         _t_llm_first = time.time()
@@ -864,13 +866,16 @@ def main():
                 print(f"[BENCH] stage=play_start play_start_ms={_bench_stages['play_start_ms']} total_ms={_bench_stages['play_start_ms']}", flush=True)
             except Exception:
                 pass
-            _interrupted = play_pcm_speaking(pcm_data, pa, teensy)
+            teensy.send_command("EMOTION:NEUTRAL")
+            _interrupted = play_pcm_speaking(pcm_data, pa, teensy, emotion=_current_emotion,
+                                             restore_mouth_idx=MOUTH_MAP.get(_current_emotion, 0))
             _bench_interrupted = _interrupted
             try:
                 _t_audio = time.time()
                 print(f"[BENCH] t={_t_audio:.3f} stage=audio_done dur_audio={_t_audio-_t_tts:.2f} dur_total={_t_audio-_t_wake:.2f}", flush=True)
             except Exception:
                 pass
+            emit_emotion(teensy, leds, _current_emotion)
             _bench_write(_bench_stages, _bench_transcript, len(reply), get_model(), _gandalf_was_cold, _bench_route, _interrupted)
 
             state.conversation_history.append({"role": "assistant", "content": reply})
@@ -925,7 +930,8 @@ def main():
                 try: pcm_data = synthesize(reply)
                 except Exception as e: print(f"[ERR]  TTS follow-up: {e}", flush=True); break
                 leds.show_speaking(); mic.stop_stream()
-                _interrupted = play_pcm_speaking(pcm_data, pa, teensy)
+                _interrupted = play_pcm_speaking(pcm_data, pa, teensy, emotion=emotion,
+                                                 restore_mouth_idx=MOUTH_MAP.get(emotion, 0))
                 if button_pressed(): time.sleep(0.4)
                 if _interrupted:
                     print("[STOP] Playback interrupted mid-follow-up", flush=True); break

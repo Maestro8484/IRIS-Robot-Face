@@ -71,6 +71,9 @@ After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.p
 - `/etc/udev/rules.d/99-iris-teensy.rules` — DEPLOYED+VERIFIED S73. Also persisted to SD at `/media/root-ro/etc/udev/rules.d/99-iris-teensy.rules`. md5 verified.
 - `pi4/hardware/teensy_bridge.py` — DEPLOYED+VERIFIED S73 (drop logging + docstring fix). md5 RAM=SD.
 - `pi4/services/llm.py` — DEPLOYED+VERIFIED S74 (clean_llm_reply: stage direction strip + ellipsis collapse). md5 RAM=SD `e9e7e770c8f99597a492fd1ebeddaccd`.
+- `pi4/hardware/audio_io.py` — DEPLOYED+VERIFIED S76 (emotion-driven speech animation: _EMOTION_SPEAK_FRAMES, emotion param, 350ms hold, restore_mouth_idx). md5 RAM=SD `3cef28168156bebc19c3f99a9807290c`.
+- `pi4/assistant.py` — DEPLOYED+VERIFIED S76 (_current_emotion tracking, EMOTION:NEUTRAL before speech, per-emotion play_pcm_speaking, post-speech emit_emotion re-emit, follow-up loop updated). md5 RAM=SD `3317358a1e8406c75dce5cc642bff5b0`.
+- `src/eyes/240x240/nordicBlue.h` — REPO-ONLY S76 (irisRadius 60→69, pupilMin 0.21→0.25, pio run -e eyes SUCCESS). User must flash via PlatformIO upload (env:eyes).
 - `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY TS40-S1 (S69 on hardware; pending user flash)
 - `servo_teensy40/teensy40_base_mount/person_sensor.h` — REPO-ONLY TS40-S1 (new file)
 - `servo_teensy40/teensy40_base_mount/person_sensor.cpp` — REPO-ONLY TS40-S1 (new file)

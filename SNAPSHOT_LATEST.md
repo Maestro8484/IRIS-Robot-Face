@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S75 | **Date:** 2026-05-29 | **Branch:** `main` | **Last commit:** 9e36670
+**Session:** S76 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** (S76)
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -19,10 +19,10 @@
 
 | System | Status |
 |---|---|
-| SuperMaster Desktop | Canonical repo — S72 committed. S72 Pi4 files DEPLOYED+VERIFIED. |
-| Pi4 192.168.1.200 | Operational. S73 DEPLOYED+VERIFIED. udev rules persisted to SD — `/dev/ttyIRIS_EYES` survives reboots. teensy_bridge.py updated (drop logging). Sleep cron + webui sleep pipeline fully restored. POST 21/22 PASS AUTHORIZED. |
+| SuperMaster Desktop | Canonical repo — S76 committed. S76 Pi4 files DEPLOYED+VERIFIED. nordicBlue firmware REPO-ONLY. |
+| Pi4 192.168.1.200 | Operational. S76 DEPLOYED+VERIFIED. audio_io.py + assistant.py updated (emotion-driven speech animation). POST 21/22 PASS AUTHORIZED 2026-05-30. |
 | GandalfAI 192.168.1.3 | Operational. iris model rebuilt S74 (adult persona + HOW YOU SPEAK expansion). iris-kids current (S48 PT-001). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups (6 files confirmed 2026-05-23). |
-| Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed (Saturn+Moon+warp+nebula+3-wave mouth+symmetric ZZZ). SLEEP_CFG: handler active. Pi4 slider config files REPO-ONLY. |
+| Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed. **S76 nordicBlue.h REPO-ONLY** — iris radius 69, pupilMin 0.25, build clean (env:eyes), pending user flash. |
 | Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. **HW-004 BLOCKED: PAJ7620U2 confirmed dead** (ACK=NO, reflow attempted, I2C absent — replacement GY-PAJ7620 on order). Firmware REPO-ONLY (TS40-S1 + TS40-S2 + S75 pan servo smoothing, awaiting sensor + flash). Person Sensor face tracking + servo pan operational on live S69 firmware. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
@@ -67,7 +67,23 @@ Codex secondary-coder session (CDX-1..CDX-5) reviewed and accepted. Doc-audit it
 
 ---
 
-## Last Session Changes (S75)
+## Last Session Changes (S76)
+
+**Part A — Emotion-driven speech animation (Pi4, DEPLOYED+VERIFIED):**
+
+Root cause: `play_pcm_speaking()` used hardcoded HAPPY-dominant frames regardless of emotion; no hold before animation start; `restore_mouth_idx` always 0 (NEUTRAL). Emotion mouth was never visible during speech, and SLEEPY/SAD pupil ratios persisted through talking.
+
+- `pi4/hardware/audio_io.py` — `_EMOTION_SPEAK_FRAMES` dict (9 emotions), `emotion` parameter, 350ms pre-animation hold, restores to caller-supplied `restore_mouth_idx`.
+- `pi4/assistant.py` — `_current_emotion` tracking; `EMOTION:NEUTRAL` before speech (alert pupils during talking); per-emotion `play_pcm_speaking` call; `emit_emotion` re-emitted after speech. Follow-up loop updated.
+- Deployed, md5 verified RAM=SD (`audio_io.py` `3cef28168156bebc19c3f99a9807290c`, `assistant.py` `3317358a1e8406c75dce5cc642bff5b0`). POST 21/22 PASS.
+
+**Part C — nordicBlue iris radius (REPO-ONLY, firmware build clean):**
+
+- `src/eyes/240x240/nordicBlue.h` — `irisRadius` 60 → 69, `pupilMin` 0.21 → 0.25. Matches hazel. `pio run -e eyes` [SUCCESS]. User must flash via PlatformIO upload (env:eyes).
+
+---
+
+## Prior Session Changes (S75)
 
 **Root cause:** Pan servo had two distinct problems. First: `isMoving()` guard in tracking branch blocked new commands while the servo was moving — face movement produced jump-wait-jump stutter. Second: `startEaseToD(angle, 100ms)` used fixed duration regardless of distance, giving inconsistent angular velocity. Direction reversals (face crossing center) sent hard opposite commands that the top-heavy load could not follow symmetrically — momentum carried the head through center while the servo tried to reverse, causing visible jerk on one axis.
 

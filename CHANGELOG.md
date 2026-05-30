@@ -1013,3 +1013,59 @@ git checkout -- pi4/services/llm.py
 git checkout -- servo_teensy40/teensy40_base_mount/pan_servo.h servo_teensy40/teensy40_base_mount/pan_servo.cpp
 // Then pio run env:teensy40 and upload
 ```
+
+---
+
+## S76 — Emotion Expression During Speech + nordicBlue Iris Size (2026-05-30)
+
+**Status:** Part A DEPLOYED+VERIFIED | Part C REPO-ONLY — firmware pending user PlatformIO flash
+
+### Part A — Emotion-driven speech animation (Pi4)
+
+**Root cause:** Three compounding problems made emotion invisible during speech. (1) `play_pcm_speaking()` used a hardcoded `_SPEAK_FRAMES = [0, 1, 5, 1]` regardless of emotion — HAPPY frames dominated 75% of every speech utterance, overwriting whatever emotion was set. (2) No hold between `emit_emotion()` and the animation thread start — the emotion mouth expression was visible for zero perceptible time before speech animation began cycling. (3) `restore_mouth_idx=0` always restored NEUTRAL after speech regardless of what emotion was active — emotion disappeared at speech start and never returned.
+
+**Changes:**
+
+- **`pi4/hardware/audio_io.py`** — `play_pcm_speaking()` rewritten:
+  - New `_EMOTION_SPEAK_FRAMES` module-level dict maps each emotion to its own 4-frame cycling sequence (NEUTRAL: open/surprised/open/surprised, HAPPY: happy/surprised/..., ANGRY: angry/neutral/..., SLEEPY: sleepy/neutral/..., CONFUSED: confused/neutral/..., etc.)
+  - New `emotion: str = 'NEUTRAL'` parameter (default preserves backward compat for all reflex/utility call sites)
+  - 350ms blocking sleep before animation thread start — holds the emotion's own mouth expression so observer can register affect before speech begins
+  - Animation thread restores to `restore_mouth_idx` (caller supplies emotion's static MOUTH_MAP index) instead of always 0
+
+- **`pi4/assistant.py`** — main LLM path wired:
+  - `_current_emotion = "NEUTRAL"` tracking variable alongside `_emotion_set`; updated when `emit_emotion()` fires during LLM stream
+  - `teensy.send_command("EMOTION:NEUTRAL")` immediately before `play_pcm_speaking()` — resets pupil ratio and gaze speed to alert-neutral while eyes retain the emotion visual; prevents drooped-eye SLEEPY/SAD pupil ratios persisting through speech
+  - `play_pcm_speaking(pcm_data, pa, teensy, emotion=_current_emotion, restore_mouth_idx=MOUTH_MAP.get(_current_emotion, 0))` — per-emotion frame sequence and correct restore index
+  - `emit_emotion(teensy, leds, _current_emotion)` after `play_pcm_speaking()` returns — restores emotion mouth and LEDs post-speech
+  - Follow-up loop `play_pcm_speaking()` call updated with `emotion=emotion, restore_mouth_idx=MOUTH_MAP.get(emotion, 0)`
+
+**Deploy:** Both files written to `/home/pi/hardware/audio_io.py` and `/home/pi/assistant.py`. Persisted to `/media/root-ro/home/pi/hardware/audio_io.py` and `/media/root-ro/home/pi/assistant.py`. md5 verified RAM=SD (`audio_io.py`: `3cef28168156bebc19c3f99a9807290c`, `assistant.py`: `3317358a1e8406c75dce5cc642bff5b0`). Service restarted. POST 21/22 PASS AUTHORIZED confirmed in journal.
+
+**Rollback:**
+```bash
+git checkout -- pi4/hardware/audio_io.py pi4/assistant.py
+# Redeploy both files to Pi4 RAM + SD, restart assistant
+```
+
+---
+
+### Part C — nordicBlue iris radius increase (firmware)
+
+**Root cause:** nordicBlue eye definition had `irisRadius = 60`, matching the radius used for its polar distance lookup table. Hazel uses `irisRadius = 69`. At 240x240 display resolution, radius 60 reads as noticeably small/beady against the sclera. Hazel at 69 presents as a fuller, more expressive iris.
+
+**Changes:**
+
+- **`src/eyes/240x240/nordicBlue.h`** — EyeDefinition line modified:
+  - Pupil struct: `0.21` (pupilMin) → `0.25` (matches hazel)
+  - Iris struct: `60` (radius) → `69` (matches hazel)
+  - All other fields unchanged per spec (polar dist table reference `polarDist_240_125_60_0` retained)
+
+**Build:** `pio run -e eyes` — [SUCCESS] code 93464 bytes, data 1333776 bytes. Zero errors, zero warnings.
+
+**Status:** REPO-ONLY — user flashes via PlatformIO upload (env:eyes) to Teensy 4.1.
+
+**Rollback:**
+```bash
+git checkout -- src/eyes/240x240/nordicBlue.h
+# Then pio run -e eyes and upload
+```
