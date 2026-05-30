@@ -398,3 +398,14 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Status:** Fixed
 
 ---
+
+## 2026-05-30 | S79 | Pi4 / SD card full — iris_bench.jsonl unbounded accumulation
+
+**Symptom:** `iris_web.html` deploy failed with "No space left on device" on /media/root-ro. SD card 100% full (29G/29G).
+**Root cause:** S67 added a bench JSONL append block to `iris_log_export.sh` that appended new bench records from RAM to `/media/root-ro/home/pi/logs/iris_bench.jsonl` on every 5-min cron tick. No size cap or rotation. Over ~3 weeks this grew to 24GB, filling the 29GB SD partition.
+**Fix:** Remounted SD rw, truncated `iris_bench.jsonl` on SD to 0 bytes (freeing 24GB — SD now 19% used). Removed the SD bench append block entirely from `iris_log_export.sh`. Bench data is already archived to GandalfAI `C:\IRIS\iris-logs\` via SCP on every cron run — SD persistence was redundant. RAM bench log at `/home/pi/logs/iris_bench.jsonl` is unaffected.
+**Files:** `pi4/scripts/iris_log_export.sh`
+**Commit:** S79b
+**Status:** Fixed — DEPLOYED+VERIFIED. md5 RAM=SD verified.
+
+---

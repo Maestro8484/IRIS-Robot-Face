@@ -1170,3 +1170,21 @@ git rm src/eyes/240x240/strikingBlue.h
 ```
 
 ---
+
+## S79b — Pi4 Deploy + SD Card Full Fix (2026-05-30)
+
+**Status:** DEPLOYED+VERIFIED.
+
+**Deployed:**
+- `pi4/iris_web.html` — button 7 "Striking Blue" added. md5 `9be10b546c579dc571d0c85008fffdcc` RAM=SD.
+- `pi4/scripts/iris_log_export.sh` — SD bench JSONL append block removed. md5 `5fe88e7d8a8ca01c7fba2af8e001e9a1` RAM=SD.
+
+**SD card full issue (discovered during deploy):** `iris_bench.jsonl` on SD had grown to 24GB over ~3 weeks (S67 added unbounded byte-offset append with no size cap or rotation). Truncated SD copy to 0 bytes (freeing 24GB; SD now 19% used). Removed the SD bench append block from `iris_log_export.sh` — bench data is already archived to GandalfAI via SCP on every 5-min cron run, making SD persistence redundant. RAM bench log unaffected.
+
+**Rollback:**
+```bash
+git checkout -- pi4/iris_web.html pi4/scripts/iris_log_export.sh
+# Then redeploy previous versions to Pi4 and persist to SD
+```
+
+---

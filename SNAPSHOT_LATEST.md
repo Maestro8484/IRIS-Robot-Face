@@ -20,7 +20,7 @@
 | System | Status |
 |---|---|
 | SuperMaster Desktop | Canonical repo — S79 committed (04e7f9f). S79: nordicBlue polarDist fix + strikingBlue eye REPO-ONLY. S76 Pi4 files DEPLOYED+VERIFIED. |
-| Pi4 192.168.1.200 | Operational. S76 DEPLOYED+VERIFIED. audio_io.py + assistant.py updated (emotion-driven speech animation). POST 21/22 PASS AUTHORIZED 2026-05-30. |
+| Pi4 192.168.1.200 | Operational. S79b DEPLOYED+VERIFIED. iris_web.html (Striking Blue button) + iris_log_export.sh (SD bench log removed). SD card 19% used (was 100% — iris_bench.jsonl grew to 24GB, truncated+fixed). S76 Pi4 files DEPLOYED+VERIFIED. |
 | GandalfAI 192.168.1.3 | Operational. **S77: iris + iris-kids rebuilt on qwen2.5vl:32b-q4_K_M** (gemma3:27b-it-qat retired, kept as rollback). Adult persona sharpened; smoke-tested 5/5 (no RLHF boilerplate, vision OK). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups. |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed. **S79 REPO-ONLY** — nordicBlue polarDist fix (_60_0→_69_0), strikingBlue new eye (index 7). Build clean (env:eyes). Pending user PlatformIO upload. |
 | Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. **HW-004 BLOCKED: PAJ7620U2 confirmed dead** (ACK=NO, reflow attempted, I2C absent — replacement GY-PAJ7620 on order). Firmware REPO-ONLY (TS40-S1 + TS40-S2 + S75 pan servo smoothing, awaiting sensor + flash). Person Sensor face tracking + servo pan operational on live S69 firmware. |
@@ -40,6 +40,8 @@
 ---
 
 ## Session Scope
+
+S79b: Pi4 deploy — iris_web.html (Striking Blue button) + iris_log_export.sh (SD bench append removed). SD was 100% full (iris_bench.jsonl 24GB); truncated + fixed. SD now 19% used. md5 verified RAM=SD. DEPLOYED+VERIFIED.
 
 S79: nordicBlue iris size fix + new StrikingBlue eye (REPO-ONLY). Root cause of nordicBlue appearing smaller than hazel: S76 bumped irisRadius 60→69 in EyeDefinition but left the polarDist include and table reference pointing at `polarDist_240_125_60_0` (the old 60px table). Fix: two-line change in `nordicBlue.h` to use `polarDist_240_125_69_0`. New eye: `strikingBlue` (index 7) — 512×128 iris texture (vivid azure/cerulean with 42-spoke radial fiber pattern, warm amber sunflower ring near pupil, deep navy limbal ring), nordicBlue sclera (less visible veins), nordicBlue eyelids. Generated via `resources/eyes/240x240/strikingBlue/gen_iris.py` + `tablegen.py`. `src/config.h`: array 7→8, index 7 added. `src/main.cpp`: EYE_IDX_STRIKINGBLUE=7, COUNT 7→8. `pi4/iris_web.html`: button 7 added (REPO-ONLY). Build clean. Flash: 1.498MB.
 
