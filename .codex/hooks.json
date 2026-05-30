@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 'C:\\Users\\SuperMaster\\Documents\\PlatformIO\\IRIS-Robot-Face\\.codex\\hooks\\post_tool_use_build_check.py'"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 'C:\\Users\\SuperMaster\\Documents\\PlatformIO\\IRIS-Robot-Face\\.codex\\hooks\\session_start.py'"
+          }
+        ]
+      }
+    ]
+  }
+}
