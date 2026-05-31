@@ -1248,7 +1248,7 @@ git checkout -- pi4/iris_web.py
 
 ## S81 — IRIS Workbench Phase 2: AI-Assisted Harness Analysis Layer (2026-05-30)
 
-**Status:** REPO-ONLY. No Pi4 deploy. GandalfAI model rebuild pending user action.
+**Status:** REPO-ONLY (workbench JS/HTML/CSS/fixture). GandalfAI iris model DEPLOYED+VERIFIED — goodnight few-shot confirmed in ollama show iris.
 
 **Goal:** Add Anthropic API-powered analysis layer to the workbench. Evaluate Phase 1 harness failures for fixture correctness vs. genuine model behavior problems. Fix confirmed modelfile gap (pt001_17 goodnight). Wire Save Selected to Fixture download. Enable Run AI Analysis button.
 
@@ -1308,11 +1308,7 @@ pt001_13: keep NEUTRAL (MODEL_WRONG: verbatim few-shot response text with wrong 
 Apply confirmed corrections to tools/workbench/fixtures/pt001_cases.json after user review
 of AI Analysis panel results.
 
-**GandalfAI rebuild required for modelfile fix to take effect:**
-```
-ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt
-```
-Or use Rebuild Model button in the workbench (iris target).
+**GandalfAI rebuild:** DEPLOYED+VERIFIED. `ollama create iris` run on GandalfAI. `ollama show iris --modelfile | findstr goodnight` confirms "User: goodnight" present in live model.
 
 **Rollback:**
 ```bash
