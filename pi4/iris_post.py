@@ -43,7 +43,6 @@ GANDALF_MAC  = "A4:BB:6D:CA:83:20"
 OLLAMA_MODEL_ADULT = "iris"
 OLLAMA_MODEL_KIDS  = "iris-kids"
 NUM_LEDS     = 3
-GESTURE_SENSOR_REQUIRED = False
 
 try:
     from core.config import (
@@ -51,7 +50,6 @@ try:
         WHISPER_PORT, PIPER_PORT, OWW_PORT,
         WOL_BOOT_TIMEOUT, WOL_POLL_INTERVAL, GANDALF_MAC,
         OLLAMA_MODEL_ADULT, OLLAMA_MODEL_KIDS, NUM_LEDS,
-        GESTURE_SENSOR_REQUIRED,
     )
     try:
         from core.config import KOKORO_BASE_URL
@@ -185,6 +183,7 @@ class _POST:
             return self.record("L0", "mic wm8960 open", FAIL, str(e)[:60])
 
     def l0_camera(self):
+        # Camera is optional — failure never blocks startup
         tmp = "/tmp/iris_post_cam.jpg"
         try:
             r = subprocess.run(
@@ -196,12 +195,15 @@ class _POST:
                 return self.record("L0", "camera capture", PASS)
             if os.path.exists(tmp):
                 os.unlink(tmp)
-            return self.record("L0", "camera capture", FAIL,
+            return self.record("L0", "camera capture", WARN,
                                r.stderr.decode(errors="ignore")[:60] or "no file written")
         except Exception as e:
-            return self.record("L0", "camera capture", FAIL, str(e)[:60])
+            return self.record("L0", "camera capture", WARN, str(e)[:60])
 
     def l0_gesture(self):
+        # PAJ7620U2 sits on Teensy 4.0 I2C (pins 18/19), not on Pi4 I2C bus 1.
+        # Pi4 smbus can never reach it directly. Check is always WARN; sensor
+        # health is confirmed via Teensy serial DIAG at boot, not here.
         try:
             import smbus
             bus = smbus.SMBus(1)
@@ -209,9 +211,8 @@ class _POST:
             bus.close()
             return self.record("L0", "gesture sensor I2C 0x73", PASS)
         except Exception:
-            sev = FAIL if GESTURE_SENSOR_REQUIRED else WARN
-            return self.record("L0", "gesture sensor I2C 0x73", sev,
-                               f"GESTURE_SENSOR_REQUIRED={GESTURE_SENSOR_REQUIRED}")
+            return self.record("L0", "gesture sensor I2C 0x73", WARN,
+                               "Teensy-side I2C -- verify via serial DIAG")
 
     # ── L1 — Network + services ───────────────────────────────────────────────
 
@@ -436,11 +437,17 @@ class _POST:
         self.l4_ownership()
 
         # ── L5: Verdict ───────────────────────────────────────────────────────
+        # Only serial (eyes/mouth) and mic failures block startup.
+        # All other FAILs are demoted to informational — IRIS boots degraded
+        # rather than entering a systemd restart loop.
+        _BLOCKING = {f"serial {TEENSY_PORT}", "mic wm8960 open"}
         n_total = len(self.results)
         n_pass  = sum(1 for r in self.results if r["status"] == PASS)
         n_warn  = sum(1 for r in self.results if r["status"] == WARN)
         n_fail  = sum(1 for r in self.results if r["status"] == FAIL)
-        verdict = "AUTHORIZED" if n_fail == 0 else "FAIL"
+        hard_fails = [r for r in self.results
+                      if r["status"] == FAIL and r["check"] in _BLOCKING]
+        verdict = "AUTHORIZED" if not hard_fails else "FAIL"
 
         self.log("─" * 57)
         self.log(f"[POST] RESULT: {n_pass}/{n_total} PASS  WARN: {n_warn}  FAIL: {n_fail}")
