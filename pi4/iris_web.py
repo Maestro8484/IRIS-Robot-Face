@@ -839,10 +839,23 @@ def api_emotion_map():
         data = request.get_json(force=True) or {}
         raw_mouth = data.get("EMOTION_MOUTH_MAP", {})
         raw_eye   = data.get("EMOTION_EYE_MAP", {})
-        clean_mouth = {k: int(v) for k, v in raw_mouth.items()
-                       if k in _VALID_EMOTIONS_SET and 0 <= int(v) < _MOUTH_COUNT}
-        clean_eye   = {k: int(v) for k, v in raw_eye.items()
-                       if k in _VALID_EMOTIONS_SET and -1 <= int(v) < _EYE_COUNT}
+        clean_mouth = {}
+        for k, v in raw_mouth.items():
+            try:
+                iv = int(v)
+                if k in _VALID_EMOTIONS_SET and 0 <= iv < _MOUTH_COUNT:
+                    clean_mouth[k] = iv
+            except (ValueError, TypeError):
+                pass
+        clean_eye = {}
+        for k, v in raw_eye.items():
+            try:
+                iv = int(v)
+                if k in _VALID_EMOTIONS_SET and -1 <= iv < _EYE_COUNT:
+                    clean_eye[k] = iv
+            except (ValueError, TypeError):
+                pass
+        print(f"[EMAP] POST mouth={clean_mouth} eye={clean_eye}")
         write_cfg({"EMOTION_MOUTH_MAP": clean_mouth, "EMOTION_EYE_MAP": clean_eye})
         return jsonify(ok=True)
     cfg      = read_cfg()
