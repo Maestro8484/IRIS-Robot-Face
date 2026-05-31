@@ -42,7 +42,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 ## Next Work — *** DO THIS FIRST ***
 
 **S85 DEPLOYED+VERIFIED (2026-05-31):**
-- `pi4/core/config.py` — DEPLOYED. md5 RAM=SD=`2b88f6b108ae848f0df8a77b75a054c3`
+- `pi4/core/config.py` — DEPLOYED+VERIFIED S88. GESTURE_SENSOR_REQUIRED=False (boot loop fix). md5 RAM=SD=`7bb5ad9f725eefd33ac95d6be0af3580`
 - `pi4/assistant.py` — DEPLOYED. md5 RAM=SD=`19c852a908780c4bb1fe629f304b110e`
 - `pi4/iris_web.py` — DEPLOYED. md5 RAM=SD=`482461328553905a5f52b9f567fb2574`. iris-web.service restarted 2026-05-31 (had not been restarted during original S85 deploy; /api/emotion_map now live).
 - `pi4/iris_web.html` — DEPLOYED. md5 RAM=SD=`b16e911afa0a524aac6aa0dcfffcceec`

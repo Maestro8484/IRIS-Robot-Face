@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S87 | **Date:** 2026-05-31 | **Branch:** `main` | **Last commit:** ebf000b
+**Session:** S88 | **Date:** 2026-05-31 | **Branch:** `main` | **Last commit:** ebf000b
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -20,7 +20,7 @@
 
 | System | Status |
 |---|---|
-| Pi4 192.168.1.200 | Operational. S87 iris_web.py fix REPO-ONLY (not yet deployed). |
+| Pi4 192.168.1.200 | Operational. S88 boot loop fixed (GESTURE_SENSOR_REQUIRED False, DEPLOYED+VERIFIED). S87 iris_web.py fix REPO-ONLY. |
 | GandalfAI 192.168.1.3 | Operational. iris model: ANGRY insult + 20-joke repertoire (S84). |
 | Teensy 4.1 (eyes+mouth) | S65 firmware LIVE. S87 SILLY redesign + animation REPO-ONLY — needs flash. |
 | Teensy 4.0 (servo+gesture) | S69 firmware LIVE. GY-PAJ7620 orientation fix REPO-ONLY (S83). |
@@ -37,7 +37,11 @@
 
 ---
 
-## Last Session Changes (S87)
+## Last Session Changes (S88)
+
+- `pi4/core/config.py:54` — `GESTURE_SENSOR_REQUIRED` reverted `True` → `False`. Sensor not yet validated (T40 not flashed). Was causing L0 FAIL boot loop (20/22 PASS, FAIL:1 → systemd restart every ~25s). DEPLOYED+VERIFIED. md5 RAM=SD=`7bb5ad9f725eefd33ac95d6be0af3580`. POST now 20/22 PASS, WARN:2, FAIL:0, startup AUTHORIZED.
+
+## Previous Session Changes (S87)
 
 - `src/mouth_tft.cpp:157` — Replaced `_draw_silly()`: old ellipse tongue (invisible) → open-mouth design (upper lip arc cy=-10 r=170, dark interior fillRect 50,100,220,75, lower lip arc cy=220 r=145, tongue body fillRect 105,148,110,68, tip fillCircle 160,216,42, groove).
 - `src/mouth_tft.cpp:157` — Added `_draw_silly_retracted()`: identical to `_draw_silly()` but tongue body raised 15px (y=163 h=53) for TONGUE_WAG alternation.
