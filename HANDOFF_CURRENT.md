@@ -41,14 +41,14 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**S85 REPO-ONLY (2026-05-31 — deploy these next):**
-- `pi4/core/config.py` — EMOTION_EYE_MAP + MOUTH_MAP dict overrides from iris_config.json
-- `pi4/assistant.py` — emit_emotion() now sends EYE:n before EMOTION:x when EMOTION_EYE_MAP configured
-- `pi4/iris_web.py` — /api/emotion_map GET+POST endpoint
-- `pi4/iris_web.html` — Emotion Display Mapping card (per-emotion eye+mouth dropdowns), SILLY mouth button, loadEmotionMap on init
-- `src/mouth_tft.cpp` — SILLY expression index 9 (wide grin + pink tongue) — **requires user PlatformIO flash env:eyes**
-- `src/mouth_tft.h` — expression comment updated (8=SLEEP/OFF 9=SILLY)
-- `resources/mouth_expressions/catalog.md` — NEW GIF reference catalog
+**S85 DEPLOYED+VERIFIED (2026-05-31):**
+- `pi4/core/config.py` — DEPLOYED. md5 RAM=SD=`2b88f6b108ae848f0df8a77b75a054c3`
+- `pi4/assistant.py` — DEPLOYED. md5 RAM=SD=`19c852a908780c4bb1fe629f304b110e`
+- `pi4/iris_web.py` — DEPLOYED. md5 RAM=SD=`482461328553905a5f52b9f567fb2574`
+- `pi4/iris_web.html` — DEPLOYED. md5 RAM=SD=`b16e911afa0a524aac6aa0dcfffcceac`
+- `src/mouth_tft.cpp` — REPO-ONLY. SILLY mouth index 9 — **requires user PlatformIO flash env:eyes**
+- `src/mouth_tft.h` — REPO-ONLY.
+- `resources/mouth_expressions/catalog.md` — LOCAL only.
 
 **DEPLOYED S83+S84 (2026-05-31 session):**
 - `pi4/assistant.py` — DEPLOYED+VERIFIED. STOP UDP fix live. md5 RAM=SD=`14f2028f6bc451e5bc4fd127aa6c285b`
