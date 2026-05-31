@@ -156,22 +156,23 @@ static void _draw_sleep() {}
 
 // TONGUE_WAG helper: same layout as _draw_silly() but tongue body raised 15px
 static void _draw_silly_retracted() {
-    _arc(160, -10, 170, 0.52f, 2.62f, MTFT_YELLOW, 12);
-    _tft->fillRect(50, 100, 220, 75, 0x3000);
-    _arc(160, 220, 145, 3.62f, 5.66f, MTFT_YELLOW, 12);
-    _tft->fillRect(105, 163, 110, 53, MTFT_TONGUE);
-    _tft->fillCircle(160, 216, 42, MTFT_TONGUE);
-    _tft->fillRect(157, 167, 6, 47, 0xC000);
+    _arc(160, -10, 170, 0.52f, 2.62f, MTFT_YELLOW, 12);  // upper lip
+    _tft->fillRect(50, 100, 220, 75, 0x3000);               // dark interior
+    _tft->fillRect(105, 163, 110, 53, MTFT_TONGUE);          // tongue body (raised 15px)
+    _tft->fillCircle(160, 216, 42, MTFT_TONGUE);             // tongue tip
+    _arc(160, 115, 55, 0.45f, 2.69f, MTFT_YELLOW, 12);     // lower lip over tongue
+    _tft->fillRect(157, 167, 6, 47, 0xC000);                 // groove
 }
 
 // 9: SILLY — open mouth + protruding flat tongue, yellow/hot-pink
+// Draw order: upper lip → interior → tongue → lower lip on top → groove
 static void _draw_silly() {
-    _arc(160, -10, 170, 0.52f, 2.62f, MTFT_YELLOW, 12);
-    _tft->fillRect(50, 100, 220, 75, 0x3000);
-    _arc(160, 220, 145, 3.62f, 5.66f, MTFT_YELLOW, 12);
-    _tft->fillRect(105, 148, 110, 68, MTFT_TONGUE);
-    _tft->fillCircle(160, 216, 42, MTFT_TONGUE);
-    _tft->fillRect(157, 152, 6, 62, 0xC000);
+    _arc(160, -10, 170, 0.52f, 2.62f, MTFT_YELLOW, 12);  // upper lip
+    _tft->fillRect(50, 100, 220, 75, 0x3000);               // dark interior
+    _tft->fillRect(105, 148, 110, 68, MTFT_TONGUE);          // tongue body
+    _tft->fillCircle(160, 216, 42, MTFT_TONGUE);             // tongue tip
+    _arc(160, 115, 55, 0.45f, 2.69f, MTFT_YELLOW, 12);     // lower lip over tongue
+    _tft->fillRect(157, 152, 6, 62, 0xC000);                 // groove
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -190,7 +191,10 @@ void mouthTFTShow(uint8_t idx) {
     if (!_tft) return;
     if (idx > 9) idx = 0;
     _currentMouthIdx = idx;
-    if (idx == 9) _sillyShownMs = millis();
+    if (idx == 9) {
+        _sillyShownMs = millis();
+        mouthIdleStart();   // arm TONGUE_WAG — idle was stopped by MOUTH: handler; restart it
+    }
     _tft->fillScreen(MTFT_BLACK);
     switch (idx) {
         case 0: _draw_neutral();   break;
