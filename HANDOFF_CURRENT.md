@@ -41,6 +41,11 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
+**S84 — Deploy deferred (Pi4 bootloop blocks deployment):**
+1. Rebuild iris model on GandalfAI: `ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt` — or use Workbench Rebuild Model button. This picks up ANGRY emotion for insults + joke repertoire.
+2. Deploy `pi4/hardware/audio_io.py` (LOUD_STOP_THRESHOLD=9000 — loud shout/clap triggers instant STOP).
+3. After Pi4 bootloop resolved, also deploy S83 changes (pi4/assistant.py STOP UDP fix, pi4/iris_web.html gesture cleanup).
+
 **S83 — Deploy deferred (Pi4 bootloop blocks deployment):**
 1. After Pi4 bootloop resolved in separate session, deploy `pi4/assistant.py` (STOP UDP fix) and `pi4/iris_web.html` (gesture tab cleanup).
 2. Flash Teensy 4.0: `paj7620.h` GESTURE_MOUNT_DEGREES=0 (right side up, new GY-PAJ7620 board). Build clean (env:teensy40). Upload via PlatformIO. Verify: `PAJ7620U2 0x73 ACK=YES` + `init=OK` at boot. Test LEFT/RIGHT swipes → STOP; UP → VOL+; DOWN → VOL-.
@@ -111,6 +116,9 @@ After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.p
 - `src/main.cpp` — REPO-ONLY S79 (EYE_IDX_STRIKINGBLUE=7, EYE_IDX_COUNT 7→8).
 - `pi4/iris_web.html` — DEPLOYED+VERIFIED S79 (button 7 “Striking Blue” added to eye grid). md5 `9be10b546c579dc571d0c85008fffdcc` RAM=SD.
 - `pi4/scripts/iris_log_export.sh` — DEPLOYED+VERIFIED S79b (SD bench JSONL append block removed — was causing unbounded SD growth, 24GB in 3 weeks). md5 `5fe88e7d8a8ca01c7fba2af8e001e9a1` RAM=SD.
+- `ollama/iris_modelfile.txt` — REPO-ONLY S84 (ANGRY insult emotion, 20-joke repertoire, insult-first delivery). Needs `ollama create iris` on GandalfAI.
+- `pi4/hardware/audio_io.py` — REPO-ONLY S84 (LOUD_STOP_THRESHOLD=9000 — instant amplitude-based STOP during playback). Pending Pi4 deploy.
+- `tools/workbench/` — REPO-ONLY S84 (3 new workbench tabs: Latency Bench, POST/Diag, Feature Setup). Local tool — runs on SuperMaster. Open via start_workbench.bat.
 - `pi4/assistant.py` — REPO-ONLY S83 (STOP UDP fix: cmd in ("STOP_PLAYBACK","STOP") now sets _stop_playback; was falling through to teensy.send_command). Pending Pi4 deploy.
 - `pi4/iris_web.html` — REPO-ONLY S83 (gesture tab: LISTEN row removed, STOP label updated to "swipe left or right", LISTEN removed from _GESTURE_KEYS). Pending Pi4 deploy.
 - `servo_teensy40/teensy40_base_mount/paj7620.h` — REPO-ONLY S83 (GESTURE_MOUNT_DEGREES 270→0 for new GY-PAJ7620 replacement board). Pending user PlatformIO flash.

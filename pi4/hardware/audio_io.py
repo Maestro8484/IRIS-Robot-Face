@@ -37,6 +37,12 @@ _stop_playback = threading.Event()
 # interrupts while ignoring IRIS's own speaker output.
 INTERRUPT_RMS_THRESHOLD = 4000
 
+# Amplitude-only STOP: if a single chunk spikes above this RMS during playback,
+# fire STOP immediately without waiting for Whisper STT. Responds to a shout,
+# loud clap, or any sudden loud sound near the ReSpeaker mics. Calibrate above
+# the loudest expected speaker bleed (4500) but below a clear shout (~12000).
+LOUD_STOP_THRESHOLD = 9000
+
 # Stop phrases checked via lightweight STT during playback
 STOP_PHRASES = {
     "stop", "cancel", "nevermind", "never mind", "quiet", "shut up",
@@ -216,6 +222,11 @@ def _playback_interrupt_listener(pa_ref, stop_event, interrupted_event):
             rms = np.sqrt(np.mean(
                 np.frombuffer(data, dtype=np.int16).astype(np.float32) ** 2))
 
+            if rms > LOUD_STOP_THRESHOLD:
+                print(f"[INT]  Loud stop triggered (RMS={rms:.0f} > {LOUD_STOP_THRESHOLD}) — instant interrupt", flush=True)
+                interrupted_event.set()
+                _stop_playback.set()
+                break
             if rms > detect_threshold:
                 if not collecting:
                     collecting = True

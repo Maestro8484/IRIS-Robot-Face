@@ -1373,3 +1373,32 @@ git checkout -- pi4/assistant.py pi4/iris_web.html servo_teensy40/teensy40_base_
 ```
 
 ---
+
+## S84 — Joke Repertoire + ANGRY Emotion + Workbench 3 Tabs + Loud STOP
+
+**Date:** 2026-05-31
+
+**Status:** REPO-ONLY (modelfile needs GandalfAI rebuild; audio_io.py needs Pi4 deploy after bootloop fix)
+
+**Changes:**
+
+**Fix 1 — Emotion for insults: ANGRY replaces AMUSED (iris_modelfile.txt):**
+Direct insults now produce ANGRY, not AMUSED. Updated emotion guidance section and changed "You're dumb," "You suck," "You're useless," "Shut up," and "I hate you" few-shots to ANGRY with appropriately terse IRIS responses. AMUSED reserved for clever provocations and identity challenges.
+
+**Fix 2 — Joke repertoire (iris_modelfile.txt):**
+Added JOKES section with 20 dad-joke/family-appropriate jokes and instruction to insult the user first, then deliver one joke. Added 5 "tell me something funny" few-shot examples with insult-first delivery. Breaks the "why don't scientists trust atoms" lock by teaching the model to cycle through the list.
+
+**Fix 3 — Loud-sound STOP (pi4/hardware/audio_io.py):**
+Added LOUD_STOP_THRESHOLD=9000. During playback interrupt monitoring, if any single chunk exceeds this RMS, fires STOP immediately without waiting for Whisper STT. Responds to a shout or loud clap near ReSpeaker mics in under one audio chunk (~21ms). Calibrated above speaker bleed (4500) and below typical shout (12000). Pi4 deploy deferred pending bootloop fix.
+
+**Fix 4 — IRIS Workbench: 3 new tabs fully implemented:**
+- **Latency Bench**: case selector + iterations (1×/3×/5×/10×), runs cases against Ollama, shows per-case p50/p90/range with sparkline SVG trend chart, summary card with histogram distribution (10 bins, color-coded p50/p90), overall stats bar.
+- **POST / Diagnostics**: Run POST button triggers Pi4 /api/post, polls until complete, shows verdict badge (PASS/WARN/FAIL with counts), per-check table with layer badges (L0 Hardware / L1 Network / L2 Display / L3 Pipeline / L4 Config), color-coded legend.
+- **Feature Setup**: two-column layout — System Config (VOL_MAX + SPEAKER_VOLUME sliders with live value display, GESTURE_SENSOR_REQUIRED toggle) and Gesture Map (dropdowns for all 7 active gestures); both save directly to Pi4 via API. All 3 tabs were previously disabled placeholders.
+
+**Rollback:**
+```bash
+git checkout -- ollama/iris_modelfile.txt pi4/hardware/audio_io.py tools/workbench/
+```
+
+---

@@ -35,11 +35,11 @@
     <button class="tab-btn active" data-tab="harness"
             onclick="switchTab('harness')">Personality Harness</button>
     <button class="tab-btn" data-tab="latency"
-            disabled>Latency Bench</button>
+            onclick="switchTab('latency')">Latency Bench</button>
     <button class="tab-btn" data-tab="post"
-            disabled>POST / Diagnostics</button>
+            onclick="switchTab('post')">POST / Diagnostics</button>
     <button class="tab-btn" data-tab="feature"
-            disabled>Feature Setup</button>
+            onclick="switchTab('feature')">Feature Setup</button>
   </div>
 
   <!-- Content -->
@@ -111,17 +111,104 @@
 
     <!-- ── Tab: Latency Bench ─────────────────────────────────────────────── -->
     <div class="tab-panel" id="tab-latency">
-      <div class="placeholder">Latency Bench — Coming Phase 2</div>
+      <div class="panel-left">
+        <div id="lat-fixture-scroll">
+          <div id="lat-fixture-list">
+            <div class="empty-state" style="height:60px;font-size:12px">Open this tab to load cases</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Iterations per case</div>
+          <div class="lat-iter-row">
+            <label class="iter-opt"><input type="radio" name="lat-iters" value="1" checked> 1×</label>
+            <label class="iter-opt"><input type="radio" name="lat-iters" value="3"> 3×</label>
+            <label class="iter-opt"><input type="radio" name="lat-iters" value="5"> 5×</label>
+            <label class="iter-opt"><input type="radio" name="lat-iters" value="10"> 10×</label>
+          </div>
+        </div>
+        <div class="controls">
+          <button class="btn primary" id="lat-run-btn" onclick="runLatency()">Run Latency Bench</button>
+        </div>
+        <div class="card" id="lat-stats-card" style="display:none">
+          <div class="card-title">Distribution</div>
+          <div id="lat-stats-content"></div>
+        </div>
+      </div>
+      <div class="panel-right">
+        <div id="lat-results-scroll">
+          <div id="lat-results-area">
+            <div class="empty-state">Select cases and click Run Latency Bench</div>
+          </div>
+        </div>
+        <div id="lat-summary-bar" class="lat-summary-bar"></div>
+      </div>
     </div>
 
     <!-- ── Tab: POST / Diagnostics ───────────────────────────────────────── -->
     <div class="tab-panel" id="tab-post">
-      <div class="placeholder">POST / Diagnostics — Coming Phase 2</div>
+      <div class="post-layout">
+        <div class="post-top-bar">
+          <button class="btn primary" id="post-run-btn" onclick="runPost()">Run POST</button>
+          <div id="post-status-line" class="post-status-line"></div>
+          <div id="post-verdict"></div>
+        </div>
+        <div class="post-legend">
+          <span class="legend-item" style="--lc:#00bcd4">L0 Hardware</span>
+          <span class="legend-item" style="--lc:#7b61ff">L1 Network</span>
+          <span class="legend-item" style="--lc:#e040fb">L2 Display</span>
+          <span class="legend-item" style="--lc:#ff9800">L3 Pipeline</span>
+          <span class="legend-item" style="--lc:#f44336">L4 Config</span>
+        </div>
+        <div class="post-scroll">
+          <div id="post-results">
+            <div class="empty-state">Click Run POST to execute all diagnostic layers</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ── Tab: Feature Setup ────────────────────────────────────────────── -->
     <div class="tab-panel" id="tab-feature">
-      <div class="placeholder">Feature Setup — Coming Phase 2</div>
+      <div class="feature-layout">
+        <div class="feature-col">
+          <div class="card">
+            <div class="card-title">System Config</div>
+            <div class="feat-field">
+              <label class="feat-label">VOL_MAX <span class="feat-hint">(headroom ceiling)</span></label>
+              <div class="feat-slider-row">
+                <input type="range" id="feat-vol-max" min="0" max="130" value="110"
+                       oninput="setText('feat-vol-max-val',this.value)">
+                <span id="feat-vol-max-val" class="feat-val">110</span>
+              </div>
+            </div>
+            <div class="feat-field">
+              <label class="feat-label">SPEAKER_VOLUME <span class="feat-hint">(active volume)</span></label>
+              <div class="feat-slider-row">
+                <input type="range" id="feat-vol" min="0" max="130" value="110"
+                       oninput="setText('feat-vol-val',this.value)">
+                <span id="feat-vol-val" class="feat-val">110</span>
+              </div>
+            </div>
+            <div class="feat-field feat-toggle-row">
+              <label class="feat-label">GESTURE_SENSOR_REQUIRED</label>
+              <label class="feat-toggle">
+                <input type="checkbox" id="feat-gesture-req">
+                <span class="feat-toggle-track"></span>
+              </label>
+            </div>
+            <button class="btn primary" style="margin-top:14px" onclick="saveSystemConfig()">Save Config to Pi4</button>
+            <div id="feat-sys-status" class="feat-status"></div>
+          </div>
+        </div>
+        <div class="feature-col">
+          <div class="card">
+            <div class="card-title">Gesture Map</div>
+            <div id="feat-gesture-rows"></div>
+            <button class="btn primary" style="margin-top:14px" onclick="saveGestureMapFeature()">Save Gesture Map</button>
+            <div id="feat-gest-status" class="feat-status"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>

@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S83 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** (S83 uncommitted)
+**Session:** S84 | **Date:** 2026-05-31 | **Branch:** `main` | **Last commit:** (S84 uncommitted)
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -43,6 +43,8 @@
 ---
 
 ## Session Scope
+
+S84: ANGRY emotion for insults (modelfile), joke repertoire (20 jokes, insult-first delivery), loud-sound STOP threshold in audio_io.py (LOUD_STOP_THRESHOLD=9000 — instant STOP on shout/clap, no Whisper wait). IRIS Workbench: Latency Bench, POST/Diag, Feature Setup tabs fully implemented. All REPO-ONLY.
 
 S83: STOP command fix + GY-PAJ7620 sensor orientation reset + WebUI gesture cleanup. `pi4/assistant.py`: STOP UDP now sets `_stop_playback` (was falling through to teensy.send_command). `paj7620.h`: GESTURE_MOUNT_DEGREES 270→0 (new board is right side up). `pi4/iris_web.html`: dead LISTEN row removed, STOP label updated to "swipe left or right". `docs/sysmap.json`: part + orientation updated. All REPO-ONLY — Pi4 deploy deferred pending bootloop fix; firmware pending user PlatformIO flash.
 
