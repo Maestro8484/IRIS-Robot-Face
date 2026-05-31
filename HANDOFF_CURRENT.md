@@ -120,13 +120,13 @@ After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.p
 - `IRIS_ARCH.md` — REPO-ONLY TS40-S1 (pin 15 / touch3 removed, LISTEN kept)
 - `docs/servo_teensy40_wiring.md` — REPO-ONLY S72
 - `pi4/hardware/base_mount_bridge.py` — DEPLOYED+VERIFIED S72 (4 new gesture defaults, MUTE action, leds=None fix)
-- `pi4/iris_web.py` — DEPLOYED+VERIFIED S72 (new gesture keys + MUTE in validator)
+- `pi4/iris_web.py` — DEPLOYED+VERIFIED S82 (atomic write_cfg: tmp+os.replace+.bak; /api/volume uses write_cfg). md5 RAM=SD `f3c5b56c49d4ccb05586a670b04cf63b`.
 - `pi4/iris_web.html` — DEPLOYED+VERIFIED S72 (Gestures tab: PAJ7620U2 full, log inversion fix)
 - `CHANGELOG.md` — REPO-ONLY TS40-S1
 - `CLAUDE.md` — REPO-ONLY S69
 - `docs/sysmap.json` — NOW TRACKED (un-gitignored TS40-S1). TS40-S1 edits: touch3 constants/pin 15 removed.
 - `src/sleep_cfg.h`, `src/sleep_renderer.h`, `src/mouth_tft.cpp`, `src/main.cpp` — FLASHED (Teensy 4.1 S65)
-- `pi4/iris_post.py` — DEPLOYED+VERIFIED S67 (POST 21/22 PASS)
+- `pi4/iris_post.py` — DEPLOYED+VERIFIED S82 (L4 JSONDecodeError FAIL→WARN — corrupt config no longer blocks boot). md5 RAM=SD `7db8ccfe9f1802f0addbd2a601da5cd0`.
 - `pi4/core/config.py` — DEPLOYED+VERIFIED S67
 - `pi4/assistant.py` — DEPLOYED+VERIFIED S67
 - `pi4/iris_web.py` — DEPLOYED+VERIFIED S67

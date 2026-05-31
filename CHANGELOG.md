@@ -1317,3 +1317,27 @@ git checkout -- ollama/iris_modelfile.txt tools/workbench/fixtures/pt001_cases.j
 ```
 
 ---
+
+## S82 — POST Boot Loop Recovery + Config Write Hardening
+
+**Date:** 2026-05-30
+
+**Status:** DEPLOYED+VERIFIED
+
+**Root cause 1 — boot loop:** `/home/pi/iris_config.json` was zeroed to 0 bytes at 15:59. Proximate mechanism: `write_cfg` and the `/api/volume` handler in `iris_web.py` both used a non-atomic `open(file, "w")` + `json.dump` write sequence. With iris-web in a ~365-restart crash loop (flask_cors missing), one restart killed the process between the `open("w")` truncation and the `json.dump` completion, leaving the file at 0 bytes. Empty file → `json.load` raises `JSONDecodeError` → `iris_post.py` L4 FAIL → `sys.exit(1)` → assistant restart loop.
+
+**Root cause 2 — iris-web crash loop:** `iris_web.py` imports `flask_cors` (added in workbench update) but `flask-cors` was not installed in `iris-venv`. Restart counter reached ~365.
+
+**Fix 1 — iris_config.json restored:** `{"VOL_MAX": 110, "SPEAKER_VOLUME": 110}`. Persisted to SD. md5 RAM=SD=`5734d0d9294bcc668c0d8e2d19818fc4`.
+
+**Fix 2 — flask-cors installed and persisted to SD:** `flask-cors==6.0.2` installed into `/home/pi/iris-venv`. Package + dist-info copied to `/media/root-ro/home/pi/iris-venv/lib/python3.13/site-packages/` — survives reboots.
+
+**Fix 3 — atomic config writes in iris_web.py (DEPLOYED+VERIFIED):** `write_cfg` now writes to `CONFIG_FILE.tmp` then `os.replace` (atomic POSIX rename). Backup copy to `CONFIG_FILE.bak` before every write. `/api/volume` handler's duplicate direct write replaced with `write_cfg` call. md5 RAM=SD=`f3c5b56c49d4ccb05586a670b04cf63b`.
+
+**Fix 4 — iris_post.py L4 JSONDecodeError FAIL→WARN (DEPLOYED+VERIFIED):** Empty or corrupt iris_config.json now produces a WARN instead of FAIL. config.py already handles this gracefully (falls back to all defaults). A corrupted config file must not block IRIS from starting. md5 RAM=SD=`7db8ccfe9f1802f0addbd2a601da5cd0`.
+
+**Result:** POST 21/22 PASS (WARN: gesture sensor expected — HW-004). assistant.service active. iris-web.service active. WebUI `http://192.168.1.200:5000/` → 200. Wakeword listener running. Config writes now crash-safe.
+
+**Rollback:** `git checkout -- pi4/iris_web.py pi4/iris_post.py` then redeploy. For flask-cors: package is on SD — survives reboots without any action.
+
+---

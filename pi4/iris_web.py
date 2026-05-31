@@ -160,8 +160,13 @@ def read_cfg():
     except Exception: return {}
 
 def write_cfg(patch):
+    import shutil as _sh
     cfg = read_cfg(); cfg.update(patch)
-    with open(CONFIG_FILE, "w") as f: json.dump(cfg, f, indent=2)
+    _tmp = CONFIG_FILE + ".tmp"
+    try: _sh.copy2(CONFIG_FILE, CONFIG_FILE + ".bak")
+    except Exception: pass
+    with open(_tmp, "w") as f: json.dump(cfg, f, indent=2)
+    os.replace(_tmp, CONFIG_FILE)
 
 def cpu_temp():
     try: return round(int(open("/sys/class/thermal/thermal_zone0/temp").read()) / 1000.0, 1)
@@ -566,8 +571,7 @@ def api_volume():
         subprocess.run(["amixer","-c",card,"sset","Speaker",str(level)],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["alsactl", "store"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        cfg = read_cfg(); cfg["SPEAKER_VOLUME"] = level
-        with open(CONFIG_FILE, "w") as f: json.dump(cfg, f, indent=2)
+        write_cfg({"SPEAKER_VOLUME": level})
         return jsonify(ok=True, level=level, pct=round(level/127*100))
     out = subprocess.check_output(["amixer","-c",card,"sget","Speaker"], text=True)
     for line in out.splitlines():

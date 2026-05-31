@@ -372,7 +372,8 @@ class _POST:
             return self.record("L4", "iris_config.json parse", WARN,
                                "file not found (defaults active)")
         except Exception as e:
-            return self.record("L4", "iris_config.json parse", FAIL, str(e)[:60])
+            return self.record("L4", "iris_config.json parse", WARN,
+                               "parse error (defaults active): " + str(e)[:40])
 
     def l4_md5(self):
         src = "/home/pi/assistant.py"
