@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S81 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** ec77a55 (S81 uncommitted)
+**Session:** S83 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** (S83 uncommitted)
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -8,8 +8,8 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **[BLOCKED — HW-004] Replace PAJ7620U2** — Sensor confirmed dead (ACK=NO, reflowed, still fails). New GY-PAJ7620 on order. Once arrived: seat identically (VIN=3.3V, GND, SDA→pin18, SCL→pin19), power cycle, confirm `PAJ7620U2 0x73 ACK=YES` + `init=OK` in boot DIAG.
-2. **Flash TS40-S1 firmware** — After sensor replacement confirmed on I2C. Full modular split + touch3 removal + TS40-S2 debounce. Build clean. Upload (env:teensy40). Verify: NO `touch3` DIAG lines, single-fire gestures with `SUPPRESSED` on rapid repeats, face tracking + PAN unchanged.
+1. **Flash TS40-S1 firmware** — GY-PAJ7620 replacement sensor arrived (S83). GESTURE_MOUNT_DEGREES set to 0 (right side up). Build clean (env:teensy40). Upload via PlatformIO. Verify: `PAJ7620U2 0x73 ACK=YES` + `init=OK` in boot DIAG, single-fire gestures with `SUPPRESSED` on rapid repeats, face tracking + PAN unchanged.
+2. **Deploy S83 Pi4 changes (after Pi4 bootloop resolved)** — `pi4/assistant.py` STOP UDP fix + `pi4/iris_web.html` gesture tab cleanup. REPO-ONLY pending bootloop fix in separate session.
 3. **Set GESTURE_SENSOR_REQUIRED=True** — After flash + gesture verify, deploy to Pi4: `pi4/core/config.py` GESTURE_SENSOR_REQUIRED → True, restart service, confirm POST 22/22.
 4. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
 
@@ -24,7 +24,7 @@
 | Pi4 192.168.1.200 | Operational. S82: iris_config.json restored + atomic write hardening deployed. flask-cors installed + persisted to SD. iris_post.py L4 JSONDecodeError FAIL→WARN. POST 21/22 PASS. assistant + iris-web active. WebUI http://192.168.1.200:5000/ → 200. |
 | GandalfAI 192.168.1.3 | Operational. **S81: iris rebuilt** — goodnight few-shot added (pt001_17 fix). S77 base: qwen2.5vl:32b-q4_K_M, persona sharpened. OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups. |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed. **S79 REPO-ONLY** — nordicBlue polarDist fix (_60_0→_69_0), strikingBlue new eye (index 7). Build clean (env:eyes). Pending user PlatformIO upload. |
-| Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. **HW-004 BLOCKED: PAJ7620U2 confirmed dead** (ACK=NO, reflow attempted, I2C absent — replacement GY-PAJ7620 on order). Firmware REPO-ONLY (TS40-S1 + TS40-S2 + S75 pan servo smoothing, awaiting sensor + flash). Person Sensor face tracking + servo pan operational on live S69 firmware. |
+| Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. **S83: GY-PAJ7620 replacement sensor arrived. GESTURE_MOUNT_DEGREES reset to 0 (right side up). Pending user PlatformIO flash** (env:teensy40). Firmware REPO-ONLY: TS40-S1 + TS40-S2 + S75 + S83 orientation fix. Person Sensor + servo pan operational on live S69 firmware. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
 | TTS | Kokoro primary (Docker port 8004), Piper fallback (Wyoming port 10200). |
 
@@ -32,7 +32,7 @@
 
 ## Active Issues
 
-- **HIGH: HW-004 — PAJ7620U2 dead. Replacement GY-PAJ7620 on order.** Sensor confirmed absent from I2C bus (ACK=NO, reflow failed, I2C scan shows 0x73 missing). Flash + gesture verify blocked until replacement arrives and seats at 0x73.
+- **HW-004 RESOLVED S83** — GY-PAJ7620 replacement arrived. GESTURE_MOUNT_DEGREES=0 in firmware. Pending flash to confirm `ACK=YES` + `init=OK` at 0x73. See WHAT'S NEXT #1.
 - **HIGH: HW-001 — Teensy 4.1 LED** — DONE. Covered with black electrical tape.
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
@@ -43,6 +43,8 @@
 ---
 
 ## Session Scope
+
+S83: STOP command fix + GY-PAJ7620 sensor orientation reset + WebUI gesture cleanup. `pi4/assistant.py`: STOP UDP now sets `_stop_playback` (was falling through to teensy.send_command). `paj7620.h`: GESTURE_MOUNT_DEGREES 270→0 (new board is right side up). `pi4/iris_web.html`: dead LISTEN row removed, STOP label updated to "swipe left or right". `docs/sysmap.json`: part + orientation updated. All REPO-ONLY — Pi4 deploy deferred pending bootloop fix; firmware pending user PlatformIO flash.
 
 S79b: Pi4 deploy — iris_web.html (Striking Blue button) + iris_log_export.sh (SD bench append removed). SD was 100% full (iris_bench.jsonl 24GB); truncated + fixed. SD now 19% used. md5 verified RAM=SD. DEPLOYED+VERIFIED.
 

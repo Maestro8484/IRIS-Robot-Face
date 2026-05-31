@@ -10,7 +10,7 @@ Pin#   Label
 
 USB serial / Pi4 integration:
 - USB CDC serial to Pi4 (/dev/ttyIRIS_SERVO, baud 115200)
-- Commands sent: VOL+, VOL-, STOP, LISTEN, FORWARD, BACKWARD, CW, CCW
+- Commands sent: VOL+, VOL-, STOP, FORWARD, BACKWARD, CW, CCW
 - Pi4 hardware/base_mount_bridge.py daemon thread reads and dispatches these.
 - Commands triggered by PAJ7620U2:
     UP gesture       → VOL+

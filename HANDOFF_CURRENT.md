@@ -41,6 +41,11 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
+**S83 — Deploy deferred (Pi4 bootloop blocks deployment):**
+1. After Pi4 bootloop resolved in separate session, deploy `pi4/assistant.py` (STOP UDP fix) and `pi4/iris_web.html` (gesture tab cleanup).
+2. Flash Teensy 4.0: `paj7620.h` GESTURE_MOUNT_DEGREES=0 (right side up, new GY-PAJ7620 board). Build clean (env:teensy40). Upload via PlatformIO. Verify: `PAJ7620U2 0x73 ACK=YES` + `init=OK` at boot. Test LEFT/RIGHT swipes → STOP; UP → VOL+; DOWN → VOL-.
+3. After gesture verify: set `GESTURE_SENSOR_REQUIRED=True` in `pi4/core/config.py`, deploy to Pi4, confirm POST 22/22.
+
 **IRIS Workbench Phase 2 — immediate actions:**
 1. Open `tools/workbench/workbench.js`, set `ANTHROPIC_KEY` on line 5 to your Anthropic API key.
 2. Run `start_workbench.bat`. Open http://localhost:8080.
@@ -69,13 +74,12 @@ compare panel (before/after model rebuild), histogram or sparkline display.
 
 ---
 
-**[BLOCKED — HW-004] PAJ7620U2 confirmed dead. Replacement GY-PAJ7620 on order.**
+**[HW-004 RESOLVED S83] GY-PAJ7620 replacement sensor arrived. Firmware orientation reset to 0°.**
 
-When replacement arrives:
-1. Seat identically: VIN→3.3V, GND, SDA→pin 18, SCL→pin 19.
-2. Power cycle. Open serial monitor within 8s.
-3. Confirm `DIAG: PAJ7620U2 0x73 ACK=YES` and `DIAG: PAJ7620U2 init=OK`.
-4. Then flash TS40-S1 firmware (see below).
+Sensor is seated: VIN→3.3V, GND, SDA→pin 18, SCL→pin 19. Firmware updated (GESTURE_MOUNT_DEGREES=0). Flash TS40-S1 firmware and verify:
+1. Open serial monitor (115200 baud) within 8s of power cycle.
+2. Confirm `DIAG: PAJ7620U2 0x73 ACK=YES` and `DIAG: PAJ7620U2 init=OK`.
+3. Test gestures: LEFT or RIGHT swipe → STOP, UP → VOL+, DOWN → VOL-.
 
 ---
 
@@ -107,7 +111,10 @@ After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.p
 - `src/main.cpp` — REPO-ONLY S79 (EYE_IDX_STRIKINGBLUE=7, EYE_IDX_COUNT 7→8).
 - `pi4/iris_web.html` — DEPLOYED+VERIFIED S79 (button 7 “Striking Blue” added to eye grid). md5 `9be10b546c579dc571d0c85008fffdcc` RAM=SD.
 - `pi4/scripts/iris_log_export.sh` — DEPLOYED+VERIFIED S79b (SD bench JSONL append block removed — was causing unbounded SD growth, 24GB in 3 weeks). md5 `5fe88e7d8a8ca01c7fba2af8e001e9a1` RAM=SD.
-- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY TS40-S1 (S69 on hardware; pending user flash)
+- `pi4/assistant.py` — REPO-ONLY S83 (STOP UDP fix: cmd in ("STOP_PLAYBACK","STOP") now sets _stop_playback; was falling through to teensy.send_command). Pending Pi4 deploy.
+- `pi4/iris_web.html` — REPO-ONLY S83 (gesture tab: LISTEN row removed, STOP label updated to "swipe left or right", LISTEN removed from _GESTURE_KEYS). Pending Pi4 deploy.
+- `servo_teensy40/teensy40_base_mount/paj7620.h` — REPO-ONLY S83 (GESTURE_MOUNT_DEGREES 270→0 for new GY-PAJ7620 replacement board). Pending user PlatformIO flash.
+- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino` — REPO-ONLY TS40-S1 + S83 (S69 on hardware; S83: LISTEN removed from header comment; pending user flash)
 - `servo_teensy40/teensy40_base_mount/person_sensor.h` — REPO-ONLY TS40-S1 (new file)
 - `servo_teensy40/teensy40_base_mount/person_sensor.cpp` — REPO-ONLY TS40-S1 (new file)
 - `servo_teensy40/teensy40_base_mount/pan_servo.h` — REPO-ONLY S75 (PAN_MIN=65, PAN_MAX=115, PAN_TRACK_SPEED=8.0 deg/sec, PAN_FILTER_ALPHA=0.15)

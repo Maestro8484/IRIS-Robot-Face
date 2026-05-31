@@ -1341,3 +1341,35 @@ git checkout -- ollama/iris_modelfile.txt tools/workbench/fixtures/pt001_cases.j
 **Rollback:** `git checkout -- pi4/iris_web.py pi4/iris_post.py` then redeploy. For flask-cors: package is on SD — survives reboots without any action.
 
 ---
+
+
+## S83 — STOP Command Fix + GY-PAJ7620 Replacement Sensor + WebUI Gesture Cleanup
+
+**Date:** 2026-05-30
+
+**Status:** REPO-ONLY (firmware pending user PlatformIO upload; Pi4 changes pending deployment after bootloop resolved in separate session)
+
+**Changes:**
+
+**Fix 1 — STOP command via gesture never interrupted playback (bug, pi4/assistant.py):**
+Root cause: `start_cmd_listener` handled `"STOP_PLAYBACK"` (sent by web UI) but not `"STOP"` (sent by base_mount_bridge.py gesture dispatch via UDP). The UDP "STOP" fell through to `teensy.send_command("STOP")` — a no-op — instead of setting `_stop_playback`. Web UI stop button worked; gesture stop did not.
+Fix: `cmd in ("STOP_PLAYBACK", "STOP")` — both now set `_stop_playback` event.
+
+**Fix 2 — Gesture sensor orientation reset to 0° (firmware, paj7620.h):**
+Previous HiLetgo PAJ7620U2 board was physically mounted 90° CCW, so GESTURE_MOUNT_DEGREES was 270. Replacement GY-PAJ7620 board (same chip, different form factor) installed right side up. Changed GESTURE_MOUNT_DEGREES 270 → 0. I2C address, wiring, and init sequence unchanged (same PAJ7620U2 chip).
+
+**Fix 3 — WebUI gesture tab accuracy (pi4/iris_web.html):**
+- Removed dead "LISTEN (touch3 hold, pin 15)" row — touch3/pin15 was removed in TS40-S1; LISTEN is never emitted by firmware.
+- Updated "STOP (swipe left)" label → "STOP (swipe left or right)" — firmware emits "STOP" for both LEFT and RIGHT swipes.
+- Removed 'LISTEN' from `_GESTURE_KEYS` JS array — no serial event triggers it, saving it was a no-op.
+
+**Documentation:**
+- `docs/sysmap.json`: `part` updated to GY-PAJ7620 breakout; `_current` rotation updated to 0; `serial_commands` LISTEN removed.
+- `servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`: header comment updated (LISTEN removed from commands list).
+
+**Rollback:**
+```bash
+git checkout -- pi4/assistant.py pi4/iris_web.html servo_teensy40/teensy40_base_mount/paj7620.h docs/sysmap.json
+```
+
+---

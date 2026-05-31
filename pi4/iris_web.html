@@ -679,12 +679,8 @@ function _saTabHook() { if (!_saLoaded) { _saLoaded = true; _loadSaSliders(); } 
       <select id="gesture-VOL-"></select>
     </div>
     <div class="field-row">
-      <label>STOP (swipe left)</label>
+      <label>STOP (swipe left or right)</label>
       <select id="gesture-STOP"></select>
-    </div>
-    <div class="field-row">
-      <label>LISTEN (touch3 hold, pin 15)</label>
-      <select id="gesture-LISTEN"></select>
     </div>
     <div class="field-row" style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
       <label>FORWARD (push toward sensor)</label>
@@ -1269,7 +1265,7 @@ function toggleBenchAuto(cb) {
 }
 
 // ── Gesture config ────────────────────────────────────────────────────────────
-const _GESTURE_KEYS    = ['VOL+', 'VOL-', 'STOP', 'LISTEN', 'FORWARD', 'BACKWARD', 'CW', 'CCW'];
+const _GESTURE_KEYS    = ['VOL+', 'VOL-', 'STOP', 'FORWARD', 'BACKWARD', 'CW', 'CCW'];
 const _GESTURE_ACTIONS = ['VOL+', 'VOL-', 'STOP', 'LISTEN', 'SLEEP', 'WAKE', 'MUTE', 'SKIP'];
 const _GESTURE_LABELS  = {
   'VOL+':    'VOL+ — volume up',

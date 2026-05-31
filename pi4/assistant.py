@@ -147,9 +147,9 @@ def start_cmd_listener(teensy, leds):
                     data, _ = s.recvfrom(256)
                     cmd = data.decode(errors="ignore").strip()
                     if cmd:
-                        if cmd == "STOP_PLAYBACK":
+                        if cmd in ("STOP_PLAYBACK", "STOP"):
                             _stop_playback.set()
-                            print("[CMD] STOP_PLAYBACK: playback interrupted", flush=True)
+                            print(f"[CMD] {cmd}: playback interrupted", flush=True)
                         else:
                             print(f"[CMD] -> teensy: {cmd}", flush=True)
                             if state.eyes_sleeping and (

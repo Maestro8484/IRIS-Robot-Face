@@ -3,7 +3,7 @@ const GANDALF_OLLAMA = "http://192.168.1.3:11434";
 const ANTHROPIC_API  = "https://api.anthropic.com/v1/messages";
 // ── API KEY: paste your Anthropic key here to enable Run AI Analysis ──────
 // Leave as "" if routing through a local proxy that adds the auth header.
-const ANTHROPIC_KEY  = "";
+const ANTHROPIC_KEY  = "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";
 
 let state = {
   activeTab: "harness",

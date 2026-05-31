@@ -461,7 +461,7 @@
       "source_file": "servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino",
       "connected_to": "USB serial to Pi4 /dev/ttyIRIS_SERVO at 115200 baud.",
       "power": "Teensy board: Pi4 USB (micro-USB). Servo 5V rail: separate supply with physical toggle switch on enclosure — switch is wired between 5V+ supply and servo 5V+, cuts servo power only, Teensy stays live.",
-      "serial_commands": "VOL+, VOL-, STOP, LISTEN, FORWARD, BACKWARD, CW, CCW — dispatched by base_mount_bridge.py BaseMountBridge daemon thread",
+      "serial_commands": "VOL+, VOL-, STOP, FORWARD, BACKWARD, CW, CCW — dispatched by base_mount_bridge.py BaseMountBridge daemon thread",
       "tombstoned_predecessor": "servo_pico (Raspberry Pi Pico W) — replaced S58. servo_pico/ directory removed.",
       "servo": "Miuzei DS3218MG MS24 Digital Servo, 25kg, 0.16s/60deg, metal gear. Pin 2. External 5V rail. Shared I2C bus with Person Sensor (PAJ7620U2 on same bus).",
 
@@ -473,7 +473,7 @@
       "i2c_pullups": "4.7K resistor SDA->3.3V, 4.7K resistor SCL->3.3V (external, required)",
 
       "paj7620u2": {
-        "part": "HiLetgo PAJ7620U2 Integrated Gesture Recognition Sensor",
+        "part": "GY-PAJ7620 breakout (PAJ7620U2 chip — S82 replacement for dead HiLetgo board)",
         "i2c_addr": "0x73",
         "datasheet": "PAJ7620U2_DS_v1.5_05012022_Confidential.pdf",
         "init_sequence": "Any I2C contact wakes from suspend. Wait 700us (firmware uses delay(700)). Confirm ACK. Write bank 0 (29 register writes via 0xEF=0x00), bank 1 (20 writes via 0xEF=0x01), back to bank 0. Set R_Int_1_En (0x41)=0xFF unmask all, gesture mode (0x42)=0x01.",
@@ -492,7 +492,7 @@
         },
         "rotation_table": {
           "_note": "GESTURE_MOUNT_DEGREES define in firmware maps physical gestures to raw register bits. Change to 0/90/180/270 — compile error for any other value.",
-          "_current": "GESTURE_MOUNT_DEGREES 270  (sensor mounted 90deg CCW relative to viewer)",
+          "_current": "GESTURE_MOUNT_DEGREES 0  (GY-PAJ7620 replacement board — mounted right side up, standard orientation)",
           "0":   { "phys_UP": "0x08", "phys_DOWN": "0x04", "phys_LEFT": "0x01", "phys_RIGHT": "0x02" },
           "90":  { "phys_UP": "0x02", "phys_DOWN": "0x01", "phys_LEFT": "0x08", "phys_RIGHT": "0x04" },
           "180": { "phys_UP": "0x04", "phys_DOWN": "0x08", "phys_LEFT": "0x02", "phys_RIGHT": "0x01" },
