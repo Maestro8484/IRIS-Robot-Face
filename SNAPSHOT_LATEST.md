@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S84 | **Date:** 2026-05-31 | **Branch:** `main` | **Last commit:** (S84 uncommitted)
+**Session:** S84 | **Date:** 2026-05-31 | **Branch:** `main` | **Last commit:** (S84 deploy doc update uncommitted)
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -21,8 +21,8 @@
 |---|---|
 | SuperMaster Desktop | Canonical repo — S81 REPO-ONLY (uncommitted). S80: Workbench Phase 1 VERIFIED. S81: Workbench Phase 2 AI analysis layer + pt001_17 modelfile fix. |
 | IRIS Workbench | Phase 2 AI analysis layer live. Launch: `start_workbench.bat`. **Set ANTHROPIC_KEY in workbench.js line 5** to enable Run AI Analysis. pt001_17 modelfile fix DEPLOYED+VERIFIED — goodnight few-shot confirmed in ollama show iris. Fixture corrections pending user confirmation after AI analysis run. |
-| Pi4 192.168.1.200 | Operational. S82: iris_config.json restored + atomic write hardening deployed. flask-cors installed + persisted to SD. iris_post.py L4 JSONDecodeError FAIL→WARN. POST 21/22 PASS. assistant + iris-web active. WebUI http://192.168.1.200:5000/ → 200. |
-| GandalfAI 192.168.1.3 | Operational. **S81: iris rebuilt** — goodnight few-shot added (pt001_17 fix). S77 base: qwen2.5vl:32b-q4_K_M, persona sharpened. OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups. |
+| Pi4 192.168.1.200 | Operational. **S83+S84 DEPLOYED 2026-05-31**: assistant.py (STOP UDP fix), audio_io.py (LOUD_STOP_THRESHOLD=9000), iris_web.html (gesture tab cleanup). All md5 RAM=SD verified. assistant active, POST running at deploy. |
+| GandalfAI 192.168.1.3 | Operational. **S84: iris rebuilt** — ANGRY insult emotion + 20-joke repertoire live. S77 base: qwen2.5vl:32b-q4_K_M. OLLAMA_KEEP_ALIVE=30m set. |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed. **S79 REPO-ONLY** — nordicBlue polarDist fix (_60_0→_69_0), strikingBlue new eye (index 7). Build clean (env:eyes). Pending user PlatformIO upload. |
 | Teensy 4.0 (servo + gesture) | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. **S83: GY-PAJ7620 replacement sensor arrived. GESTURE_MOUNT_DEGREES reset to 0 (right side up). Pending user PlatformIO flash** (env:teensy40). Firmware REPO-ONLY: TS40-S1 + TS40-S2 + S75 + S83 orientation fix. Person Sensor + servo pan operational on live S69 firmware. |
 | Servo Controller (ESP32 DevKit 1C) | TOMBSTONED. PCB destroyed. servo_esp32/ directory removed S58. |
