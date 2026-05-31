@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S84 | **Date:** 2026-05-31 | **Branch:** `main` | **Last commit:** (S84 deploy doc update uncommitted)
+**Session:** S85 | **Date:** 2026-05-31 | **Branch:** `main` | **Last commit:** S85
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -8,10 +8,11 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **Flash TS40-S1 firmware** — GY-PAJ7620 replacement sensor arrived (S83). GESTURE_MOUNT_DEGREES set to 0 (right side up). Build clean (env:teensy40). Upload via PlatformIO. Verify: `PAJ7620U2 0x73 ACK=YES` + `init=OK` in boot DIAG, single-fire gestures with `SUPPRESSED` on rapid repeats, face tracking + PAN unchanged.
-2. **Deploy S83 Pi4 changes (after Pi4 bootloop resolved)** — `pi4/assistant.py` STOP UDP fix + `pi4/iris_web.html` gesture tab cleanup. REPO-ONLY pending bootloop fix in separate session.
-3. **Set GESTURE_SENSOR_REQUIRED=True** — After flash + gesture verify, deploy to Pi4: `pi4/core/config.py` GESTURE_SENSOR_REQUIRED → True, restart service, confirm POST 22/22.
-4. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
+1. **Deploy S85 Pi4 changes** — `pi4/core/config.py`, `pi4/assistant.py`, `pi4/iris_web.py`, `pi4/iris_web.html`. Adds emotion display mapping config + /api/emotion_map endpoint.
+2. **Flash Teensy 4.1 (env:eyes)** — S85 SILLY mouth (index 9) in mouth_tft.cpp. Build clean, upload via PlatformIO. Verify: `MOUTH:9` on TFT shows wide grin + pink tongue.
+3. **Flash TS40-S1 firmware (env:teensy40)** — GY-PAJ7620 replacement sensor (S83). GESTURE_MOUNT_DEGREES=0. Verify: `PAJ7620U2 0x73 ACK=YES` + `init=OK` + gestures fire correctly.
+4. **Set GESTURE_SENSOR_REQUIRED=True** — After Teensy 4.0 flash + gesture verify, deploy to Pi4, confirm POST 22/22.
+5. **RD-003** — Resolve duplicate sleep log (`/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`).
 
 ---
 
@@ -43,6 +44,8 @@
 ---
 
 ## Session Scope
+
+S85: Emotion Display Mapping WebUI (per-emotion eye+mouth assignment, /api/emotion_map, EMOTION_EYE_MAP + MOUTH_MAP overrides in iris_config.json), SILLY mouth expression (index 9, wide grin + pink tongue, hot-pink ellipse fill), GIF reference catalog at resources/mouth_expressions/catalog.md. All REPO-ONLY.
 
 S84: ANGRY emotion for insults (modelfile), joke repertoire (20 jokes, insult-first delivery), loud-sound STOP threshold in audio_io.py (LOUD_STOP_THRESHOLD=9000 — instant STOP on shout/clap, no Whisper wait). IRIS Workbench: Latency Bench, POST/Diag, Feature Setup tabs fully implemented. All REPO-ONLY.
 

@@ -252,7 +252,7 @@ select:focus{outline:none;border-color:var(--blue)}
   </div>
   <div class="card">
     <h2>Emotion Test</h2>
-    <p class="hint" style="margin-bottom:12px">Sends EMOTION:x + MOUTH:n simultaneously.</p>
+    <p class="hint" style="margin-bottom:12px">Fires EMOTION:x + MOUTH:n using the active Emotion Display mapping below.</p>
     <div class="emo-grid">
       <button class="btn-emo" onclick="sendEmotion('NEUTRAL',0)">NEUTRAL</button>
       <button class="btn-emo" onclick="sendEmotion('HAPPY',1)">HAPPY</button>
@@ -265,6 +265,31 @@ select:focus{outline:none;border-color:var(--blue)}
       <button class="btn-emo" onclick="sendEmotion('AMUSED',2)">AMUSED</button>
     </div>
   </div>
+
+  <!-- Emotion Display Mapping -->
+  <div class="card">
+    <h2>Emotion Display Mapping</h2>
+    <p class="hint" style="margin-bottom:4px">Assign eye style and mouth style per emotion. Saved to <code>iris_config.json</code>; used by the assistant and by Emotion Test buttons above.</p>
+    <p class="hint" style="margin-bottom:12px">Note: ANGRY always shows Flame and CONFUSED always shows Hypno Red during the emotion (firmware timer ~9s/7s). The eye setting here controls which eye is sent beforehand and where the display reverts.</p>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:4px 8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border)">Emotion</th>
+            <th style="text-align:left;padding:4px 8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border)">Eye Style</th>
+            <th style="text-align:left;padding:4px 8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border)">Mouth Style</th>
+            <th style="padding:4px 8px;border-bottom:1px solid var(--border)"></th>
+          </tr>
+        </thead>
+        <tbody id="emotion-map-tbl"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+      <button class="btn btn-primary" onclick="saveEmotionMap()">Save Mapping</button>
+      <button class="btn" onclick="loadEmotionMap()">Reload</button>
+    </div>
+  </div>
+
   <div class="card">
     <h2>TFT Mouth</h2>
     <p class="hint" style="margin-bottom:12px">Sends MOUTH:x directly to the ILI9341 TFT mouth.</p>
@@ -278,6 +303,7 @@ select:focus{outline:none;border-color:var(--blue)}
       <button class="btn-mouth" onclick="sendTeensy('MOUTH:6')">6 - Sad</button>
       <button class="btn-mouth" onclick="sendTeensy('MOUTH:7')">7 - Confused</button>
       <button class="btn-mouth" onclick="sendTeensy('MOUTH:8')" style="color:var(--muted)">8 - Sleep (blank)</button>
+      <button class="btn-mouth" onclick="sendTeensy('MOUTH:9')" style="border-color:#f472b6;color:#f472b6">9 - Silly (tongue)</button>
     </div>
   </div>
 </div>
@@ -731,7 +757,7 @@ function tab(name, btn) {
   if (name === 'gandalf') loadVram();
   if (name === 'bench') fetchBench();
   if (name === 'gestures') { loadGestureConfig(); fetchGestureLog(); }
-  if (name === 'eyes') pollSleepState();
+  if (name === 'eyes') { pollSleepState(); loadEmotionMap(); }
   if (name === 'sleep') {
     pollSleepState();
     const ma = document.getElementById('MOUTH_INTENSITY_AWAKE');
@@ -1156,9 +1182,78 @@ async function sendVision(prompt) {
   }
 }
 
-async function sendEmotion(emotion, mouthIdx) {
-  await sendTeensy('EMOTION:' + emotion);
-  await sendTeensy('MOUTH:' + mouthIdx);
+// ── Emotion Display Mapping ────────────────────────────────────────────────────
+const _EMOTION_NAMES = ['NEUTRAL','HAPPY','CURIOUS','ANGRY','SLEEPY','SURPRISED','SAD','CONFUSED','AMUSED'];
+const _EYE_OPT = [[-1,'Default (auto)'],[0,'0 - Nordic Blue'],[1,'1 - Flame'],[2,'2 - Hypno Red'],
+  [3,'3 - Hazel'],[4,'4 - Blue Flame 1'],[5,'5 - Dragon'],[6,'6 - Big Blue'],[7,'7 - Striking Blue']];
+const _MOUTH_OPT = [[0,'0 - Neutral'],[1,'1 - Happy'],[2,'2 - Curious'],[3,'3 - Angry'],
+  [4,'4 - Sleepy'],[5,'5 - Surprised'],[6,'6 - Sad'],[7,'7 - Confused'],
+  [8,'8 - Sleep'],[9,'9 - Silly (tongue)']];
+
+let _emotionMap = {mouth_map:{}, eye_map:{}};
+
+function _buildEmotionMapUI(data) {
+  _emotionMap = data;
+  const tbl = document.getElementById('emotion-map-tbl');
+  if (!tbl) return;
+  tbl.innerHTML = '';
+  for (const emo of _EMOTION_NAMES) {
+    const curM = data.mouth_map[emo] ?? 0;
+    const curE = data.eye_map[emo] ?? -1;
+    const eOpts = _EYE_OPT.map(([v,l])=>`<option value="${v}"${v==curE?' selected':''}>${l}</option>`).join('');
+    const mOpts = _MOUTH_OPT.map(([v,l])=>`<option value="${v}"${v==curM?' selected':''}>${l}</option>`).join('');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="padding:5px 8px;font-size:13px;color:var(--amber);white-space:nowrap">${emo}</td>
+      <td style="padding:3px 8px"><select id="em-eye-${emo}">${eOpts}</select></td>
+      <td style="padding:3px 8px"><select id="em-mouth-${emo}">${mOpts}</select></td>
+      <td style="padding:3px 8px"><button class="btn btn-sm" onclick="testEmotionEntry('${emo}')">Test</button></td>`;
+    tbl.appendChild(tr);
+  }
+}
+
+async function loadEmotionMap() {
+  try {
+    const r = await fetch('/api/emotion_map');
+    _buildEmotionMapUI(await r.json());
+  } catch(e) { _buildEmotionMapUI({mouth_map:{},eye_map:{}}); }
+}
+
+async function saveEmotionMap() {
+  const mouthMap={}, eyeMap={};
+  for (const emo of _EMOTION_NAMES) {
+    const mSel = document.getElementById('em-mouth-'+emo);
+    const eSel = document.getElementById('em-eye-'+emo);
+    if (mSel) mouthMap[emo] = parseInt(mSel.value);
+    if (eSel) eyeMap[emo]   = parseInt(eSel.value);
+  }
+  const r = await fetch('/api/emotion_map', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({EMOTION_MOUTH_MAP:mouthMap, EMOTION_EYE_MAP:eyeMap})});
+  const j = await r.json();
+  toast(j.ok ? 'Emotion map saved' : 'Error saving', j.ok);
+  if (j.ok) { _emotionMap = {mouth_map:mouthMap, eye_map:eyeMap}; checkSDStatus(); }
+}
+
+async function testEmotionEntry(emotion) {
+  const eSel = document.getElementById('em-eye-'+emotion);
+  const mSel = document.getElementById('em-mouth-'+emotion);
+  const eIdx = eSel ? parseInt(eSel.value) : -1;
+  const mIdx = mSel ? parseInt(mSel.value) : 0;
+  if (eIdx >= 0) await sendTeensy('EYE:'+eIdx);
+  await sendTeensy('EMOTION:'+emotion);
+  await sendTeensy('MOUTH:'+mIdx);
+}
+
+// Uses loaded emotion map if available, falls back to the passed mouthIdx
+async function sendEmotion(emotion, fallbackMouthIdx) {
+  const eIdx = (_emotionMap.eye_map && emotion in _emotionMap.eye_map) ? _emotionMap.eye_map[emotion] : -1;
+  const mIdx = (_emotionMap.mouth_map && emotion in _emotionMap.mouth_map)
+    ? _emotionMap.mouth_map[emotion]
+    : (fallbackMouthIdx !== undefined ? fallbackMouthIdx : 0);
+  if (typeof eIdx === 'number' && eIdx >= 0) await sendTeensy('EYE:'+eIdx);
+  await sendTeensy('EMOTION:'+emotion);
+  await sendTeensy('MOUTH:'+mIdx);
 }
 
 // ── Volume ────────────────────────────────────────────────────────────────────
@@ -1444,6 +1539,7 @@ function _renderPostResult(result) {
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 loadConfig();
+loadEmotionMap();
 pollStatus();
 pollSleepState();
 checkSDStatus();

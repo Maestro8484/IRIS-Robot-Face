@@ -4,7 +4,7 @@
 //
 // Expression index:
 //   0=NEUTRAL  1=HAPPY  2=CURIOUS  3=ANGRY
-//   4=SLEEPY   5=SURPRISED  6=SAD  7=CONFUSED  8=SLEEP/OFF
+//   4=SLEEPY   5=SURPRISED  6=SAD  7=CONFUSED  8=SLEEP/OFF  9=SILLY
 
 #pragma once
 #include <Arduino.h>

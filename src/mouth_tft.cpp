@@ -24,6 +24,7 @@ static constexpr uint16_t MTFT_BLUE    = 0x001F;  // SAD
 static constexpr uint16_t MTFT_MAGENTA = 0xF81F;  // CONFUSED
 static constexpr uint16_t MTFT_BLUSH   = 0xFBCC;  // HAPPY cheek blush (light pink)
 static constexpr uint16_t MTFT_AMBER   = 0xFD20;  // AMUSED — reserved, needs dedicated expression index
+static constexpr uint16_t MTFT_TONGUE  = 0xFB36;  // hot pink — SILLY tongue
 
 // ── Backlight lookup table (logarithmic, level 0-15 → PWM 0-255) ─────────────
 // intensity 0=off, 1=barely visible, 8=comfortable idle, 15=full
@@ -152,6 +153,25 @@ static void _draw_confused() {
 // 8: SLEEP/OFF — black screen only (cleared by mouthTFTShow before switch)
 static void _draw_sleep() {}
 
+// 9: SILLY — wide grin + protruding tongue, yellow/hot-pink
+static void _draw_silly() {
+    // Wide grin arc (same geometry as HAPPY, slightly thicker stroke)
+    _arc(160, 20, 130, 0.50f, 2.64f, MTFT_YELLOW, 14);
+    // Exaggerated blush circles
+    _tft->fillCircle(52,  155, 27, MTFT_BLUSH);
+    _tft->fillCircle(268, 155, 27, MTFT_BLUSH);
+    // Tongue: filled ellipse below the lower lip (center x=160, y=183, rx=58, ry=36)
+    for (int16_t y = 147; y <= 219; y++) {
+        float dy = (float)(y - 183);
+        float t = 1.0f - (dy * dy) / (36.0f * 36.0f);
+        if (t < 0.0f) t = 0.0f;
+        int16_t hw = (int16_t)(58.0f * sqrtf(t));
+        if (hw > 0) _tft->drawFastHLine(160 - hw, y, 2 * hw + 1, MTFT_TONGUE);
+    }
+    // Tongue center groove (slightly darker pink)
+    _tft->fillRect(157, 152, 6, 63, 0xC9F0);
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 void mouthTFTInit() {
@@ -166,7 +186,7 @@ void mouthTFTInit() {
 
 void mouthTFTShow(uint8_t idx) {
     if (!_tft) return;
-    if (idx > 8) idx = 0;
+    if (idx > 9) idx = 0;
     _currentMouthIdx = idx;
     _tft->fillScreen(MTFT_BLACK);
     switch (idx) {
@@ -179,6 +199,7 @@ void mouthTFTShow(uint8_t idx) {
         case 6: _draw_sad();       break;
         case 7: _draw_confused();  break;
         case 8: _draw_sleep();     break;
+        case 9: _draw_silly();     break;
     }
 }
 

@@ -190,6 +190,13 @@ MOUTH_MAP = {
     "CONFUSED":  7,
     "AMUSED":    2,  # reuses CURIOUS/smirk expression
 }
+
+# Eye index override per emotion. -1 = no override (use userDefaultEye on Teensy).
+# Positive values 0-7 send EYE:n before EMOTION:x, making emit_emotion() set
+# the eye style per emotion. ANGRY/CONFUSED still trigger firmware eye swap;
+# the value here controls the revert-to eye after the firmware timer expires.
+EMOTION_EYE_MAP = {e: -1 for e in VALID_EMOTIONS}
+
 EMOTION_TAG_RE = re.compile(r'^\[EMOTION:([A-Z]+)\]\s*', re.IGNORECASE)
 
 # ── iris_config.json loader (web UI overrides) ────────────────────────────────
@@ -343,6 +350,17 @@ try:
     print(f"[CFG]  iris_config.json loaded: {', '.join(_applied) if _applied else 'no overrides'}", flush=True)
     if _ignored:
         print(f"[CFG]  iris_config.json ignored unknown keys: {_ignored}", flush=True)
+    # Dict overrides: EMOTION_MOUTH_MAP and EMOTION_EYE_MAP
+    _emm = _cfg.get("EMOTION_MOUTH_MAP")
+    if isinstance(_emm, dict):
+        for _e, _m in _emm.items():
+            if _e in VALID_EMOTIONS and isinstance(_m, int) and 0 <= _m <= 15:
+                MOUTH_MAP[_e] = _m
+    _eem = _cfg.get("EMOTION_EYE_MAP")
+    if isinstance(_eem, dict):
+        for _e, _idx in _eem.items():
+            if _e in VALID_EMOTIONS and isinstance(_idx, int) and -1 <= _idx <= 7:
+                EMOTION_EYE_MAP[_e] = _idx
 except FileNotFoundError:
     print(f"[CFG]  iris_config.json not found, using defaults", flush=True)
 except _json.JSONDecodeError as _e:

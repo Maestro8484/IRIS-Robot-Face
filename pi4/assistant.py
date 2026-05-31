@@ -170,6 +170,9 @@ def start_cmd_listener(teensy, leds):
 
 def emit_emotion(teensy, leds, emotion: str):
     """Send emotion to Teensy eyes AND sync LED color in one call."""
+    eye_idx = EMOTION_EYE_MAP.get(emotion, -1)
+    if eye_idx >= 0:
+        teensy.send_command(f"EYE:{eye_idx}")
     teensy.send_emotion(emotion)
     teensy.send_command(f"MOUTH:{MOUTH_MAP.get(emotion, 0)}")
     leds.show_emotion(emotion)

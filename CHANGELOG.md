@@ -1402,3 +1402,39 @@ git checkout -- ollama/iris_modelfile.txt pi4/hardware/audio_io.py tools/workben
 ```
 
 ---
+
+## S85 — Emotion Display Mapping WebUI + SILLY Mouth Style + GIF Catalog
+
+**Date:** 2026-05-31
+
+**Status:** REPO-ONLY (firmware requires user PlatformIO upload env:eyes; Pi4 files require DEPLOY)
+
+**Changes:**
+
+**Feature 1 — Per-emotion eye+mouth assignment in WebUI (pi4/iris_web.html, pi4/iris_web.py, pi4/core/config.py, pi4/assistant.py):**
+New "Emotion Display Mapping" card in the Eyes tab shows a table with one row per emotion (NEUTRAL through AMUSED). Each row has:
+- Eye dropdown: Default (auto) or any of the 8 eye styles (0=Nordic Blue … 7=Striking Blue)
+- Mouth dropdown: any of the 10 mouth indices (0=Neutral … 9=Silly)
+- Test button: fires EYE:n + EMOTION:x + MOUTH:m immediately to live hardware
+
+"Save Mapping" writes `EMOTION_MOUTH_MAP` and `EMOTION_EYE_MAP` dicts to `iris_config.json` via new `/api/emotion_map` POST endpoint. "Reload" re-fetches the stored mapping. The Emotion Test buttons above the table also use the loaded mapping (EYE:n sent before EMOTION:x when configured).
+
+`config.py` now defines `EMOTION_EYE_MAP = {e: -1 ...}` (all -1 = no override by default) and applies both dict overrides from `iris_config.json` at load time.
+
+`assistant.py` `emit_emotion()` now checks `EMOTION_EYE_MAP.get(emotion, -1)` and sends `EYE:{idx}` before `EMOTION:x` when a non-(-1) value is configured.
+
+Note: ANGRY always forces Flame eye (index 1) and CONFUSED always forces Hypno Red (index 2) via 9s/7s firmware timers. The EYE setting for those emotions controls the revert-to eye after the timer.
+
+**Feature 2 — SILLY mouth expression (src/mouth_tft.cpp, src/mouth_tft.h):**
+New expression at index 9. Draws: wide grin arc (same geometry as HAPPY, 14px stroke), exaggerated cheek blush circles (r=27), large hot-pink filled ellipse for protruding tongue (rx=58, ry=36, MTFT_TONGUE=0xFB36), and a darker center groove. `mouthTFTShow()` bounds check updated 8→9. Firmware REPO-ONLY; requires user PlatformIO upload (env:eyes).
+
+**Feature 3 — GIF catalog (resources/mouth_expressions/catalog.md):**
+Reference catalog listing all 10 TFT expression indices with GIF library search links (GIPHY, Tenor, LottieFiles, IconScout, Vecteezy, Freepik, Dreamstime), download naming convention, and implementation notes for future animated TFT expressions.
+
+**Rollback:**
+```bash
+git checkout -- src/mouth_tft.cpp src/mouth_tft.h pi4/core/config.py pi4/assistant.py pi4/iris_web.py pi4/iris_web.html
+rm -rf resources/mouth_expressions/
+```
+
+---

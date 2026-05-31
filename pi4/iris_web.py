@@ -827,5 +827,30 @@ def api_rebuild_model():
     return jsonify(ok=True, output="\n\n".join(outputs))
 
 
+_VALID_EMOTIONS_SET = {"NEUTRAL","HAPPY","CURIOUS","ANGRY","SLEEPY","SURPRISED","SAD","CONFUSED","AMUSED"}
+_DEFAULT_MOUTH_MAP  = {"NEUTRAL":0,"HAPPY":1,"CURIOUS":2,"ANGRY":3,"SLEEPY":4,
+                        "SURPRISED":5,"SAD":6,"CONFUSED":7,"AMUSED":2}
+_MOUTH_COUNT = 10   # indices 0-9 (0-8 original + 9=SILLY)
+_EYE_COUNT   = 8    # indices 0-7
+
+@app.route("/api/emotion_map", methods=["GET","POST"])
+def api_emotion_map():
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        raw_mouth = data.get("EMOTION_MOUTH_MAP", {})
+        raw_eye   = data.get("EMOTION_EYE_MAP", {})
+        clean_mouth = {k: int(v) for k, v in raw_mouth.items()
+                       if k in _VALID_EMOTIONS_SET and 0 <= int(v) < _MOUTH_COUNT}
+        clean_eye   = {k: int(v) for k, v in raw_eye.items()
+                       if k in _VALID_EMOTIONS_SET and -1 <= int(v) < _EYE_COUNT}
+        write_cfg({"EMOTION_MOUTH_MAP": clean_mouth, "EMOTION_EYE_MAP": clean_eye})
+        return jsonify(ok=True)
+    cfg      = read_cfg()
+    m_map    = {**_DEFAULT_MOUTH_MAP, **cfg.get("EMOTION_MOUTH_MAP", {})}
+    e_map    = {e: -1 for e in _VALID_EMOTIONS_SET}
+    e_map.update(cfg.get("EMOTION_EYE_MAP", {}))
+    return jsonify(mouth_map=m_map, eye_map=e_map)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
