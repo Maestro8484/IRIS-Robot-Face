@@ -1,5 +1,9 @@
-const PI4_BASE     = "http://192.168.1.200:5000";
+const PI4_BASE       = "http://192.168.1.200:5000";
 const GANDALF_OLLAMA = "http://192.168.1.3:11434";
+const ANTHROPIC_API  = "https://api.anthropic.com/v1/messages";
+// ── API KEY: paste your Anthropic key here to enable Run AI Analysis ──────
+// Leave as "" if routing through a local proxy that adds the auth header.
+const ANTHROPIC_KEY  = "";
 
 let state = {
   activeTab: "harness",
@@ -374,6 +378,258 @@ function esc(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+// ─── AI analysis ──────────────────────────────────────────────────────────
+
+async function callAnthropicAnalysis(harnessResults, modelfileExcerpt) {
+  if (!ANTHROPIC_KEY) {
+    throw new Error(
+      "ANTHROPIC_KEY not set. Edit workbench.js line 5 and paste your Anthropic API key, then reload."
+    );
+  }
+
+  const failures = harnessResults.filter(r => !r.pass);
+  if (failures.length === 0) throw new Error("No failures to analyze.");
+
+  const questionMap = {
+    "pt001_08": "Is AMUSED appropriate here, or should this be NEUTRAL?",
+    "pt001_09": "Is AMUSED appropriate here, or should this be NEUTRAL?",
+    "pt001_12": "Is CURIOUS appropriate here, or should this be NEUTRAL?",
+    "pt001_13": "Is AMUSED appropriate here, or should this be NEUTRAL?",
+    "pt001_17": "Is HAPPY appropriate here? What emotion and response style would fit IRIS’s persona for a goodnight dismissal?"
+  };
+
+  const caseBlocks = failures.map(r => {
+    const q = questionMap[r.id] ||
+      `Is ${r.actual_emotion} appropriate here, or should this be ${r.expected_emotion}?`;
+    return (
+      `Case ${r.id}:\n` +
+      `  Input: "${r.input}"\n` +
+      `  Expected emotion: ${r.expected_emotion}\n` +
+      `  Actual emotion: ${r.actual_emotion}\n` +
+      `  Response: "${r.cleaned_response}"\n` +
+      `  Question: ${q}`
+    );
+  }).join("\n\n");
+
+  const systemExcerpt = (modelfileExcerpt || "").slice(0, 800);
+
+  const prompt =
+`You are analyzing test results for IRIS, a local AI robot assistant with a specific personality. Evaluate each failure and determine whether the issue is a wrong fixture expectation or a genuine model behavior problem.
+
+IRIS PERSONA (from modelfile):
+${systemExcerpt}
+
+HARNESS FAILURES TO EVALUATE:
+
+${caseBlocks}
+
+For each case provide:
+1. VERDICT: FIXTURE_WRONG or MODEL_WRONG
+2. CORRECT_EMOTION: what the emotion should be
+3. REASONING: one sentence
+4. If MODEL_WRONG: suggest a replacement few-shot example for the modelfile
+
+Then provide 8 new edge case suggestions to stress test IRIS further.
+Each suggestion: input text, expected emotion, expected tone, notes.
+Focus on: multi-turn frustration escalation, praise/flattery, ambiguous requests, identity challenges not yet covered, household-specific inputs.
+
+Respond in JSON only. No preamble. No markdown fences. Format:
+{
+  "evaluations": [
+    {
+      "id": "pt001_08",
+      "verdict": "FIXTURE_WRONG|MODEL_WRONG",
+      "correct_emotion": "EMOTION",
+      "reasoning": "one sentence",
+      "modelfile_suggestion": null
+    }
+  ],
+  "new_cases": [
+    {
+      "id": "pt001_new_01",
+      "input": "...",
+      "expected_emotion": "...",
+      "expected_tone": "...",
+      "notes": "..."
+    }
+  ]
+}`;
+
+  const res = await fetch(ANTHROPIC_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_KEY,
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1500,
+      messages: [{ role: "user", content: prompt }]
+    }),
+    signal: AbortSignal.timeout(30000)
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Anthropic API ${res.status}: ${err.slice(0, 300)}`);
+  }
+
+  const data = await res.json();
+  const raw  = (data.content && data.content[0] && data.content[0].text) || "";
+
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    const panel = document.getElementById("analysis-panel");
+    if (panel) {
+      panel.innerHTML =
+        `<div class="analysis-header">Parse failed — review manually</div>` +
+        `<div class="parse-error-warn">JSON parse error: ${esc(e.message)}</div>` +
+        `<pre class="raw-response">${esc(raw)}</pre>`;
+      panel.style.display = "";
+    }
+    throw new Error("Parse failed — raw response shown in panel");
+  }
+}
+
+function renderAnalysisPanel(result) {
+  const panel = document.getElementById("analysis-panel");
+  if (!panel) return;
+
+  const ts       = new Date().toLocaleString();
+  const evals    = result.evaluations || [];
+  const newCases = result.new_cases   || [];
+
+  const evalCards = evals.map(ev => {
+    const modelWrong = ev.verdict === "MODEL_WRONG";
+    const badgeClass = modelWrong ? "badge-fail" : "badge-pass";
+    const badgeLabel = modelWrong ? "MODEL WRONG" : "FIXTURE WRONG";
+    const suggestion = ev.modelfile_suggestion
+      ? `<div class="suggestion-block">
+           <div class="suggestion-label">Modelfile suggestion:</div>
+           <pre class="suggestion-code">${esc(ev.modelfile_suggestion)}</pre>
+           <button class="btn btn-sm"
+             onclick="copyText(this, ${JSON.stringify(ev.modelfile_suggestion)})">Copy</button>
+         </div>`
+      : "";
+    return `<div class="eval-card">
+      <div class="eval-header">
+        <span class="eval-id">${esc(ev.id)}</span>
+        <span class="${badgeClass}">${badgeLabel}</span>
+        <span class="eval-emotion">→ ${esc(ev.correct_emotion)}</span>
+      </div>
+      <div class="eval-reasoning">${esc(ev.reasoning)}</div>
+      ${suggestion}
+    </div>`;
+  }).join("");
+
+  const newRows = newCases.map((c, i) =>
+    `<tr>
+      <td style="text-align:center">
+        <input type="checkbox" class="new-case-cb" data-idx="${i}" checked>
+      </td>
+      <td style="font-family:monospace;font-size:11px">${esc(c.id)}</td>
+      <td title="${esc(c.input)}">${esc(c.input)}</td>
+      <td>${esc(c.expected_emotion)}</td>
+      <td>${esc(c.expected_tone)}</td>
+      <td style="color:var(--muted);font-size:11px">${esc(c.notes)}</td>
+    </tr>`
+  ).join("");
+
+  panel._newCases = newCases;
+
+  panel.innerHTML = `
+    <div class="analysis-header">
+      Phase 2 Analysis
+      <span class="analysis-ts">${esc(ts)}</span>
+    </div>
+    <div class="eval-cards">${evalCards}</div>
+    <div class="new-cases-section">
+      <div class="section-title">New Edge Cases</div>
+      <table class="result-table">
+        <thead><tr>
+          <th></th><th>ID</th><th>Input</th>
+          <th>Emotion</th><th>Tone</th><th>Notes</th>
+        </tr></thead>
+        <tbody>${newRows}</tbody>
+      </table>
+      <button class="btn primary" style="margin-top:8px"
+              onclick="saveUpdatedFixture()">
+        Save Selected to Fixture
+      </button>
+    </div>`;
+  panel.style.display = "";
+}
+
+function saveUpdatedFixture() {
+  const panel    = document.getElementById("analysis-panel");
+  const newCases = (panel && panel._newCases) || [];
+  const checks   = document.querySelectorAll(".new-case-cb:checked");
+  const selected = Array.from(checks)
+    .map(cb => newCases[parseInt(cb.dataset.idx)])
+    .filter(Boolean)
+    .map(c => ({
+      id:               c.id,
+      input:            c.input,
+      expected_emotion: c.expected_emotion,
+      expected_tone:    c.expected_tone,
+      notes:            c.notes || ""
+    }));
+
+  if (selected.length === 0) { alert("No cases checked."); return; }
+
+  const merged = [...state.fixtureCases, ...selected];
+  const blob   = new Blob([JSON.stringify(merged, null, 2)],
+                          { type: "application/json" });
+  const url    = URL.createObjectURL(blob);
+  const a      = document.createElement("a");
+  a.href = url; a.download = "pt001_cases_updated.json"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  }).catch(e => alert("Copy failed: " + e.message));
+}
+
+async function runAnalysis() {
+  const btn     = document.getElementById("analysis-btn");
+  const spinner = document.getElementById("analysis-spinner");
+  const panel   = document.getElementById("analysis-panel");
+
+  if (btn)     btn.disabled       = true;
+  if (panel)   panel.style.display = "none";
+  if (spinner) {
+    spinner.style.display = "";
+    spinner.innerHTML =
+      `<span class="spinner"></span>&nbsp; Analyzing with Claude… this may take 15–20s`;
+  }
+
+  try {
+    if (!state.harnessResults || state.harnessResults.length === 0) {
+      throw new Error("Run harness first — no results to analyze.");
+    }
+    const excerpt = (state.modelState && state.modelState.modelfile_excerpt) || "";
+    const result  = await callAnthropicAnalysis(state.harnessResults, excerpt);
+    renderAnalysisPanel(result);
+  } catch (e) {
+    const p = document.getElementById("analysis-panel");
+    if (p) {
+      p.innerHTML =
+        `<div class="analysis-header" style="color:var(--fail)">Analysis error</div>` +
+        `<div style="color:var(--fail);font-size:12px;padding:8px 0">${esc(e.message)}</div>`;
+      p.style.display = "";
+    }
+  } finally {
+    if (btn)     btn.disabled       = false;
+    if (spinner) spinner.style.display = "none";
+  }
 }
 
 // ─── bootstrap ─────────────────────────────────────────────────────────────

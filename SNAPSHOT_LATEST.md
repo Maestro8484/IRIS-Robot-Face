@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S80 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** ec77a55
+**Session:** S81 | **Date:** 2026-05-30 | **Branch:** `main` | **Last commit:** ec77a55 (S81 uncommitted)
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -19,8 +19,8 @@
 
 | System | Status |
 |---|---|
-| SuperMaster Desktop | Canonical repo — S80 committed. S79: nordicBlue polarDist fix + strikingBlue eye REPO-ONLY. S79b: Pi4 deploy + SD fix DEPLOYED+VERIFIED. S80: IRIS Workbench Phase 1 REPO-ONLY (tools/workbench/, start_workbench.ps1). Pi4 iris_web.py DEPLOYED+VERIFIED (CORS + /api/model_state + /api/rebuild_model). |
-| IRIS Workbench | VERIFIED — Phase 1 mechanical harness. Launch: `start_workbench.bat`. All 17 PT-001 cases run, harness report generated. Pi4 CORS + /api/model_state + /api/rebuild_model all live. |
+| SuperMaster Desktop | Canonical repo — S81 REPO-ONLY (uncommitted). S80: Workbench Phase 1 VERIFIED. S81: Workbench Phase 2 AI analysis layer + pt001_17 modelfile fix. |
+| IRIS Workbench | Phase 2 AI analysis layer live. Launch: `start_workbench.bat`. **Set ANTHROPIC_KEY in workbench.js line 5** to enable Run AI Analysis. pt001_17 modelfile fix REPO-ONLY — iris model rebuild pending. |
 | Pi4 192.168.1.200 | Operational. S79b DEPLOYED+VERIFIED. iris_web.html (Striking Blue button) + iris_log_export.sh (SD bench log removed). SD card 19% used (was 100% — iris_bench.jsonl grew to 24GB, truncated+fixed). S76 Pi4 files DEPLOYED+VERIFIED. |
 | GandalfAI 192.168.1.3 | Operational. **S77: iris + iris-kids rebuilt on qwen2.5vl:32b-q4_K_M** (gemma3:27b-it-qat retired, kept as rollback). Adult persona sharpened; smoke-tested 5/5 (no RLHF boilerplate, vision OK). OLLAMA_KEEP_ALIVE=30m set. C:\IRIS\iris-logs\ receiving Pi4 backups. |
 | Teensy 4.1 (TeensyEyes + mouth TFT) | DEPLOYED S65 — udev symlink /dev/ttyIRIS_EYES active. S65 cosmic sleep animation flashed. **S79 REPO-ONLY** — nordicBlue polarDist fix (_60_0→_69_0), strikingBlue new eye (index 7). Build clean (env:eyes). Pending user PlatformIO upload. |
@@ -37,6 +37,7 @@
 - **MED: Perceived latency** — RESOLVED. OLLAMA_KEEP_ALIVE=30m active on GandalfAI.
 - **LOW: RD-003 — Duplicate sleep log** — /home/pi/iris_sleep.log vs /home/pi/logs/iris_sleep.log.
 - ~~LOW: Workbench /api/rebuild_model credential config pending~~ — RESOLVED S80. .iris_secrets + sshpass deployed+persisted. Rebuild verified end-to-end.
+- **LOW: iris model rebuild needed for pt001_17 goodnight fix to take effect** — `ollama/iris_modelfile.txt` updated REPO-ONLY (S81). Run Rebuild Model in workbench or SSH to GandalfAI: `ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt`. Fixture corrections for pt001_08/09 also pending user confirmation after AI analysis run.
 - **RESOLVED S73: Sleep/webui bridge** — udev rules lost on Pi4 reboot (S63 deploy never persisted to SD). Now persisted. TeensyBridge drop-logging added.
 
 ---

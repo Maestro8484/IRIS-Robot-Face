@@ -405,3 +405,128 @@ html, body {
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+
+/* ── AI Analysis panel ───────────────────────────────────────────────────── */
+.analysis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 12px 0 8px;
+  border-top: 2px solid var(--border);
+  margin-top: 12px;
+}
+
+.analysis-ts {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+}
+
+.eval-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.eval-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.eval-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.eval-id {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 72px;
+  flex-shrink: 0;
+}
+
+.eval-emotion {
+  font-size: 11px;
+  color: var(--accent);
+  margin-left: auto;
+}
+
+.eval-reasoning {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.suggestion-block {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.suggestion-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.suggestion-code {
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.parse-error-warn {
+  color: var(--fail);
+  font-size: 12px;
+  margin: 6px 0;
+}
+
+.raw-response {
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 11px;
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.new-cases-section { margin-top: 12px; }
+
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.btn-sm { padding: 3px 10px; font-size: 11px; }
+
+#analysis-spinner {
+  padding: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}

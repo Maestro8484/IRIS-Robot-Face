@@ -1245,3 +1245,79 @@ git checkout -- pi4/iris_web.py
 ```
 
 ---
+
+## S81 — IRIS Workbench Phase 2: AI-Assisted Harness Analysis Layer (2026-05-30)
+
+**Status:** REPO-ONLY. No Pi4 deploy. GandalfAI model rebuild pending user action.
+
+**Goal:** Add Anthropic API-powered analysis layer to the workbench. Evaluate Phase 1 harness failures for fixture correctness vs. genuine model behavior problems. Fix confirmed modelfile gap (pt001_17 goodnight). Wire Save Selected to Fixture download. Enable Run AI Analysis button.
+
+**Harness baseline (Phase 1 run):** 12/17 PT-001 cases passing (71%).
+Failures: pt001_08, pt001_09, pt001_12, pt001_13 (emotion tag drift — modelfile few-shots exist for all four),
+pt001_17 (goodnight — no few-shot, cheerful assistant response).
+
+**Files modified:**
+
+- **`tools/workbench/workbench.js`** — Added:
+  - `ANTHROPIC_API` constant (https://api.anthropic.com/v1/messages)
+  - `ANTHROPIC_KEY` config constant (user pastes key at line 5 to enable)
+  - `callAnthropicAnalysis(harnessResults, modelfileExcerpt)` — builds analysis prompt,
+    POSTs to Anthropic API (claude-sonnet-4-6, 1500 max_tokens), parses JSON response.
+    On parse failure: renders raw response in scrollable panel, does not crash.
+  - `renderAnalysisPanel(result)` — renders evaluation cards with FIXTURE WRONG / MODEL WRONG
+    verdict badges, correct emotion, reasoning, modelfile suggestions with Copy button.
+    New Edge Cases table with per-row checkboxes.
+  - `saveUpdatedFixture()` — merges checked new cases into state.fixtureCases,
+    triggers browser download as pt001_cases_updated.json. Does NOT overwrite repo fixture.
+  - `copyText(btn, text)` — clipboard helper with "Copied!" feedback.
+  - `runAnalysis()` — button handler with loading spinner, error handling, panel toggle.
+  - Enabled "Run AI Analysis" button (was disabled Phase 1).
+
+- **`tools/workbench/index.html`** — Enabled "Run AI Analysis" button (id=analysis-btn,
+  onclick=runAnalysis). Added analysis-spinner and analysis-panel divs inside results-scroll.
+  Analysis panel hidden until analysis runs.
+
+- **`tools/workbench/workbench.css`** — Added analysis panel styles: eval-card, eval-header,
+  eval-id, eval-emotion, eval-reasoning, suggestion-block, suggestion-code, analysis-header,
+  analysis-ts, new-cases-section, section-title, btn-sm, parse-error-warn, raw-response,
+  analysis-spinner.
+
+- **`ollama/iris_modelfile.txt`** — Added goodnight few-shot to ROUTINE ANSWERS block:
+  `User: goodnight` → `[EMOTION:NEUTRAL] Night.`
+  Rationale: no goodnight example existed; model defaulted to HAPPY cheerful-assistant
+  behavior ("Sweet dreams, see you in the morning") — inconsistent with dry IRIS persona.
+
+**Files created:**
+- `tools/workbench/analysis/phase2_analysis.md` — permanent record of Phase 2 analysis session.
+  Pre-analysis verdicts for all 5 failures; placeholder for AI API results (fill post-browser-run);
+  fixture correction recommendations (pending user confirmation); modelfile diff; observation notes.
+
+**API key configuration:**
+Open `tools/workbench/workbench.js`, set `ANTHROPIC_KEY` on line 5 to your Anthropic API key,
+then reload the workbench. The button activates immediately. No server restart needed.
+
+**Fixture correction recommendations (PENDING USER CONFIRMATION — not applied yet):**
+```
+pt001_08: expected_emotion NEUTRAL -> AMUSED  (FIXTURE_WRONG: model few-shot exists but
+  AMUSED aligns with persona identity-challenge mapping; fixture may be overcorrected)
+pt001_09: expected_emotion NEUTRAL -> AMUSED  (FIXTURE_WRONG: "dumbest thing" = provocation
+  -> persona maps to AMUSED, but modelfile has NEUTRAL few-shot)
+pt001_12: keep NEUTRAL (MODEL_WRONG: CURIOUS tag drift from modelfile NEUTRAL few-shot)
+pt001_13: keep NEUTRAL (MODEL_WRONG: verbatim few-shot response text with wrong emotion tag)
+```
+Apply confirmed corrections to tools/workbench/fixtures/pt001_cases.json after user review
+of AI Analysis panel results.
+
+**GandalfAI rebuild required for modelfile fix to take effect:**
+```
+ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt
+```
+Or use Rebuild Model button in the workbench (iris target).
+
+**Rollback:**
+```bash
+git checkout -- ollama/iris_modelfile.txt tools/workbench/fixtures/pt001_cases.json
+# Then rebuild iris model on GandalfAI if already rebuilt
+```
+
+---

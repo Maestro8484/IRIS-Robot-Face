@@ -95,13 +95,15 @@
           <div id="results-area">
             <div class="empty-state">Run harness to see results</div>
           </div>
+          <div id="analysis-spinner" style="display:none"></div>
+          <div id="analysis-panel"  style="display:none"></div>
         </div>
 
         <div id="summary-bar"></div>
 
         <div id="result-actions">
           <button class="btn primary" onclick="generateHandoff()">Generate Handoff</button>
-          <button class="btn" disabled title="Coming Phase 2">Run AI Analysis</button>
+          <button class="btn" id="analysis-btn" onclick="runAnalysis()">Run AI Analysis</button>
         </div>
 
       </div>

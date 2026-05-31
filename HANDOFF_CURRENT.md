@@ -41,15 +41,31 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**IRIS Workbench Phase 1 — pre-flight before Phase 2:**
-1. Run `.\start_workbench.ps1` from repo root. Browser should open to http://localhost:8080.
-2. Confirm Pi4 status dot goes green (requires Pi4 reachable on LAN).
-3. Confirm GandalfAI status dot (Ollama /api/tags may block from browser due to Ollama CORS — if red, set `OLLAMA_ORIGINS=http://localhost:8080` on GandalfAI and restart Ollama, or run harness via Pi4 proxy path).
-4. Click "Run All" — verify 17 cases run progressively and download fires on completion.
-5. Create `/home/pi/.iris_secrets` on Pi4 and persist to SD (see CHANGELOG S80 for format + persist pattern). Then verify Rebuild Model button connects.
-6. When Phase 1 verified on live LAN: proceed to Phase 2 (AI-assisted harness layer, Anthropic API integration).
+**IRIS Workbench Phase 2 — immediate actions:**
+1. Open `tools/workbench/workbench.js`, set `ANTHROPIC_KEY` on line 5 to your Anthropic API key.
+2. Run `start_workbench.bat`. Open http://localhost:8080.
+3. Click "Run All" to run harness (gets fresh results; Phase 1 log was a browser download).
+4. Click "Run AI Analysis" — wait 15-20s for Claude to evaluate the 5 failures.
+5. Review verdict cards: confirm FIXTURE_WRONG / MODEL_WRONG for pt001_08, 09, 12, 13, 17.
+6. If AI confirms pt001_08 / pt001_09 as FIXTURE_WRONG: report to Claude Code for fixture correction.
+   Claude Code will write confirmed corrections to tools/workbench/fixtures/pt001_cases.json.
+7. Rebuild iris model on GandalfAI to apply pt001_17 goodnight fix:
+   `ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt`
+   Or use Rebuild Model button in the workbench.
+8. Re-run harness and confirm pt001_17 now passes (expected: NEUTRAL "Night.").
+9. Update tools/workbench/analysis/phase2_analysis.md with actual AI analysis verdicts.
 
-**Note:** ROADMAP.md does not currently include the workbench. Add in a separate doc session if you want it tracked there.
+**Fixture corrections pending confirmation (do not apply until AI analysis reviewed):**
+```
+pt001_08: NEUTRAL -> AMUSED (if AI confirms FIXTURE_WRONG)
+pt001_09: NEUTRAL -> AMUSED (if AI confirms FIXTURE_WRONG)
+pt001_12: keep NEUTRAL (MODEL_WRONG — CURIOUS tag drift)
+pt001_13: keep NEUTRAL (MODEL_WRONG — verbatim few-shot content, wrong tag)
+```
+
+**IRIS Workbench Phase 3 — next session (after Phase 2 analysis complete):**
+Latency benchmarker: Tab 2 mechanical layer (Latency Bench), per-case latency tracking,
+compare panel (before/after model rebuild), histogram or sparkline display.
 
 ---
 
