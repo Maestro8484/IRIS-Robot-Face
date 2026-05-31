@@ -20,7 +20,7 @@
 
 | System | Status |
 |---|---|
-| Pi4 192.168.1.200 | Operational. S88 boot loop fixed (GESTURE_SENSOR_REQUIRED False, DEPLOYED+VERIFIED). S87 iris_web.py fix REPO-ONLY. |
+| Pi4 192.168.1.200 | Operational. S88 POST hardened + iris_web.py DEPLOYED+VERIFIED. Boot loop resolved. |
 | GandalfAI 192.168.1.3 | Operational. iris model: ANGRY insult + 20-joke repertoire (S84). |
 | Teensy 4.1 (eyes+mouth) | S65 firmware LIVE. S87 SILLY redesign + animation REPO-ONLY — needs flash. |
 | Teensy 4.0 (servo+gesture) | S69 firmware LIVE. GY-PAJ7620 orientation fix REPO-ONLY (S83). |
@@ -31,15 +31,18 @@
 ## Active Issues
 
 - **MED: SILLY mouth not yet flashed** — S87 redesigned `_draw_silly()` + TONGUE_WAG are REPO-ONLY. Flash env:eyes and physically verify.
-- **MED: Emotion mapping save fix not deployed** — `api_emotion_map` try/except fix + `[EMAP]` debug logging in iris_web.py is REPO-ONLY.
 - **LOW: Teensy 4.0 flash pending** — GY-PAJ7620 GESTURE_MOUNT_DEGREES=0 (S83). Flash env:teensy40.
+- **LOW: iris_config.json WARN** — POST L4 warns on EMOTION_MOUTH_MAP + EMOTION_EYE_MAP keys not in `_OVERRIDABLE`. Add them to config.py to clear.
 - **LOW: RD-003** — Duplicate sleep log paths.
 
 ---
 
 ## Last Session Changes (S88)
 
-- `pi4/core/config.py:54` — `GESTURE_SENSOR_REQUIRED` reverted `True` → `False`. Sensor not yet validated (T40 not flashed). Was causing L0 FAIL boot loop (20/22 PASS, FAIL:1 → systemd restart every ~25s). DEPLOYED+VERIFIED. md5 RAM=SD=`7bb5ad9f725eefd33ac95d6be0af3580`. POST now 20/22 PASS, WARN:2, FAIL:0, startup AUTHORIZED.
+- `pi4/core/config.py:54` — `GESTURE_SENSOR_REQUIRED` reverted `True` → `False`. DEPLOYED+VERIFIED. md5=`7bb5ad9f725eefd33ac95d6be0af3580`.
+- `pi4/iris_post.py` — POST verdict hardened: only `serial /dev/ttyIRIS_EYES` and `mic wm8960 open` FAIL can block startup. Camera → WARN. Gesture → always WARN (PAJ7620 is Teensy-side I2C, Pi4 smbus can never reach it). `GESTURE_SENSOR_REQUIRED` import removed. DEPLOYED+VERIFIED. md5 RAM=SD=`4dc66141988ec2c8090cfaf655484ebf`.
+- `pi4/iris_web.py` — S87 `api_emotion_map` int-cast fix + `[EMAP]` debug logging. DEPLOYED+VERIFIED. md5 RAM=SD=`49e798af34d0efd0469938c68133f67a`.
+- POST result: `20/22 PASS WARN:2 FAIL:0 startup AUTHORIZED`. WARNs: gesture (expected), iris_config.json unknown keys EMOTION_MOUTH_MAP/EMOTION_EYE_MAP (benign).
 
 ## Previous Session Changes (S87)
 

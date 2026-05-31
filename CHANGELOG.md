@@ -1475,3 +1475,27 @@ md5 RAM=SD: config=`413032abf9c19fdfa4fdb0400120e026` bridge=`d8b03d20202c5dadc5
 **Commit:** 62fd2aa
 
 ---
+
+## S88 cont. — POST Hardening + S87 iris_web Deploy
+
+**Date:** 2026-05-31
+
+**Status:** DEPLOYED+VERIFIED
+
+**Changes:**
+
+**Fix 1 — POST verdict no longer blocks on single hardware failure (pi4/iris_post.py):**
+Verdict logic changed: only `serial /dev/ttyIRIS_EYES` and `mic wm8960 open` FAIL results block startup. All other checks (camera, gesture, GandalfAI, services, display) can FAIL without triggering a systemd restart loop. Camera check demoted from FAIL to WARN. Gesture check: PAJ7620U2 is on Teensy 4.0 I2C (pins 18/19), not on Pi4 I2C bus 1 — Pi4 smbus can never reach it. Check is always WARN; health verified via Teensy serial DIAG. GESTURE_SENSOR_REQUIRED import removed from iris_post.py.
+
+**Fix 2 — S87 iris_web.py deployed (pi4/iris_web.py):**
+`api_emotion_map` POST: replaced silent-fail int-comprehension with explicit try/except loop + `[EMAP]` print debug. S87 was REPO-ONLY; now live.
+
+**Deploy:**
+- `pi4/iris_post.py` persisted to SD. md5 RAM=SD=`4dc66141988ec2c8090cfaf655484ebf`
+- `pi4/iris_web.py` persisted to SD. md5 RAM=SD=`49e798af34d0efd0469938c68133f67a`
+
+**POST result:** `20/22 PASS WARN:2 FAIL:0 startup AUTHORIZED`
+
+**Commit:** 4daaedd
+
+---

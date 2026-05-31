@@ -147,7 +147,7 @@ After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.p
 - `IRIS_ARCH.md` — REPO-ONLY TS40-S1 (pin 15 / touch3 removed, LISTEN kept)
 - `docs/servo_teensy40_wiring.md` — REPO-ONLY S72
 - `pi4/hardware/base_mount_bridge.py` — DEPLOYED+VERIFIED S72 (4 new gesture defaults, MUTE action, leds=None fix)
-- `pi4/iris_web.py` — DEPLOYED+VERIFIED S82 (atomic write_cfg: tmp+os.replace+.bak; /api/volume uses write_cfg). md5 RAM=SD `f3c5b56c49d4ccb05586a670b04cf63b`.
+- `pi4/iris_web.py` — DEPLOYED+VERIFIED S88. S87 emotion_map int-cast fix + [EMAP] debug. md5 RAM=SD=`49e798af34d0efd0469938c68133f67a`.
 - `pi4/iris_web.html` — DEPLOYED+VERIFIED S72 (Gestures tab: PAJ7620U2 full, log inversion fix)
 - `CHANGELOG.md` — REPO-ONLY TS40-S1
 - `CLAUDE.md` — REPO-ONLY S69
