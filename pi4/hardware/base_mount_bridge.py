@@ -111,7 +111,7 @@ class BaseMountBridge:
                     print(f"[BASE] Reconnected on {self._port}", flush=True)
                     _err_logged = False
                 line = self._ser.readline().decode("utf-8", errors="ignore").strip()
-                if not line:
+                if not line or line.startswith("DIAG:"):
                     continue
                 gesture_map = _load_gesture_map()
                 action = gesture_map.get(line, "SKIP")

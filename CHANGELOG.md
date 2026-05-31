@@ -1438,3 +1438,22 @@ rm -rf resources/mouth_expressions/
 ```
 
 ---
+
+## S85 — Gesture Sensor Live + DIAG log filter
+
+**Date:** 2026-05-31
+
+**Status:** DEPLOYED+VERIFIED
+
+**Changes:**
+
+**Fix 1 — GESTURE_SENSOR_REQUIRED=True (pi4/core/config.py):**
+GY-PAJ7620 replacement sensor confirmed live (ACK=YES, init=OK, gestures firing). Teensy 4.0 flashed with GESTURE_MOUNT_DEGREES=0. POST now counts gesture sensor in 22/22 check.
+
+**Fix 2 — DIAG lines filtered from gesture event log (pi4/hardware/base_mount_bridge.py):**
+Teensy firmware emits DIAG: diagnostic lines on serial alongside gesture commands. Bridge was logging every DIAG: line as a [GESTURE] event, flooding the webui gesture log. One-line fix: `if not line or line.startswith("DIAG:"): continue`. Only real gesture commands (VOL+, VOL-, STOP, FORWARD, BACKWARD, CW, CCW) now reach the logger.
+
+**Deploy:** `pi4/core/config.py` + `pi4/hardware/base_mount_bridge.py`
+md5 RAM=SD: config=`413032abf9c19fdfa4fdb0400120e026` bridge=`d8b03d20202c5dadc5cd373e24aded4e`
+
+---
