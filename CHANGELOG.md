@@ -1457,3 +1457,21 @@ Teensy firmware emits DIAG: diagnostic lines on serial alongside gesture command
 md5 RAM=SD: config=`413032abf9c19fdfa4fdb0400120e026` bridge=`d8b03d20202c5dadc5cd373e24aded4e`
 
 ---
+
+## S88 — POST Boot Loop Fix
+
+**Date:** 2026-05-31
+
+**Status:** DEPLOYED+VERIFIED
+
+**Root cause:** `GESTURE_SENSOR_REQUIRED=True` was live on Pi4 (set S85 when sensor was confirmed working), but gesture sensor I2C 0x73 is now failing to ACK. Every boot hit `[L0] gesture sensor I2C 0x73 ... FAIL`, POST returned `RESULT: 20/22 PASS FAIL:1`, assistant startup BLOCKED, systemd restarted every ~25s — infinite boot loop. TTS announced "IRIS self test failed, check the web panel" on each cycle.
+
+**Fix:** `pi4/core/config.py:54` — `GESTURE_SENSOR_REQUIRED = True` → `False`. Sensor failure now demotes to WARN, not FAIL. POST result: `20/22 PASS WARN:2 FAIL:0`. Startup AUTHORIZED. Boot loop broken.
+
+**Deploy:** `pi4/core/config.py` persisted to SD. md5 RAM=SD=`7bb5ad9f725eefd33ac95d6be0af3580`.
+
+**Note:** Sensor was confirmed live in S85. Regression cause unknown — likely Teensy 4.0 serial/I2C issue or loose connector. Investigate before re-enabling GESTURE_SENSOR_REQUIRED.
+
+**Commit:** 62fd2aa
+
+---
