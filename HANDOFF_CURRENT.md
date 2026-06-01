@@ -309,7 +309,7 @@ sudo systemctl restart assistant
 
 ## S88 cont. — Stale comment + dead code cleanup (REPO-ONLY, pending deploy)
 
-**Status:** REPO-ONLY — edits committed locally, not yet deployed to Pi4.
+**Status:** DEPLOYED+VERIFIED — 2026-05-31. MD5 RAM=SD confirmed. Service restarted and logs verified.
 
 **Files changed:**
 - `pi4/assistant.py` — call site `return_to_sleep()` replaced with `_do_sleep(teensy, leds)`
