@@ -37,6 +37,7 @@ class BaseMountBridge:
         self._port = getattr(config, "BASE_MOUNT_PORT", "/dev/ttyIRIS_SERVO")
         self._baud = getattr(config, "BASE_MOUNT_BAUD", 115200)
         self._ser = None
+        self._leds = leds
 
     def start(self):
         import serial as _serial
@@ -100,6 +101,12 @@ class BaseMountBridge:
             pass
         else:
             print(f"[BASE] unknown action: {action!r}", flush=True)
+            return
+        if self._leds is not None:
+            try:
+                self._leds.show_gesture(action)
+            except Exception as e:
+                print(f"[BASE] LED error: {e}", flush=True)
 
     def _read_loop(self):
         _err_logged = False

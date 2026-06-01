@@ -492,7 +492,7 @@
         },
         "rotation_table": {
           "_note": "GESTURE_MOUNT_DEGREES define in firmware maps physical gestures to raw register bits. Change to 0/90/180/270 — compile error for any other value.",
-          "_current": "GESTURE_MOUNT_DEGREES 0  (GY-PAJ7620 replacement board — mounted right side up, standard orientation)",
+          "_current": "GESTURE_MOUNT_DEGREES 180  (GY-PAJ7620 — JST connector on left, 180° rotation from default)",
           "0":   { "phys_UP": "0x08", "phys_DOWN": "0x04", "phys_LEFT": "0x01", "phys_RIGHT": "0x02" },
           "90":  { "phys_UP": "0x02", "phys_DOWN": "0x01", "phys_LEFT": "0x08", "phys_RIGHT": "0x04" },
           "180": { "phys_UP": "0x04", "phys_DOWN": "0x08", "phys_LEFT": "0x02", "phys_RIGHT": "0x01" },

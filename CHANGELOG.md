@@ -1581,6 +1581,37 @@ git checkout -- pi4/iris_web.html pi4/iris_web.js src/config.h
 
 ---
 
+## S93 — PAJ7620U2 Mount Orientation 0° → 180°
+
+**Date:** 2026-06-01
+**Status:** FLASHED
+
+**Reason:** GY-PAJ7620 board physically remounted with JST connector on left side (was right). 180° rotation requires swapping all four directional axes: Left↔Right and Up↔Down.
+
+**Changes:**
+
+- **`servo_teensy40/teensy40_base_mount/paj7620.h`** — `GESTURE_MOUNT_DEGREES 0` → `180`. Selects the existing 180° rotation table in `paj7620.cpp` at compile time; no logic changes.
+- **`SNAPSHOT_LATEST.md`** — T40 row updated: GESTURE_MOUNT_DEGREES=180, JST left.
+- **`docs/sysmap.json`** — `_current` field updated: GESTURE_MOUNT_DEGREES 180, JST connector on left.
+
+**Verify after flash:**
+1. Serial monitor: `stty -F /dev/ttyIRIS_SERVO 115200 raw && cat /dev/ttyIRIS_SERVO` (or `sudo apt-get install -y screen && screen /dev/ttyIRIS_SERVO 115200`)
+2. Swipe LEFT → `STOP`. Swipe RIGHT → `STOP`. Swipe UP → `VOL+`. Swipe DOWN → `VOL-`.
+3. Push toward sensor (FORWARD) → `FORWARD` (mapped to LISTEN).
+
+**Gesture remapping recommended (next session — iris_config.json, no flash):**
+- RIGHT → WAKE (currently duplicate of LEFT=STOP — wasted slot)
+- CW → MUTE (currently duplicate of UP=VOL+)
+- CCW → SKIP (currently duplicate of DOWN=VOL-)
+
+**Rollback:**
+```bash
+# Change GESTURE_MOUNT_DEGREES back to 0 in paj7620.h, then reflash
+git checkout -- servo_teensy40/teensy40_base_mount/paj7620.h
+```
+
+---
+
 ## S91 — Person Sensor Timing Fix (Teensy 4.1 Eye Tracking)
 
 **Date:** 2026-06-01
@@ -1609,6 +1640,35 @@ git checkout -- pi4/iris_web.html pi4/iris_web.js src/config.h
 ```bash
 git checkout -- src/main.cpp pi4/core/config.py
 # Then pio run -e eyes and upload previous firmware
+```
+
+---
+
+## S94 — Gesture Remap + APA102 LED Gesture Feedback
+
+**Date:** 2026-06-01
+**Status:** Partial — Pi4 DEPLOYED+VERIFIED. T40 firmware REPO-ONLY (flash pending).
+
+**Goal:** Make all 8 PAJ7620U2 gestures distinct and semantically meaningful. Add APA102 LED flash feedback for every gesture command.
+
+**Changes:**
+
+- **`servo_teensy40/teensy40_base_mount/paj7620.cpp`** — RIGHT gesture now emits `"RIGHT"` instead of `"STOP"`. Previously both LEFT and RIGHT emitted `"STOP"`, making RIGHT indistinguishable at the Pi4 level and permanently wasted. REPO-ONLY — requires T40 flash (env:teensy40).
+- **`servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino`** — Header comment updated: commands list and gesture-command table reflect `RIGHT → RIGHT`.
+- **`pi4/hardware/led.py`** — Added `show_gesture(action: str)` to APA102. Transient non-blocking flash per action (~240–350ms), restores `show_idle()` after (except SLEEP). Patterns: VOL+ = green L→R chase; VOL- = red R→L chase; STOP = white flash; LISTEN/WAKE = blue/cyan double-pulse; MUTE = magenta triple-flash; SLEEP = amber fade-down; SKIP = yellow flash. DEPLOYED md5=`91360ee95d0d23d7c6307e07397ddc00` RAM=SD.
+- **`pi4/hardware/base_mount_bridge.py`** — `__init__` stores `leds` as `self._leds`. `_dispatch()` calls `self._leds.show_gesture(action)` after every recognized action. DEPLOYED md5=`999544f7a4bad17c5dc86bdb848b8de3` RAM=SD.
+- **`/home/pi/iris_config.json`** — `GESTURE_MAP` added: VOL+→VOL+, VOL-→VOL-, STOP→STOP, RIGHT→WAKE, FORWARD→LISTEN, BACKWARD→SLEEP, CW→MUTE, CCW→SKIP. md5=`755336185f765814496eb3fe5511c7ab` RAM=SD.
+
+**Remaining steps:**
+1. User flashes T40 (`Flash T40 Servo.bat`)
+2. Live serial verify all 8 gestures
+3. `GESTURE_SENSOR_REQUIRED=True` in `pi4/core/config.py`, deploy, confirm POST 22/22
+
+**Rollback:**
+```bash
+git checkout -- servo_teensy40/teensy40_base_mount/paj7620.cpp
+git checkout -- pi4/hardware/led.py pi4/hardware/base_mount_bridge.py
+# Remove GESTURE_MAP key from iris_config.json on Pi4 (reverts to _DEFAULT_GESTURE_MAP)
 ```
 
 ---

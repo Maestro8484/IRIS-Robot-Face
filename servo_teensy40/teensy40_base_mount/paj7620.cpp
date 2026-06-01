@@ -158,7 +158,7 @@ void pollGesture() {
   if      (gest & GEST_UP)    Serial.println("VOL+");
   else if (gest & GEST_DOWN)  Serial.println("VOL-");
   else if (gest & GEST_LEFT)  Serial.println("STOP");
-  else if (gest & GEST_RIGHT) Serial.println("STOP");
+  else if (gest & GEST_RIGHT) Serial.println("RIGHT");
   else if (gest & 0x10)       Serial.println("FORWARD");
   else if (gest & 0x20)       Serial.println("BACKWARD");
   else if (gest & 0x40)       Serial.println("CW");

@@ -153,6 +153,54 @@ class APA102:
     def show_ptt(self):
         self.stop_anim(); self.set_all(8, 6, 0)
 
+    # ── Gesture feedback ─────────────────────────────────────────────────────
+
+    def show_gesture(self, action: str):
+        """Transient gesture feedback. Non-blocking. ~300ms then restores idle (except SLEEP)."""
+        _C = {
+            "VOL+":   (0, 12, 0),    # green
+            "VOL-":   (12, 0, 0),    # red
+            "STOP":   (12, 12, 12),  # white
+            "LISTEN": (0, 0, 12),    # blue
+            "WAKE":   (0, 12, 12),   # cyan
+            "SLEEP":  (10, 5, 0),    # amber
+            "MUTE":   (10, 0, 10),   # magenta
+            "SKIP":   (12, 10, 0),   # yellow
+        }
+        r, g, b = _C.get(action, (8, 8, 8))
+
+        def anim(action=action, r=r, g=g, b=b):
+            if action in ("VOL+", "VOL-"):
+                seq = range(self.n) if action == "VOL+" else range(self.n - 1, -1, -1)
+                for i in seq:
+                    if self._stop_anim.is_set(): return
+                    px = [(0, 0, 0)] * self.n; px[i] = (r, g, b)
+                    self._write(px); time.sleep(0.08)
+                self._write([(0, 0, 0)] * self.n)
+            elif action in ("LISTEN", "WAKE"):
+                for _ in range(2):
+                    if self._stop_anim.is_set(): return
+                    self._write([(r, g, b)] * self.n); time.sleep(0.12)
+                    self._write([(0, 0, 0)] * self.n);  time.sleep(0.08)
+            elif action == "MUTE":
+                for _ in range(3):
+                    if self._stop_anim.is_set(): return
+                    self._write([(r, g, b)] * self.n); time.sleep(0.10)
+                    self._write([(0, 0, 0)] * self.n);  time.sleep(0.07)
+            elif action == "SLEEP":
+                for v in range(10, -1, -1):
+                    if self._stop_anim.is_set(): return
+                    self._write([(r * v // 10, g * v // 10, b * v // 10)] * self.n)
+                    time.sleep(0.04)
+            else:  # STOP, SKIP, fallback: single flash
+                self._write([(r, g, b)] * self.n); time.sleep(0.25)
+                self._write([(0, 0, 0)] * self.n)
+            # restore idle after gesture (SLEEP lets the system handle its own transition)
+            if not self._stop_anim.is_set() and action != "SLEEP":
+                threading.Thread(target=self.show_idle, daemon=True).start()
+
+        self._run_anim(anim)
+
     # ── Emotion-linked LED breathing ──────────────────────────────────────────
 
     _EMOTION_LED = {

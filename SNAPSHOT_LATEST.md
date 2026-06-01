@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S92 | **Date:** 2026-06-01 | **Branch:** `main` | **Last commit:** ecc52d0
+**Session:** S94 | **Date:** 2026-06-01 | **Branch:** `main` | **Last commit:** pending
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -8,10 +8,10 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **Verify T41 eye tracking** — check `journalctl -u assistant | grep -E 'VER|Person|FACE'` for `[DBG] Person Sensor detected` and `FACE:1` events. Confirm face tracking active.
-2. **Verify T40 gesture sensor** — open serial monitor on T40 and confirm `PAJ7620U2 0x73 ACK=YES` + `init=OK` at boot. Test UP/DOWN/LEFT/RIGHT swipes.
-3. **Set GESTURE_SENSOR_REQUIRED=True** — after T40 gesture verified. Deploy `pi4/core/config.py` to Pi4.
-4. **Deploy Pi4 web files** — `pi4/iris_web.html` + `pi4/iris_web.js` (EYE:6 fix) + `pi4/core/config.py` (DEFAULT_EYE_IDX range). Standard persist-to-SD procedure.
+1. **Flash T40 + verify gestures** — run `.\scripts\Flash T40 Servo.bat`, then live serial verify all 8 gestures including RIGHT→"RIGHT". See HANDOFF for exact expected output.
+2. **Set GESTURE_SENSOR_REQUIRED=True + deploy config.py** — after T40 flash+verify. Bundle with DEFAULT_EYE_IDX (0,6) fix. Confirm POST 22/22.
+3. **Deploy Pi4 web files** — `pi4/iris_web.html` + `pi4/iris_web.js` (EYE:6 fix). REPO-ONLY.
+4. **Verify T41 eye tracking** — check `journalctl -u assistant | grep -E 'Person|FACE'` for `[DBG] Person Sensor detected` and `FACE:1` events.
 5. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
 
 ---
@@ -23,15 +23,15 @@
 | Pi4 192.168.1.200 | Operational. S87+S87c+S87d deployed (emotion_map fix, IDLE buttons, firmware version POST check). iris_web.html md5=c5aad687, iris_post.py md5=18748f34. |
 | GandalfAI 192.168.1.3 | Operational. iris model: ANGRY insult + 20-joke repertoire (S84). |
 | Teensy 4.1 (eyes+mouth) | FLASHED S92 — S87+S89+S91+S87d (SILLY, TONGUE_WAG, Person Sensor fix, versioning, bigBlue removed). Connected to Pi4. Verify Person Sensor + face tracking. |
-| Teensy 4.0 (servo+gesture) | FLASHED S92 — S70+S72+S75+TS40-S1+TS40-S2+S83 (ServoEasing, all 8 gestures, pan smoothing, modular split, GESTURE_MOUNT_DEGREES=0). Verify PAJ7620 ACK + gestures. |
+| Teensy 4.0 (servo+gesture) | FLASHED S92+S93. S94 REPO-ONLY pending flash — paj7620.cpp RIGHT→"RIGHT". GESTURE_MAP deployed to Pi4 (RIGHT→WAKE, CW→MUTE, CCW→SKIP, others unchanged). LED gesture feedback wired (led.py show_gesture, base_mount_bridge leds). |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
 
 ---
 
 ## Active Issues
 
-- **MED: iris_web.html + iris_web.js + config.py Pi4 deploy pending** — EYE:6 fix (3 locations) + DEFAULT_EYE_IDX range. REPO-ONLY. Deploy to Pi4.
-- **LOW: T40 gesture verification pending** — flash confirmed; verify PAJ7620 ACK + gestures before setting GESTURE_SENSOR_REQUIRED=True.
+- **MED: T40 flash pending** — S94 paj7620.cpp change (RIGHT→"RIGHT") REPO-ONLY. Flash T40, then verify all 8 gestures live. After verify: deploy GESTURE_SENSOR_REQUIRED=True.
+- **MED: iris_web.html + iris_web.js + config.py Pi4 deploy pending** — EYE:6 fix (3 locations) + DEFAULT_EYE_IDX range + GESTURE_SENSOR_REQUIRED=True. Bundle deploy after T40 verify.
 - **LOW: RD-003** — Duplicate sleep log paths.
 
 ---
