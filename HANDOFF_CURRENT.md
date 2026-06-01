@@ -41,11 +41,18 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**S85 DEPLOYED+VERIFIED (2026-05-31):**
+**S90 DEPLOYED+VERIFIED (2026-05-31):**
+- `pi4/iris_web.py` — Modularized. log_parser import, CSS/JS routes. md5 RAM=SD=`2e66e9920983e2b5328e304fdc56b738`
+- `pi4/iris_web.html` — Trimmed (no inline CSS/JS). md5 RAM=SD=`bcfde07a6d1695fee74e880327fff628`
+- `pi4/iris_web.css` — NEW. Extracted CSS. md5 RAM=SD=`be0509cb3e47464f12ee8afa0f25d2d4`
+- `pi4/iris_web.js` — NEW. Extracted JS. md5 RAM=SD=`3602026caaf32e0989b4d540d197a120`
+- `pi4/log_parser.py` — NEW. Extracted log parser. md5 RAM=SD=`252007ea3b48e1fde1c9edecb460d2a6`
+
+**S89 DEPLOYED+VERIFIED (2026-05-31):**
 - `pi4/core/config.py` — DEPLOYED+VERIFIED S88. GESTURE_SENSOR_REQUIRED=False (boot loop fix). md5 RAM=SD=`7bb5ad9f725eefd33ac95d6be0af3580`
 - `pi4/assistant.py` — DEPLOYED. md5 RAM=SD=`19c852a908780c4bb1fe629f304b110e`
-- `pi4/iris_web.py` — DEPLOYED. md5 RAM=SD=`482461328553905a5f52b9f567fb2574`. iris-web.service restarted 2026-05-31 (had not been restarted during original S85 deploy; /api/emotion_map now live).
-- `pi4/iris_web.html` — DEPLOYED. md5 RAM=SD=`b16e911afa0a524aac6aa0dcfffcceec`
+- `pi4/iris_web.py` — (superseded by S90 above)
+- `pi4/iris_web.html` — (superseded by S90 above)
 - `iris_config.json` — Restored to valid JSON. iris_config.json had been zeroed to 0 bytes (WinSCP direct edit accident); restored to default emotion map content. RAM=SD md5=`eda5cd406e441009677b0c460cdae8d9`.
 - `src/mouth_tft.cpp` — REPO-ONLY. SILLY mouth index 9 — **requires user PlatformIO flash env:eyes**
 - `src/mouth_tft.h` — REPO-ONLY.

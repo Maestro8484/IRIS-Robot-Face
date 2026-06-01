@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S89 | **Date:** 2026-05-31 | **Branch:** `main` | **Last commit:** pending
+**Session:** S90 | **Date:** 2026-05-31 | **Branch:** `main` | **Last commit:** 0fd774f
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -20,7 +20,7 @@
 
 | System | Status |
 |---|---|
-| Pi4 192.168.1.200 | Operational. S89 TTS fix + eye fix + event log DEPLOYED+VERIFIED. |
+| Pi4 192.168.1.200 | Operational. S90 webserver modularized: iris_web split to .html/.css/.js + log_parser.py. DEPLOYED+VERIFIED. |
 | GandalfAI 192.168.1.3 | Operational. iris model: ANGRY insult + 20-joke repertoire (S84). |
 | Teensy 4.1 (eyes+mouth) | S65 firmware LIVE. S87+S89 (SILLY + bigBlue removal) REPO-ONLY — needs flash. |
 | Teensy 4.0 (servo+gesture) | S69 firmware LIVE. GY-PAJ7620 orientation fix REPO-ONLY (S83). Gesture sensor not working until T40 flashed. |
@@ -37,7 +37,15 @@
 
 ---
 
-## Last Session Changes (S89)
+## Last Session Changes (S90)
+
+- `pi4/iris_web.py` — Modularized: log parsing block extracted to `log_parser.py`, dead `TEENSY_PORT`/`TEENSY_BAUD` constants removed, `CSS_FILE`/`JS_FILE` paths + `/iris_web.css` and `/iris_web.js` routes added. DEPLOYED+VERIFIED. md5 RAM=SD=`2e66e9920983e2b5328e304fdc56b738`.
+- `pi4/iris_web.html` — Inline CSS/JS removed; replaced with `<link href="/iris_web.css">` and `<script src="/iris_web.js">`. DEPLOYED+VERIFIED. md5 RAM=SD=`bcfde07a6d1695fee74e880327fff628`.
+- `pi4/iris_web.css` — New file: extracted CSS from iris_web.html. DEPLOYED+VERIFIED. md5 RAM=SD=`be0509cb3e47464f12ee8afa0f25d2d4`.
+- `pi4/iris_web.js` — New file: extracted JavaScript from iris_web.html (both script blocks combined). DEPLOYED+VERIFIED. md5 RAM=SD=`3602026caaf32e0989b4d540d197a120`.
+- `pi4/log_parser.py` — New file: journal + SD log parsing extracted from iris_web.py. DEPLOYED+VERIFIED. md5 RAM=SD=`252007ea3b48e1fde1c9edecb460d2a6`.
+
+## Previous Session Changes (S89)
 
 - `pi4/core/config.py` — `LOUD_STOP_THRESHOLD=25000` (was 9000, below speaker bleed 9k-18k RMS). `DEFAULT_EYE_IDX=0` added. Both in `_OVERRIDABLE`. DEPLOYED+VERIFIED. md5=`d9f05e676ee9002c624a263d1d26d0cb`.
 - `pi4/hardware/audio_io.py` — `LOUD_STOP_THRESHOLD` imported from config. DEPLOYED+VERIFIED. md5=`55c9951011f012e8145cfbf26475a1f7`.
