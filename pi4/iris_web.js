@@ -523,7 +523,7 @@ async function sendVision(prompt) {
 // ── Emotion Display Mapping ────────────────────────────────────────────────────
 const _EMOTION_NAMES = ['NEUTRAL','HAPPY','CURIOUS','ANGRY','SLEEPY','SURPRISED','SAD','CONFUSED','AMUSED'];
 const _EYE_OPT = [[-1,'Default (auto)'],[0,'0 - Nordic Blue'],[1,'1 - Flame'],[2,'2 - Hypno Red'],
-  [3,'3 - Hazel'],[4,'4 - Blue Flame 1'],[5,'5 - Dragon'],[7,'7 - Striking Blue']];
+  [3,'3 - Hazel'],[4,'4 - Blue Flame 1'],[5,'5 - Dragon'],[6,'6 - Striking Blue']];
 const _MOUTH_OPT = [[0,'0 - Neutral'],[1,'1 - Happy'],[2,'2 - Curious'],[3,'3 - Angry'],
   [4,'4 - Sleepy'],[5,'5 - Surprised'],[6,'6 - Sad'],[7,'7 - Confused'],
   [8,'8 - Sleep'],[9,'9 - Silly (tongue)']];

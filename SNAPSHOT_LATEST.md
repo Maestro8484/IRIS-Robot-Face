@@ -32,8 +32,7 @@
 ## Active Issues
 
 - **HIGH: Teensy 4.1 USB not connected to Pi4** — cable on SuperMaster post-flash. Reconnect + verify `[VER]` in journal before IRIS is operational.
-- **MED: iris_web.html EYE:7 broken** — Striking Blue moved to index 6 in S89 firmware, WebUI still sends EYE:7. Update + deploy.
-- **LOW: FIRMWARE_VERSION mismatch** — tag says `"S87b"` but binary includes S89+S91. Update `src/config.h` to `"S91"` and reflash (or accept at next flash cycle).
+- **MED: iris_web.html + iris_web.js EYE:7 fix needs Pi4 deploy** — Striking Blue index corrected to 6 in all three places (eye grid button, default-eye-sel option, `_EYE_OPT` array). REPO-ONLY. Deploy iris_web.html + iris_web.js to Pi4.
 - **LOW: Gesture sensor** — T40 not flashed. Gestures won't fire until T40 flashed.
 - **LOW: RD-003** — Duplicate sleep log paths.
 
@@ -49,9 +48,15 @@
 - `pi4/iris_post.py` — `l2_firmware_version()` added: greps journal for `[VER] IRIS-EYES`, reports PASS with version string or WARN if unversioned. DEPLOYED md5=18748f34 RAM=SD.
 - `CLAUDE.md` — Hard rule added: update `FIRMWARE_VERSION` in `src/config.h` before every flash; verify `journalctl | grep VER` after.
 
+## S91/S92 post-flash fixes (same session)
+
+- `pi4/iris_web.html` — Striking Blue eye grid button: `EYE:7` → `EYE:6`. Default-eye selector option: `value="7"` → `value="6"`. REPO-ONLY (deploy to Pi4).
+- `pi4/iris_web.js` — `_EYE_OPT` array: `[7,'7 - Striking Blue']` → `[6,'6 - Striking Blue']`. REPO-ONLY (deploy to Pi4).
+- `src/config.h` — `FIRMWARE_VERSION` updated `"S87b"` → `"S91"` (takes effect at next flash). REPO-ONLY.
+
 ## Previous Session Changes (S91)
 
-- `src/main.cpp` — Person Sensor timing fix: `while (millis() < 1500)` before I2C probe, 5-attempt retry loop. Root cause: Pi4 holds port open → Serial wait skipped → sensor not ready. FLASHED this session.
+- `src/main.cpp` — Person Sensor timing fix: `while (millis() < 1500)` before I2C probe, 5-attempt retry loop. Root cause: Pi4 holds port open → Serial wait skipped → sensor not ready. FLASHED.
 - `pi4/core/config.py` — `DEFAULT_EYE_IDX` range `(0,7)` → `(0,6)`. REPO-ONLY (pending deploy).
 
 ---

@@ -41,12 +41,17 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**S91 REPO-ONLY (2026-06-01):**
-- `src/main.cpp` — Person Sensor timing fix. Pi4 skips Serial wait → sensor gets ~500ms instead of 2200ms → not found. Fix: `while (millis() < 1500)` + retry loop before `Wire.begin()`. REPO-ONLY — requires PlatformIO flash `env:eyes`. After flash: verify `[DBG] Person Sensor detected` + eye tracking works.
-- `pi4/core/config.py` — `DEFAULT_EYE_IDX` range `(0, 7)` → `(0, 6)`. REPO-ONLY — deploy with next Pi4 batch.
+**S91/S92 REPO-ONLY — Pi4 deploy batch needed:**
+- `pi4/iris_web.html` — Striking Blue button fixed: `EYE:7` → `EYE:6` (grid button + default-eye-sel option). Deploy to Pi4.
+- `pi4/iris_web.js` — `_EYE_OPT` Striking Blue: `[7,...]` → `[6,...]`. Deploy to Pi4.
+- `pi4/core/config.py` — `DEFAULT_EYE_IDX` range `(0,7)` → `(0,6)`. Deploy to Pi4.
+- `src/config.h` — `FIRMWARE_VERSION` `"S87b"` → `"S91"`. Takes effect at NEXT T41 flash only.
 
-**Post T41 flash action required (S89+S91 changes go live):**
-- Update `pi4/iris_web.html` Striking Blue button: `onclick="sendTeensy('EYE:7')"` → `'EYE:6'` and label "7 - Striking Blue" → "6 - Striking Blue". Deploy to Pi4.
+**T41 now FLASHED (S87+S89+S91+S87d). USB still on SuperMaster — reconnect to Pi4, then verify:**
+```
+journalctl -u assistant | grep VER   → expect [VER] IRIS-EYES firmware=S87b built=Jun  1 2026
+```
+Person Sensor tracking should now work. Confirm `[DBG] Person Sensor detected` in logs.
 
 **S90 DEPLOYED+VERIFIED (2026-05-31):**
 - `pi4/iris_web.py` — Modularized. log_parser import, CSS/JS routes. md5 RAM=SD=`2e66e9920983e2b5328e304fdc56b738`
