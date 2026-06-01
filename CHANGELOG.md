@@ -1554,6 +1554,33 @@ Verdict logic changed: only `serial /dev/ttyIRIS_EYES` and `mic wm8960 open` FAI
 
 ---
 
+## S92 — LAN Flash Scripts + EYE Index Fix + SSH Keys
+
+**Date:** 2026-06-01
+**Status:** REPO-ONLY (scripts local; iris_web.html/js + config.py pending Pi4 deploy)
+
+**Changes:**
+
+- **`scripts/flash_t41.ps1`** — Build and flash Teensy 4.1 over LAN via Pi4 SSH. Runs `pio run -e eyes`, copies hex to Pi4, stops assistant, triggers T41 bootloader via `-s` (1200-baud USB soft reset, no button press), uploads with `sudo teensy_loader_cli --mcu=TEENSY41`, restarts assistant. `-SkipBuild` flag skips pio step.
+- **`scripts/flash_t40.ps1`** — Same for Teensy 4.0 (`--mcu=TEENSY40`). MCU flag prevents cross-flash even if both boards are connected.
+- **`scripts/setup_ssh_keys.ps1`** — One-time SSH key setup SuperMaster → Pi4. Generates ECDSA key, installs `authorized_keys` on Pi4, persists to SD so it survives reboot. After this runs, both flash scripts need zero password prompts.
+- **`pi4/iris_web.html`** — Striking Blue eye button: `EYE:7` → `EYE:6`. Default-eye selector option: `value="7"` → `value="6"`. Matches post-S89 firmware (bigBlue removed, strikingBlue at index 6).
+- **`pi4/iris_web.js`** — `_EYE_OPT` array: `[7,'7 - Striking Blue']` → `[6,'6 - Striking Blue']`. Fixes emotion eye-map dropdowns.
+- **`src/config.h`** — `FIRMWARE_VERSION` updated `"S87b"` → `"S91"` for next flash.
+
+**Fixes during development:**
+- Em dash encoding in .ps1 strings → replaced with `--`.
+- `ssh-keygen -N ""` not accepted on all Windows builds → removed flag, user presses Enter x3.
+- `teensy_loader_cli` USB permission denied over SSH → `uaccess` udev tag only applies to console sessions; fixed with `sudo teensy_loader_cli`.
+
+**Rollback:**
+```bash
+git checkout -- scripts/flash_t41.ps1 scripts/flash_t40.ps1 scripts/setup_ssh_keys.ps1
+git checkout -- pi4/iris_web.html pi4/iris_web.js src/config.h
+```
+
+---
+
 ## S91 — Person Sensor Timing Fix (Teensy 4.1 Eye Tracking)
 
 **Date:** 2026-06-01
