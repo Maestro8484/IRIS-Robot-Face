@@ -238,7 +238,7 @@ _OVERRIDABLE = {
 # Range is (min_inclusive, max_inclusive). None = no range check (bool only).
 _TYPE_COERCE = {
     "LOUD_STOP_THRESHOLD":     (int,   (5000, 50000)),
-    "DEFAULT_EYE_IDX":         (int,   (0, 7)),
+    "DEFAULT_EYE_IDX":         (int,   (0, 6)),
     "RECORD_SECONDS":          (int,   (1, 60)),
     "SILENCE_SECS":            (float, (0.1, 10.0)),
     "SILENCE_RMS":             (int,   (50, 5000)),

@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S90 | **Date:** 2026-05-31 | **Branch:** `main` | **Last commit:** 0fd774f
+**Session:** S91 | **Date:** 2026-06-01 | **Branch:** `main` | **Last commit:** (S91 pending commit)
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -8,11 +8,10 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **Flash Teensy 4.1 (env:eyes)** — S87+S89 firmware ready (bigBlue removed, SILLY redesign). `pio run -e eyes` builds clean. Upload via PlatformIO. After flash: verify `MOUTH:9` shows open mouth + tongue, EYE:6 now shows Striking Blue (not bigBlue), web UI eye buttons updated.
-2. **Is Person Sensor on Teensy 4.1?** — T41 serial shows `[DBG] No Person Sensor found`. If PS is ONLY on T40 now, set `USE_PERSON_SENSOR{false}` in `src/config.h` to stop failed init. Clarify with user.
-3. **Flash Teensy 4.0 (env:teensy40)** — GY-PAJ7620 orientation (GESTURE_MOUNT_DEGREES=0). Verify `PAJ7620U2 0x73 ACK=YES` + `init=OK` + gestures fire.
-4. **Set GESTURE_SENSOR_REQUIRED=True** — After T40 flash verified, deploy to Pi4, confirm POST 22/22.
-5. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
+1. **Flash Teensy 4.1 (env:eyes)** — S87+S89+S91 firmware ready (bigBlue removed, SILLY redesign, Person Sensor timing fix). `pio run -e eyes` builds clean. Upload via PlatformIO. After flash: verify `[DBG] Person Sensor detected`, eye tracking works, `MOUTH:9` shows open mouth + tongue, `EYE:6` now shows Striking Blue. Then update iris_web.html Striking Blue button from EYE:7 → EYE:6 and deploy to Pi4.
+2. **Flash Teensy 4.0 (env:teensy40)** — GY-PAJ7620 orientation (GESTURE_MOUNT_DEGREES=0). Verify `PAJ7620U2 0x73 ACK=YES` + `init=OK` + gestures fire.
+3. **Set GESTURE_SENSOR_REQUIRED=True** — After T40 flash verified, deploy to Pi4, confirm POST 22/22.
+4. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
 
 ---
 
@@ -22,7 +21,7 @@
 |---|---|
 | Pi4 192.168.1.200 | Operational. S90 webserver modularized: iris_web split to .html/.css/.js + log_parser.py. DEPLOYED+VERIFIED. |
 | GandalfAI 192.168.1.3 | Operational. iris model: ANGRY insult + 20-joke repertoire (S84). |
-| Teensy 4.1 (eyes+mouth) | S65 firmware LIVE. S87+S89 (SILLY + bigBlue removal) REPO-ONLY — needs flash. |
+| Teensy 4.1 (eyes+mouth) | S65 firmware LIVE. S87+S89+S91 (SILLY + bigBlue removal + Person Sensor timing fix) REPO-ONLY — needs flash. |
 | Teensy 4.0 (servo+gesture) | S69 firmware LIVE. GY-PAJ7620 orientation fix REPO-ONLY (S83). Gesture sensor not working until T40 flashed. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). LOUD_STOP_THRESHOLD raised to 25000 — TTS cutoff fixed. |
 
@@ -30,14 +29,21 @@
 
 ## Active Issues
 
-- **MED: Teensy 4.1 flash needed** — S87+S89 firmware (SILLY mouth, bigBlue removed, strikingBlue→index 6) REPO-ONLY. Flash env:eyes.
-- **MED: Person Sensor on T41?** — T41 serial shows `[DBG] No Person Sensor found`. If PS is T40-only, set `USE_PERSON_SENSOR{false}` in config.h.
+- **MED: Teensy 4.1 flash needed** — S87+S89+S91 firmware (SILLY mouth, bigBlue removed, strikingBlue→index 6, Person Sensor timing fix) REPO-ONLY. Flash env:eyes. After flash: update iris_web.html Striking Blue button EYE:7 → EYE:6 and deploy.
 - **LOW: Gesture sensor** — T40 not flashed (GESTURE_MOUNT_DEGREES=0 REPO-ONLY). Gestures won't fire until T40 flashed.
 - **LOW: RD-003** — Duplicate sleep log paths.
 
+**Resolved this session:**
+- Person Sensor on T41: YES, confirmed present. Was failing to init on Pi4 due to timing bug (Serial wait skipped when Pi4 holds port open). Fixed with minimum 1500ms boot guarantee + retry loop in `src/main.cpp`.
+
 ---
 
-## Last Session Changes (S90)
+## Last Session Changes (S91)
+
+- `src/main.cpp` — Person Sensor timing fix. `while (millis() < 1500)` added before I2C probe in `setup()`. 5-attempt retry loop on `isPresent()`. Root cause: Pi4 holds port open → Serial wait skipped → sensor not ready at probe time (~500ms). PC works because no terminal → 2000ms wait runs in full. REPO-ONLY.
+- `pi4/core/config.py` — `DEFAULT_EYE_IDX` range `(0, 7)` → `(0, 6)` (aligns with post-S89 eye count: bigBlue removed). Local change from S89 committed here. REPO-ONLY (deploy with next Pi4 batch post-flash).
+
+## Previous Session Changes (S90)
 
 - `pi4/iris_web.py` — Modularized: log parsing block extracted to `log_parser.py`, dead `TEENSY_PORT`/`TEENSY_BAUD` constants removed, `CSS_FILE`/`JS_FILE` paths + `/iris_web.css` and `/iris_web.js` routes added. DEPLOYED+VERIFIED. md5 RAM=SD=`2e66e9920983e2b5328e304fdc56b738`.
 - `pi4/iris_web.html` — Inline CSS/JS removed; replaced with `<link href="/iris_web.css">` and `<script src="/iris_web.js">`. DEPLOYED+VERIFIED. md5 RAM=SD=`bcfde07a6d1695fee74e880327fff628`.

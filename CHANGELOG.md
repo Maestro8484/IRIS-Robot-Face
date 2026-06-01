@@ -1553,3 +1553,35 @@ Verdict logic changed: only `serial /dev/ttyIRIS_EYES` and `mic wm8960 open` FAI
 - Verified in logs: `[INFO] TTS : Kokoro @ 192.168.1.3:8004`, `[INFO] Base mount : /dev/ttyIRIS_SERVO (enabled=True)`, `[INFO] Ready.` — no NameError.
 
 ---
+
+## S91 — Person Sensor Timing Fix (Teensy 4.1 Eye Tracking)
+
+**Date:** 2026-06-01
+**Status:** REPO-ONLY — requires user PlatformIO flash (`env:eyes`)
+
+**Root cause:** Person Sensor (Useful Sensors PS-001, I2C 0x62) on Teensy 4.1 not detected when connected to Pi4 USB, despite working correctly on PC USB. `setup()` in `src/main.cpp` calls `while (!Serial && millis() < 2000)` before the I2C probe. When Pi4 has `teensy_bridge.py` holding the port open, `Serial` is immediately true — the 2000ms wait is skipped entirely. The Person Sensor only gets ~500ms from power-on before `isPresent()` fires. Sensor requires ~1-2s to boot; 500ms is insufficient. On PC (no terminal open), the 2000ms wait runs in full, giving the sensor ample time.
+
+**Architecture clarified:** Both Teensy 4.1 and Teensy 4.0 have their own Person Sensor connected to their respective I2C buses (pins 18/19 on each). T41 PS → eye gaze tracking. T40 PS → servo pan tracking. Two independent sensors, two independent I2C buses.
+
+**Changes:**
+
+- **`src/main.cpp` — Person Sensor init block in `setup()`:**
+  - Added `while (millis() < 1500)` before `Wire.begin()` to guarantee minimum sensor boot time regardless of USB host state (Pi4 vs PC).
+  - Added 5-attempt retry loop with 100ms delay on `isPresent()` for additional robustness against transient I2C failures.
+  - Fixed pre-existing indentation bug in the `if (hasPersonSensor())` block.
+
+- **`pi4/core/config.py` — `_TYPE_COERCE` range for `DEFAULT_EYE_IDX`:** `(0, 7)` → `(0, 6)` to match post-S87+S89 firmware (bigBlue removed, strikingBlue now at index 6). Local modification from S89 committed here.
+
+**After flash verification:**
+1. Connect to serial monitor (115200) within 2s of power cycle.
+2. Confirm `[DBG] Person Sensor detected` (not "No Person Sensor found").
+3. Move in front of camera — eyes should track face position.
+4. Confirm `FACE:1` sent over serial when face present.
+
+**Rollback:**
+```bash
+git checkout -- src/main.cpp pi4/core/config.py
+# Then pio run -e eyes and upload previous firmware
+```
+
+---

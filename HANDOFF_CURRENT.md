@@ -41,6 +41,13 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
+**S91 REPO-ONLY (2026-06-01):**
+- `src/main.cpp` — Person Sensor timing fix. Pi4 skips Serial wait → sensor gets ~500ms instead of 2200ms → not found. Fix: `while (millis() < 1500)` + retry loop before `Wire.begin()`. REPO-ONLY — requires PlatformIO flash `env:eyes`. After flash: verify `[DBG] Person Sensor detected` + eye tracking works.
+- `pi4/core/config.py` — `DEFAULT_EYE_IDX` range `(0, 7)` → `(0, 6)`. REPO-ONLY — deploy with next Pi4 batch.
+
+**Post T41 flash action required (S89+S91 changes go live):**
+- Update `pi4/iris_web.html` Striking Blue button: `onclick="sendTeensy('EYE:7')"` → `'EYE:6'` and label "7 - Striking Blue" → "6 - Striking Blue". Deploy to Pi4.
+
 **S90 DEPLOYED+VERIFIED (2026-05-31):**
 - `pi4/iris_web.py` — Modularized. log_parser import, CSS/JS routes. md5 RAM=SD=`2e66e9920983e2b5328e304fdc56b738`
 - `pi4/iris_web.html` — Trimmed (no inline CSS/JS). md5 RAM=SD=`bcfde07a6d1695fee74e880327fff628`

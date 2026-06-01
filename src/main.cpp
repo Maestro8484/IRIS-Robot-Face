@@ -357,9 +357,15 @@ void setup() {
     pinMode(JOYSTICK_Y_PIN, INPUT);
   }
 
-    if (hasPersonSensor()) {
+  if (hasPersonSensor()) {
+    // Pi4 holds port open → Serial wait above skips; guarantee ≥1500ms from power-on before I2C probe.
+    while (millis() < 1500);
     Wire.begin();
-    personSensorFound = personSensor.isPresent();
+    personSensorFound = false;
+    for (int attempt = 0; attempt < 5; attempt++) {
+      if (personSensor.isPresent()) { personSensorFound = true; break; }
+      delay(100);
+    }
     if (personSensorFound) {
       Serial.println("[DBG] Person Sensor detected");
       personSensor.enableID(false);
