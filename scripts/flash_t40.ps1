@@ -57,5 +57,5 @@ journalctl -u assistant -n 15 --no-pager | grep -E 'PAJ7620|Person|SERVO|Ready|E
 if ($LASTEXITCODE -eq 0) {
     Write-Host "[T40] Done. Check above for PAJ7620 init and Person Sensor lines." -ForegroundColor Green
 } else {
-    Write-Host "[T40] Flash may have failed — check Pi4 journal." -ForegroundColor Yellow
+    Write-Host "[T40] Flash may have failed -- check Pi4 journal." -ForegroundColor Yellow
 }

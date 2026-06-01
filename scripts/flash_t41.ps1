@@ -56,5 +56,5 @@ journalctl -u assistant -n 10 --no-pager | grep -E 'VER|Person|Ready|ERROR' || t
 if ($LASTEXITCODE -eq 0) {
     Write-Host "[T41] Done. Check above for [VER] and Person Sensor lines." -ForegroundColor Green
 } else {
-    Write-Host "[T41] Flash may have failed — check Pi4 journal." -ForegroundColor Yellow
+    Write-Host "[T41] Flash may have failed -- check Pi4 journal." -ForegroundColor Yellow
 }
