@@ -1538,3 +1538,16 @@ Verdict logic changed: only `serial /dev/ttyIRIS_EYES` and `mic wm8960 open` FAI
 **Commit:** 4daaedd
 
 ---
+
+## S88 cont. — Stale comment and dead code cleanup
+
+**Date:** 2026-05-31
+**Status:** REPO-ONLY
+
+- `pi4/assistant.py` docstring: Chatterbox → Kokoro/Piper, /dev/ttyACM0 → /dev/ttyIRIS_EYES, added Base mount line.
+- `pi4/assistant.py` startup prints: added TTS engine + base mount lines.
+- `pi4/assistant.py`: deleted `return_to_sleep()` (bypassed canonical `_do_sleep()`); call site replaced with `_do_sleep(teensy, leds)`.
+- `pi4/hardware/base_mount_bridge.py`: hardcoded `/dev/ttyACM1` fallback → `/dev/ttyIRIS_SERVO`.
+- `IRIS_ARCH.md`: 5x `/dev/ttyACM0` references updated to `/dev/ttyIRIS_EYES` (post-S63 udev rules).
+
+---

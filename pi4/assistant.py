@@ -946,7 +946,8 @@ def main():
             teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_IDLE}")
             show_idle_for_mode(leds)
             if in_sleep_window():
-                return_to_sleep(teensy, state)
+                _do_sleep(teensy, leds)
+                print("[SLEEP] Returned to sleep (sleep window active)", flush=True)
             print("[INFO] Ready.", flush=True)
 
     except KeyboardInterrupt:

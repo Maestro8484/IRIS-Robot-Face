@@ -304,3 +304,53 @@ sudo chmod 644 /media/root-ro/home/pi/assistant.py
 sync && sudo mount -o remount,ro /media/root-ro
 sudo systemctl restart assistant
 ```
+
+---
+
+## S88 cont. — Stale comment + dead code cleanup (REPO-ONLY, pending deploy)
+
+**Status:** REPO-ONLY — edits committed locally, not yet deployed to Pi4.
+
+**Files changed:**
+- `pi4/assistant.py` — call site `return_to_sleep()` replaced with `_do_sleep(teensy, leds)`
+- `pi4/hardware/base_mount_bridge.py` — fallback port `/dev/ttyACM1` → `/dev/ttyIRIS_SERVO`
+
+**DEPLOY (after verification passes):**
+
+```bash
+# Pi4 deploy — assistant.py
+sudo cp /home/pi/assistant.py /home/pi/assistant.py.s88commentfix.bak
+# sftp_write pi4/assistant.py → /tmp/assistant.py, then:
+sudo cp /tmp/assistant.py /home/pi/assistant.py
+sudo mount -o remount,rw /media/root-ro
+sudo cp /home/pi/assistant.py /media/root-ro/home/pi/assistant.py
+sudo chown pi:pi /media/root-ro/home/pi/assistant.py
+sudo chmod 644 /media/root-ro/home/pi/assistant.py
+sync
+sudo mount -o remount,ro /media/root-ro
+md5sum /home/pi/assistant.py /media/root-ro/home/pi/assistant.py
+
+# Pi4 deploy — base_mount_bridge.py
+sudo cp /home/pi/hardware/base_mount_bridge.py /home/pi/hardware/base_mount_bridge.py.s88commentfix.bak
+# sftp_write pi4/hardware/base_mount_bridge.py → /tmp/base_mount_bridge.py, then:
+sudo cp /tmp/base_mount_bridge.py /home/pi/hardware/base_mount_bridge.py
+sudo mount -o remount,rw /media/root-ro
+sudo cp /home/pi/hardware/base_mount_bridge.py /media/root-ro/home/pi/hardware/base_mount_bridge.py
+sudo chown pi:pi /media/root-ro/home/pi/hardware/base_mount_bridge.py
+sudo chmod 644 /media/root-ro/home/pi/hardware/base_mount_bridge.py
+sync
+sudo mount -o remount,ro /media/root-ro
+md5sum /home/pi/hardware/base_mount_bridge.py /media/root-ro/home/pi/hardware/base_mount_bridge.py
+
+# Restart service
+sudo systemctl restart assistant
+journalctl -u assistant -n 20 --no-pager
+```
+
+**Verify in logs:**
+- `[INFO] TTS        : Kokoro @ 192.168.1.3:8004` appears
+- `[INFO] Base mount :` appears
+- `[INFO] Ready.` appears
+- No `NameError` or `return_to_sleep` references
+
+**CHANGELOG status after deploy:** Change `REPO-ONLY` → `DEPLOYED`. Add md5 hashes.

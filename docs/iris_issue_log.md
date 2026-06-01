@@ -409,3 +409,13 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Status:** Fixed — DEPLOYED+VERIFIED. md5 RAM=SD verified.
 
 ---
+
+## 2026-05-31 | S88 | Pi4 / assistant.py + base_mount_bridge.py + IRIS_ARCH.md — Stale comments and dead code
+
+**Symptom:** `assistant.py` docstring listed Chatterbox as primary TTS (replaced S38), /dev/ttyACM0 as eyes port (replaced S63 udev rules). `return_to_sleep()` bypassed canonical `_do_sleep()` — no LED sleep animation, no MOUTH_INTENSITY command on auto-sleep-window return. `base_mount_bridge.py` fallback port was `/dev/ttyACM1` (wrong; should be `/dev/ttyIRIS_SERVO`). `IRIS_ARCH.md` had 5 `/dev/ttyACM0` references post-S63.
+**Root cause:** Comment/doc drift across multiple sessions. `return_to_sleep()` was a pre-Batch-1B remnant that survived the canonical sleep path unification.
+**Fix:** Docstring updated. `return_to_sleep()` deleted; call site replaced with `_do_sleep(teensy, leds)`. Fallback port corrected. IRIS_ARCH.md ttyACM0 refs updated.
+**Files:** `pi4/assistant.py`, `pi4/hardware/base_mount_bridge.py`, `IRIS_ARCH.md`
+**Status:** REPO-ONLY
+
+---
