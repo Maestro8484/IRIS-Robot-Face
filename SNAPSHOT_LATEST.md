@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S94 | **Date:** 2026-06-01 | **Branch:** `main` | **Last commit:** pending
+**Session:** S94 | **Date:** 2026-06-01 | **Branch:** `main` | **Last commit:** 0b805ca
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -8,8 +8,8 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **URGENT: Fix T41 display — `DROP EYES:WAKE -- port not open`** — Bridge lost T41 serial connection. Steps: (a) `ls -la /dev/ttyIRIS_EYES` confirms symlink exists; (b) `sudo systemctl restart assistant`; (c) check journal for `[EYES] Teensy connected on /dev/ttyIRIS_EYES`; (d) if still failing, power-cycle T41 USB.
-2. **Deploy Pi4 web files** — `pi4/iris_web.html` + `pi4/iris_web.js` (EYE:6 fix, 3 locations). REPO-ONLY.
+1. **URGENT: Fix T41 displays** — `DROP EYES:WAKE -- port not open`. Bridge lost T41 serial after repeated service restarts. Steps: `ls -la /dev/ttyIRIS_EYES` → `sudo systemctl restart assistant` → watch for `[EYES] Teensy connected`. If still failing: power-cycle T41 USB cable on Pi4.
+2. **Deploy Pi4 web files** — `pi4/iris_web.html` + `pi4/iris_web.js` (Striking Blue EYE:7→EYE:6, 3 locations). REPO-ONLY.
 3. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
 
 ---
@@ -18,47 +18,52 @@
 
 | System | Status |
 |---|---|
-| Pi4 192.168.1.200 | Operational. S87+S87c+S87d deployed (emotion_map fix, IDLE buttons, firmware version POST check). iris_web.html md5=c5aad687, iris_post.py md5=18748f34. |
-| GandalfAI 192.168.1.3 | Operational. iris model: ANGRY insult + 20-joke repertoire (S84). |
-| Teensy 4.1 (eyes+mouth) | FLASHED S92. **DISPLAYS BLACK** — T41 port not open (`DROP EYES:WAKE -- port not open`). udev serial swap corrected S94 (T41=12763490). Serial port may have disconnected after multiple service restarts. Restart assistant + check `/dev/ttyIRIS_EYES` symlink. |
-| Teensy 4.0 (servo+gesture) | FLASHED S92+S93+S94. All 8 gestures verified live. GESTURE_MAP: RIGHT→WAKE, CW→MUTE, CCW→SKIP. GESTURE_SENSOR_REQUIRED=True. APA102 LED gesture feedback active. POST 20/23 PASS AUTHORIZED. |
+| Pi4 192.168.1.200 | Operational. assistant.service active. POST 20/23 PASS WARN:3 FAIL:0. |
+| GandalfAI 192.168.1.3 | Operational. iris model qwen2.5vl:32b-q4_K_M (S77). Kokoro TTS port 8004. |
+| Teensy 4.1 (eyes+mouth) | **DISPLAYS BLACK** — `DROP EYES:WAKE -- port not open`. Bridge lost port after S94 service restarts. udev serial corrected (T41=12763490). Power-cycle USB + restart assistant. |
+| Teensy 4.0 (servo+gesture) | FLASHED S93+S94. All 8 gestures VERIFIED. GESTURE_MAP live. APA102 LED feedback active. udev serial corrected (T40=13625440). |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
 
 ---
 
 ## Active Issues
 
-- **LOW: iris_web.html + iris_web.js Pi4 deploy pending** — Striking Blue EYE:7→EYE:6 (3 locations). REPO-ONLY.
+- **HIGH: T41 port not open** — `[EYES] DROP EYES:WAKE -- port not open`. Restart assistant; power-cycle T41 USB if needed.
+- **LOW: iris_web.html + iris_web.js deploy pending** — EYE:6 fix (3 locations). REPO-ONLY.
 - **LOW: RD-003** — Duplicate sleep log paths.
 
 ---
 
-## Last Session Changes (S87–S87d / S92)
+## Session Scope
 
-- `src/mouth_tft.cpp` — `_draw_silly()` open-mouth redesign: upper lip arc (cy=-10 r=170), dark interior, tongue body+tip, lower lip arc (cy=115 r=55) drawn AFTER tongue. `_draw_silly_retracted()` for TONGUE_WAG. Anim 6=TONGUE_WAG (2s auto-trigger, 6×300ms), anim 7=BOING. `mouthTFTShow(9)` calls `mouthIdleStart()`. FLASHED.
-- `src/config.h` — `FIRMWARE_VERSION[] = "S87b"` added. FLASHED.
-- `src/main.cpp` — Boot prints `[VER] IRIS-EYES firmware=S87b built=<date>`. `VERSION` serial command handler added. FLASHED.
-- `pi4/iris_web.html` — IDLE:START / IDLE:STOP buttons added to TFT Mouth card. DEPLOYED md5=c5aad687 RAM=SD.
-- `pi4/iris_web.py` — `api_emotion_map` try/except hardening + `[EMAP]` debug log. DEPLOYED md5=6ae14e67 RAM=SD.
-- `pi4/iris_post.py` — `l2_firmware_version()` added: greps journal for `[VER] IRIS-EYES`, reports PASS with version string or WARN if unversioned. DEPLOYED md5=18748f34 RAM=SD.
-- `CLAUDE.md` — Hard rule added: update `FIRMWARE_VERSION` in `src/config.h` before every flash; verify `journalctl | grep VER` after.
-
-## S91/S92 post-flash fixes (same session)
-
-- `pi4/iris_web.html` — Striking Blue eye grid button: `EYE:7` → `EYE:6`. Default-eye selector option: `value="7"` → `value="6"`. REPO-ONLY (deploy to Pi4).
-- `pi4/iris_web.js` — `_EYE_OPT` array: `[7,'7 - Striking Blue']` → `[6,'6 - Striking Blue']`. REPO-ONLY (deploy to Pi4).
-- `src/config.h` — `FIRMWARE_VERSION` updated `"S87b"` → `"S91"` (takes effect at next flash). REPO-ONLY.
-
-## Previous Session Changes (S91)
-
-- `src/main.cpp` — Person Sensor timing fix: `while (millis() < 1500)` before I2C probe, 5-attempt retry loop. Root cause: Pi4 holds port open → Serial wait skipped → sensor not ready. FLASHED.
-- `pi4/core/config.py` — `DEFAULT_EYE_IDX` range `(0,7)` → `(0,6)`. REPO-ONLY (pending deploy).
+S94: PAJ7620U2 gesture orientation verify + full remap (RIGHT→WAKE, CW→MUTE, CCW→SKIP) + APA102 LED gesture feedback + udev serial number correction (T41/T40 swapped since S63).
 
 ---
 
-## Do Not Touch (protected files)
+## Do Not Touch
 
-- `iris_config.json` (Pi4 live config — edit only via web UI or /api endpoints)
+- `iris_config.json` — gesture map + emotion map live config
+- `alsa-init.sh`
 - `src/TeensyEyes.ino`
 - `src/eyes/EyeController.h`
-- `pi4/hardware/alsa-init.sh`
+
+---
+
+## Last Session Changes (S94 / S94b)
+
+- **`servo_teensy40/teensy40_base_mount/paj7620.cpp`** — RIGHT gesture emits `"RIGHT"` (was `"STOP"`). FLASHED S94.
+- **`pi4/hardware/led.py`** — `show_gesture(action)` added to APA102. Transient color flash per action (green=VOL+, red=VOL-, white=STOP, blue=LISTEN, cyan=WAKE, amber=SLEEP, magenta=MUTE, yellow=SKIP). md5=`91360ee95d0d23d7c6307e07397ddc00` RAM=SD.
+- **`pi4/hardware/base_mount_bridge.py`** — `self._leds` stored; `show_gesture()` called on dispatch. md5=`999544f7a4bad17c5dc86bdb848b8de3` RAM=SD.
+- **`/home/pi/iris_config.json`** — `GESTURE_MAP` added: RIGHT→WAKE, FORWARD→LISTEN, BACKWARD→SLEEP, CW→MUTE, CCW→SKIP. md5=`755336185f765814496eb3fe5511c7ab` RAM=SD.
+- **`pi4/core/config.py`** — `GESTURE_SENSOR_REQUIRED = True`. md5=`2a8fd5d2019a2666901d67a3ec7babff` RAM=SD.
+- **`pi4/scripts/99-iris-teensy.rules`** — Serial numbers corrected: T41=12763490→ttyIRIS_EYES, T40=13625440→ttyIRIS_SERVO. md5=`83ca06eac9ee3afcf89753b8aa33405a` RAM=SD.
+- **`IRIS_ARCH.md` + `docs/sysmap.json`** — USB serial table corrected throughout.
+
+**Gesture verification (live journal):** RIGHT→WAKE ✓, LEFT→STOP ✓, UP→VOL+ ✓, DOWN→VOL- ✓, FORWARD→LISTEN ✓, BACKWARD→SLEEP ✓, CW→MUTE ✓, CCW→SKIP ✓.
+
+---
+
+## Previous Session Changes (S92/S93)
+
+- S93: `GESTURE_MOUNT_DEGREES` 0→180 (JST connector left). T40 reflashed.
+- S92: LAN flash scripts (`Flash T41 Eyes.bat`, `Flash T40 Servo.bat`). Both Teensys reflashed.
