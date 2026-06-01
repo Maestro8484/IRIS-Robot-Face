@@ -47,7 +47,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host "[T40] scp FAILED." -ForegroundColor Red; 
 Write-Host "[T40] Flashing via Pi4 (soft reboot → upload → restart)..." -ForegroundColor Cyan
 ssh -o StrictHostKeyChecking=no $PI4 @"
 sudo systemctl stop assistant && \
-teensy_loader_cli --mcu=TEENSY40 -s -w -v $hexPi4 && \
+sudo teensy_loader_cli --mcu=TEENSY40 -s -w -v $hexPi4 && \
 sudo systemctl start assistant && \
 echo '[T40] Flash complete. Verifying...' && \
 sleep 5 && \
