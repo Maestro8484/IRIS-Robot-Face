@@ -22,6 +22,7 @@ from core.config import (
     RECORD_SECONDS, SILENCE_SECS, SILENCE_RMS,
     KIDS_RECORD_SECONDS, KIDS_SILENCE_SECS, KIDS_SILENCE_RMS,
     VOL_CONTROL, VOL_MIN, VOL_MAX, VOL_STEP,
+    LOUD_STOP_THRESHOLD,
 )
 from hardware.io import button_pressed
 
@@ -37,11 +38,8 @@ _stop_playback = threading.Event()
 # interrupts while ignoring IRIS's own speaker output.
 INTERRUPT_RMS_THRESHOLD = 4000
 
-# Amplitude-only STOP: if a single chunk spikes above this RMS during playback,
-# fire STOP immediately without waiting for Whisper STT. Responds to a shout,
-# loud clap, or any sudden loud sound near the ReSpeaker mics. Calibrate above
-# the loudest expected speaker bleed (4500) but below a clear shout (~12000).
-LOUD_STOP_THRESHOLD = 9000
+# LOUD_STOP_THRESHOLD imported from core.config — tune via iris_config.json.
+# S88 observed bleed at 9k-18k RMS; raised to 25000. Overridable via iris_config.json.
 
 # Stop phrases checked via lightweight STT during playback
 STOP_PHRASES = {

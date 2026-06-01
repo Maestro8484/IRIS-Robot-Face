@@ -40,9 +40,11 @@ OWW_PORT     = 10400
 WOL_BOOT_TIMEOUT  = 120
 WOL_POLL_INTERVAL = 5
 GANDALF_MAC  = "A4:BB:6D:CA:83:20"
-OLLAMA_MODEL_ADULT = "iris"
-OLLAMA_MODEL_KIDS  = "iris-kids"
-NUM_LEDS     = 3
+OLLAMA_MODEL_ADULT  = "iris"
+OLLAMA_MODEL_KIDS   = "iris-kids"
+NUM_LEDS            = 3
+DEFAULT_EYE_IDX     = 0
+MOUTH_INTENSITY_IDLE = 3
 
 try:
     from core.config import (
@@ -50,6 +52,7 @@ try:
         WHISPER_PORT, PIPER_PORT, OWW_PORT,
         WOL_BOOT_TIMEOUT, WOL_POLL_INTERVAL, GANDALF_MAC,
         OLLAMA_MODEL_ADULT, OLLAMA_MODEL_KIDS, NUM_LEDS,
+        DEFAULT_EYE_IDX, MOUTH_INTENSITY_IDLE,
     )
     try:
         from core.config import KOKORO_BASE_URL
@@ -303,6 +306,11 @@ class _POST:
             self.record("L2", "MOUTH_INTENSITY ramp", PASS)
         except Exception as e:
             self.record("L2", "MOUTH_INTENSITY ramp", FAIL, str(e)[:60])
+
+        # Restore display to defaults after exercise — without this the Teensy
+        # would be left on EYE:6 (bigBlue) and MOUTH_INTENSITY:15 after every boot.
+        self.send_display(f"EYE:{DEFAULT_EYE_IDX}", 0.1)
+        self.send_display(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_IDLE}", 0.1)
 
     # ── L3 — Pipeline smoke ───────────────────────────────────────────────────
 

@@ -246,8 +246,21 @@ select:focus{outline:none;border-color:var(--blue)}
       <button class="btn-eye" onclick="sendTeensy('EYE:3')">3 - Hazel</button>
       <button class="btn-eye" onclick="sendTeensy('EYE:4')">4 - Blue Flame 1</button>
       <button class="btn-eye" onclick="sendTeensy('EYE:5')">5 - Dragon</button>
-      <button class="btn-eye" onclick="sendTeensy('EYE:6')">6 - Big Blue</button>
       <button class="btn-eye" onclick="sendTeensy('EYE:7')">7 - Striking Blue</button>
+    </div>
+    <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="color:var(--muted);font-size:13px">Default eye on startup:</span>
+      <select id="default-eye-sel" style="background:#1a1a2e;border:1px solid var(--border);color:var(--fg);padding:5px 8px;border-radius:4px;font-size:13px">
+        <option value="0">0 - Nordic Blue</option>
+        <option value="1">1 - Flame</option>
+        <option value="2">2 - Hypno Red</option>
+        <option value="3">3 - Hazel</option>
+        <option value="4">4 - Blue Flame 1</option>
+        <option value="5">5 - Dragon</option>
+        <option value="7">7 - Striking Blue</option>
+      </select>
+      <button class="btn btn-sm" onclick="saveDefaultEye()">Save Default</button>
+      <button class="btn btn-sm" onclick="persistToSD()" style="background:#1e1e30;border-color:var(--border)">Persist to SD</button>
     </div>
   </div>
   <div class="card">
@@ -839,6 +852,9 @@ async function loadConfig() {
   // Show active wakeword model name
   const wakeLabel = document.getElementById('wakeword-model-label');
   if (wakeLabel && _cfg.WAKE_WORD) wakeLabel.textContent = _cfg.WAKE_WORD;
+  // Pre-select current default eye
+  const defEyeSel = document.getElementById('default-eye-sel');
+  if (defEyeSel && _cfg.DEFAULT_EYE_IDX !== undefined) defEyeSel.value = String(_cfg.DEFAULT_EYE_IDX);
 }
 
 async function saveFields(keys) {
@@ -852,6 +868,16 @@ async function saveFields(keys) {
   const r = await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(patch)});
   const j = await r.json();
   toast(j.ok ? 'Saved to RAM' : 'Error', j.ok);
+  if (j.ok) checkSDStatus();
+}
+
+async function saveDefaultEye() {
+  const sel = document.getElementById('default-eye-sel');
+  if (!sel) return;
+  const idx = parseInt(sel.value);
+  const r = await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({DEFAULT_EYE_IDX: idx})});
+  const j = await r.json();
+  toast(j.ok ? 'Default eye saved — applies on next IRIS restart' : 'Save failed', j.ok);
   if (j.ok) checkSDStatus();
 }
 
@@ -1000,7 +1026,8 @@ function renderLogEvents() {
     box.innerHTML = '<div style="color:var(--muted);padding:16px;text-align:center">No events in this category</div>';
     return;
   }
-  box.innerHTML = evs.map(e => {
+  // Newest first
+  box.innerHTML = evs.slice().reverse().map(e => {
     const label  = _CAT_LABELS[e.cat] || (e.cat||'?').toUpperCase();
     const detail = e.detail ? `<span class="log-detail">${_esc(e.detail)}</span>` : '';
     return `<div class="log-event cat-${_esc(e.cat||'info')}">` +
@@ -1009,7 +1036,7 @@ function renderLogEvents() {
            `<span class="log-msg" title="${_esc(e.msg)}">${_esc(e.msg)}</span>` +
            `${detail}</div>`;
   }).join('');
-  box.scrollTop = box.scrollHeight;
+  window.requestAnimationFrame(function() { box.scrollTop = 0; });
 }
 
 async function fetchLogs() {
@@ -1185,7 +1212,7 @@ async function sendVision(prompt) {
 // ── Emotion Display Mapping ────────────────────────────────────────────────────
 const _EMOTION_NAMES = ['NEUTRAL','HAPPY','CURIOUS','ANGRY','SLEEPY','SURPRISED','SAD','CONFUSED','AMUSED'];
 const _EYE_OPT = [[-1,'Default (auto)'],[0,'0 - Nordic Blue'],[1,'1 - Flame'],[2,'2 - Hypno Red'],
-  [3,'3 - Hazel'],[4,'4 - Blue Flame 1'],[5,'5 - Dragon'],[6,'6 - Big Blue'],[7,'7 - Striking Blue']];
+  [3,'3 - Hazel'],[4,'4 - Blue Flame 1'],[5,'5 - Dragon'],[7,'7 - Striking Blue']];
 const _MOUTH_OPT = [[0,'0 - Neutral'],[1,'1 - Happy'],[2,'2 - Curious'],[3,'3 - Angry'],
   [4,'4 - Sleepy'],[5,'5 - Surprised'],[6,'6 - Sad'],[7,'7 - Confused'],
   [8,'8 - Sleep'],[9,'9 - Silly (tongue)']];

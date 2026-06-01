@@ -4,10 +4,11 @@ assistant.py - Pi4 IRIS voice assistant
 Wake: wyoming-openwakeword hey_jarvis (:10400) OR button press (GPIO17)
 STT:  Wyoming Whisper  @ 192.168.1.3:10300
 LLM:  Ollama           @ 192.168.1.3:11434 (streaming)
-TTS:  Chatterbox       @ 192.168.1.3:8004 (primary)
+TTS:  Kokoro           @ 192.168.1.3:8004 (primary) / Piper @ :10200 (fallback)
 Audio: wm8960-soundcard (dynamic card detection)
 LEDs: 3x APA102 via SPI -- status indicator
-Eyes: Teensy face via /dev/ttyACM0
+Eyes: Teensy 4.1 via /dev/ttyIRIS_EYES
+Base: Teensy 4.0 servo/gesture via /dev/ttyIRIS_SERVO (BaseMountBridge)
 """
 
 import json, os, re, socket, subprocess, sys, threading, time
@@ -307,14 +308,6 @@ def in_sleep_window() -> bool:
     return hour >= SLEEP_WINDOW_START_HOUR or hour < SLEEP_WINDOW_END_HOUR
 
 
-def return_to_sleep(teensy, st) -> None:
-    teensy.send_command("EYES:SLEEP")
-    teensy.send_command("MOUTH:8")
-    open("/tmp/iris_sleep_mode", "w").close()
-    st.eyes_sleeping = True
-    print("[SLEEP] Returned to sleep (sleep window active)", flush=True)
-
-
 def _bench_write(stages, transcript, reply_chars, model, gandalf_was_cold, route, interrupted):
     """Append one structured JSON record to iris_bench.jsonl. Never raises."""
     import datetime
@@ -455,7 +448,10 @@ def main():
     print(f"[INFO] Wake word  : {WAKE_WORD}", flush=True)
     print(f"[INFO] LLM adult  : {OLLAMA_MODEL_ADULT} @ {GANDALF}:{OLLAMA_PORT}", flush=True)
     print(f"[INFO] LLM kids   : {OLLAMA_MODEL_KIDS}", flush=True)
+    _tts_engine = "Kokoro" if KOKORO_ENABLED else "Piper"
+    print(f"[INFO] TTS        : {_tts_engine} @ {GANDALF}:8004", flush=True)
     print(f"[INFO] Teensy     : {TEENSY_PORT}", flush=True)
+    print(f"[INFO] Base mount : {BASE_MOUNT_PORT} (enabled={BASE_MOUNT_ENABLED})", flush=True)
     print("[INFO] Ready.", flush=True)
     show_idle_for_mode(leds)
 
@@ -469,6 +465,9 @@ def main():
             sys.exit(1)
     except Exception as _pe:
         print(f"[POST] POST skipped: {_pe}", flush=True)
+    # Restore eye to configured default after POST display exercise
+    teensy.send_command(f"EYE:{DEFAULT_EYE_IDX}")
+    print(f"[EYES] Default eye restored: EYE:{DEFAULT_EYE_IDX}", flush=True)
     # ─────────────────────────────────────────────────────────────────────────
 
     try:

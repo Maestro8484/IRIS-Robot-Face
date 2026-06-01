@@ -1476,6 +1476,45 @@ md5 RAM=SD: config=`413032abf9c19fdfa4fdb0400120e026` bridge=`d8b03d20202c5dadc5
 
 ---
 
+## S89 — TTS Cutoff Fix + BigBlue Eye Fix + Event Log + Default Eye
+
+**Date:** 2026-05-31
+
+**Status:** DEPLOYED+VERIFIED
+
+**Root causes found and fixed:**
+
+**Fix 1 — TTS playback cut off mid-response (audio_io.py + config.py):**
+`LOUD_STOP_THRESHOLD=9000` was below the speaker bleed RMS (observed 9k–18k with SPEAKER_VOLUME=117). Every TTS playback triggered instant stop within 1-3 seconds. Raised threshold to 25000 in `core/config.py` (now configurable via `iris_config.json`). Imported from config in `audio_io.py` instead of hardcoded.
+
+**Fix 2 — IRIS always showing bigBlue eye after boot (iris_post.py):**
+POST `l2_display()` EYE cycle ran EYE:0 → EYE:3 → EYE:6, leaving Teensy on EYE:6 (bigBlue) after every boot. `EMOTION_EYE_MAP` was all -1 so `emit_emotion` never overrode it. Fixed: `l2_display()` now restores `EYE:{DEFAULT_EYE_IDX}` and `MOUTH_INTENSITY:{MOUTH_INTENSITY_IDLE}` after the display exercise. `assistant.py` also sends `EYE:{DEFAULT_EYE_IDX}` immediately after POST completes.
+
+**Fix 3 — Configurable default eye on startup (config.py + web UI):**
+Added `DEFAULT_EYE_IDX=0` to config.py and `_OVERRIDABLE`. Web UI (Eyes tab) now shows "Default eye on startup" selector with Save Default + Persist to SD buttons. `loadConfig()` pre-selects current value. Setting persists through `iris_config.json`.
+
+**Fix 4 — Event log descending + size cap (iris_web.py + iris_web.html):**
+Backend: cap reduced from 500 to 200 events. Frontend: `renderLogEvents()` now reverses events (newest at top) and uses `scrollTop=0` instead of `scrollHeight`. Matches gesture log behavior.
+
+**Fix 5 — bigBlue removed from firmware (src/config.h + src/main.cpp, REPO-ONLY):**
+bigBlue removed from `eyeDefinitions` array (size 8 → 7). strikingBlue shifts from index 7 to 6. `EYE_IDX_COUNT` updated to 7, `EYE_IDX_BIGBLUE` removed. bigBlue button removed from web UI eye grid. Requires Teensy 4.1 flash (env:eyes) to take effect.
+
+**Fix 6 — iris_bench.jsonl permission denied (live Pi4):**
+File was owned by root (`-rw-r--r-- 1 root root`). Fixed: `chown pi:pi /home/pi/logs/iris_bench.jsonl`.
+
+**Deploy:**
+- `pi4/core/config.py` md5=`d9f05e676ee9002c624a263d1d26d0cb` RAM=SD
+- `pi4/hardware/audio_io.py` md5=`55c9951011f012e8145cfbf26475a1f7` RAM=SD
+- `pi4/iris_post.py` md5=`5d17ce3d26fe8535507d93bc04bab107` RAM=SD
+- `pi4/assistant.py` md5=`14e52ac97726248da9a73730951656d0` RAM=SD
+- `pi4/iris_web.py` md5=`1e4d11b86cfbc12f41741f6f04482f46` RAM=SD
+- `pi4/iris_web.html` md5=`4ce6513b5bac57ed469e3e1413cc3b44` RAM=SD
+- `src/config.h` + `src/main.cpp` — REPO-ONLY (bigBlue removal, Teensy 4.1 flash needed)
+
+**Commit:** pending
+
+---
+
 ## S88 cont. — POST Hardening + S87 iris_web Deploy
 
 **Date:** 2026-05-31

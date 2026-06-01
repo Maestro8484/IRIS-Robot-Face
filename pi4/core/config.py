@@ -56,6 +56,7 @@ TEENSY_BAUD    = 115200
 BASE_MOUNT_ENABLED = True
 BASE_MOUNT_PORT    = "/dev/ttyIRIS_SERVO"
 BASE_MOUNT_BAUD    = 115200
+DEFAULT_EYE_IDX    = 0      # Eye index sent to Teensy on startup after POST; 0=nordicBlue
 
 # ── APA102 LED animations ─────────────────────────────────────────────────────
 LED_IDLE_PEAK      = 65     # cyan breathe normal max (0-255)
@@ -67,6 +68,12 @@ LED_SLEEP_PEAK     = 26     # indigo breathe sleep max (~10% of 255)
 LED_SLEEP_FLOOR    = 3
 LED_SLEEP_PERIOD   = 8.0
 LED_SLEEP_BRIGHT   = 0xFF   # APA102 global brightness byte (31/31, color value controls level)
+
+# ── Interrupt / loud-stop ─────────────────────────────────────────────────────
+# RMS threshold for instant stop-playback trigger during TTS.
+# Must be calibrated ABOVE speaker bleed at current volume.
+# S88 bleed observed at 9k-18k RMS with SPEAKER_VOLUME=117; raised to 25000.
+LOUD_STOP_THRESHOLD = 25000
 
 # ── Volume ────────────────────────────────────────────────────────────────────
 VOL_CONTROL    = "Speaker"
@@ -205,6 +212,7 @@ _OVERRIDABLE = {
     "KIDS_RECORD_SECONDS", "KIDS_SILENCE_SECS", "KIDS_SILENCE_RMS",
     "OWW_THRESHOLD", "FOLLOWUP_TIMEOUT", "KIDS_FOLLOWUP_TIMEOUT",
     "FOLLOWUP_MAX_TURNS", "CONTEXT_TIMEOUT_SECS", "NUM_PREDICT", "NUM_PREDICT_SHORT", "NUM_PREDICT_MEDIUM", "NUM_PREDICT_LONG", "NUM_PREDICT_MAX", "TTS_MAX_CHARS",
+    "LOUD_STOP_THRESHOLD", "DEFAULT_EYE_IDX",
     "CHATTERBOX_VOICE", "CHATTERBOX_EXAGGERATION", "CHATTERBOX_ENABLED",
     "KOKORO_VOICE", "KOKORO_ENABLED", "KOKORO_SPEED",
     "VOL_MAX", "SPEAKER_VOLUME", "OLLAMA_MODEL_ADULT", "OLLAMA_MODEL_KIDS",
@@ -229,6 +237,8 @@ _OVERRIDABLE = {
 # String keys (CHATTERBOX_VOICE, OLLAMA_MODEL_*) are not listed -- passed through as-is.
 # Range is (min_inclusive, max_inclusive). None = no range check (bool only).
 _TYPE_COERCE = {
+    "LOUD_STOP_THRESHOLD":     (int,   (5000, 50000)),
+    "DEFAULT_EYE_IDX":         (int,   (0, 7)),
     "RECORD_SECONDS":          (int,   (1, 60)),
     "SILENCE_SECS":            (float, (0.1, 10.0)),
     "SILENCE_RMS":             (int,   (50, 5000)),

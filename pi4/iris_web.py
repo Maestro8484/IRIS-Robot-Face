@@ -393,7 +393,7 @@ def api_logs():
     # 3. SD daily log files — persistent history across reboots (30 days)
     events.extend(_sd_events())
 
-    # 4. Deduplicate by (timestamp[:19], msg[:50]), sort, cap at 500
+    # 4. Deduplicate by (timestamp[:19], msg[:50]), sort, cap at 200
     seen, merged = set(), []
     for ev in events:
         key = (ev.get("t", "")[:19], ev.get("msg", "")[:50])
@@ -401,7 +401,7 @@ def api_logs():
             seen.add(key)
             merged.append(ev)
     merged.sort(key=lambda e: e.get("t", ""))
-    return jsonify(events=merged[-500:])
+    return jsonify(events=merged[-200:])
 
 
 @app.route("/api/gesture_log")

@@ -25,12 +25,12 @@
 //
 // EYE INDEX MAP (matches eyeDefinitions in config.h):
 //   0 = nordicBlue  (default)
-//   1 = flame       (ANGRY -- managed by emotion system + web UI)
-//   2 = hypnoRed    (CONFUSED -- managed by emotion system + web UI)
+//   1 = flame          (ANGRY -- managed by emotion system + web UI)
+//   2 = hypnoRed       (CONFUSED -- managed by emotion system + web UI)
 //   3 = hazel
 //   4 = blueFlame1
 //   5 = dragon
-//   6 = bigBlue
+//   6 = strikingBlue   (bigBlue removed)
 //
 // EYE:n selectable range: 0-6
 //
@@ -48,14 +48,13 @@ static constexpr uint32_t CONFUSED_EYE_DURATION_MS = 7000;
 
 // Eye definition indices (matches eyeDefinitions array in config.h)
 static constexpr uint32_t EYE_IDX_DEFAULT      = 0; // nordicBlue
-static constexpr uint32_t EYE_IDX_ANGRY        = 1; // flame       (emotion swap + web UI)
-static constexpr uint32_t EYE_IDX_CONFUSED     = 2; // hypnoRed    (emotion swap + web UI)
+static constexpr uint32_t EYE_IDX_ANGRY        = 1; // flame        (emotion swap + web UI)
+static constexpr uint32_t EYE_IDX_CONFUSED     = 2; // hypnoRed     (emotion swap + web UI)
 static constexpr uint32_t EYE_IDX_HAZEL        = 3; // web UI
 static constexpr uint32_t EYE_IDX_BLUEFLAME1   = 4; // web UI
 static constexpr uint32_t EYE_IDX_DRAGON       = 5; // web UI
-static constexpr uint32_t EYE_IDX_BIGBLUE      = 6; // web UI
-static constexpr uint32_t EYE_IDX_STRIKINGBLUE = 7; // web UI
-static constexpr uint32_t EYE_IDX_COUNT        = 8; // total entries in eyeDefinitions
+static constexpr uint32_t EYE_IDX_STRIKINGBLUE = 6; // web UI (was 7; bigBlue removed)
+static constexpr uint32_t EYE_IDX_COUNT        = 7; // total entries in eyeDefinitions
 
 // ---------------------------------------------------------------------------
 // EMOTION -> EYE PARAMETER MAPPING
