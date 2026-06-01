@@ -1703,4 +1703,23 @@ git checkout -- pi4/hardware/led.py pi4/hardware/base_mount_bridge.py pi4/core/c
 
 ---
 
+## S95 — PersonSensor tracking fix + enableLED ordering
+
+**Date:** 2026-06-01
+**Status:** REPO-ONLY. User must flash T41 via PlatformIO.
+
+**Root cause:** Eyes appeared not to track despite person sensor being initialized. Pi4 journal showed `FACE:1` firing only ~4× in 15 min while user was present. Root cause: `is_facing` flag in the Person Sensor face struct requires the person to be looking directly at the sensor (narrow angular tolerance). Any slight tilt of the sensor or the person's gaze causes `is_facing=0`, which skipped `setTargetPosition` entirely.
+
+Secondary issue: `enableLED(false)` was called before `setMode(Continuous)`. Continuous mode may reset DebugMode to default (enabled), explaining why the LED appeared on despite the disable call.
+
+Userspace confusion: user renamed `enableLED(bool enabled)` parameter to `disabled` without inverting the logic — functionally equivalent at the call site (`enableLED(false)` still writes 0) but semantically misleading.
+
+**Changes:**
+- **`src/sensors/PersonSensor.h:141`** — Reverted parameter name `disabled` → `enabled`. No functional change; semantic fix only.
+- **`src/main.cpp:381-383`** — Reordered sensor init: `setMode(Continuous)` now called before `enableLED(false)` so mode switch cannot reset the LED setting.
+- **`src/main.cpp:408`** — Removed `is_facing &&` from tracking condition. Eyes now track any face with `box_confidence > 60`, regardless of gaze direction. This is appropriate for a robot that should follow people in its environment.
+- **`src/config.h:7`** — `FIRMWARE_VERSION` updated `S91` → `S95`.
+
+---
+
 ---

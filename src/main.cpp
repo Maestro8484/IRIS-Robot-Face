@@ -379,8 +379,8 @@ void setup() {
     if (personSensorFound) {
       Serial.println("[DBG] Person Sensor detected");
       personSensor.enableID(false);
-      personSensor.enableLED(false);
       personSensor.setMode(PersonSensor::Mode::Continuous);
+      personSensor.enableLED(false);
     } else {
       Serial.println("[DBG] No Person Sensor found");
     }
@@ -405,7 +405,7 @@ void loop() {
     person_sensor_face_t maxFace{};
     for (int i = 0; i < personSensor.numFacesFound(); i++) {
       const person_sensor_face_t face = personSensor.faceDetails(i);
-      if (face.is_facing && face.box_confidence > 60) {
+      if (face.box_confidence > 60) {
         int size = (face.box_right - face.box_left) * (face.box_bottom - face.box_top);
         if (size > maxSize) { maxSize = size; maxFace = face; }
       }

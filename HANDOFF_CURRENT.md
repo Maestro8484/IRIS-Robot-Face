@@ -41,21 +41,29 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**OPEN ISSUE — T41 displays black: `DROP EYES:WAKE -- port not open`**
+**Flash T41 with S95 firmware — tracking fix**
 
-Teensy 4.1 serial connection dropped during S94. Multiple service restarts + T40 reflash events likely caused the bridge to lose the port. The serial number issue (udev swap) was fixed — T41 is confirmed as serial 12763490, T40 as 13625440.
+S95 changes are REPO-ONLY:
+- `src/main.cpp:408` — removed `is_facing &&` from tracking condition
+- `src/main.cpp:381-383` — reordered `enableLED` after `setMode`
+- `src/sensors/PersonSensor.h:141` — parameter name fix (semantic only)
+- `src/config.h:7` — FIRMWARE_VERSION S91→S95
 
-**First thing next session:**
-1. `ls -la /dev/ttyIRIS_EYES` — should point to ttyACM1
-2. `sudo systemctl restart assistant`
-3. `journalctl -u assistant -f` — watch for `[EYES] Teensy connected on /dev/ttyIRIS_EYES`
-4. If still `DROP`: power-cycle T41 USB cable on Pi4, then restart assistant
-5. If still failing after power cycle: check `lsusb | grep -i teensy` — T41 may need full power cycle
+**Flash steps:**
+1. `pio run -e eyes` (build only, verify no errors)
+2. PlatformIO upload button (T41 is on Pi4 USB — use LAN flash bat or direct USB)
+3. `journalctl -u assistant | grep VER` — verify `firmware=S95`
+4. Stand in front of IRIS — verify eyes track face continuously
 
-**S94 completed work:**
-- Gestures: all 8 verified. RIGHT→WAKE, CW→MUTE, CCW→SKIP. APA102 LED feedback live.
-- udev serial fix: T41=12763490, T40=13625440. RAM+SD persisted. All docs updated.
-- GESTURE_SENSOR_REQUIRED=True deployed. POST 20/23 PASS.
+**After flash, verify:**
+- Person sensor LED should be OFF (debug mode disabled after mode set)
+- Eyes should track face at `box_confidence > 60` (no longer requires `is_facing`)
+- `FACE:1` should appear frequently in journal when user is present
+
+**S95 diagnosis (confirmed via Pi4 journal):**
+- T41 bridge reconnected. FACE:0/FACE:1 messages flowing.
+- `FACE:1` was only firing ~4× per 15 min despite user present — `is_facing=0` most of the time.
+- `is_facing` requires direct gaze at sensor (narrow tolerance). Any tilt → no tracking.
 
 **LAN flash scripts (no USB cable move needed going forward):**
 - `.\scripts\Flash T41 Eyes.bat` — double-click to build + flash T41
