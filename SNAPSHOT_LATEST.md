@@ -8,11 +8,9 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **Flash T40 + verify gestures** — run `.\scripts\Flash T40 Servo.bat`, then live serial verify all 8 gestures including RIGHT→"RIGHT". See HANDOFF for exact expected output.
-2. **Set GESTURE_SENSOR_REQUIRED=True + deploy config.py** — after T40 flash+verify. Bundle with DEFAULT_EYE_IDX (0,6) fix. Confirm POST 22/22.
-3. **Deploy Pi4 web files** — `pi4/iris_web.html` + `pi4/iris_web.js` (EYE:6 fix). REPO-ONLY.
-4. **Verify T41 eye tracking** — check `journalctl -u assistant | grep -E 'Person|FACE'` for `[DBG] Person Sensor detected` and `FACE:1` events.
-5. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
+1. **Deploy Pi4 web files** — `pi4/iris_web.html` + `pi4/iris_web.js` (EYE:6 fix, 3 locations). REPO-ONLY.
+2. **Verify T41 eye tracking** — check `journalctl -u assistant | grep -E 'Person|FACE'` for `[DBG] Person Sensor detected` and `FACE:1` events.
+3. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
 
 ---
 
@@ -23,15 +21,14 @@
 | Pi4 192.168.1.200 | Operational. S87+S87c+S87d deployed (emotion_map fix, IDLE buttons, firmware version POST check). iris_web.html md5=c5aad687, iris_post.py md5=18748f34. |
 | GandalfAI 192.168.1.3 | Operational. iris model: ANGRY insult + 20-joke repertoire (S84). |
 | Teensy 4.1 (eyes+mouth) | FLASHED S92 — S87+S89+S91+S87d (SILLY, TONGUE_WAG, Person Sensor fix, versioning, bigBlue removed). Connected to Pi4. Verify Person Sensor + face tracking. |
-| Teensy 4.0 (servo+gesture) | FLASHED S92+S93. S94 REPO-ONLY pending flash — paj7620.cpp RIGHT→"RIGHT". GESTURE_MAP deployed to Pi4 (RIGHT→WAKE, CW→MUTE, CCW→SKIP, others unchanged). LED gesture feedback wired (led.py show_gesture, base_mount_bridge leds). |
+| Teensy 4.0 (servo+gesture) | FLASHED S92+S93+S94. All 8 gestures verified live. GESTURE_MAP: RIGHT→WAKE, CW→MUTE, CCW→SKIP. GESTURE_SENSOR_REQUIRED=True. APA102 LED gesture feedback active. POST 20/23 PASS AUTHORIZED. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
 
 ---
 
 ## Active Issues
 
-- **MED: T40 flash pending** — S94 paj7620.cpp change (RIGHT→"RIGHT") REPO-ONLY. Flash T40, then verify all 8 gestures live. After verify: deploy GESTURE_SENSOR_REQUIRED=True.
-- **MED: iris_web.html + iris_web.js + config.py Pi4 deploy pending** — EYE:6 fix (3 locations) + DEFAULT_EYE_IDX range + GESTURE_SENSOR_REQUIRED=True. Bundle deploy after T40 verify.
+- **LOW: iris_web.html + iris_web.js Pi4 deploy pending** — Striking Blue EYE:7→EYE:6 (3 locations). REPO-ONLY.
 - **LOW: RD-003** — Duplicate sleep log paths.
 
 ---

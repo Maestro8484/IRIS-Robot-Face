@@ -41,26 +41,14 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**S94 PARTIAL (2026-06-01) — Flash T40, then verify gestures:**
+**S94 COMPLETE (2026-06-01):**
+- All 8 gestures verified live. RIGHT→WAKE, CW→MUTE, CCW→SKIP confirmed.
+- APA102 LED gesture feedback active.
+- GESTURE_SENSOR_REQUIRED=True deployed. POST 20/23 PASS AUTHORIZED.
 
-Pi4 side DEPLOYED: GESTURE_MAP in iris_config.json, led.py show_gesture(), base_mount_bridge.py leds wired.
-T40 firmware REPO-ONLY: paj7620.cpp RIGHT→"RIGHT" (was "STOP").
-
-1. **Flash T40** — double-click `.\scripts\Flash T40 Servo.bat` (or pio run -e teensy40 + upload)
-2. **Live verify** — `stty -F /dev/ttyIRIS_SERVO 115200 raw && timeout 30 cat /dev/ttyIRIS_SERVO`. Swipe each direction. Expected:
-   - UP → `VOL+` (DIAG: UP)
-   - DOWN → `VOL-` (DIAG: DOWN)
-   - LEFT → `STOP` (DIAG: LEFT)
-   - RIGHT → `RIGHT` (DIAG: RIGHT) ← NEW, confirms firmware change worked
-   - FORWARD → `FORWARD`
-   - BACKWARD → `BACKWARD`
-   - CW → `CW`
-   - CCW → `CCW`
-3. **GESTURE_SENSOR_REQUIRED=True** — edit `pi4/core/config.py` line 54, deploy to Pi4, confirm POST 22/22
-
-**Pi4 deploy batch still needed:**
-- `pi4/iris_web.html` + `pi4/iris_web.js` — Striking Blue EYE:7 → EYE:6 (3 locations). REPO-ONLY.
-- `pi4/core/config.py` — DEFAULT_EYE_IDX range (0,7)→(0,6) + GESTURE_SENSOR_REQUIRED True (do both together).
+**Next work:**
+- Deploy `pi4/iris_web.html` + `pi4/iris_web.js` — Striking Blue EYE:7→EYE:6 (3 locations). REPO-ONLY.
+- Verify T41 eye tracking — `journalctl -u assistant | grep -E 'Person|FACE'`.
 
 **LAN flash scripts (no USB cable move needed going forward):**
 - `.\scripts\Flash T41 Eyes.bat` — double-click to build + flash T41

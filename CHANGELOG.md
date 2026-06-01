@@ -1659,15 +1659,25 @@ git checkout -- src/main.cpp pi4/core/config.py
 - **`pi4/hardware/base_mount_bridge.py`** — `__init__` stores `leds` as `self._leds`. `_dispatch()` calls `self._leds.show_gesture(action)` after every recognized action. DEPLOYED md5=`999544f7a4bad17c5dc86bdb848b8de3` RAM=SD.
 - **`/home/pi/iris_config.json`** — `GESTURE_MAP` added: VOL+→VOL+, VOL-→VOL-, STOP→STOP, RIGHT→WAKE, FORWARD→LISTEN, BACKWARD→SLEEP, CW→MUTE, CCW→SKIP. md5=`755336185f765814496eb3fe5511c7ab` RAM=SD.
 
-**Remaining steps:**
-1. User flashes T40 (`Flash T40 Servo.bat`)
-2. Live serial verify all 8 gestures
-3. `GESTURE_SENSOR_REQUIRED=True` in `pi4/core/config.py`, deploy, confirm POST 22/22
+**Verification (live, 2026-06-01):**
+- RIGHT → `gesture=RIGHT action=WAKE` ✓ (firmware change confirmed)
+- LEFT → `gesture=STOP action=STOP` ✓
+- FORWARD → `gesture=FORWARD action=LISTEN` ✓
+- BACKWARD → `gesture=BACKWARD action=SLEEP` ✓
+- UP → `gesture=VOL+ action=VOL+` ✓
+- DOWN → `gesture=VOL- action=VOL-` ✓
+- CW → `gesture=CW action=MUTE` ✓
+- CCW → `gesture=CCW action=SKIP` ✓ (stub no-op by design)
+- APA102 LED gesture flash confirmed firing by user observation
+
+**`pi4/core/config.py`** — `GESTURE_SENSOR_REQUIRED = True`. md5=`2a8fd5d2019a2666901d67a3ec7babff` RAM=SD.
+
+**POST result:** 20/23 PASS WARN:3 FAIL:0 startup AUTHORIZED. WARNs: gesture sensor I2C (permanent — Teensy-side bus), firmware version (T41 not re-versioned), iris_config.json unknown keys (handled elsewhere).
 
 **Rollback:**
 ```bash
 git checkout -- servo_teensy40/teensy40_base_mount/paj7620.cpp
-git checkout -- pi4/hardware/led.py pi4/hardware/base_mount_bridge.py
+git checkout -- pi4/hardware/led.py pi4/hardware/base_mount_bridge.py pi4/core/config.py
 # Remove GESTURE_MAP key from iris_config.json on Pi4 (reverts to _DEFAULT_GESTURE_MAP)
 ```
 
