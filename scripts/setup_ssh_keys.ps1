@@ -15,9 +15,13 @@ $keyPath = "$env:USERPROFILE\.ssh\id_ecdsa"
 if (Test-Path "$keyPath.pub") {
     Write-Host "[KEY] Key already exists at $keyPath.pub -- skipping generation." -ForegroundColor Yellow
 } else {
-    Write-Host "[KEY] Generating ECDSA key (no passphrase)..." -ForegroundColor Cyan
-    ssh-keygen -t ecdsa -b 256 -f $keyPath -N ""
-    if ($LASTEXITCODE -ne 0) { Write-Host "[KEY] keygen FAILED." -ForegroundColor Red; exit 1 }
+    Write-Host "[KEY] Generating ECDSA key..." -ForegroundColor Cyan
+    Write-Host "[KEY] Press Enter 3 times: accept default path, then empty passphrase x2." -ForegroundColor Yellow
+    Write-Host ""
+    ssh-keygen -t ecdsa -b 256 -f $keyPath
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$keyPath.pub")) {
+        Write-Host "[KEY] keygen FAILED or was cancelled." -ForegroundColor Red; exit 1
+    }
     Write-Host "[KEY] Key generated." -ForegroundColor Green
 }
 
