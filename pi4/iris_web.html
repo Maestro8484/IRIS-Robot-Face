@@ -206,6 +206,14 @@
       <button class="btn-mouth" onclick="sendTeensy('MOUTH:8')" style="color:var(--muted)">8 - Sleep (blank)</button>
       <button class="btn-mouth" onclick="sendTeensy('MOUTH:9')" style="border-color:#f472b6;color:#f472b6">9 - Silly (tongue)</button>
     </div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="color:var(--muted);font-size:12px;min-width:110px">Idle animations:</span>
+        <button class="btn btn-sm" onclick="sendTeensy('IDLE:START')" style="border-color:var(--blue);color:var(--blue)">Start Idle</button>
+        <button class="btn btn-sm" onclick="sendTeensy('IDLE:STOP')"  style="border-color:var(--border)">Stop Idle</button>
+      </div>
+      <p class="hint" style="margin-top:6px">Enables BREATHE / BLINK / TWITCH / BOING. Silly (9) auto-starts and wags tongue after 2 s. Requires S87 firmware flashed.</p>
+    </div>
   </div>
 </div>
 
