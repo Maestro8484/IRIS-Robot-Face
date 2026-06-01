@@ -6,11 +6,10 @@
 #
 # Result:
 #   /dev/ttyIRIS_EYES  -> Teensy 4.1 (TeensyEyes + TFT mouth) — serial 13625440
-#   /dev/ttyIRIS_SERVO -> Teensy 4.0 (servo + APDS-9960 gesture) — serial PENDING
+#   /dev/ttyIRIS_SERVO -> Teensy 4.0 (servo + PAJ7620 gesture) — serial 12763490
 #
-# To get Teensy 4.0 serial: plug it in then run:
-#   udevadm info -a -n /dev/ttyACM1 | grep "ATTRS{serial}"
-# Replace PENDING below with that value, redeploy, then update core/config.py.
+# Identification is by USB hardware serial number (ATTRS{serial}), NOT by port
+# position. Symlinks survive cable moves and reboots.
 
 SUBSYSTEM=="tty", ATTRS{idVendor}=="16c0", ATTRS{serial}=="13625440", SYMLINK+="ttyIRIS_EYES"
 SUBSYSTEM=="tty", ATTRS{idVendor}=="16c0", ATTRS{serial}=="12763490", SYMLINK+="ttyIRIS_SERVO"
