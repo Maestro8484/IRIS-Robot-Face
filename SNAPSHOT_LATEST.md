@@ -1,6 +1,6 @@
 # IRIS Snapshot
 
-**Session:** S92 | **Date:** 2026-06-01 | **Branch:** `main` | **Last commit:** 8761174
+**Session:** S92 | **Date:** 2026-06-01 | **Branch:** `main` | **Last commit:** ecc52d0
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -8,12 +8,11 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **Reconnect Teensy 4.1 USB to Pi4** — post-flash cable is still on SuperMaster. After reconnect: `journalctl -u assistant | grep VER` should show `[VER] IRIS-EYES firmware=S87b built=Jun  1 2026`. Also verify SILLY face (MOUTH:9), TONGUE_WAG (Start Idle → wait 2s), Person Sensor detected in log.
-2. **Fix WebUI EYE:7 → EYE:6 for Striking Blue** — S89 firmware moved strikingBlue to index 6, but iris_web.html still sends `EYE:7`. Update button + default-eye selector. Deploy to Pi4.
-3. **Update FIRMWARE_VERSION tag** — current value `"S87b"` in `src/config.h` but firmware includes S89 (bigBlue removal) + S91 (Person Sensor fix). Update to `"S91"` before next flash.
-4. **Flash Teensy 4.0 (env:teensy40)** — GY-PAJ7620 orientation (GESTURE_MOUNT_DEGREES=0). Verify `PAJ7620U2 0x73 ACK=YES` + gestures fire.
-5. **Set GESTURE_SENSOR_REQUIRED=True** — after T40 flash verified.
-6. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
+1. **Verify T41 eye tracking** — check `journalctl -u assistant | grep -E 'VER|Person|FACE'` for `[DBG] Person Sensor detected` and `FACE:1` events. Confirm face tracking active.
+2. **Verify T40 gesture sensor** — open serial monitor on T40 and confirm `PAJ7620U2 0x73 ACK=YES` + `init=OK` at boot. Test UP/DOWN/LEFT/RIGHT swipes.
+3. **Set GESTURE_SENSOR_REQUIRED=True** — after T40 gesture verified. Deploy `pi4/core/config.py` to Pi4.
+4. **Deploy Pi4 web files** — `pi4/iris_web.html` + `pi4/iris_web.js` (EYE:6 fix) + `pi4/core/config.py` (DEFAULT_EYE_IDX range). Standard persist-to-SD procedure.
+5. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
 
 ---
 
@@ -23,17 +22,16 @@
 |---|---|
 | Pi4 192.168.1.200 | Operational. S87+S87c+S87d deployed (emotion_map fix, IDLE buttons, firmware version POST check). iris_web.html md5=c5aad687, iris_post.py md5=18748f34. |
 | GandalfAI 192.168.1.3 | Operational. iris model: ANGRY insult + 20-joke repertoire (S84). |
-| Teensy 4.1 (eyes+mouth) | FLASHED this session — S87+S89+S91 combined build (SILLY mouth, TONGUE_WAG, versioning, bigBlue removed, Person Sensor fix). USB disconnected from Pi4 (reconnect needed). |
-| Teensy 4.0 (servo+gesture) | S69 firmware LIVE. GY-PAJ7620 orientation fix REPO-ONLY (S83). |
+| Teensy 4.1 (eyes+mouth) | FLASHED S92 — S87+S89+S91+S87d (SILLY, TONGUE_WAG, Person Sensor fix, versioning, bigBlue removed). Connected to Pi4. Verify Person Sensor + face tracking. |
+| Teensy 4.0 (servo+gesture) | FLASHED S92 — S70+S72+S75+TS40-S1+TS40-S2+S83 (ServoEasing, all 8 gestures, pan smoothing, modular split, GESTURE_MOUNT_DEGREES=0). Verify PAJ7620 ACK + gestures. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
 
 ---
 
 ## Active Issues
 
-- **HIGH: Teensy 4.1 USB not connected to Pi4** — cable on SuperMaster post-flash. Reconnect + verify `[VER]` in journal before IRIS is operational.
-- **MED: iris_web.html + iris_web.js EYE:7 fix needs Pi4 deploy** — Striking Blue index corrected to 6 in all three places (eye grid button, default-eye-sel option, `_EYE_OPT` array). REPO-ONLY. Deploy iris_web.html + iris_web.js to Pi4.
-- **LOW: Gesture sensor** — T40 not flashed. Gestures won't fire until T40 flashed.
+- **MED: iris_web.html + iris_web.js + config.py Pi4 deploy pending** — EYE:6 fix (3 locations) + DEFAULT_EYE_IDX range. REPO-ONLY. Deploy to Pi4.
+- **LOW: T40 gesture verification pending** — flash confirmed; verify PAJ7620 ACK + gestures before setting GESTURE_SENSOR_REQUIRED=True.
 - **LOW: RD-003** — Duplicate sleep log paths.
 
 ---

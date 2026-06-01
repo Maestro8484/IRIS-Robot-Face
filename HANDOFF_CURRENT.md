@@ -41,17 +41,21 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**S91/S92 REPO-ONLY — Pi4 deploy batch needed:**
-- `pi4/iris_web.html` — Striking Blue button fixed: `EYE:7` → `EYE:6` (grid button + default-eye-sel option). Deploy to Pi4.
-- `pi4/iris_web.js` — `_EYE_OPT` Striking Blue: `[7,...]` → `[6,...]`. Deploy to Pi4.
-- `pi4/core/config.py` — `DEFAULT_EYE_IDX` range `(0,7)` → `(0,6)`. Deploy to Pi4.
-- `src/config.h` — `FIRMWARE_VERSION` `"S87b"` → `"S91"`. Takes effect at NEXT T41 flash only.
+**BOTH TEENSYS FLASHED S92 (2026-06-01):**
+- T41: S87+S89+S91+S87d — SILLY mouth, Person Sensor timing fix, versioning, bigBlue removed.
+- T40: S70+S72+S75+TS40-S1+TS40-S2+S83 — ServoEasing, all 8 gestures, pan smoothing, GESTURE_MOUNT_DEGREES=0.
 
-**T41 now FLASHED (S87+S89+S91+S87d). USB still on SuperMaster — reconnect to Pi4, then verify:**
-```
-journalctl -u assistant | grep VER   → expect [VER] IRIS-EYES firmware=S87b built=Jun  1 2026
-```
-Person Sensor tracking should now work. Confirm `[DBG] Person Sensor detected` in logs.
+**Pi4 deploy batch still needed:**
+- `pi4/iris_web.html` + `pi4/iris_web.js` — Striking Blue EYE:7 → EYE:6 (3 locations). REPO-ONLY.
+- `pi4/core/config.py` — DEFAULT_EYE_IDX range (0,7) → (0,6). REPO-ONLY.
+
+**After T40 gesture verified:**
+- Set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.py`, deploy to Pi4, confirm POST 22/22.
+
+**LAN flash scripts (no USB cable move needed going forward):**
+- `.\scripts\Flash T41 Eyes.bat` — double-click to build + flash T41
+- `.\scripts\Flash T40 Servo.bat` — double-click to build + flash T40
+- `.\scripts\setup_ssh_keys.ps1` — run once for passwordless SSH (already done if SSH keys work)
 
 **S90 DEPLOYED+VERIFIED (2026-05-31):**
 - `pi4/iris_web.py` — Modularized. log_parser import, CSS/JS routes. md5 RAM=SD=`2e66e9920983e2b5328e304fdc56b738`
