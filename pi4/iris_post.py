@@ -312,6 +312,25 @@ class _POST:
         self.send_display(f"EYE:{DEFAULT_EYE_IDX}", 0.1)
         self.send_display(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_IDLE}", 0.1)
 
+    def l2_firmware_version(self):
+        """Read firmware version from the most recent [VER] line in the assistant journal."""
+        try:
+            result = subprocess.run(
+                ["journalctl", "-u", "assistant", "--no-pager", "-n", "500",
+                 "--output=short-iso"],
+                capture_output=True, text=True, timeout=10)
+            ver_str = None
+            for line in reversed(result.stdout.splitlines()):
+                if "[VER] IRIS-EYES" in line:
+                    ver_str = line.split("[VER] IRIS-EYES")[-1].strip()
+                    break
+            if ver_str:
+                return self.record("L2", "firmware version", PASS, ver_str)
+            return self.record("L2", "firmware version", WARN,
+                               "no [VER] in journal — flash versioned firmware (S87b+)")
+        except Exception as e:
+            return self.record("L2", "firmware version", WARN, str(e)[:60])
+
     # ── L3 — Pipeline smoke ───────────────────────────────────────────────────
 
     def l3_router(self):
@@ -432,6 +451,7 @@ class _POST:
 
         self.log("[LED] POST indicator: amber (L2)");  self.led(_LED_LAYERS[2])
         self.l2_display()
+        self.l2_firmware_version()
 
         self.log("[LED] POST indicator: orange (L3)"); self.led(_LED_LAYERS[3])
         self.l3_router()

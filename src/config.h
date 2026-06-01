@@ -1,5 +1,11 @@
 #pragma once
 
+// ── Firmware version — update this before every flash ────────────────────────
+// Format: "S<session>[letter]"  e.g. "S87b"
+// Printed on boot: [VER] IRIS-EYES firmware=S87b built=May 31 2026
+// Queried via serial command: "VERSION"
+static constexpr char FIRMWARE_VERSION[] = "S87b";
+
 #include "eyes/eyes.h"
 
 // ── Emotion-linked eyes ───────────────────────────────────────────────────────

@@ -138,6 +138,7 @@ Documentation rules for this report:
 - Do not stack unverified changes.
 - Never push to GitHub unless explicitly authorized in the current session.
 - Never write to Pi4 or GandalfAI unless the user says DEPLOY.
+- Before every firmware flash (env:eyes or env:teensy40): update `FIRMWARE_VERSION` in `src/config.h` to the current session tag (e.g. `"S87b"`). After flash, verify the version appears in `journalctl -u assistant | grep VER`. This is the only reliable way to know what firmware the Teensy is running.
 - Never hardcode `/dev/ttyACM*` in code, config, or commands. Always use `/dev/ttyIRIS_EYES` (Teensy 4.1 eyes + mouth) or `/dev/ttyIRIS_SERVO` (Teensy 4.0 servo + gesture). These are udev symlinks bound to hardware USB serial numbers — they survive USB port swaps and reboots. ttyACM* numbers are port-position-based and change when cables are moved (confirmed failure S63).
 - Every Pi4 file deployment must be persisted to `/media/root-ro`. The Pi4 runs a read-only overlay filesystem — all changes land in RAM and are lost on reboot unless explicitly copied to SD. This applies to ALL paths: `/home/pi/`, `/etc/udev/rules.d/`, `/etc/systemd/system/`, and any other system path. A deploy is not complete and must not be marked DEPLOYED until the file exists in `/media/root-ro/<same relative path>` with md5 verified. (Confirmed failure S63: `99-iris-teensy.rules` deployed to `/etc/udev/rules.d/` RAM only, never persisted to SD, lost on reboot 2026-05-28, caused 8-hour display outage.)
 

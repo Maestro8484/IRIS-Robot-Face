@@ -272,6 +272,12 @@ static void processSerial() {
             Serial.println("[DBG] EYES:WAKE -- displays restored");
           }
 
+        } else if (strcmp(serialBuf, "VERSION") == 0) {
+          Serial.print("[VER] IRIS-EYES firmware=");
+          Serial.print(FIRMWARE_VERSION);
+          Serial.print(" built=");
+          Serial.println(__DATE__);
+
         } else if (strcmp(serialBuf, "IDLE:START") == 0) {
           lastCommandMs = 0; // force auto-start timer to treat this as immediate
           mouthIdleStart();
@@ -346,6 +352,10 @@ void setup() {
   while (!Serial && millis() < 2000);
   delay(200);
   DumpMemoryInfo();
+  Serial.print("[VER] IRIS-EYES firmware=");
+  Serial.print(FIRMWARE_VERSION);
+  Serial.print(" built=");
+  Serial.println(__DATE__);
   Serial.println("[DBG] Init -- nordicBlue default, flame/ANGRY, hypnoRed/CONFUSED, web eyes 3-7");
   Serial.flush();
   Entropy.Initialize();
