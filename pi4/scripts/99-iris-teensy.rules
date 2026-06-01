@@ -5,11 +5,15 @@
 #         sudo udevadm control --reload-rules && sudo udevadm trigger
 #
 # Result:
-#   /dev/ttyIRIS_EYES  -> Teensy 4.1 (TeensyEyes + TFT mouth) — serial 13625440
-#   /dev/ttyIRIS_SERVO -> Teensy 4.0 (servo + PAJ7620 gesture) — serial 12763490
+#   /dev/ttyIRIS_EYES  -> Teensy 4.1 (TeensyEyes + TFT mouth) — serial 12763490
+#   /dev/ttyIRIS_SERVO -> Teensy 4.0 (servo + PAJ7620 gesture) — serial 13625440
 #
 # Identification is by USB hardware serial number (ATTRS{serial}), NOT by port
 # position. Symlinks survive cable moves and reboots.
+#
+# Note (S94): serial numbers were confirmed via direct port output inspection.
+# T41 outputs FACE:N and [DBG] EMOTION/EYES/EYE/MOUTH responses.
+# T40 outputs DIAG: PS bytes=N pan=N pajOk=N and gesture commands (VOL+, STOP, etc.)
 
-SUBSYSTEM=="tty", ATTRS{idVendor}=="16c0", ATTRS{serial}=="13625440", SYMLINK+="ttyIRIS_EYES"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="16c0", ATTRS{serial}=="12763490", SYMLINK+="ttyIRIS_SERVO"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="16c0", ATTRS{serial}=="12763490", SYMLINK+="ttyIRIS_EYES"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="16c0", ATTRS{serial}=="13625440", SYMLINK+="ttyIRIS_SERVO"

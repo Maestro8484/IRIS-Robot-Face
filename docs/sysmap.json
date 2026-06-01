@@ -11,7 +11,7 @@
       "sysmap.json is the surgical lookup layer for ports/paths/pins/config defaults.",
       "For architectural reasoning, pipeline design, or failure mode analysis: read IRIS_ARCH.md.",
       "For current live system state and active issues: read SNAPSHOT_LATEST.md.",
-      "Teensy 4.0 (base mount controller) is identified by hardware USB serial number via udev rules. /dev/ttyIRIS_EYES = Teensy 4.1 (serial 13625440). /dev/ttyIRIS_SERVO = Teensy 4.0 (serial 12763490). Rules at /etc/udev/rules.d/99-iris-teensy.rules. NEVER hardcode /dev/ttyACM* in code or config -- symlinks survive port swaps and reboots."
+      "Teensy 4.0 (base mount controller) is identified by hardware USB serial number via udev rules. /dev/ttyIRIS_EYES = Teensy 4.1 (serial 12763490). /dev/ttyIRIS_SERVO = Teensy 4.0 (serial 13625440). Rules at /etc/udev/rules.d/99-iris-teensy.rules. NEVER hardcode /dev/ttyACM* in code or config -- symlinks survive port swaps and reboots."
     ]
   },
 
@@ -174,7 +174,7 @@
 
       "serial": {
         "device": "/dev/ttyIRIS_EYES",
-        "usb_serial_number": "13625440",
+        "usb_serial_number": "12763490",
         "owner": "hardware/teensy_bridge.py exclusively",
         "others_must_use": "UDP to 127.0.0.1:10500",
         "bootloader_reset_cmd": "python3 -c \"import serial, time; s=serial.Serial('/dev/ttyIRIS_EYES',134); time.sleep(0.5); s.close()\""
@@ -182,7 +182,7 @@
       "teensy40_serial": {
         "device": "/dev/ttyIRIS_SERVO",
         "baud": 115200,
-        "usb_serial_number": "12763490",
+        "usb_serial_number": "13625440",
         "owner": "hardware/base_mount_bridge.py (BaseMountBridge daemon thread)",
         "commands_from_teensy": ["VOL+", "VOL-", "STOP", "LISTEN", "FORWARD", "BACKWARD", "CW", "CCW"],
         "note": "udev symlink bound to hardware serial number. Persists across Pi4 reboots and USB port swaps."
@@ -192,8 +192,8 @@
         "repo_source": "pi4/scripts/99-iris-teensy.rules",
         "deployed": true,
         "entries": [
-          { "symlink": "ttyIRIS_EYES",  "serial": "13625440", "device": "Teensy 4.1 (eyes + TFT mouth)" },
-          { "symlink": "ttyIRIS_SERVO", "serial": "12763490", "device": "Teensy 4.0 (servo + gesture)" }
+          { "symlink": "ttyIRIS_EYES",  "serial": "12763490", "device": "Teensy 4.1 (eyes + TFT mouth)" },
+          { "symlink": "ttyIRIS_SERVO", "serial": "13625440", "device": "Teensy 4.0 (servo + gesture)" }
         ],
         "reload_cmd": "sudo udevadm control --reload-rules && sudo udevadm trigger",
         "get_serial_cmd": "udevadm info -a -n /dev/ttyACMx | grep 'ATTRS{serial}'"
@@ -457,7 +457,7 @@
     "teensy40": {
       "role": "Base mount controller. Pan servo driver, Person Sensor face tracking, PAJ7620U2 gesture sensor (replaces dead APDS-9960, S66). USB-CDC serial to Pi4.",
       "hardware": "Teensy 4.0",
-      "usb_serial_number": "12763490",
+      "usb_serial_number": "13625440",
       "source_file": "servo_teensy40/teensy40_base_mount/teensy40_base_mount.ino",
       "connected_to": "USB serial to Pi4 /dev/ttyIRIS_SERVO at 115200 baud.",
       "power": "Teensy board: Pi4 USB (micro-USB). Servo 5V rail: separate supply with physical toggle switch on enclosure — switch is wired between 5V+ supply and servo 5V+, cuts servo power only, Teensy stays live.",
