@@ -1682,3 +1682,25 @@ git checkout -- pi4/hardware/led.py pi4/hardware/base_mount_bridge.py pi4/core/c
 ```
 
 ---
+
+## S94b — Correct Teensy USB Serial Assignments
+
+**Date:** 2026-06-01
+**Status:** DEPLOYED+VERIFIED (udev rules). T41 display open issue — see below.
+
+**Root cause:** Since S63, the udev rule serial numbers were swapped in their labels. T40 hardware serial is `13625440`; T41 hardware serial is `12763490`. The S63 identification was done without verifying output format — the labels in the comments and IRIS_ARCH.md were wrong. It worked by coincidence (physical port order happened to match). The second T40 reflash in S94 caused USB re-enumeration which exposed the mislabel.
+
+**Confirmed by direct output inspection (service stopped, raw cat):**
+- `ttyACM0 (serial 13625440)` → `DIAG: Person Sensor... pan=N pajOk=1` → **T40**
+- `ttyACM1 (serial 12763490)` → `FACE:0` → **T41**
+
+**Changes:**
+- **`pi4/scripts/99-iris-teensy.rules`** — Serial numbers corrected: `12763490→ttyIRIS_EYES` (T41), `13625440→ttyIRIS_SERVO` (T40). Deployed to Pi4 `/etc/udev/rules.d/` + SD `/media/root-ro/`. md5=`83ca06eac9ee3afcf89753b8aa33405a` RAM=SD.
+- **`IRIS_ARCH.md`** — USB Device Identity table corrected.
+- **`docs/sysmap.json`** — All three serial number references corrected.
+
+**Open issue:** After the fix and service restart, `teensy_bridge.py` reported `DROP EYES:WAKE -- port not open`. T41 displays remain black. Likely: bridge failed to reconnect after repeated service restarts during S94. Next session: restart assistant + power-cycle T41 USB if needed.
+
+---
+
+---

@@ -8,8 +8,8 @@
 
 ## WHAT'S NEXT (Priority Queue)
 
-1. **Deploy Pi4 web files** — `pi4/iris_web.html` + `pi4/iris_web.js` (EYE:6 fix, 3 locations). REPO-ONLY.
-2. **Verify T41 eye tracking** — check `journalctl -u assistant | grep -E 'Person|FACE'` for `[DBG] Person Sensor detected` and `FACE:1` events.
+1. **URGENT: Fix T41 display — `DROP EYES:WAKE -- port not open`** — Bridge lost T41 serial connection. Steps: (a) `ls -la /dev/ttyIRIS_EYES` confirms symlink exists; (b) `sudo systemctl restart assistant`; (c) check journal for `[EYES] Teensy connected on /dev/ttyIRIS_EYES`; (d) if still failing, power-cycle T41 USB.
+2. **Deploy Pi4 web files** — `pi4/iris_web.html` + `pi4/iris_web.js` (EYE:6 fix, 3 locations). REPO-ONLY.
 3. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
 
 ---
@@ -20,7 +20,7 @@
 |---|---|
 | Pi4 192.168.1.200 | Operational. S87+S87c+S87d deployed (emotion_map fix, IDLE buttons, firmware version POST check). iris_web.html md5=c5aad687, iris_post.py md5=18748f34. |
 | GandalfAI 192.168.1.3 | Operational. iris model: ANGRY insult + 20-joke repertoire (S84). |
-| Teensy 4.1 (eyes+mouth) | FLASHED S92 — S87+S89+S91+S87d (SILLY, TONGUE_WAG, Person Sensor fix, versioning, bigBlue removed). Connected to Pi4. Verify Person Sensor + face tracking. |
+| Teensy 4.1 (eyes+mouth) | FLASHED S92. **DISPLAYS BLACK** — T41 port not open (`DROP EYES:WAKE -- port not open`). udev serial swap corrected S94 (T41=12763490). Serial port may have disconnected after multiple service restarts. Restart assistant + check `/dev/ttyIRIS_EYES` symlink. |
 | Teensy 4.0 (servo+gesture) | FLASHED S92+S93+S94. All 8 gestures verified live. GESTURE_MAP: RIGHT→WAKE, CW→MUTE, CCW→SKIP. GESTURE_SENSOR_REQUIRED=True. APA102 LED gesture feedback active. POST 20/23 PASS AUTHORIZED. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
 

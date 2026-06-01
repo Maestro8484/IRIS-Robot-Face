@@ -41,14 +41,21 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**S94 COMPLETE (2026-06-01):**
-- All 8 gestures verified live. RIGHT→WAKE, CW→MUTE, CCW→SKIP confirmed.
-- APA102 LED gesture feedback active.
-- GESTURE_SENSOR_REQUIRED=True deployed. POST 20/23 PASS AUTHORIZED.
+**OPEN ISSUE — T41 displays black: `DROP EYES:WAKE -- port not open`**
 
-**Next work:**
-- Deploy `pi4/iris_web.html` + `pi4/iris_web.js` — Striking Blue EYE:7→EYE:6 (3 locations). REPO-ONLY.
-- Verify T41 eye tracking — `journalctl -u assistant | grep -E 'Person|FACE'`.
+Teensy 4.1 serial connection dropped during S94. Multiple service restarts + T40 reflash events likely caused the bridge to lose the port. The serial number issue (udev swap) was fixed — T41 is confirmed as serial 12763490, T40 as 13625440.
+
+**First thing next session:**
+1. `ls -la /dev/ttyIRIS_EYES` — should point to ttyACM1
+2. `sudo systemctl restart assistant`
+3. `journalctl -u assistant -f` — watch for `[EYES] Teensy connected on /dev/ttyIRIS_EYES`
+4. If still `DROP`: power-cycle T41 USB cable on Pi4, then restart assistant
+5. If still failing after power cycle: check `lsusb | grep -i teensy` — T41 may need full power cycle
+
+**S94 completed work:**
+- Gestures: all 8 verified. RIGHT→WAKE, CW→MUTE, CCW→SKIP. APA102 LED feedback live.
+- udev serial fix: T41=12763490, T40=13625440. RAM+SD persisted. All docs updated.
+- GESTURE_SENSOR_REQUIRED=True deployed. POST 20/23 PASS.
 
 **LAN flash scripts (no USB cable move needed going forward):**
 - `.\scripts\Flash T41 Eyes.bat` — double-click to build + flash T41
