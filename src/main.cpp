@@ -279,8 +279,7 @@ static void processSerial() {
         } else if (strcmp(serialBuf, "EYES:SPEAKING") == 0) {
           lastCommandMs = millis();
           eyesSpeaking  = true;
-          eyes->setAutoMove(true);
-          Serial.println("[DBG] EYES:SPEAKING -- tracking suspended, autoMove on");
+          Serial.println("[DBG] EYES:SPEAKING -- tracking frozen at last position");
 
         } else if (strcmp(serialBuf, "EYES:SPEAKING:STOP") == 0) {
           lastCommandMs = millis();
