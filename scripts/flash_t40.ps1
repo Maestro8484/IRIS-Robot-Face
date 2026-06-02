@@ -44,10 +44,15 @@ scp -o StrictHostKeyChecking=no $hexLocal "${PI4}:${hexPi4}"
 if ($LASTEXITCODE -ne 0) { Write-Host "[T40] scp FAILED." -ForegroundColor Red; exit 1 }
 
 # 3 — Flash via Pi4
-Write-Host "[T40] Flashing via Pi4 (soft reboot → upload → restart)..." -ForegroundColor Cyan
+# Bootloader is triggered explicitly on /dev/ttyIRIS_SERVO (T40) at baud 134.
+# -s is NOT used — it picks the first Teensy found and cross-flashes T41.
+Write-Host "[T40] Flashing via Pi4 (explicit /dev/ttyIRIS_SERVO reset → upload → restart)..." -ForegroundColor Cyan
 ssh -o StrictHostKeyChecking=no $PI4 @"
 sudo systemctl stop assistant && \
-sudo teensy_loader_cli --mcu=TEENSY40 -s -w -v $hexPi4 && \
+sleep 1 && \
+printf 'import serial,time\ns=serial.Serial(\042/dev/ttyIRIS_SERVO\042,134)\ntime.sleep(0.5)\ns.close()\n' | python3 && \
+sleep 2 && \
+sudo teensy_loader_cli --mcu=TEENSY40 -w -v $hexPi4 && \
 sudo systemctl start assistant && \
 echo '[T40] Flash complete. Verifying...' && \
 sleep 5 && \

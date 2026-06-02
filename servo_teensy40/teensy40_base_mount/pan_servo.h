@@ -10,7 +10,7 @@
 
 // Face-lost timing (ms)
 #define FACE_HOLD_MS   2500
-#define FACE_RETURN_MS 6000
+#define FACE_RETURN_MS 30000
 
 // Pan servo rotation limits
 #define PAN_MIN 65.0

@@ -137,8 +137,8 @@ Teensy devices are identified by hardware USB serial number, not port position.
 
 | Symlink | Serial | Device |
 |---|---|---|
-| `/dev/ttyIRIS_EYES` | `12763490` | Teensy 4.1 (eyes + TFT mouth) |
-| `/dev/ttyIRIS_SERVO` | `13625440` | Teensy 4.0 (servo + gesture) |
+| `/dev/ttyIRIS_EYES` | `13625440` | Teensy 4.1 (eyes + TFT mouth) |
+| `/dev/ttyIRIS_SERVO` | `12763490` | Teensy 4.0 (servo + gesture) |
 
 Rules file: `/etc/udev/rules.d/99-iris-teensy.rules` (repo: `pi4/scripts/99-iris-teensy.rules`)
 Reload: `sudo udevadm control --reload-rules && sudo udevadm trigger`

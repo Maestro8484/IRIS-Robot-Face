@@ -41,23 +41,11 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**Flash T41 with S96 firmware — LED + tracking root-cause fix**
+**T40 mechanical damper tuning** — in progress by user. No firmware change needed. FACE_RETURN_MS=30000ms is live.
 
-S96 changes are REPO-ONLY (build already verified SUCCESS):
-- `src/main.cpp` setup — `Wire.setClock(400000)`, `delay(200)` after setMode before enableLED
-- `src/main.cpp` loop — one-shot `enableLED(false)` re-confirm on first read
-- `src/main.cpp` loop — `box_confidence` threshold 60 → 40
-- `src/config.h:7` — FIRMWARE_VERSION S95 → S96
-
-**Flash steps:**
-1. `pio run -e eyes` (build already passed; run again to confirm clean)
-2. PlatformIO upload button (T41 on Pi4 USB — use LAN flash bat or direct USB)
-3. `journalctl -u assistant | grep VER` — verify `firmware=S96`
-4. Stand in front of IRIS — verify eyes track face continuously
-
-**After flash, verify:**
-- Person sensor LED should be OFF immediately after boot (DebugMode now properly disabled)
-- Eyes should track any face with `box_confidence > 40` continuously
+**When ready:**
+- Deploy `pi4/iris_web.html` + `pi4/iris_web.js` (EYE:6 Striking Blue fix, REPO-ONLY)
+- RD-003: duplicate sleep log paths
 - No more wandering while you are standing in front of IRIS
 
 **S96 root-cause diagnosis:**

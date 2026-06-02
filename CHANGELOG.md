@@ -1742,3 +1742,36 @@ Tertiary factor: `box_confidence > 60` threshold was borderline for common orien
 - **`src/config.h`** — `FIRMWARE_VERSION` updated S95 → S96.
 
 ---
+
+## S97 — Face Tracking Hold Fix + Flash Script + udev Serial Correction
+
+**Date:** 2026-06-02
+**Status:** T41 FLASHED+VERIFIED. T40 FLASHED. udev DEPLOYED+PERSISTED.
+
+### Root cause resolved — T41 tracking intermittent
+
+S95–S96j experimental builds had removed `is_facing`, lowered confidence to 50, and cut `FACE_LOST_TIMEOUT_MS` from 5000 → 500ms. The 500ms timeout was the critical regression: the sensor produces `is_facing=0` for 0.5–2s gaps even with confidence=99 (confirmed in live DIAG output). With a 500ms hold the eyes wandered on every gap. With 5000ms hold the eyes stay locked on last position through the gaps — same behaviour as the original chrismiller code that worked for over a year.
+
+`is_facing` and `confidence > 60` were also restored to match the T40 person_sensor.cpp gate (T40 uses identical values and tracks solidly from the same physical position).
+
+### Changes
+
+- **`src/main.cpp`** — `FACE_LOST_TIMEOUT_MS` 500 → 5000ms. Tracking gate restored to `face.is_facing && face.box_confidence > 60`.
+- **`src/config.h`** — `FIRMWARE_VERSION` S96j → S97.
+- **`servo_teensy40/teensy40_base_mount/pan_servo.h`** — `FACE_RETURN_MS` 6000 → 30000ms. Servo holds last tracked pan position 30s before drifting to center. Eliminates hunting during `is_facing=0` gaps.
+- **`scripts/flash_t41.ps1`** + **`scripts/flash_t40.ps1`** — Removed `-s` flag (picked first Teensy found → caused T40 firmware to be cross-flashed onto T41). Replaced with explicit bootloader entry via `printf` + `python3` targeting the correct device symlink. Used `\042` octal escape to avoid Windows SSH client stripping double quotes.
+- **`pi4/scripts/99-iris-teensy.rules`** — Serial numbers corrected. S94b had them swapped. Confirmed by connecting T41 alone: serial 13625440 appeared → T41=13625440, T40=12763490. DEPLOYED + SD persisted (md5 `28566d3da7e8bf8d5f9b975ac564b11a` RAM=SD).
+- **`IRIS_ARCH.md`** — USB Device Identity table corrected to match confirmed serials.
+
+### Flash method
+
+T41 was not enumerating via its udev symlink (wrong serial in rules). Flashed directly via ssh-pi4 MCP using `/dev/ttyACM0` with `printf` bootloader reset + `teensy_loader_cli --mcu=TEENSY41 -w -v /tmp/eyes.hex`. Verified: `[VER] IRIS-EYES firmware=S97 built=Jun 1 2026`.
+
+### Verification
+
+- `[VER] IRIS-EYES firmware=S97` confirmed in journal.
+- `/dev/ttyIRIS_EYES → ttyACM0` confirmed after udev fix.
+- `[EYES] >> EMOTION:NEUTRAL` — no DROP, bridge live.
+- User confirmed: tracking "much better" on both T41 (eyes) and T40 (servo). T40 mechanical damper tuning ongoing.
+
+---
