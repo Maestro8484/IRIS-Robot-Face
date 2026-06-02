@@ -1815,3 +1815,36 @@ T41 was not enumerating via its udev symlink (wrong serial in rules). Flashed di
 - All snapshots except `SNAPSHOT_2026-06-01.md` and `SNAPSHOT_2026-05-31.md`
 
 ---
+
+## S100 — APA LED Flicker Fix + Cron Sleep Fix + Gesture Default Fix (2026-06-02)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Issues investigated:**
+
+1. **APA LED flickering yellow-orange-white after wakeword** — Reproduced from live Pi4 logs. Root cause: `ensure_gandalf_up()` launched its WoL animation as a bare `threading.Thread` not tracked by the LED animation framework. When a gesture fired during the 2-minute WoL wait, `show_gesture()` → `_run_anim()` → `stop_anim()` killed the wrong thread, then started gesture + idle threads. WoL thread still ran. WoL orange + idle blue + gesture white all contended on the same SPI bus → flickering yellow-orange-white. WoL timed out → only idle (blue) remained.
+
+2. **Cron sleep not firing** — Pi4 crontab file `/var/spool/cron/crontabs/pi` existed with correct entries (sleep 21:00, wake 07:30, backup Sun 03:00) but was owned by `root:root`. Cron skips files not owned by the matching user. `crontab -l` returned empty due to ownership mismatch. SD copy had same bad ownership — reproduced on every reboot.
+
+3. **Gesture default BACKWARD→SLEEP** — `_DEFAULT_GESTURE_MAP` in code had `BACKWARD→SLEEP`. Live `iris_config.json` was already corrected to `BACKWARD→WAKE`. Code default would regress on config reset.
+
+**Changes:**
+
+- **`pi4/hardware/led.py`** — Added `show_wol()` method using `_run_anim()` so it is tracked by the framework and cleanly preempted by any subsequent animation call.
+
+- **`pi4/assistant.py`** — `ensure_gandalf_up()` rewritten to use `leds.show_wol()`. Bare `threading.Thread` + `stop_evt` removed. `leds.stop_anim()` called on GandalfAI-up or timeout.
+
+- **`pi4/hardware/base_mount_bridge.py`** — `_DEFAULT_GESTURE_MAP`: `BACKWARD→SLEEP` corrected to `BACKWARD→WAKE`; `CW→MUTE`, `CCW→SKIP` (matches live `iris_config.json`).
+
+- **Pi4 crontab ownership** — `chown pi:crontab /var/spool/cron/crontabs/pi` (RAM + SD). `crontab -l` now returns entries. `systemctl reload cron` applied.
+
+**Pi4 deploy — md5 verified (RAM = SD):**
+- `/home/pi/hardware/led.py` — `19a176c7bd53e081d2d2f8637975a4bc`
+- `/home/pi/hardware/base_mount_bridge.py` — `131f490792681630b5c6d3d695c984b4`
+- `/home/pi/assistant.py` — `e285401b5f91a0d6fb23603ef0128348`
+
+**Service:** Restarted. POST PASS (L0 serial + mic + camera). root-ro remounted ro.
+
+**Remaining observation:** Wake-from-sleep path plays a greeting then returns to wakeword-wait — user must say "hey jarvis" twice to go from sleep to active conversation. Intentional behavior; not changed this session.
+
+---

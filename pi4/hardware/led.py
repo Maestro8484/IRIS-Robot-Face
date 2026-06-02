@@ -153,6 +153,17 @@ class APA102:
     def show_ptt(self):
         self.stop_anim(); self.set_all(8, 6, 0)
 
+    def show_wol(self):
+        """Orange breathe for Wake-on-LAN wait. Uses _run_anim() so gestures can preempt it cleanly."""
+        def anim():
+            while not self._stop_anim.is_set():
+                for v in list(range(0, 70, 4)) + list(range(70, 0, -4)):
+                    if self._stop_anim.is_set():
+                        return
+                    self._write([(v, v // 3, 0)] * self.n)
+                    time.sleep(0.05)
+        self._run_anim(anim)
+
     # ── Gesture feedback ─────────────────────────────────────────────────────
 
     def show_gesture(self, action: str):

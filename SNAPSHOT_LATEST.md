@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S98 | **Date:** 2026-06-02 | **Branch:** `main` | **Last commit:** S97
+**Session:** S100 | **Date:** 2026-06-02 | **Branch:** `main` | **Last commit:** S100
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -14,6 +14,7 @@
 1. **T40 mechanical damper** — servo tracking confirmed working, user tuning physically. No firmware change needed.
 2. **Deploy pi4/iris_web.html + iris_web.js** — EYE:6 Striking Blue fix (3 locations). REPO-ONLY.
 3. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
+4. **Wake-from-sleep UX** — wakeword during sleep plays greeting then returns to idle; user must say "hey jarvis" twice to converse. Decide if this should fall through to listening after greeting.
 
 ---
 
@@ -33,6 +34,7 @@
 
 - **LOW: iris_web.html + iris_web.js deploy pending** — EYE:6 fix (3 locations). REPO-ONLY.
 - **LOW: RD-003** — Duplicate sleep log paths.
+- **LOW: Wake-from-sleep UX** — wakeword during sleep plays greeting + returns to idle; needs "hey jarvis" twice to converse. Evaluate fall-through behavior.
 
 ---
 
@@ -56,13 +58,14 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S98)
+## Last Session Changes (S100)
 
-- **`SNAPSHOT_LATEST.md`** — Added stale-attachment warning block at top.
-- **`HANDOFF_CURRENT.md`** — Added stale-attachment warning block at top.
-- **`PRIMER.md`** — Added filesystem MCP mandate block at top (explicit prohibition on Claude.ai project knowledge base attachments).
+- **`pi4/hardware/led.py`** — Added `show_wol()` method using `_run_anim()` to fix WoL/gesture LED thread race. DEPLOYED+PERSISTED.
+- **`pi4/assistant.py`** — `ensure_gandalf_up()` now uses `leds.show_wol()` + `leds.stop_anim()`. Bare WoL thread removed. DEPLOYED+PERSISTED.
+- **`pi4/hardware/base_mount_bridge.py`** — `_DEFAULT_GESTURE_MAP` corrected: `BACKWARD→WAKE`, `CW→MUTE`, `CCW→SKIP`. DEPLOYED+PERSISTED.
+- **Pi4 crontab** — Ownership fixed: `pi:crontab` (was `root:root`). Sleep/wake cron now fires. Persisted to SD.
 
-## Previous Session Changes (S97)
+## Previous Session Changes (S98–S99)
 
 - **`src/main.cpp`** — FACE_LOST_TIMEOUT_MS 500→5000ms. Gate restored: `is_facing && confidence>60`.
 - **`src/config.h`** — FIRMWARE_VERSION S96j→S97.

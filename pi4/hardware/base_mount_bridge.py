@@ -14,9 +14,9 @@ _DEFAULT_GESTURE_MAP = {
     "STOP":    "STOP",
     "LISTEN":  "LISTEN",
     "FORWARD": "LISTEN",
-    "BACKWARD":"SLEEP",
-    "CW":      "VOL+",
-    "CCW":     "VOL-",
+    "BACKWARD":"WAKE",
+    "CW":      "MUTE",
+    "CCW":     "SKIP",
 }
 
 # Restore level used by MUTE toggle (mutable single-element list for closure capture)

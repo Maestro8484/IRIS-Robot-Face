@@ -111,25 +111,16 @@ def ensure_gandalf_up(leds, pa=None) -> bool:
     if pa is not None:
         play_wol_beep(pa)
 
-    def waking_anim(stop_evt):
-        while not stop_evt.is_set():
-            for v in list(range(0, 70, 4)) + list(range(70, 0, -4)):
-                if stop_evt.is_set(): return
-                leds._write([(v, v//3, 0)] * leds.n)
-                time.sleep(0.05)
-
-    stop_evt = threading.Event()
-    anim_t = threading.Thread(target=waking_anim, args=(stop_evt,), daemon=True)
-    anim_t.start()
+    leds.show_wol()
     deadline = time.time() + WOL_BOOT_TIMEOUT
     while time.time() < deadline:
         time.sleep(WOL_POLL_INTERVAL)
         if gandalf_is_up():
-            stop_evt.set(); anim_t.join(timeout=2)
+            leds.stop_anim()
             print("[WOL]  GandalfAI is up.", flush=True)
             return True
         print(f"[WOL]  Waiting for GandalfAI... ({int(deadline-time.time())}s remaining)", flush=True)
-    stop_evt.set(); anim_t.join(timeout=2)
+    leds.stop_anim()
     print("[ERR]  GandalfAI did not come up in time.", flush=True)
     return False
 
