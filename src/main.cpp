@@ -95,7 +95,6 @@ bool         personSensorFound = USE_PERSON_SENSOR;
 
 static bool     faceWasPresent  = false;
 static uint32_t lastFace1SentMs = 0;
-static bool     personSensorLEDConfirmed = false; // re-disable LED on first read
 
 static char    serialBuf[SERIAL_BUF_SIZE];
 static uint8_t serialBufLen = 0;
@@ -372,7 +371,6 @@ void setup() {
     // Pi4 holds port open → Serial wait above skips; guarantee ≥1500ms from power-on before I2C probe.
     while (millis() < 1500);
     Wire.begin();
-    Wire.setClock(400000); // 400kHz fast-mode I2C
     personSensorFound = false;
     for (int attempt = 0; attempt < 5; attempt++) {
       if (personSensor.isPresent()) { personSensorFound = true; break; }
@@ -381,9 +379,8 @@ void setup() {
     if (personSensorFound) {
       Serial.println("[DBG] Person Sensor detected");
       personSensor.enableID(false);
-      personSensor.setMode(PersonSensor::Mode::Continuous);
-      delay(200); // settle after mode change before writing LED register
       personSensor.enableLED(false);
+      personSensor.setMode(PersonSensor::Mode::Continuous);
     } else {
       Serial.println("[DBG] No Person Sensor found");
     }
@@ -404,15 +401,11 @@ void loop() {
 
   // Person sensor: skip during sleep to avoid I2C activity during heavy SPI load.
   if (!eyesSleeping && hasPersonSensor() && personSensor.read()) {
-    if (!personSensorLEDConfirmed) {
-      personSensor.enableLED(false); // re-confirm after mode settled
-      personSensorLEDConfirmed = true;
-    }
     int maxSize = 0;
     person_sensor_face_t maxFace{};
     for (int i = 0; i < personSensor.numFacesFound(); i++) {
       const person_sensor_face_t face = personSensor.faceDetails(i);
-      if (face.box_confidence > 40) {
+      if (face.box_confidence > 60) {
         int size = (face.box_right - face.box_left) * (face.box_bottom - face.box_top);
         if (size > maxSize) { maxSize = size; maxFace = face; }
       }
