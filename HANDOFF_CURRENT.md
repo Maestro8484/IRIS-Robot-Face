@@ -41,29 +41,29 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**Flash T41 with S95 firmware — tracking fix**
+**Flash T41 with S96 firmware — LED + tracking root-cause fix**
 
-S95 changes are REPO-ONLY:
-- `src/main.cpp:408` — removed `is_facing &&` from tracking condition
-- `src/main.cpp:381-383` — reordered `enableLED` after `setMode`
-- `src/sensors/PersonSensor.h:141` — parameter name fix (semantic only)
-- `src/config.h:7` — FIRMWARE_VERSION S91→S95
+S96 changes are REPO-ONLY (build already verified SUCCESS):
+- `src/main.cpp` setup — `Wire.setClock(400000)`, `delay(200)` after setMode before enableLED
+- `src/main.cpp` loop — one-shot `enableLED(false)` re-confirm on first read
+- `src/main.cpp` loop — `box_confidence` threshold 60 → 40
+- `src/config.h:7` — FIRMWARE_VERSION S95 → S96
 
 **Flash steps:**
-1. `pio run -e eyes` (build only, verify no errors)
-2. PlatformIO upload button (T41 is on Pi4 USB — use LAN flash bat or direct USB)
-3. `journalctl -u assistant | grep VER` — verify `firmware=S95`
+1. `pio run -e eyes` (build already passed; run again to confirm clean)
+2. PlatformIO upload button (T41 on Pi4 USB — use LAN flash bat or direct USB)
+3. `journalctl -u assistant | grep VER` — verify `firmware=S96`
 4. Stand in front of IRIS — verify eyes track face continuously
 
 **After flash, verify:**
-- Person sensor LED should be OFF (debug mode disabled after mode set)
-- Eyes should track face at `box_confidence > 60` (no longer requires `is_facing`)
-- `FACE:1` should appear frequently in journal when user is present
+- Person sensor LED should be OFF immediately after boot (DebugMode now properly disabled)
+- Eyes should track any face with `box_confidence > 40` continuously
+- No more wandering while you are standing in front of IRIS
 
-**S95 diagnosis (confirmed via Pi4 journal):**
-- T41 bridge reconnected. FACE:0/FACE:1 messages flowing.
-- `FACE:1` was only firing ~4× per 15 min despite user present — `is_facing=0` most of the time.
-- `is_facing` requires direct gaze at sensor (narrow tolerance). Any tilt → no tracking.
+**S96 root-cause diagnosis:**
+- `enableLED(false)` was being dropped because it was written immediately after `setMode(Continuous)` with no settling delay. The sensor's internal state machine needs time after a mode write.
+- DebugMode=1 (LED on) causes sensor to "attempt to store faces" on every detection. With `enableID(false)`, this creates internal contention → intermittent `num_faces=0` returns → `timeSinceFaceDetectedMs` grows → `setAutoMove(true)` fires → eyes wander.
+- The LED being ON was the SYMPTOM and the CAUSE of the tracking interrupt, not just a cosmetic issue.
 
 **LAN flash scripts (no USB cable move needed going forward):**
 - `.\scripts\Flash T41 Eyes.bat` — double-click to build + flash T41

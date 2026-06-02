@@ -1722,4 +1722,23 @@ Userspace confusion: user renamed `enableLED(bool enabled)` parameter to `disabl
 
 ---
 
+## S96 — PersonSensor LED + tracking root-cause fix
+
+**Date:** 2026-06-01
+**Status:** REPO-ONLY. User must flash T41 via PlatformIO.
+
+**Root cause (LED still ON after S95):** `enableLED(false)` was being called immediately after `setMode(Continuous)` with no settling delay. The Person Sensor's internal state machine needs time after a mode-change write before it can accept another I2C command. Without the delay, the DebugMode register write was being dropped, leaving DebugMode=1 (LED on, Greedily attempts to store recognized faces). This is the underlying cause of both the LED staying on AND the tracking interrupts.
+
+**Root cause (tracking interrupts):** DebugMode=1 causes the sensor to "attempt to store detected faces in memory" per the Useful Gadgets spec. With `enableID(false)`, the sensor contends internally on every detection — it tries to store the face, fails, and the face data becomes stale or is not updated on the subsequent read cycle. This produces intermittent `num_faces=0` returns even when a person is standing in front of the sensor. As these stack up, `timeSinceFaceDetectedMs` grows until `FACE_LOST_TIMEOUT_MS` (5s) is exceeded, `setAutoMove(true)` fires, and the eyes wander. On Pi4 it's more noticeable because assistant.py serial latency extends the gap between valid reads.
+
+Secondary factor: I2C at default 100kHz adds per-read latency. 400kHz fast-mode is within the Person Sensor's spec and improves read reliability.
+
+Tertiary factor: `box_confidence > 60` threshold was borderline for common orientations; lowered to 40 to tolerate marginal detections.
+
+**Changes:**
+- **`src/main.cpp` setup** — Added `Wire.setClock(400000)` after `Wire.begin()` (400kHz fast-mode I2C). Added `delay(200)` after `setMode(Continuous)` before `enableLED(false)` to let the mode-change settle before writing the LED register.
+- **`src/main.cpp` loop** — On first successful `personSensor.read()`, re-calls `enableLED(false)` as a belt-and-suspenders guarantee (`personSensorLEDConfirmed` flag, one-shot).
+- **`src/main.cpp` loop** — `box_confidence` threshold lowered from 60 → 40.
+- **`src/config.h`** — `FIRMWARE_VERSION` updated S95 → S96.
+
 ---
