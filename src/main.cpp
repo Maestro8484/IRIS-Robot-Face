@@ -37,7 +37,7 @@
 // PERSON SENSOR: stock chrismiller behavior -- always active, eyes always
 // track the largest detected face. autoMove resumes when no face is present.
 
-static constexpr uint32_t FACE_LOST_TIMEOUT_MS =  5000;
+static constexpr uint32_t FACE_LOST_TIMEOUT_MS = 30000;
 static constexpr uint32_t FACE_COOLDOWN_MS      = 30000;
 static constexpr uint32_t SERIAL_BUF_SIZE       =    40;  // SLEEP_CFG:mouthPulseAlpha=255 = 29 chars
 
@@ -406,7 +406,7 @@ void loop() {
     person_sensor_face_t maxFace{};
     for (int i = 0; i < personSensor.numFacesFound(); i++) {
       const person_sensor_face_t face = personSensor.faceDetails(i);
-      if (face.is_facing && face.box_confidence > 60) {
+      if (face.box_confidence > 50) {
         int size = (face.box_right - face.box_left) * (face.box_bottom - face.box_top);
         if (size > maxSize) { maxSize = size; maxFace = face; }
       }
