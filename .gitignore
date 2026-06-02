@@ -49,3 +49,9 @@ tools/workbench/workbench.js
 
 # Generated runtime state — not committed
 IRIS_STATUS.json
+
+# Staging folder for project file uploads
+project-upload-staging/
+
+# Stale session docs archive
+_archive/

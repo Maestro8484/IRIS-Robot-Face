@@ -1794,3 +1794,24 @@ T41 was not enumerating via its udev symlink (wrong serial in rules). Flashed di
 3. In Project Instructions, paste the FILESYSTEM MCP MANDATE block from `PRIMER.md` (or reference this rule explicitly).
 
 ---
+
+## S99 — Archive stale session docs and old snapshots (2026-06-02)
+
+**Status:** REPO-ONLY
+
+**Changes:**
+
+- Created `_archive/`, `_archive/docs/`, `_archive/snapshots/` directories.
+- Added `_archive/` to `.gitignore`.
+- Archived stale session-specific and superseded docs to `_archive/`.
+
+**Files archived:**
+- `HANDOFF_SERVO_TUNING.md`, `HANDOFF_S89_CONTINUATION.md`, `HANDOFF_S96_TRACKING.md`
+- `docs/S48_session_close.md`, `docs/DOC_ORG_REVIEW_2026-05-02.md`, `docs/sysmap_patch_2026-05-27.md`
+- `docs/persona/IRIS_PERSONA_REVIEW_S39.md`
+- `docs/handoffs/HANDOFF_S23.md`, `docs/handoffs/HANDOFF_PAJ7620U2_DS3218MG.md`, `docs/handoffs/CODEX_DELIVERABLE_2026-05-29.md`
+- `docs/audits/S42_LOG_AUDIT.md`, `docs/audits/IRIS_FULL_AUDIT_2026-05-02.md`, `docs/audits/IRIS_ITEMIZED_INVENTORY_2026-05-02.md`
+- `docs/plans/PLAN_WOL_ACK_BEEP.md`
+- All snapshots except `SNAPSHOT_2026-06-01.md` and `SNAPSHOT_2026-05-31.md`
+
+---
