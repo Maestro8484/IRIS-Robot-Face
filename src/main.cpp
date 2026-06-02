@@ -37,7 +37,7 @@
 // PERSON SENSOR: stock chrismiller behavior -- always active, eyes always
 // track the largest detected face. autoMove resumes when no face is present.
 
-static constexpr uint32_t FACE_LOST_TIMEOUT_MS = 30000;
+static constexpr uint32_t FACE_LOST_TIMEOUT_MS =  5000;
 static constexpr uint32_t FACE_COOLDOWN_MS      = 30000;
 static constexpr uint32_t SERIAL_BUF_SIZE       =    40;  // SLEEP_CFG:mouthPulseAlpha=255 = 29 chars
 
@@ -378,11 +378,9 @@ void setup() {
     }
     if (personSensorFound) {
       Serial.println("[DBG] Person Sensor detected");
-      delay(100); // settle before first register write
       personSensor.enableID(false);
-      personSensor.enableLED(false);
       personSensor.setMode(PersonSensor::Mode::Continuous);
-      delay(100); // settle after mode change, then confirm LED off
+      delay(200); // settle, then disable LED
       personSensor.enableLED(false);
     } else {
       Serial.println("[DBG] No Person Sensor found");
@@ -408,7 +406,7 @@ void loop() {
     person_sensor_face_t maxFace{};
     for (int i = 0; i < personSensor.numFacesFound(); i++) {
       const person_sensor_face_t face = personSensor.faceDetails(i);
-      if (face.box_confidence > 50) {
+      if (face.is_facing && face.box_confidence > 60) {
         int size = (face.box_right - face.box_left) * (face.box_bottom - face.box_top);
         if (size > maxSize) { maxSize = size; maxFace = face; }
       }
