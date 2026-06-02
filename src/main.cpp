@@ -37,7 +37,7 @@
 // PERSON SENSOR: stock chrismiller behavior -- always active, eyes always
 // track the largest detected face. autoMove resumes when no face is present.
 
-static constexpr uint32_t FACE_LOST_TIMEOUT_MS = 30000;
+static constexpr uint32_t FACE_LOST_TIMEOUT_MS =   500;
 static constexpr uint32_t FACE_COOLDOWN_MS      = 30000;
 static constexpr uint32_t SERIAL_BUF_SIZE       =    40;  // SLEEP_CFG:mouthPulseAlpha=255 = 29 chars
 
