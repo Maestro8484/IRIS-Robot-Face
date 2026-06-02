@@ -3,6 +3,14 @@
 Paste at the start of every new Claude Chat or Claude Code session.
 Fill in TASK and LIKELY FILES before pasting.
 
+> **FILESYSTEM MCP MANDATE -- READ THIS FIRST:**
+> NEVER read SNAPSHOT_LATEST.md, HANDOFF_CURRENT.md, CLAUDE.md, or any other .md context
+> from Claude.ai project knowledge base attachments. Those files are stale (last updated S49,
+> May 2026 -- 48+ sessions behind). They contain wrong serial numbers, wrong firmware versions,
+> wrong deploy state, and wrong hardware configuration.
+> ALWAYS read ALL session docs via filesystem MCP from:
+> C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face
+
 ---
 
 ## Claude Code — Implementation Session (default)

@@ -1,6 +1,9 @@
 # IRIS Snapshot
 
-**Session:** S97 | **Date:** 2026-06-02 | **Branch:** `main` | **Last commit:** S97
+> **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
+> Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
+
+**Session:** S98 | **Date:** 2026-06-02 | **Branch:** `main` | **Last commit:** S97
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -53,7 +56,13 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S97)
+## Last Session Changes (S98)
+
+- **`SNAPSHOT_LATEST.md`** — Added stale-attachment warning block at top.
+- **`HANDOFF_CURRENT.md`** — Added stale-attachment warning block at top.
+- **`PRIMER.md`** — Added filesystem MCP mandate block at top (explicit prohibition on Claude.ai project knowledge base attachments).
+
+## Previous Session Changes (S97)
 
 - **`src/main.cpp`** — FACE_LOST_TIMEOUT_MS 500→5000ms. Gate restored: `is_facing && confidence>60`.
 - **`src/config.h`** — FIRMWARE_VERSION S96j→S97.

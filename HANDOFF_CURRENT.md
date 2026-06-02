@@ -2,6 +2,9 @@
 
 # IRIS Handoff — Current
 
+> **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
+> Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong deploy state, wrong next-work pointer, and wrong production baseline.
+
 ## Session Startup Order
 
 1. `git status` — branch must be `main`; tree must be clean.

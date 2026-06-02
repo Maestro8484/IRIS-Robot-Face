@@ -1775,3 +1775,22 @@ T41 was not enumerating via its udev symlink (wrong serial in rules). Flashed di
 - User confirmed: tracking "much better" on both T41 (eyes) and T40 (servo). T40 mechanical damper tuning ongoing.
 
 ---
+
+## S98 — Stale Attachment Warning + Filesystem MCP Mandate (2026-06-02)
+
+**Status:** REPO-ONLY
+
+**Problem:** Claude.ai project knowledge base had .md file attachments last updated at S49 (May 2026). Sessions that read from those attachments instead of the live repo got 48-session-old state: wrong serial numbers, wrong firmware version, wrong deploy status, wrong hardware configuration.
+
+**Changes:**
+
+- **`SNAPSHOT_LATEST.md`** — Warning block added at top: explicit prohibition on reading Claude.ai project-attached .md files; directs agents to filesystem MCP only.
+- **`HANDOFF_CURRENT.md`** — Same warning block added at top.
+- **`PRIMER.md`** — Filesystem MCP mandate block added at top of file (before both session templates): explicit prohibition on project knowledge base attachments, with staleness date and correct filesystem path.
+
+**Claude.ai project UI steps (cannot be automated -- user must do manually):**
+1. Open claude.ai → Projects → IRIS project.
+2. Delete all knowledge base file attachments (.md files from S49 era).
+3. In Project Instructions, paste the FILESYSTEM MCP MANDATE block from `PRIMER.md` (or reference this rule explicitly).
+
+---
