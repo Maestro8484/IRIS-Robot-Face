@@ -318,6 +318,7 @@ _EMOTION_SPEAK_FRAMES = {
 def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, emotion: str = 'NEUTRAL',
                       restore_mouth_idx: int = 0, rate: int = 48000) -> bool:
     """play_pcm with emotion-driven mouth animation. Cycles per-emotion frames at 120 ms/frame.
+    Suspends Person Sensor eye tracking during playback to prevent jitter.
     Returns True if playback was interrupted mid-stream."""
     frames = _EMOTION_SPEAK_FRAMES.get(emotion.upper(), _EMOTION_SPEAK_FRAMES['NEUTRAL'])
     stop_evt = threading.Event()
@@ -329,12 +330,14 @@ def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, emotion: str = 'NEUTRAL',
             i += 1
         teensy.send_command(f"MOUTH:{restore_mouth_idx}")
 
+    teensy.send_command("EYES:SPEAKING")
     time.sleep(0.35)
     t = threading.Thread(target=_animate, daemon=True)
     t.start()
     was_interrupted = play_pcm(pcm_bytes, pa, rate)
     stop_evt.set()
     t.join(timeout=1.0)
+    teensy.send_command("EYES:SPEAKING:STOP")
     return was_interrupted
 
 

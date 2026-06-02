@@ -110,6 +110,10 @@ static uint32_t confusedEyeStartMs = 0;
 // Eyes sleep state: when true, displays are blanked and renderFrame is skipped
 static bool     eyesSleeping = false;
 
+// Eyes speaking state: when true, Person Sensor position updates are suppressed
+// and autoMove is active, giving smooth wandering during TTS instead of jitter.
+static bool     eyesSpeaking = false;
+
 // Mouth sleep frame throttle — min interval between frames to prevent flicker
 static uint32_t srMouthLastMs = 0;
 static constexpr uint32_t MOUTH_SLEEP_FRAME_MS = 60;
@@ -272,6 +276,17 @@ static void processSerial() {
             Serial.println("[DBG] EYES:WAKE -- displays restored");
           }
 
+        } else if (strcmp(serialBuf, "EYES:SPEAKING") == 0) {
+          lastCommandMs = millis();
+          eyesSpeaking  = true;
+          eyes->setAutoMove(true);
+          Serial.println("[DBG] EYES:SPEAKING -- tracking suspended, autoMove on");
+
+        } else if (strcmp(serialBuf, "EYES:SPEAKING:STOP") == 0) {
+          lastCommandMs = millis();
+          eyesSpeaking  = false;
+          Serial.println("[DBG] EYES:SPEAKING:STOP -- tracking resumed");
+
         } else if (strcmp(serialBuf, "VERSION") == 0) {
           Serial.print("[VER] IRIS-EYES firmware=");
           Serial.print(FIRMWARE_VERSION);
@@ -412,13 +427,15 @@ void loop() {
       }
     }
     reportFaceState(maxSize > 0);
-    if (maxSize > 0) {
-      eyes->setAutoMove(false);
-      float targetX = -((static_cast<float>(maxFace.box_left) + static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
-      float targetY = (static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
-      eyes->setTargetPosition(targetX, targetY);
-    } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS && !eyes->autoMoveEnabled()) {
-      eyes->setAutoMove(true);
+    if (!eyesSpeaking) {
+      if (maxSize > 0) {
+        eyes->setAutoMove(false);
+        float targetX = -((static_cast<float>(maxFace.box_left) + static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
+        float targetY = (static_cast<float>(maxFace.box_top) + static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
+        eyes->setTargetPosition(targetX, targetY);
+      } else if (personSensor.timeSinceFaceDetectedMs() > FACE_LOST_TIMEOUT_MS && !eyes->autoMoveEnabled()) {
+        eyes->setAutoMove(true);
+      }
     }
   }
 
