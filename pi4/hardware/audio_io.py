@@ -325,7 +325,7 @@ def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, emotion: str = 'NEUTRAL',
 
     def _animate():
         i = 0
-        while not stop_evt.wait(0.12):
+        while not stop_evt.wait(0.50):
             teensy.send_command(f"MOUTH:{frames[i % len(frames)]}")
             i += 1
         teensy.send_command(f"MOUTH:{restore_mouth_idx}")
