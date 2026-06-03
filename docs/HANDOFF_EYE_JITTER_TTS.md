@@ -1,145 +1,146 @@
-# Eye Jitter During TTS — Handoff (S100b, 2026-06-02)
+# Eye Jitter / Stutter During TTS — Handoff (S100c, 2026-06-02)
 
-## Status: OPEN — partial fix deployed, wrong assumption
-
-## What was reported
-
-Eyes are jerky/wonky when IRIS is speaking (TTS playback). Happens every response.
+## Status: OPEN — cause identified, fix not yet applied
 
 ---
 
-## What was tried (S100b) and why it didn't work
+## Symptom history
 
-**Theory**: Person Sensor polling at 15-30Hz feeds `setTargetPosition(x, y)` with noisy
-face-detection coordinates → eye jitter at sensor rate.
+**Original report:** Eyes jerky/wonky while IRIS speaks.
 
-**Fix applied**:
-- `src/main.cpp` — added `eyesSpeaking` flag. `EYES:SPEAKING` serial command sets flag +
-  calls `eyes->setAutoMove(true)`, blocking Person Sensor position updates during speech.
-  `EYES:SPEAKING:STOP` clears flag.
-- `pi4/hardware/audio_io.py` — `play_pcm_speaking()` sends `EYES:SPEAKING` before audio
-  starts and `EYES:SPEAKING:STOP` after.
+**After S100b/S100c flash:** Eyes no longer jitter from sensor noise, but now show
+"laggy eyelids opening/closing like stop-animation" during TTS. Same session, different
+cause now dominating.
 
-**Confirmed working** (from journal):
+---
+
+## Root cause (confirmed)
+
+Two causes were fixed or confirmed in S100b/S100c:
+
+### Cause 1 — Person Sensor tracking noise: FIXED ✓
+Person Sensor called `setTargetPosition(x,y)` at 15-30Hz with noisy face detection
+coordinates during TTS. Fixed by `eyesSpeaking` flag in firmware (S100). Person
+Sensor position updates suppressed during `EYES:SPEAKING`. Confirmed working:
 ```
-[EYES] << [VER] IRIS-EYES firmware=S100 built=Jun  2 2026
-[EYES] >> EYES:SPEAKING
-[EYES] << [DBG] EYES:SPEAKING -- tracking suspended, autoMove on
-[EYES] >> EYES:SPEAKING:STOP
+[EYES] << [DBG] EYES:SPEAKING -- tracking frozen at last position
 [EYES] << [DBG] EYES:SPEAKING:STOP -- tracking resumed
 ```
 
-**Why jitter persists**: `eyes->setAutoMove(true)` enables the EyeController's autonomous
-wander algorithm. That algorithm itself produces visually erratic movement — we replaced
-sensor-noise jitter with auto-wander jitter. Wrong tradeoff.
+### Cause 2 — Mouth SWSPI blocking eye render loop: ACTIVE (current symptom)
+`mouthTFTShow()` uses **software SPI (bit-banged)**. Each call blocks the CPU for an
+estimated 30-80ms. During TTS, `play_pcm_speaking` sends `MOUTH:n` commands at
+**120ms intervals** (8Hz). The firmware renders those via `mouthTFTShow()` rate-limited
+to every 75ms (`MOUTH_RENDER_MIN_MS`). The eye render loop runs at ~155ms per frame
+(`SR_FRAME_MS`). When a mouth update fires, the loop looks like:
 
----
-
-## Correct approach for new session
-
-**Goal**: eyes visually stable/calm during TTS, not tracking, not wandering.
-
-### Option A — Lock to last-known position (minimal change, try first)
-
-When `EYES:SPEAKING` fires, do NOT call `eyes->setAutoMove(true)`. Just block the
-Person Sensor → `setTargetPosition` path. Eyes freeze at their current target position
-(wherever they were looking when speech started). Looks natural — IRIS looks at the
-person while speaking. No sudden wander.
-
-Change in `src/main.cpp` processSerial EYES:SPEAKING handler:
-```cpp
-} else if (strcmp(serialBuf, "EYES:SPEAKING") == 0) {
-  lastCommandMs = millis();
-  eyesSpeaking  = true;
-  // Do NOT call setAutoMove(true) — let eyes hold last position
-  Serial.println("[DBG] EYES:SPEAKING -- tracking frozen at last position");
+```
+Normal loop:   renderFrame(~114ms) = 114ms total
+Mouth update:  renderFrame(~114ms) + mouthTFTShow(~30-80ms) = 144-194ms total
 ```
 
-No other change needed. `EYES:SPEAKING:STOP` clears the flag, Person Sensor tracking
-resumes naturally on next read.
+This irregular cadence (sometimes 114ms, sometimes 194ms) disrupts the EyeController's
+internal eyelid/pupil animation timing → stop-motion eyelid effect at ~8fps artifact rate.
 
-### Option B — Lock eyes to straight-ahead (if Option A still jitters)
+Before Cause 1 was fixed, the sensor-noise jitter was the dominant visible artifact.
+After fixing Cause 1, Cause 2 became fully visible.
 
-When `EYES:SPEAKING` fires, call `eyes->setAutoMove(false)` and
-`eyes->setTargetPosition(0.0f, 0.0f)` once to point eyes straight forward. Stable, clean,
-makes sense visually (looking "at" the audience while speaking).
+---
 
-```cpp
-} else if (strcmp(serialBuf, "EYES:SPEAKING") == 0) {
-  lastCommandMs = millis();
-  eyesSpeaking  = true;
-  eyes->setAutoMove(false);
-  eyes->setTargetPosition(0.0f, 0.0f);
-  Serial.println("[DBG] EYES:SPEAKING -- eyes locked center");
+## The fix (Pi4 only — NO firmware flash required)
+
+### Option A: Reduce mouth animation rate in play_pcm_speaking (try first)
+
+**File:** `pi4/hardware/audio_io.py` — function `play_pcm_speaking` (~line 318)
+
+Change mouth animation interval from 120ms to 500ms:
+```python
+# Current (8Hz — too fast, causes render disruption):
+while not stop_evt.wait(0.12):
+
+# Fix (2Hz — much less disruptive):
+while not stop_evt.wait(0.50):
 ```
 
-### Option C — Read EyeController.h to understand autoMove (before trying A or B)
+This reduces `mouthTFTShow()` calls from ~8/sec to ~2/sec during TTS.
+Eye render cadence disruption drops from every 2-3 frames to every 8-10 frames.
+Mouth animation still visible but much smoother overall.
 
-`src/eyes/EyeController.h` is in the "do not MODIFY" list but is READ-ONLY accessible.
-Read it before implementing to understand what autoMove actually does internally and
-whether there's a lower-cost way to freeze movement.
+Deploy: standard Pi4 sftp + SD persist + `systemctl restart assistant`.
+No firmware flash needed.
+
+### Option B: No mouth animation during TTS (cleanest)
+
+Send one mouth-open frame at start of speech, hold it, restore at end.
+Remove the cycling thread entirely from `play_pcm_speaking`:
+
+```python
+def play_pcm_speaking(pcm_bytes, pa, teensy, emotion='NEUTRAL',
+                      restore_mouth_idx=0, rate=48000):
+    speak_idx = _EMOTION_SPEAK_FRAMES.get(emotion.upper(),
+                                           _EMOTION_SPEAK_FRAMES['NEUTRAL'])[0]
+    teensy.send_command("EYES:SPEAKING")
+    teensy.send_command(f"MOUTH:{speak_idx}")   # set mouth open, hold it
+    time.sleep(0.05)
+    was_interrupted = play_pcm(pcm_bytes, pa, rate)
+    teensy.send_command(f"MOUTH:{restore_mouth_idx}")
+    teensy.send_command("EYES:SPEAKING:STOP")
+    return was_interrupted
+```
+
+Zero mouth updates during playback = zero mouthTFTShow() disruption = smooth eyes.
+Trade-off: mouth stays static instead of animating. Likely acceptable.
+
+### Option C: Raise MOUTH_RENDER_MIN_MS in firmware (if Pi4 fix insufficient)
+
+`src/main.cpp` line ~127:
+```cpp
+static constexpr uint32_t MOUTH_RENDER_MIN_MS = 75;   // current — too fast
+static constexpr uint32_t MOUTH_RENDER_MIN_MS = 200;  // try this
+```
+
+Reduces actual TFT update rate from 13Hz max to 5Hz max even if Pi4 sends faster.
+**Requires firmware flash.** Do Option A or B first.
 
 ---
 
-## If Option A/B don't help: mouth SWSPI blocking theory
+## Recommended approach for new session
 
-**Secondary suspect**: `mouthTFTShow()` is called via blocking SWSPI after `renderFrame()`
-in each loop. If SWSPI takes 20-40ms per call and fires every MOUTH_RENDER_MIN_MS=75ms,
-it delays the start of the NEXT renderFrame() by 20-40ms. This shifts eye frame timing
-irregularly (loop = 155ms eye + 30ms mouth = 185ms when mouth fires, 155ms when not).
-The irregular frame cadence can look like jitter even with stable position targets.
-
-To test: temporarily raise `MOUTH_RENDER_MIN_MS` to 150ms in `src/main.cpp` line ~127
-and see if jitter improves. If yes, mouth SWSPI is the culprit.
+1. Try **Option A** first (one-line change, no flash, easiest to test).
+2. If still visible: try **Option B** (slightly more code, cleanest fix).
+3. If still visible: check `src/mouth_tft.cpp` to measure actual SWSPI blocking time.
+4. If blocking time is severe (>60ms): raise `MOUTH_RENDER_MIN_MS` (Option C, flash needed).
 
 ---
 
-## Files to read before starting
-
-| File | Why |
-|---|---|
-| `src/main.cpp` | Current EYES:SPEAKING implementation (lines ~111-125 flag decl, ~279-292 handlers, ~415-425 tracking block) |
-| `src/eyes/EyeController.h` | Read-only: understand setAutoMove, setTargetPosition internals |
-| `pi4/hardware/audio_io.py` | `play_pcm_speaking` — EYES:SPEAKING wrapper at line ~318 |
-| `src/config.h` | FIRMWARE_VERSION = S100 (must bump before each flash) |
-
-## Files that must NOT be modified
-
-- `src/eyes/EyeController.h` (protected — read only)
-- `src/TeensyEyes.ino` (protected)
-- `iris_config.json` (protected)
-
----
-
-## Current state
+## Current state going into new session
 
 | Component | State |
 |---|---|
-| Firmware | S100 flashed (T41), EYES:SPEAKING handler present |
-| `pi4/hardware/audio_io.py` | DEPLOYED+PERSISTED, md5=43c36c1d |
-| `src/main.cpp` | EYES:SPEAKING sets autoMove=true (this is the bug) |
-| FIRMWARE_VERSION | S100 in config.h — bump to S100c before next flash |
+| Firmware T41 | S100c flashed — EYES:SPEAKING working, autoMove NOT set (freeze at last pos) |
+| `pi4/hardware/audio_io.py` | DEPLOYED. `play_pcm_speaking` sends EYES:SPEAKING + animates MOUTH at 120ms. md5=43c36c1d |
+| Eye jitter (Person Sensor) | FIXED — eyesSpeaking flag blocks tracking during TTS |
+| Eye stop-motion (mouth SWSPI) | ACTIVE — mouth animation at 8Hz disrupts eye render cadence |
 
-## Deploy path after firmware fix
+## Files for new session
 
-1. Edit `src/config.h` → bump FIRMWARE_VERSION (e.g. "S100c")
-2. `pio run -e eyes` — verify BUILD SUCCESS
-3. User flashes via PlatformIO upload (env:eyes) OR `scripts\Flash T41 Eyes.bat`
-4. Verify in journal: `journalctl -u assistant | grep -E "VER|SPEAKING"`
+| File | Why |
+|---|---|
+| `pi4/hardware/audio_io.py` | **Edit this first** — `play_pcm_speaking` mouth animation rate |
+| `src/main.cpp` | Context only — `MOUTH_RENDER_MIN_MS` at ~line 127 if needed |
+| `src/mouth_tft.cpp` | Read to measure SWSPI blocking if needed |
 
-## Rollback
+## Protected files (read only, do NOT edit)
+- `src/eyes/EyeController.h`
+- `src/TeensyEyes.ino`
+- `iris_config.json`
 
+## Deploy path
 ```bash
-git checkout -- src/main.cpp src/config.h
-# pio run -e eyes, user flashes
-# audio_io.py still sends EYES:SPEAKING but firmware ignores it — safe
+# Pi4 only (Option A or B):
+# 1. Edit pi4/hardware/audio_io.py locally
+# 2. python -c "import paramiko; ..." SFTP to Pi4
+# 3. sudo cp to /media/root-ro + md5 verify
+# 4. sudo systemctl restart assistant
+# 5. Test: say hey jarvis, ask a question, watch eyes during response
 ```
-
----
-
-## Session close summary (S100b)
-
-- EYES:SPEAKING firmware command: working
-- Person Sensor suppression during TTS: working  
-- Root cause misidentified: autoMove=true is itself the jitter source
-- Fix: change EYES:SPEAKING to freeze position, not wander
