@@ -517,6 +517,18 @@ def main():
     teensy.send_command(f"EYE:{DEFAULT_EYE_IDX}")
     print(f"[EYES] Default eye restored: EYE:{DEFAULT_EYE_IDX}", flush=True)
     _pre_synthesize_quips()
+    # Pre-warm Ollama: eliminates ~10-12s cold-start penalty on first user interaction
+    if gandalf_is_up():
+        try:
+            requests.post(
+                f"http://{GANDALF}:{OLLAMA_PORT}/api/generate",
+                json={"model": get_model(), "prompt": ".", "stream": False,
+                      "options": {"num_predict": 1}},
+                timeout=30
+            )
+            print("[LLM]  Model warmed.", flush=True)
+        except Exception as _e:
+            print(f"[LLM]  Warmup skipped: {_e}", flush=True)
     # ─────────────────────────────────────────────────────────────────────────
 
     try:

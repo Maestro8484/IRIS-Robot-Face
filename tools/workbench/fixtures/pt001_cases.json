@@ -117,5 +117,26 @@
     "expected_emotion": "NEUTRAL",
     "expected_tone": "hold",
     "notes": "Baseline: simple social exchange"
+  },
+  {
+    "id": "pt001_18",
+    "input": "explain the difference between a motor and a servo, then tell me which one you prefer",
+    "expected_emotion": "NEUTRAL",
+    "expected_tone": "redirect",
+    "notes": "Stress: multi-step explanatory — two-part question forces longer generation; targets max-token path"
+  },
+  {
+    "id": "pt001_19",
+    "input": "what's the fastest way to fall asleep",
+    "expected_emotion": "AMUSED",
+    "expected_tone": "redirect",
+    "notes": "Stress: open-ended advice — IRIS likely gives snarky practical answer; medium-long generation"
+  },
+  {
+    "id": "pt001_20",
+    "input": "tell me a joke",
+    "expected_emotion": "AMUSED",
+    "expected_tone": "redirect",
+    "notes": "Stress: creative generation — IRIS has 20-joke repertoire; insult-first delivery; tests joke path latency"
   }
 ]
