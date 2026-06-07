@@ -579,6 +579,8 @@ def main():
                 if not ensure_gandalf_up(leds, pa):
                     leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
                 _play_wake_quip(time.localtime().tm_hour, pa, teensy, leds)
+                if in_sleep_window():
+                    _do_sleep(teensy, leds)
                 show_idle_for_mode(leds); continue
 
             try:

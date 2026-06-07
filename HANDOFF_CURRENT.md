@@ -44,9 +44,10 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**Deploy `pi4/iris_web.js`** — EYE:6 Striking Blue fix (3 locations). REPO-ONLY. iris_web.html already DEPLOYED S102.
 - **qwen2.5vl vision restore (low priority):** GGUF patch requires adding `clip.vision.n_wa_pattern=7` to 20GB blob — needs proven Python GGUF patch script or wait for Ollama registry to update the blob. Current workaround: qwen2.5:32b text-only is working correctly.
-- RD-003: duplicate sleep log paths
+- **Wake-from-sleep UX decision:** Currently: wakeword during sleep → quip → re-enter sleep (S104 fix). Evaluate whether IRIS should instead fall through to active listening after the quip.
+
+**Note:** iris_web.js and RD-003 from prior HANDOFF — both confirmed resolved S104. iris_web.js was already deployed at S92 (HANDOFF was stale). RD-003 was a false alarm (only one log path exists).
 
 **S96 root-cause diagnosis:**
 - `enableLED(false)` was being dropped because it was written immediately after `setMode(Continuous)` with no settling delay. The sensor's internal state machine needs time after a mode write.
@@ -141,6 +142,8 @@ Build clean (verify no link errors — `ServoEasing.hpp` now lives only in `pan_
 After flash verified: set `GESTURE_SENSOR_REQUIRED = True` in `pi4/core/config.py` and DEPLOY to Pi4.
 
 ### Deploy state (current)
+- `pi4/assistant.py` — DEPLOYED+VERIFIED S104. Sleep-resume fix (in_sleep_window re-check after wake quip). md5 RAM=SD=`0220719693fe3d6a6f52b0acfd46a4fa`. Backup: `assistant.py.s104.bak`.
+- `pi4/core/config.py` — DEPLOYED+VERIFIED S104. MOUTH_INTENSITY_SLEEP 1→5. md5 RAM=SD=`bfd247cc880cf2a7ad3fda790357a170`. Backup: `core/config.py.s104.bak`.
 - `/etc/udev/rules.d/99-iris-teensy.rules` — DEPLOYED+VERIFIED S73. Also persisted to SD at `/media/root-ro/etc/udev/rules.d/99-iris-teensy.rules`. md5 verified.
 - `pi4/hardware/teensy_bridge.py` — DEPLOYED+VERIFIED S73 (drop logging + docstring fix). md5 RAM=SD.
 - `pi4/services/llm.py` — DEPLOYED+VERIFIED S74 (clean_llm_reply: stage direction strip + ellipsis collapse). md5 RAM=SD `e9e7e770c8f99597a492fd1ebeddaccd`.

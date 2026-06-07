@@ -181,7 +181,7 @@ OWW_DRAIN_SECS = 0.15   # audio drained after wakeword before recording starts
 
 # ── Mouth TFT brightness ─────────────────────────────────────────────────────
 MOUTH_INTENSITY_AWAKE = 8   # ILI9341 TFT brightness, range 0-15
-MOUTH_INTENSITY_SLEEP = 1
+MOUTH_INTENSITY_SLEEP = 5   # level 5 = BL_MAP[5] = 16/255 ≈ 6% — dim but visible; was 1 (≈0.8%, appeared blank)
 MOUTH_INTENSITY_IDLE  = 3   # dim level between interactions
 
 # ── Emotion ───────────────────────────────────────────────────────────────────

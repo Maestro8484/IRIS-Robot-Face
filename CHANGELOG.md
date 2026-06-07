@@ -2014,3 +2014,61 @@ git checkout -- pi4/assistant.py
 - **`src/config.h`** — `FIRMWARE_VERSION` `"S100c"` → `"S101"`.
 
 ---
+
+## S104 — Sleep-Resume Fix + Mouth Brightness Fix (2026-06-07)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Goals:**
+1. Fix IRIS failing to re-enter sleep after wakeword during scheduled sleep window (9pm–7:30am).
+2. Fix TFT mouth display appearing blank/dark during sleep mode.
+3. Verify pending HANDOFF items (iris_web.js EYE:6 fix, RD-003 duplicate sleep log).
+
+---
+
+### Bug 1 — Sleep resume not re-engaged after wakeword during sleep
+
+**Root cause:** `in_sleep_window()` was never called after `_play_wake_quip()` in the wakeword-during-sleep branch of `assistant.py`. `_do_wake()` fired, quip played, IRIS greeted the user — but then fell through to `show_idle_for_mode(leds); continue` without checking whether it was still inside the sleep window. IRIS remained awake for the rest of the night until cron `iris_wake.py` fired at 7:30am. The `in_sleep_window()` call that exists at line 997 (end of LLM interaction path) was not present in this branch.
+
+**Fix (`pi4/assistant.py`):** Added `if in_sleep_window(): _do_sleep(teensy, leds)` immediately after `_play_wake_quip()` in the wakeword-during-sleep branch.
+
+---
+
+### Bug 2 — TFT mouth blank/dark during sleep
+
+**Root cause:** `MOUTH_INTENSITY_SLEEP = 1` in `pi4/core/config.py`. The firmware `mouthSetSleepIntensity()` sets backlight to `BL_MAP[5] = 16/255 ≈ 6%` (dim but visible, ZZZ animation runs). Python `_do_sleep()` then immediately sends `MOUTH:INTENSITY:1`, overriding firmware to `BL_MAP[1] = 2/255 ≈ 0.8%` — effectively invisible. ZZZ animation was running correctly in firmware; Python was suppressing the backlight to near-off.
+
+Secondary effect on wake: `mouthRestoreIntensity()` in firmware uses `_currentBLLevel` (which was set to 1). The mouth briefly appeared dark after EYES:WAKE before `MOUTH_INTENSITY_AWAKE=8` arrived from Python. Raising `MOUTH_INTENSITY_SLEEP` to 5 also fixes this — `_currentBLLevel=5` is the restore target on wake.
+
+**Fix (`pi4/core/config.py`):** `MOUTH_INTENSITY_SLEEP = 1` → `5`. Comment updated: `level 5 = BL_MAP[5] = 16/255 ≈ 6% — dim but visible; was 1 (≈0.8%, appeared blank)`.
+
+---
+
+### HANDOFF verification
+
+- **`pi4/iris_web.js` EYE:6 Striking Blue fix** — HANDOFF said REPO-ONLY (3 locations). Confirmed ALREADY DEPLOYED: Pi4 md5 = repo md5 = `1d9700784ad65a10a068bc381cf29656`. S92 commit `72373d5` had already made the fix. HANDOFF entry was stale.
+
+- **RD-003 duplicate sleep log** — Confirmed NOT a duplicate. `/home/pi/iris_sleep.log` does not exist. Only `/home/pi/logs/iris_sleep.log` exists (written by `iris_sleep.py`). False alarm — HANDOFF entry closed.
+
+---
+
+**Pi4 deploy — md5 verified (RAM = SD):**
+- `/home/pi/assistant.py` — `0220719693fe3d6a6f52b0acfd46a4fa`
+- `/home/pi/core/config.py` — `bfd247cc880cf2a7ad3fda790357a170`
+
+**Service:** Restarted. POST all PASS (L0: serial/mic; L1: GandalfAI/Kokoro/Whisper/Piper/OWW/Ollama-models; L2: mouth cycle). root-ro remounted ro. Backup files at `/home/pi/assistant.py.s104.bak` and `/home/pi/core/config.py.s104.bak`.
+
+**Rollback:**
+```bash
+sudo cp /home/pi/assistant.py.s104.bak /home/pi/assistant.py
+sudo cp /home/pi/core/config.py.s104.bak /home/pi/core/config.py
+sudo mount -o remount,rw /media/root-ro
+sudo cp /home/pi/assistant.py /media/root-ro/home/pi/assistant.py
+sudo cp /home/pi/core/config.py /media/root-ro/home/pi/core/config.py
+sudo chown pi:pi /media/root-ro/home/pi/assistant.py /media/root-ro/home/pi/core/config.py
+sudo chmod 644 /media/root-ro/home/pi/assistant.py /media/root-ro/home/pi/core/config.py
+sync && sudo mount -o remount,ro /media/root-ro
+sudo systemctl restart assistant
+```
+
+---
