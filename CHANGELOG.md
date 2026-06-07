@@ -1848,3 +1848,65 @@ T41 was not enumerating via its udev symlink (wrong serial in rules). Flashed di
 **Remaining observation:** Wake-from-sleep path plays a greeting then returns to wakeword-wait — user must say "hey jarvis" twice to go from sleep to active conversation. Intentional behavior; not changed this session.
 
 ---
+
+## S101 — Eye Stop-Motion Fix During TTS (2026-06-02)
+
+**Status:** REPO-ONLY (firmware change pending user PlatformIO flash env:eyes)
+
+**Commit:** `c284126` — `S101: fix eye stop-motion during TTS -- drop mouth update rate 8Hz->2Hz`
+
+**Goal:** Eliminate eye stop-motion stutter during TTS playback caused by mouth SPI contention.
+
+**Root cause:** Mouth TFT update rate (8 Hz) shared the SWSPI bus with eye rendering during TTS. High-frequency mouth writes introduced periodic bus contention, causing eye frame stalls visible as stop-motion jitter.
+
+**Fix:** Dropped mouth update rate from 8 Hz to 2 Hz during TTS. Reduces bus contention to acceptable level without perceptible mouth animation degradation.
+
+**Files:** `src/main.cpp` (mouth update rate 8Hz→2Hz during TTS phase)
+
+**Rollback:** `git checkout -- src/main.cpp` then reflash.
+
+---
+
+## S102 — Ollama 0.30.6 / qwen2.5vl CLIP Failure + TTS Piper Bypass Fix (2026-06-06)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Root causes fixed:**
+
+1. **Ollama 0.30.6 auto-update broke qwen2.5vl CLIP loading** — Ollama auto-installed 0.30.6 on GandalfAI at 21:59 2026-06-06. Every `/api/generate` call returned HTTP 500. Server log: `clip_init: failed to load model ... Key not found: clip.vision.n_wa_pattern`. The mmproj GGUF blob (sha256-043a363c) was present on disk but incompatible with 0.30.6's updated CLIP loader. `ollama pull` completed in 1 second with no new bytes — upstream registry not yet updated. Fix: pivoted iris/iris-kids to gemma3:27b-it-qat (already on disk from S77 rollback model). All model parameters, SYSTEM prompt, EMOTION TAGS, and FEW-SHOT examples preserved; only FROM and stop token changed.
+
+2. **Piper TTS direct routing bypass** — `_PIPER_DIRECT_PHRASES` set in `pi4/services/tts.py` hard-routed sleep/wake system phrases ("good night", "good morning", "going to sleep", "waking up", etc.) directly to Piper before trying Kokoro. This was an intentional fast-path added in an earlier session but produced noticeable voice quality degradation on all sleep/wake announcements. Fix: removed `_PIPER_DIRECT_PHRASES` and the routing block entirely. All text now routes Kokoro-first unconditionally; Piper is fallback-only on exception.
+
+3. **Stale iris_config.json keys** — `EMOTION_MOUTH_MAP`, `EMOTION_EYE_MAP`, `GESTURE_PROXIMITY_THRESHOLD` were not in `_OVERRIDABLE` and caused POST WARN on every boot. Fix: removed from live iris_config.json on Pi4.
+
+4. **Stale "Pi Camera + Gemma" label in iris_web.html** — Vision Demo card header referenced "Gemma" (the pre-S77 model). Fix: updated to "Pi Camera + Vision Model".
+
+**Changes:**
+
+- **`ollama/iris_modelfile.txt`** — `FROM qwen2.5vl:32b-q4_K_M` → `FROM gemma3:27b-it-qat`. `PARAMETER stop <|im_end|>` → `PARAMETER stop <end_of_turn>`. All other content unchanged. DEPLOYED+VERIFIED (iris rebuilt on GandalfAI, LLM smoke test PASS).
+
+- **`ollama/iris-kids_modelfile.txt`** — Same FROM and stop token changes. DEPLOYED+VERIFIED (iris-kids rebuilt on GandalfAI, POST L1 Ollama models iris+iris-kids PASS).
+
+- **`pi4/services/tts.py`** — Removed `_PIPER_DIRECT_PHRASES` set and direct Piper routing block from `synthesize()`. All text routes Kokoro-first. DEPLOYED+VERIFIED+PERSISTED. md5 RAM=SD=`8130b382bc38699ed14cd907be641e6d`.
+
+- **`pi4/iris_web.html`** — Vision Demo card heading updated: "Pi Camera + Gemma" → "Pi Camera + Vision Model". DEPLOYED+VERIFIED+PERSISTED. md5 RAM=SD=`1fe42d456dbaec5cd3ea34b1372630fe`.
+
+- **`iris_config.json` (live Pi4 only)** — Removed stale keys: EMOTION_MOUTH_MAP, EMOTION_EYE_MAP, GESTURE_PROXIMITY_THRESHOLD. DEPLOYED+PERSISTED. md5=`19f0ed24d983d097a3c17b099b6399c3`.
+
+**POST result:** 20/23 PASS, 3 WARN, 0 FAIL. All 3 WARNs are pre-existing: firmware version (no [VER] in journal — S101 not flashed yet), gesture sensor I2C (Teensy-side, expected), GESTURE_MAP (not in _OVERRIDABLE, intentional).
+
+**Rollback (when qwen2.5vl registry is updated for Ollama 0.30.6):**
+```powershell
+# On GandalfAI:
+# Edit iris_modelfile.txt: FROM qwen2.5vl:32b-q4_K_M, stop <|im_end|>
+ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt
+ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt
+```
+
+**Rollback (tts.py if Kokoro becomes unreliable):**
+```bash
+git checkout -- pi4/services/tts.py
+# sftp_write to Pi4, persist to SD, restart assistant
+```
+
+---

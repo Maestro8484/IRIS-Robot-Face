@@ -158,21 +158,8 @@ def _truncate_for_tts(text: str, max_chars: int = TTS_MAX_CHARS) -> str:
 
 # ── Public entry point ────────────────────────────────────────────────────────
 
-# Phrases that bypass Kokoro and go directly to Piper (system state announcements)
-_PIPER_DIRECT_PHRASES = {
-    "good night",
-    "goodnight",
-    "good morning",
-    "going to sleep",
-    "waking up",
-    "i am going to sleep now",
-    "i'm going to sleep now",
-}
-
 def synthesize(text: str) -> bytes:
-    """Kokoro first; Piper fallback. Returns s16le PCM at 48000 Hz.
-    Sleep/wake phrases route directly to Piper regardless of KOKORO_ENABLED.
-    """
+    """Kokoro first; Piper fallback. Returns s16le PCM at 48000 Hz."""
     text = spoken_numbers(text)
     # Strip markdown and speech markers that must never reach TTS
     text = re.sub(r'\*+', '', text)                          # bold/italic asterisks
@@ -184,15 +171,6 @@ def synthesize(text: str) -> bytes:
     text = re.sub(r'\s+', ' ', text).strip()
     text = re.sub(r'[^\x00-\x7F]+', ' ', text).strip()      # existing non-ASCII strip (keep)
     text = _truncate_for_tts(text)
-
-    # Route sleep/wake system phrases directly to Piper - bypass Kokoro
-    _text_check = text.lower().strip().rstrip('.')
-    if any(_text_check == p or _text_check.startswith(p) for p in _PIPER_DIRECT_PHRASES):
-        print(f"[TTS]  Piper direct route (system phrase): '{text}'", flush=True)
-        try:
-            return _synthesize_piper(text)
-        except Exception as e:
-            print(f"[PIPER] Direct route failed: {e}", flush=True)
 
     if KOKORO_ENABLED:
         try:

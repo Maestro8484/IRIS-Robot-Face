@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S100 | **Date:** 2026-06-02 | **Branch:** `main` | **Last commit:** S100
+**Session:** S102 | **Date:** 2026-06-06 | **Branch:** `main` | **Last commit:** S102
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -12,9 +12,11 @@
 ## WHAT'S NEXT (Priority Queue)
 
 1. **T40 mechanical damper** — servo tracking confirmed working, user tuning physically. No firmware change needed.
-2. **Deploy pi4/iris_web.html + iris_web.js** — EYE:6 Striking Blue fix (3 locations). REPO-ONLY.
-3. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
-4. **Wake-from-sleep UX** — wakeword during sleep plays greeting then returns to idle; user must say "hey jarvis" twice to converse. Decide if this should fall through to listening after greeting.
+2. **Flash S101 firmware (env:eyes)** — mouth update rate 8Hz→2Hz TTS fix. REPO-ONLY. User PlatformIO upload.
+3. **Deploy iris_web.js** — EYE:6 Striking Blue fix (3 locations). REPO-ONLY. iris_web.html DEPLOYED S102.
+4. **qwen2.5vl rollback when registry updated** — Ollama 0.30.6 broke CLIP loader. Pivot to gemma3 is live. When upstream registry pushes a compatible mmproj blob, run model rebuild. See CHANGELOG S102 rollback steps.
+5. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
+6. **Wake-from-sleep UX** — wakeword during sleep plays greeting then returns to idle; user must say "hey jarvis" twice to converse. Decide if this should fall through to listening after greeting.
 
 ---
 
@@ -23,7 +25,7 @@
 | System | Status |
 |---|---|
 | Pi4 192.168.1.200 | Operational. assistant.service active. ttyIRIS_EYES → ttyACM0 (serial 13625440, T41). udev corrected + SD persisted S97. |
-| GandalfAI 192.168.1.3 | Operational. iris model qwen2.5vl:32b-q4_K_M (S77). Kokoro TTS port 8004. |
+| GandalfAI 192.168.1.3 | Operational. iris/iris-kids on gemma3:27b-it-qat (S102 pivot — Ollama 0.30.6 broke qwen2.5vl CLIP). Kokoro TTS port 8004. |
 | Teensy 4.1 (eyes+mouth) | **FLASHED S97.** [VER] confirmed. Bridge live, no DROPs. is_facing + confidence>60 + FACE_LOST 5000ms restored. |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
@@ -32,7 +34,9 @@
 
 ## Active Issues
 
-- **LOW: iris_web.html + iris_web.js deploy pending** — EYE:6 fix (3 locations). REPO-ONLY.
+- **LOW: iris_web.js deploy pending** — EYE:6 fix (3 locations). REPO-ONLY. iris_web.html DEPLOYED S102.
+- **LOW: S101 firmware not flashed** — mouth update rate 8Hz→2Hz TTS eye jitter fix. REPO-ONLY.
+- **LOW: qwen2.5vl rollback pending** — Ollama 0.30.6 broke CLIP loader; iris/iris-kids pivoted to gemma3:27b-it-qat. Vision queries unsupported until qwen registry is updated and model rebuilt.
 - **LOW: RD-003** — Duplicate sleep log paths.
 - **LOW: Wake-from-sleep UX** — wakeword during sleep plays greeting + returns to idle; needs "hey jarvis" twice to converse. Evaluate fall-through behavior.
 
@@ -58,20 +62,17 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S100)
+## Last Session Changes (S102 — 2026-06-06)
 
-- **`pi4/hardware/led.py`** — Added `show_wol()` method using `_run_anim()` to fix WoL/gesture LED thread race. DEPLOYED+PERSISTED.
-- **`pi4/assistant.py`** — `ensure_gandalf_up()` now uses `leds.show_wol()` + `leds.stop_anim()`. Bare WoL thread removed. DEPLOYED+PERSISTED.
-- **`pi4/hardware/base_mount_bridge.py`** — `_DEFAULT_GESTURE_MAP` corrected: `BACKWARD→WAKE`, `CW→MUTE`, `CCW→SKIP`. DEPLOYED+PERSISTED.
-- **Pi4 crontab** — Ownership fixed: `pi:crontab` (was `root:root`). Sleep/wake cron now fires. Persisted to SD.
+- **`ollama/iris_modelfile.txt`** — FROM gemma3:27b-it-qat (was qwen2.5vl:32b-q4_K_M), stop `<end_of_turn>`. DEPLOYED+VERIFIED on GandalfAI.
+- **`ollama/iris-kids_modelfile.txt`** — Same FROM + stop change. DEPLOYED+VERIFIED on GandalfAI.
+- **`pi4/services/tts.py`** — Removed `_PIPER_DIRECT_PHRASES` direct Piper routing. Kokoro-first for all text. DEPLOYED+PERSISTED. md5=`8130b382bc38699ed14cd907be641e6d`.
+- **`pi4/iris_web.html`** — Vision card: "Pi Camera + Gemma" → "Pi Camera + Vision Model". DEPLOYED+PERSISTED. md5=`1fe42d456dbaec5cd3ea34b1372630fe`.
+- **`iris_config.json` (live Pi4)** — Removed stale keys: EMOTION_MOUTH_MAP, EMOTION_EYE_MAP, GESTURE_PROXIMITY_THRESHOLD. md5=`19f0ed24d983d097a3c17b099b6399c3`.
 
-## Previous Session Changes (S98–S99)
+## Previous Session Changes (S100–S101)
 
-- **`src/main.cpp`** — FACE_LOST_TIMEOUT_MS 500→5000ms. Gate restored: `is_facing && confidence>60`.
-- **`src/config.h`** — FIRMWARE_VERSION S96j→S97.
-- **`servo_teensy40/teensy40_base_mount/pan_servo.h`** — FACE_RETURN_MS 6000→30000ms.
-- **`scripts/flash_t41.ps1`** + **`scripts/flash_t40.ps1`** — Fixed cross-flash bug: removed `-s`, replaced with explicit device-targeted bootloader entry via printf+python3.
-- **`pi4/scripts/99-iris-teensy.rules`** — Serial numbers corrected (T41=13625440, T40=12763490). DEPLOYED+PERSISTED.
-- **`IRIS_ARCH.md`** — USB Device Identity table corrected.
+- **S101** — Eye stop-motion TTS fix: mouth update rate 8Hz→2Hz. `src/main.cpp`. REPO-ONLY (user flash pending).
+- **S100** — APA LED flicker fix (show_wol), cron ownership fix, gesture default BACKWARD→WAKE corrected. DEPLOYED+PERSISTED.
 
-**T41 status:** FLASHED+VERIFIED. **T40 status:** FLASHED+VERIFIED.
+**T41 status:** FLASHED S97. **T40 status:** FLASHED S97.

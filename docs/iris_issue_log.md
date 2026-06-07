@@ -419,3 +419,25 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Status:** REPO-ONLY
 
 ---
+
+## 2026-06-06 | S102 | GandalfAI / Ollama — qwen2.5vl CLIP loader broken by Ollama 0.30.6 auto-update
+
+**Symptom:** All IRIS LLM responses fail. Full pipeline apparent: wakeword fires, STT completes, then silence. Web UI chat returns "500 Server Error: Internal Server Error for url: http://192.168.1.3:11434/api/generate". Kokoro falling back to Piper (see separate entry). Personality "drift" and "misses" are downstream of this failure — no LLM = no response.
+**Root cause:** Ollama auto-updated to 0.30.6 at 21:59 2026-06-06. New version changed CLIP model loader — `clip_init` now requires `clip.vision.n_wa_pattern` key in the mmproj GGUF blob. The installed qwen2.5vl:32b-q4_K_M mmproj (sha256-043a363c, 21.2GB) was written for the old loader and lacks this key. Blob was fully present on disk — `ollama pull` completed in 1 second with no new bytes downloaded, confirming the upstream registry had not yet been updated for 0.30.6 compatibility.
+**Fix:** Pivoted iris and iris-kids modelfiles to `FROM gemma3:27b-it-qat` (already on disk from S77 rollback model). Stop token changed from `<|im_end|>` to `<end_of_turn>`. Models rebuilt on GandalfAI. Full pipeline restored. LLM smoke test PASS, POST L1 Ollama models PASS.
+**Files:** `ollama/iris_modelfile.txt`, `ollama/iris-kids_modelfile.txt`
+**Commit:** S102
+**Status:** Fixed (gemma3 live). qwen2.5vl rollback available when upstream registry updated.
+
+---
+
+## 2026-06-06 | S102 | Pi4 / services/tts.py — Piper TTS bypass for sleep/wake phrases
+
+**Symptom:** Sleep and wake announcements ("good night", "going to sleep", "waking up", etc.) spoken in Piper voice even when Kokoro is healthy. User reports noticeable TTS quality degradation on all sleep/wake transitions.
+**Root cause:** `_PIPER_DIRECT_PHRASES` set in `pi4/services/tts.py` matched these phrases and routed them directly to `_synthesize_piper()` before trying Kokoro. This was added as a deliberate fast-path in an earlier session (rationale: sleep phrases are short/frequent and Kokoro can be slow to warm up). The fast-path was never conditioned on Kokoro availability and unconditionally degraded voice quality.
+**Fix:** Removed `_PIPER_DIRECT_PHRASES` set and the routing block entirely. `synthesize()` now routes all text Kokoro-first unconditionally. Piper remains fallback-only on exception.
+**Files:** `pi4/services/tts.py`
+**Commit:** S102
+**Status:** Fixed — DEPLOYED+VERIFIED+PERSISTED. md5 RAM=SD=`8130b382bc38699ed14cd907be641e6d`.
+
+---
