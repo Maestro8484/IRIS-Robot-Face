@@ -3,7 +3,7 @@
 iris_bench_report.py - Parse [BENCH] log lines and print pipeline timing summary.
 
 Usage:
-  sudo journalctl -u iris-assistant.service -n 300 | python3 iris_bench_report.py
+  sudo journalctl -u assistant -n 300 | python3 iris_bench_report.py
   cat /home/pi/logs/assistant.log | python3 iris_bench_report.py
 
 Columns: rec=recording, stt=Whisper, ttfc=time-to-first-chunk, llm=full stream,

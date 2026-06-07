@@ -513,6 +513,47 @@ def api_bench():
     if cur:
         cycles.append(cur)
 
+    # Fallback: if journal has no cycles (e.g. after reboot), read from persistent JSONL
+    if not cycles:
+        try:
+            from core.config import BENCH_LOG as _BENCH_LOG
+            with open(_BENCH_LOG, encoding="utf-8") as _f:
+                for _line in _f:
+                    _line = _line.strip()
+                    if not _line:
+                        continue
+                    try:
+                        rec = json.loads(_line)
+                        st  = rec.get("stages", {})
+                        try:
+                            from datetime import datetime as _dt
+                            _t = str(_dt.fromisoformat(rec["ts"]).timestamp())
+                        except Exception:
+                            _t = ""
+                        cycle = {
+                            "trigger":       "wake",
+                            "t":             _t,
+                            "_from_jsonl":   True,
+                            "rec_done":      {"dur_rec":   f"{st.get('record_duration_ms',0)/1000:.2f}"},
+                            "stt_done":      {"dur_stt":   f"{st.get('stt_ms',0)/1000:.2f}",
+                                              "transcript": rec.get("transcript", "")},
+                            "llm_start":     {"tier":        st.get("tier", "-"),
+                                              "num_predict": st.get("num_predict", "-")},
+                            "llm_first_chunk": {"dur_ttfc": f"{st.get('llm_first_token_ms',0)/1000:.2f}"},
+                            "llm_done":      {"dur_llm":   f"{st.get('llm_total_ms',0)/1000:.2f}"},
+                            "tts_done":      {"dur_tts":   f"{st.get('tts_ms',0)/1000:.2f}",
+                                              "engine":      st.get("engine", "-")},
+                            "audio_done":    {"dur_audio": "-",
+                                              "dur_total":   f"{st.get('play_start_ms',0)/1000:.2f}"},
+                        }
+                        if rec.get("emotion"):
+                            cycle["emotion"] = rec["emotion"]
+                        cycles.append(cycle)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
     try:
         import core.config as _cc
         levers = {k: getattr(_cc, k) for k in

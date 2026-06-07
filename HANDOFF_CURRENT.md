@@ -46,8 +46,8 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 - **qwen2.5vl vision restore (low priority):** GGUF patch requires adding `clip.vision.n_wa_pattern=7` to 20GB blob — needs proven Python GGUF patch script or wait for Ollama registry to update the blob. Current workaround: qwen2.5:32b text-only is working correctly.
 - **Wake-from-sleep UX decision:** Currently: wakeword during sleep → quip → re-enter sleep (S104 fix). Evaluate whether IRIS should instead fall through to active listening after the quip.
-
-**Note:** iris_web.js and RD-003 from prior HANDOFF — both confirmed resolved S104. iris_web.js was already deployed at S92 (HANDOFF was stale). RD-003 was a false alarm (only one log path exists).
+- **Bench tab historical display:** JSONL fallback now wired and verified (S105). Next opportunity: the `_from_jsonl` cycles are missing `dur_audio` (play duration after TTS). Tracked as G4 in `docs/bench_audit_S105.md`.
+- **Workbench fixture pt001_08/09 correction:** Phase 2 analysis (2026-05-30) flagged these as possibly FIXTURE_WRONG (expected NEUTRAL, model responds AMUSED). Correction pending AI analysis confirmation. See `tools/workbench/analysis/phase2_analysis.md`.
 
 **S96 root-cause diagnosis:**
 - `enableLED(false)` was being dropped because it was written immediately after `setMode(Continuous)` with no settling delay. The sensor's internal state machine needs time after a mode write.

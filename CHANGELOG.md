@@ -2072,3 +2072,45 @@ sudo systemctl restart assistant
 ```
 
 ---
+
+## S105 — Bench Audit: JSONL Fallback + Emotion/Tier/Engine in JSONL (2026-06-07)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Goal:** Investigate all benchmarking processes and the empty Bench tab in the control panel. Identify why logs were absent, determine whether anything had moved to GandalfAI, fix persistent data loss, and add missing fields to the JSONL record.
+
+**Root cause — empty Bench tab:** Pi4 runs an overlay filesystem (read-only SD + RAM tmpfs). journald has no `/var/log/journal` directory and falls back to volatile (RAM) storage. On every reboot or service restart with no new LLM interactions, the journal has 0 [BENCH] lines. After S103/S104 service restarts the bench tab was empty — not a code bug, a data availability problem.
+
+**Root cause — JSONL not read by control panel:** `/api/bench` used only journalctl. The JSONL at `/home/pi/logs/iris_bench.jsonl` existed as a persistent record but was never read by the control panel. 4 records from 2026-06-06 were in RAM (would be lost on next reboot).
+
+**Root cause — SD JSONL was 0 bytes:** `/media/root-ro/home/pi/logs/iris_bench.jsonl` was created 2026-05-30 but never populated. Persisted manually this session. md5=`14269ff28e0878ec826e2aa7fc316180`.
+
+**Audit scope:** Full three-tier architecture documented in `docs/bench_audit_S105.md`:
+- Layer 1: Pi4 control panel Bench tab (`/api/bench` journalctl-based, volatile)
+- Layer 2: Pi4 JSONL persistent log (`iris_bench.jsonl`, previously dead data)
+- Layer 3: Local Workbench tool (`tools/workbench/`) — connects to GandalfAI Ollama pre-flight only; GandalfAI runs no benchmarking infrastructure.
+
+**Changes:**
+
+- **`pi4/iris_web.py`** — Added JSONL fallback to `/api/bench`: if journalctl returns 0 cycles, reads `/home/pi/logs/iris_bench.jsonl` and translates each record into the cycle dict format the frontend expects. Fields mapped: dur_rec, dur_stt, transcript, tier, num_predict, dur_ttfc, dur_llm, dur_tts, engine, dur_total, emotion. `_from_jsonl: True` flag set on each cycle. DEPLOYED+VERIFIED. md5 RAM=SD=`856def24589ecae2e405f610db42958a`.
+
+- **`pi4/assistant.py`** — Four changes to capture missing JSONL fields:
+  1. `_bench_write()` signature: added `emotion=None` parameter; body writes `record["emotion"] = emotion` when not None.
+  2. At `llm_start` BENCH block: `_bench_stages["tier"] = _tier` and `_bench_stages["num_predict"] = _num_predict` stored so they flow into JSONL `stages` dict.
+  3. At `tts_done` BENCH block: `_bench_stages["engine"] = _tts_eng` stored.
+  4. Main LLM path `_bench_write()` call: now passes `emotion=_current_emotion`.
+  DEPLOYED+VERIFIED. md5 RAM=SD=`5db3b7f77ab3892ea8ec42967f168d80`.
+
+- **`pi4/iris_bench_report.py`** — Fixed CLI comment: `journalctl -u iris-assistant.service` → `journalctl -u assistant` (wrong service name, returned nothing). REPO-ONLY.
+
+- **`docs/bench_audit_S105.md`** — NEW. Full audit of all three benchmark layers, gaps G1–G7, JSONL live state (4 sample records), workbench phase 2 results (12/17 passing), and architecture recommendations. REPO-ONLY.
+
+**Verification:** `curl http://localhost:5000/api/bench` returns 4 historical cycles from JSONL with `_from_jsonl=True`. Both `iris-web` and `assistant` services active post-restart.
+
+**Rollback:**
+```bash
+git checkout -- pi4/iris_web.py pi4/assistant.py pi4/iris_bench_report.py
+# sftp_write to Pi4, persist to SD, restart iris-web + assistant
+```
+
+---

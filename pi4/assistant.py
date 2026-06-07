@@ -354,7 +354,7 @@ def in_sleep_window() -> bool:
     return hour >= SLEEP_WINDOW_START_HOUR or hour < SLEEP_WINDOW_END_HOUR
 
 
-def _bench_write(stages, transcript, reply_chars, model, gandalf_was_cold, route, interrupted):
+def _bench_write(stages, transcript, reply_chars, model, gandalf_was_cold, route, interrupted, emotion=None):
     """Append one structured JSON record to iris_bench.jsonl. Never raises."""
     import datetime
     try:
@@ -370,6 +370,8 @@ def _bench_write(stages, transcript, reply_chars, model, gandalf_was_cold, route
             "route":            route,
             "interrupted":      interrupted,
         }
+        if emotion is not None:
+            record["emotion"] = emotion
         with open(BENCH_LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
             f.flush()
@@ -846,6 +848,8 @@ def main():
             _t_llm0 = time.time()
             _t_mono_llm0 = time.monotonic()
             try:
+                _bench_stages["tier"] = _tier
+                _bench_stages["num_predict"] = _num_predict
                 print(f"[BENCH] t={_t_llm0:.3f} stage=llm_start tier={_tier} num_predict={_num_predict} model={get_model()} gandalf_was_cold={str(_gandalf_was_cold).lower()}", flush=True)
             except Exception:
                 pass
@@ -902,6 +906,7 @@ def main():
                 _tts_eng = "kokoro" if KOKORO_ENABLED else "piper"
                 try:
                     _bench_stages["tts_ms"] = round((_t_mono_tts - _t_mono_llm1) * 1000)
+                    _bench_stages["engine"] = _tts_eng
                     print(f"[BENCH] t={_t_tts:.3f} stage=tts_done dur_tts={_t_tts-_t_llm1:.2f} tts_ms={_bench_stages['tts_ms']} reply_chars={len(reply)} engine={_tts_eng}", flush=True)
                 except Exception:
                     print(f"[BENCH] t={_t_tts:.3f} stage=tts_done dur_tts={_t_tts-_t_llm1:.2f} reply_chars={len(reply)} engine={_tts_eng}", flush=True)
@@ -927,7 +932,7 @@ def main():
             except Exception:
                 pass
             emit_emotion(teensy, leds, _current_emotion)
-            _bench_write(_bench_stages, _bench_transcript, len(reply), get_model(), _gandalf_was_cold, _bench_route, _interrupted)
+            _bench_write(_bench_stages, _bench_transcript, len(reply), get_model(), _gandalf_was_cold, _bench_route, _interrupted, emotion=_current_emotion)
 
             state.conversation_history.append({"role": "assistant", "content": reply})
             if len(state.conversation_history) > 20:
