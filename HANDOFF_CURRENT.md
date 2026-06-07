@@ -48,6 +48,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 - **Wake-from-sleep UX decision:** Currently: wakeword during sleep → quip → re-enter sleep (S104 fix). Evaluate whether IRIS should instead fall through to active listening after the quip.
 - **Bench tab historical display:** JSONL fallback now wired and verified (S105). Next opportunity: the `_from_jsonl` cycles are missing `dur_audio` (play duration after TTS). Tracked as G4 in `docs/bench_audit_S105.md`.
 - **Workbench fixture pt001_08/09 correction:** Phase 2 analysis (2026-05-30) flagged these as possibly FIXTURE_WRONG (expected NEUTRAL, model responds AMUSED). Correction pending AI analysis confirmation. See `tools/workbench/analysis/phase2_analysis.md`.
+- **Latency Bench AI analysis (S106 — REPO-ONLY):** Run AI Analysis + Generate Handoff now wired on the Latency Bench tab. Use: run bench (any iteration count), then click "Run AI Analysis" for Claude to identify bottlenecks and prioritized optimizations, or "Generate Handoff" for a copy-pasteable session handoff.
 
 **S96 root-cause diagnosis:**
 - `enableLED(false)` was being dropped because it was written immediately after `setMode(Continuous)` with no settling delay. The sensor's internal state machine needs time after a mode write.

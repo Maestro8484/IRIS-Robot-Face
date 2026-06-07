@@ -139,8 +139,14 @@
           <div id="lat-results-area">
             <div class="empty-state">Select cases and click Run Latency Bench</div>
           </div>
+          <div id="lat-analysis-spinner" style="display:none"></div>
+          <div id="lat-analysis-panel"   style="display:none"></div>
         </div>
         <div id="lat-summary-bar" class="lat-summary-bar"></div>
+        <div id="lat-result-actions">
+          <button class="btn primary" onclick="generateLatencyHandoff()">Generate Handoff</button>
+          <button class="btn" id="lat-analysis-btn" onclick="runLatencyAnalysis()">Run AI Analysis</button>
+        </div>
       </div>
     </div>
 

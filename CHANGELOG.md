@@ -2114,3 +2114,31 @@ git checkout -- pi4/iris_web.py pi4/assistant.py pi4/iris_bench_report.py
 ```
 
 ---
+
+## S106 — Latency Bench: AI Analysis + Generate Handoff (2026-06-07)
+
+**Status:** REPO-ONLY (workbench JS/HTML/CSS — runs locally on SuperMaster, no Pi4 deploy needed)
+
+**Goal:** Add the same AI-powered analysis and handoff-generation features from the Personality Harness tab to the Latency Bench tab.
+
+**Changes:**
+
+- **`tools/workbench/index.html`** — Added `lat-analysis-spinner`, `lat-analysis-panel` (inside `lat-results-scroll`), and `lat-result-actions` div with "Generate Handoff" + "Run AI Analysis" buttons to the Latency Bench `panel-right`. Mirrors the Personality Harness tab structure exactly.
+
+- **`tools/workbench/workbench.js`** — Added 5 new functions in the latency bench section:
+  - `callAnthropicLatencyAnalysis(latResults)` — sends per-case p50/p90/range + overall stats to Claude. Prompt asks for: per-case tier classification (FAST/NORMAL/SLOW/OUTLIER), 2–4 bottleneck identifications (response length variance, tokenization, cache, etc.), 3–5 prioritized optimization actions (ollama config, modelfile NUM_PREDICT/NUM_CTX, prompt design, hardware), and 4–6 new benchmark inputs targeting the slowest latency paths. Returns structured JSON.
+  - `renderLatencyAnalysisPanel(result)` — renders case findings table, bottleneck cards (with HIGH/MEDIUM/LOW impact badges), optimization cards (with target tag + priority badge + expected improvement + trade-off), and new bench cases table with "Save Selected to Fixture" download.
+  - `saveLatencyBenchCases()` — merges selected new cases into fixture JSON and triggers browser download (same pattern as `saveUpdatedFixture` on harness tab).
+  - `runLatencyAnalysis()` — orchestrates the analysis button flow (spinner, error handling, cleanup), matching `runAnalysis()` on the harness tab.
+  - `generateLatencyHandoff()` — builds a latency-focused handoff text (overall p50/p90/p99, range, per-case breakdown with p50/p90/range/n, model info, likely files) and opens the shared handoff modal.
+
+- **`tools/workbench/workbench.css`** — Added styles: `#lat-result-actions` (mirrors `#result-actions`), `#lat-analysis-spinner` (mirrors `#analysis-spinner`), `.lat-opt-card`, `.lat-opt-header`, `.lat-opt-action`, `.lat-opt-meta`, `.lat-opt-tradeoff`.
+
+- **`.claude/launch.json`** — Added `autoPort: true` so the preview server picks a free port when 8080 is occupied by the live workbench instance.
+
+**Rollback:**
+```bash
+git checkout -- tools/workbench/index.html tools/workbench/workbench.js tools/workbench/workbench.css .claude/launch.json
+```
+
+---
