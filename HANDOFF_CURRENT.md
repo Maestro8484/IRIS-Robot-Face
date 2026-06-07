@@ -44,10 +44,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work — *** DO THIS FIRST ***
 
-**Flash S101 firmware (env:eyes)** — mouth update rate 8Hz→2Hz. Fixes eye stop-motion during TTS. REPO-ONLY. User PlatformIO upload only.
-
-**When ready:**
-- Deploy `pi4/iris_web.js` (EYE:6 Striking Blue fix, REPO-ONLY). iris_web.html already DEPLOYED S102.
+**Deploy `pi4/iris_web.js`** — EYE:6 Striking Blue fix (3 locations). REPO-ONLY. iris_web.html already DEPLOYED S102.
 - **qwen2.5vl vision restore (low priority):** GGUF patch requires adding `clip.vision.n_wa_pattern=7` to 20GB blob — needs proven Python GGUF patch script or wait for Ollama registry to update the blob. Current workaround: qwen2.5:32b text-only is working correctly.
 - RD-003: duplicate sleep log paths
 

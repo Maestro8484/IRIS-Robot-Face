@@ -2001,3 +2001,16 @@ git checkout -- pi4/assistant.py
 ```
 
 ---
+
+## S103c — T41 Firmware Version Bump + S101 Flash Verify (2026-06-07)
+
+**Status:** FLASHED+VERIFIED
+
+`FIRMWARE_VERSION` in `src/config.h` was never bumped from `S100c` to `S101` in the S101 commit. The mouth rate fix (8Hz→2Hz) was live but `[VER]` still reported S100c. Bumped to `S101`, rebuilt env:eyes via `.\scripts\flash_t41.ps1`, reflashed T41.
+
+**Verification:** `[VER] IRIS-EYES firmware=S101 built=Jun 7 2026` confirmed in journal.
+
+**Changes:**
+- **`src/config.h`** — `FIRMWARE_VERSION` `"S100c"` → `"S101"`.
+
+---
