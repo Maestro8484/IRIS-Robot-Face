@@ -24,7 +24,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | System | State |
 |---|---|
 | Pi4 | Operational — assistant.py, intent_router.py, iris_web.py deployed and persisted. |
-| GandalfAI | Operational — **iris + iris-kids on gemma3:27b-it-qat (S102 pivot)**. Ollama 0.30.6 broke qwen2.5vl CLIP; qwen2.5vl retained on disk for rollback when registry updated. Kokoro TTS (Docker port 8004). |
+| GandalfAI | Operational — **iris + iris-kids on qwen2.5:32b (S103 restore, text-only)**. Ollama 0.30.5 (firewall blocks auto-update to 0.30.6). qwen2.5vl GGUF on disk but unloadable — `clip.vision.n_wa_pattern` missing AND `fullatt_block_indexes=[]` empty; GGUF patch requires 20GB rewrite, deferred. Kokoro TTS (Docker port 8004). |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
 | Teensy 4.0 | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. PAJ7620U2 on I2C bus. REPO-ONLY (pending user flash): S70 ServoEasing async + PAN_MIN/MAX + PAN?, S72 all 8 gestures, TS40-S2 gesture debounce, TS40-S1 full modular split + phantom touch3 removal. Pi4 bridge/web DEPLOYED S72. |
 | STT / TTS | Whisper (GandalfAI) / Kokoro primary, Piper fallback (Wyoming port 10200). |
@@ -48,9 +48,9 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 **When ready:**
 - Deploy `pi4/iris_web.js` (EYE:6 Striking Blue fix, REPO-ONLY). iris_web.html already DEPLOYED S102.
-- qwen2.5vl rollback: when Ollama registry updates mmproj blob for 0.30.6, rebuild iris/iris-kids (`ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt` on GandalfAI after reverting FROM line).
+- **qwen2.5vl vision restore (low priority):** GGUF patch requires adding `clip.vision.n_wa_pattern=7` to 20GB blob — needs proven Python GGUF patch script or wait for Ollama registry to update the blob. Current workaround: qwen2.5:32b text-only is working correctly.
+- **Wake quips feature (Task 2, design pending):** 5-6 pre-canned time-of-day snarky responses at wakeword trigger. Bypasses STT→LLM→TTS. Design to be proposed to user before implementation. See session S103 notes.
 - RD-003: duplicate sleep log paths
-- No more wandering while you are standing in front of IRIS
 
 **S96 root-cause diagnosis:**
 - `enableLED(false)` was being dropped because it was written immediately after `setMode(Continuous)` with no settling delay. The sensor's internal state machine needs time after a mode write.

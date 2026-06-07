@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S102 | **Date:** 2026-06-06 | **Branch:** `main` | **Last commit:** S102
+**Session:** S103 | **Date:** 2026-06-07 | **Branch:** `main` | **Last commit:** S103
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -25,7 +25,7 @@
 | System | Status |
 |---|---|
 | Pi4 192.168.1.200 | Operational. assistant.service active. ttyIRIS_EYES → ttyACM0 (serial 13625440, T41). udev corrected + SD persisted S97. |
-| GandalfAI 192.168.1.3 | Operational. iris/iris-kids on gemma3:27b-it-qat (S102 pivot — Ollama 0.30.6 broke qwen2.5vl CLIP). Kokoro TTS port 8004. |
+| GandalfAI 192.168.1.3 | Operational. iris/iris-kids on **qwen2.5:32b** (S103 restore — text-only, no vision). Ollama 0.30.5 (firewall blocks auto-update to 0.30.6). Kokoro TTS port 8004. |
 | Teensy 4.1 (eyes+mouth) | **FLASHED S97.** [VER] confirmed. Bridge live, no DROPs. is_facing + confidence>60 + FACE_LOST 5000ms restored. |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
@@ -36,7 +36,7 @@
 
 - **LOW: iris_web.js deploy pending** — EYE:6 fix (3 locations). REPO-ONLY. iris_web.html DEPLOYED S102.
 - **LOW: S101 firmware not flashed** — mouth update rate 8Hz→2Hz TTS eye jitter fix. REPO-ONLY.
-- **LOW: qwen2.5vl rollback pending** — Ollama 0.30.6 broke CLIP loader; iris/iris-kids pivoted to gemma3:27b-it-qat. Vision queries unsupported until qwen registry is updated and model rebuilt.
+- **LOW: qwen2.5vl vision restore pending** — GGUF blob missing `clip.vision.n_wa_pattern` AND `fullatt_block_indexes=[]` (empty). Patch requires 20GB file rewrite; deferred. Watch for Ollama registry update or proven GGUF patch tooling. See S103 CHANGELOG for details.
 - **LOW: RD-003** — Duplicate sleep log paths.
 - **LOW: Wake-from-sleep UX** — wakeword during sleep plays greeting + returns to idle; needs "hey jarvis" twice to converse. Evaluate fall-through behavior.
 
@@ -62,17 +62,19 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S102 — 2026-06-06)
+## Last Session Changes (S103 — 2026-06-07)
+
+- **`ollama/iris_modelfile.txt`** — FROM qwen2.5:32b (was gemma3:27b-it-qat), stop `<|im_end|>`. DEPLOYED+VERIFIED on GandalfAI.
+- **`ollama/iris-kids_modelfile.txt`** — Same FROM + stop change. DEPLOYED+VERIFIED on GandalfAI.
+- **GandalfAI Ollama** — Downgraded to 0.30.5. Windows Firewall rule blocks `ollama app.exe` outbound (no auto-update to 0.30.6).
+- **Pi4 assistant.service** — Restarted. POST L1 Ollama models iris+iris-kids PASS.
+
+## Previous Session Changes (S102 — 2026-06-06)
 
 - **`ollama/iris_modelfile.txt`** — FROM gemma3:27b-it-qat (was qwen2.5vl:32b-q4_K_M), stop `<end_of_turn>`. DEPLOYED+VERIFIED on GandalfAI.
 - **`ollama/iris-kids_modelfile.txt`** — Same FROM + stop change. DEPLOYED+VERIFIED on GandalfAI.
 - **`pi4/services/tts.py`** — Removed `_PIPER_DIRECT_PHRASES` direct Piper routing. Kokoro-first for all text. DEPLOYED+PERSISTED. md5=`8130b382bc38699ed14cd907be641e6d`.
 - **`pi4/iris_web.html`** — Vision card: "Pi Camera + Gemma" → "Pi Camera + Vision Model". DEPLOYED+PERSISTED. md5=`1fe42d456dbaec5cd3ea34b1372630fe`.
 - **`iris_config.json` (live Pi4)** — Removed stale keys: EMOTION_MOUTH_MAP, EMOTION_EYE_MAP, GESTURE_PROXIMITY_THRESHOLD. md5=`19f0ed24d983d097a3c17b099b6399c3`.
-
-## Previous Session Changes (S100–S101)
-
-- **S101** — Eye stop-motion TTS fix: mouth update rate 8Hz→2Hz. `src/main.cpp`. REPO-ONLY (user flash pending).
-- **S100** — APA LED flicker fix (show_wol), cron ownership fix, gesture default BACKWARD→WAKE corrected. DEPLOYED+PERSISTED.
 
 **T41 status:** FLASHED S97. **T40 status:** FLASHED S97.

@@ -1910,3 +1910,49 @@ git checkout -- pi4/services/tts.py
 ```
 
 ---
+
+## S103 — LLM Restore: qwen2.5:32b (text-only) + Ollama Downgrade Investigation (2026-06-07)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Background:** S102 pivoted iris/iris-kids to gemma3:27b-it-qat after Ollama 0.30.6 auto-update broke qwen2.5vl CLIP loading. User rejected gemma3 as unusable personality. This session investigated all paths to restore vision capability and ultimately deployed qwen2.5:32b (text-only, no vision) as the working baseline.
+
+**Investigation — Ollama downgrade:**
+
+Downgraded GandalfAI Ollama from 0.30.6 to 0.30.5 (Inno Setup installer, flags `/VERYSILENT /SUPPRESSMSGBOXES /SP- /NORESTART`). Machine rebooted despite `/NORESTART` (Inno Setup `AlwaysRestart` directive override). After reconnect: Ollama 0.30.5 confirmed. Added Windows Firewall rule blocking `ollama app.exe` outbound to prevent auto-update back to 0.30.6.
+
+qwen2.5vl smoke test on 0.30.5: **same CLIP error** — `clip_init: failed to load model ... Key not found: clip.vision.n_wa_pattern`. The CLIP loader change that requires this key predates 0.30.5.
+
+**Investigation — GGUF analysis:**
+
+Inspected the qwen2.5vl:32b-q4_K_M GGUF blob (sha256-043a363c, ~20GB) using the Python `gguf` library:
+
+- `clip.vision.n_wa_pattern` — MISSING (the key llama.cpp requires)
+- `qwen25vl.vision.fullatt_block_indexes` — present but **EMPTY** (array length = 0; confirmed by raw GGUF part inspection: `parts[4]: uint64, val=[0]`)
+- `qwen25vl.vision.block_count = 32`
+
+The GGUF was created without fullatt_block_indexes data. A patch to add `clip.vision.n_wa_pattern` (correct value: 7, based on qwen2.5vl:32b standard fullatt at [7,15,23,31]) would require rewriting the entire 20GB file (new metadata shifts all tensor offsets). No proven patch tooling. Latest Ollama release at session time: still v0.30.6 — no upstream fix. **GGUF patch deferred as a separate task.**
+
+**Decision:** Fall back to qwen2.5:32b (text-only, already on disk). Personality, emotion tags, and all few-shot examples fully preserved; only vision image prompts are unsupported until qwen2.5vl is restored.
+
+**Changes:**
+
+- **`ollama/iris_modelfile.txt`** — `FROM gemma3:27b-it-qat` → `FROM qwen2.5:32b`. `PARAMETER stop <end_of_turn>` → `PARAMETER stop <|im_end|>`. All SYSTEM prompt, few-shots, NEVER-say list, and parameters unchanged. DEPLOYED+VERIFIED.
+
+- **`ollama/iris-kids_modelfile.txt`** — Same FROM + stop token change. All SYSTEM prompt content unchanged. DEPLOYED+VERIFIED.
+
+**GandalfAI deploy:** Both modelfiles SFTP'd to `C:\IRIS\IRIS-Robot-Face\ollama\`. `ollama create iris` + `ollama create iris-kids` rebuilt — manifest-only rewrites (~1 second). Smoke test via Ollama REST API: `[EMOTION:NEUTRAL]\nIt's 3:45 PM.` — clean emotion tag, IRIS voice, no gemma3 leakage.
+
+**Pi4 deploy:** `sudo systemctl restart assistant`. POST result: L0 serial/mic/camera PASS, L1 GandalfAI/Kokoro/Whisper/Piper/OWW/Ollama-models **all PASS**, L2 mouth cycle PASS.
+
+**GandalfAI state:** Ollama 0.30.5. Windows Firewall rule blocks `ollama app.exe` outbound (no auto-update). qwen2.5vl GGUF retained on disk. qwen2.5:32b (19GB) on disk. gemma3:27b-it-qat retained as fallback.
+
+**Rollback (to qwen2.5vl when GGUF patch or registry fix is available):**
+```powershell
+# Edit ollama/iris_modelfile.txt: FROM qwen2.5vl:32b-q4_K_M, stop <|im_end|>
+# Edit ollama/iris-kids_modelfile.txt: same
+ollama create iris -f "C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt"
+ollama create iris-kids -f "C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt"
+```
+
+---
