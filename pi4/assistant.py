@@ -44,6 +44,61 @@ def get_model() -> str:
     return OLLAMA_MODEL_KIDS if state.kids_mode else OLLAMA_MODEL_ADULT
 
 
+# ── Wake quips ────────────────────────────────────────────────────────────────
+
+_WAKE_QUIPS = [
+    # (hour_start, hour_end, emotion, [line_a, line_b])
+    (5,  8,  "SLEEPY", ["It's early. Go ahead.",       "You're up. Fine."         ]),
+    (8,  12, "HAPPY",  ["Yeah, what?",                  "Go ahead."               ]),
+    (12, 17, "AMUSED", ["Go.",                          "What is it?"             ]),
+    (17, 21, "HAPPY",  ["What do you need?",            "Yeah, go."               ]),
+    (21, 23, "AMUSED", ["Still at it. Go ahead.",       "What is it?"             ]),
+    (23, 24, "SLEEPY", ["It's late. Make it quick.",    "This better be good."    ]),
+    (0,  5,  "SLEEPY", ["It's late. Make it quick.",    "This better be good."    ]),
+]
+
+_wake_quip_cache: dict = {}
+_last_quip_line: str = ""
+# mutable dict so inline main_loop code can mutate without global declaration
+_quip_state: dict = {"count_since_quip": 0}
+
+
+def _pick_wake_quip(hour: int) -> tuple:
+    import random
+    global _last_quip_line
+    for h_start, h_end, emotion, lines in _WAKE_QUIPS:
+        if h_start <= hour < h_end:
+            choices = [l for l in lines if l != _last_quip_line] or lines
+            line = random.choice(choices)
+            _last_quip_line = line
+            return line, emotion
+    return "Yeah.", "NEUTRAL"
+
+
+def _play_wake_quip(hour: int, pa, teensy, leds) -> None:
+    line, emotion = _pick_wake_quip(hour)
+    pcm = _wake_quip_cache.get(line)
+    if not pcm:
+        print(f"[QUIP] No cache for '{line}' -- skipping", flush=True)
+        return
+    try:
+        emit_emotion(teensy, leds, emotion)
+        play_pcm_speaking(pcm, pa, teensy, restore_mouth_idx=0)
+        print(f"[QUIP] {emotion}: {line!r}", flush=True)
+    except Exception as _e:
+        print(f"[QUIP] Failed: {_e}", flush=True)
+
+
+def _pre_synthesize_quips() -> None:
+    unique = {l for _, _, _, lines in _WAKE_QUIPS for l in lines}
+    for line in unique:
+        try:
+            _wake_quip_cache[line] = synthesize(line)
+            print(f"[QUIP] Cached: {line!r}", flush=True)
+        except Exception as _e:
+            print(f"[QUIP] Cache miss '{line}': {_e}", flush=True)
+
+
 # ── Conversation logger ───────────────────────────────────────────────────────
 
 def flush_conversation_log(reason: str = "timeout"):
@@ -459,6 +514,7 @@ def main():
     # Restore eye to configured default after POST display exercise
     teensy.send_command(f"EYE:{DEFAULT_EYE_IDX}")
     print(f"[EYES] Default eye restored: EYE:{DEFAULT_EYE_IDX}", flush=True)
+    _pre_synthesize_quips()
     # ─────────────────────────────────────────────────────────────────────────
 
     try:
@@ -522,14 +578,7 @@ def main():
                 _do_wake(teensy, leds)
                 if not ensure_gandalf_up(leds, pa):
                     leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
-                try:
-                    hour = time.localtime().tm_hour
-                    greeting = "Good morning." if SLEEP_WINDOW_END_HOUR <= hour < 12 else \
-                               "Good evening." if hour >= 18 else "Hello."
-                    pcm = synthesize(greeting)
-                    play_pcm_speaking(pcm, pa, teensy, restore_mouth_idx=0)
-                except Exception as _e:
-                    print(f"[SLEEP] Wake greeting failed: {_e}", flush=True)
+                _play_wake_quip(time.localtime().tm_hour, pa, teensy, leds)
                 show_idle_for_mode(leds); continue
 
             try:
@@ -539,7 +588,14 @@ def main():
             if not ensure_gandalf_up(leds, pa):
                 leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
 
-            play_beep(pa)
+            _quip_state["count_since_quip"] += 1
+            if (state.last_interaction > 0
+                    and time.time() - state.last_interaction > 3600
+                    and _quip_state["count_since_quip"] > 2):
+                _play_wake_quip(time.localtime().tm_hour, pa, teensy, leds)
+                _quip_state["count_since_quip"] = 0
+            else:
+                play_beep(pa)
             teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_AWAKE}")
             _t_wake = time.time()
             _t_mono_wake = time.monotonic()

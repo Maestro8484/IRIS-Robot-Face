@@ -49,7 +49,6 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 **When ready:**
 - Deploy `pi4/iris_web.js` (EYE:6 Striking Blue fix, REPO-ONLY). iris_web.html already DEPLOYED S102.
 - **qwen2.5vl vision restore (low priority):** GGUF patch requires adding `clip.vision.n_wa_pattern=7` to 20GB blob — needs proven Python GGUF patch script or wait for Ollama registry to update the blob. Current workaround: qwen2.5:32b text-only is working correctly.
-- **Wake quips feature (Task 2, design pending):** 5-6 pre-canned time-of-day snarky responses at wakeword trigger. Bypasses STT→LLM→TTS. Design to be proposed to user before implementation. See session S103 notes.
 - RD-003: duplicate sleep log paths
 
 **S96 root-cause diagnosis:**

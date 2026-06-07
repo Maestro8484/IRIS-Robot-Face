@@ -1955,4 +1955,49 @@ ollama create iris -f "C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt"
 ollama create iris-kids -f "C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt"
 ```
 
+**Wake quips feature:** Also completed in this session — see below.
+
+---
+
+## S103b — Wake Quips: Pre-Canned Time-of-Day Acknowledgment (2026-06-07)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Goal:** Replace the generic static greeting ("Good morning.", "Hello.", etc.) at wakeword and sleep-wake with 12 short, pre-synthesized, time-of-day-aware quips that bypass the full STT→LLM→TTS pipeline entirely.
+
+**Design:**
+- 6 time windows × 2 lines each = 12 total lines, 11 unique (two windows share identical lines overnight)
+- Two injection points: (1) sleep-wake greeting (always fires), (2) normal wakeword (rate-limited: `last_interaction > 60min` AND `count_since_quip > 2`)
+- Emotions: SLEEPY (early morning / late night), HAPPY (morning / evening), AMUSED (afternoon / night)
+- All lines pre-synthesized via Kokoro at startup and held in `_wake_quip_cache` dict
+- Anti-repeat: `_last_quip_line` tracks last played line and excludes it from next selection
+
+**Time windows:**
+- 00–05: SLEEPY — "It's late. Make it quick." / "This better be good."
+- 05–08: SLEEPY — "It's early. Go ahead." / "You're up. Fine."
+- 08–12: HAPPY — "Yeah, what?" / "Go ahead."
+- 12–17: AMUSED — "Go." / "What is it?"
+- 17–21: HAPPY — "What do you need?" / "Yeah, go."
+- 21–23: AMUSED — "Still at it. Go ahead." / "What is it?"
+- 23–24: SLEEPY — "It's late. Make it quick." / "This better be good."
+
+**Changes:**
+
+- **`pi4/assistant.py`** — Four edits:
+  1. `_WAKE_QUIPS` data, `_wake_quip_cache`, `_last_quip_line`, `_quip_state` dict, `_pick_wake_quip()`, `_play_wake_quip()`, `_pre_synthesize_quips()` added after `get_model()`.
+  2. `_pre_synthesize_quips()` called after POST + default eye restore, before main loop.
+  3. Sleep-wake greeting block replaced with `_play_wake_quip(...)` (always fires on wake from sleep).
+  4. Normal wakeword path: `_quip_state["count_since_quip"]` incremented every wakeword; quip fires and resets counter when >60min idle AND count>2; otherwise `play_beep()` fires as before.
+
+**Deploy:** DEPLOYED+VERIFIED+PERSISTED. md5 RAM=SD=`7aefc6a237e8ad131504586dcf8ff4a7`.
+
+**Verification:** `journalctl -u assistant` shows all 11 unique quip lines cached at startup:
+`[QUIP] Cached: "It's early. Go ahead."`, `[QUIP] Cached: "You're up. Fine."`, etc.
+
+**Rollback:**
+```bash
+git checkout -- pi4/assistant.py
+# sftp_write to Pi4, persist to SD, restart assistant
+```
+
 ---

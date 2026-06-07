@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S103 | **Date:** 2026-06-07 | **Branch:** `main` | **Last commit:** S103
+**Session:** S103b | **Date:** 2026-06-07 | **Branch:** `main` | **Last commit:** S103b
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -14,9 +14,9 @@
 1. **T40 mechanical damper** — servo tracking confirmed working, user tuning physically. No firmware change needed.
 2. **Flash S101 firmware (env:eyes)** — mouth update rate 8Hz→2Hz TTS fix. REPO-ONLY. User PlatformIO upload.
 3. **Deploy iris_web.js** — EYE:6 Striking Blue fix (3 locations). REPO-ONLY. iris_web.html DEPLOYED S102.
-4. **qwen2.5vl rollback when registry updated** — Ollama 0.30.6 broke CLIP loader. Pivot to gemma3 is live. When upstream registry pushes a compatible mmproj blob, run model rebuild. See CHANGELOG S102 rollback steps.
+4. **qwen2.5vl rollback when registry updated** — Ollama 0.30.6 broke CLIP loader. Pivot to qwen2.5:32b (text-only) is live S103. When upstream registry pushes a compatible mmproj blob, run model rebuild. See CHANGELOG S103 rollback steps.
 5. **RD-003** — Duplicate sleep log: `/home/pi/iris_sleep.log` vs `/home/pi/logs/iris_sleep.log`.
-6. **Wake-from-sleep UX** — wakeword during sleep plays greeting then returns to idle; user must say "hey jarvis" twice to converse. Decide if this should fall through to listening after greeting.
+6. **Wake-from-sleep UX** — wakeword during sleep now plays time-of-day quip (S103b). UX question: should it fall through to listening after quip? Currently returns to idle; user must say "hey jarvis" again to converse.
 
 ---
 
@@ -62,7 +62,11 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S103 — 2026-06-07)
+## Last Session Changes (S103b — 2026-06-07)
+
+- **`pi4/assistant.py`** — Wake quips system added: `_WAKE_QUIPS` (12 lines / 6 time windows), `_pre_synthesize_quips()` at startup, `_play_wake_quip()` at sleep-wake (always) and normal wakeword (rate-limited: >60min idle AND >2 wakewords since last quip). DEPLOYED+VERIFIED+PERSISTED. md5=`7aefc6a237e8ad131504586dcf8ff4a7`. All 11 unique quip lines confirmed cached in journal.
+
+## Previous Session Changes (S103 — 2026-06-07)
 
 - **`ollama/iris_modelfile.txt`** — FROM qwen2.5:32b (was gemma3:27b-it-qat), stop `<|im_end|>`. DEPLOYED+VERIFIED on GandalfAI.
 - **`ollama/iris-kids_modelfile.txt`** — Same FROM + stop change. DEPLOYED+VERIFIED on GandalfAI.
