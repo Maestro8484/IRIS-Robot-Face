@@ -3,7 +3,7 @@ setlocal
 
 set "WORKBENCH=%~dp0tools\workbench"
 
-start "IRIS Workbench Server" cmd /k "cd /d "%WORKBENCH%" && python -m http.server 8080"
+start "IRIS Workbench Server" cmd /k "cd /d "%WORKBENCH%" && python proxy_server.py"
 
 timeout /t 1 /nobreak >nul
 
