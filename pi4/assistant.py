@@ -991,6 +991,14 @@ def main():
                 mic.start_stream()
             except OSError:
                 pass
+            # Discard mic audio captured during/after TTS playback to prevent
+            # speaker echo from triggering a false wake on the next listen cycle.
+            _post_drain_n = int(SAMPLE_RATE / CHUNK * OWW_POST_PLAY_DRAIN_SECS)
+            for _ in range(_post_drain_n):
+                try:
+                    mic.read(CHUNK, exception_on_overflow=False)
+                except Exception:
+                    break
             emit_emotion(teensy, leds, "NEUTRAL")
             teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_IDLE}")
             show_idle_for_mode(leds)

@@ -176,8 +176,9 @@ WOL_BOOT_TIMEOUT  = 120
 WOL_POLL_INTERVAL = 5
 
 # ── Wake word ─────────────────────────────────────────────────────────────────
-OWW_THRESHOLD  = 0.90
-OWW_DRAIN_SECS = 0.15   # audio drained after wakeword before recording starts
+OWW_THRESHOLD          = 0.90
+OWW_DRAIN_SECS         = 0.15   # audio drained after wakeword before recording starts
+OWW_POST_PLAY_DRAIN_SECS = 0.5  # mic audio discarded after TTS playback to clear speaker echo
 
 # ── Mouth TFT brightness ─────────────────────────────────────────────────────
 MOUTH_INTENSITY_AWAKE = 8   # ILI9341 TFT brightness, range 0-15
@@ -210,7 +211,7 @@ EMOTION_TAG_RE = re.compile(r'^\[EMOTION:([A-Z]+)\]\s*', re.IGNORECASE)
 _OVERRIDABLE = {
     "RECORD_SECONDS", "SILENCE_SECS", "SILENCE_RMS",
     "KIDS_RECORD_SECONDS", "KIDS_SILENCE_SECS", "KIDS_SILENCE_RMS",
-    "OWW_THRESHOLD", "FOLLOWUP_TIMEOUT", "KIDS_FOLLOWUP_TIMEOUT",
+    "OWW_THRESHOLD", "OWW_POST_PLAY_DRAIN_SECS", "FOLLOWUP_TIMEOUT", "KIDS_FOLLOWUP_TIMEOUT",
     "FOLLOWUP_MAX_TURNS", "CONTEXT_TIMEOUT_SECS", "NUM_PREDICT", "NUM_PREDICT_SHORT", "NUM_PREDICT_MEDIUM", "NUM_PREDICT_LONG", "NUM_PREDICT_MAX", "TTS_MAX_CHARS",
     "LOUD_STOP_THRESHOLD", "DEFAULT_EYE_IDX",
     "CHATTERBOX_VOICE", "CHATTERBOX_EXAGGERATION", "CHATTERBOX_ENABLED",
@@ -274,6 +275,7 @@ _TYPE_COERCE = {
     "MOUTH_INTENSITY_SLEEP":   (int,   (0, 15)),
     "MOUTH_INTENSITY_IDLE":    (int,   (0, 15)),
     "OWW_DRAIN_SECS":          (float, (0.05, 1.0)),
+    "OWW_POST_PLAY_DRAIN_SECS":(float, (0.0,  2.0)),
     "SLEEP_ANIM_SPEED":          (float, (0.1,  3.0)),
     "SLEEP_ANIM_STAR_BRIGHT_MIN":(int,   (20,   200)),
     "SLEEP_ANIM_STAR_BRIGHT_MAX":(int,   (100,  255)),
