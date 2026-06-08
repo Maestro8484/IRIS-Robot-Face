@@ -46,16 +46,34 @@ def clean_llm_reply(text: str) -> str:
     text = re.sub(r'\.{2,}', '.', text)
     text = re.sub(r'[*_#`]', '', text)
     text = re.sub(r'^[-=]{3,}\s*$', '', text, flags=re.MULTILINE)
+    # Strip triple-dash separator and trailing meta-comment that follows it
+    text = re.sub(r'\s*-{3,}.*', '', text, flags=re.DOTALL)
     text = re.sub(r'\n+', ' ', text)
+    # Clean up orphaned numbered list artifacts: "1. : Have..." \u2192 "Have..."
+    text = re.sub(r'\b\d+\.\s+:\s*', '', text)
     openers = [
         r"^okay[,!.]?\s+here[''\u2019s]*\s+(a|is|one)[^.]*[.!]?\s*",
         r"^here[''\u2019s]*\s+(a|is|one)[^.]*[.!]?\s*",
         r"^sure[,!.]?\s*",
         r"^of course[,!.]?\s*",
         r"^alright[,!.]?\s*",
+        r"^absolutely[,!.]?\s*",
+        r"^it sounds like you[^.!?]*[.!?]\s*",
+        r"^as an (ai|artificial intelligence)[^.!]*[.!]\s*",
+        r"^i'?m an (ai|artificial intelligence)[^.!]*[.!]\s*",
     ]
     for pat in openers:
         text = re.sub(pat, '', text, flags=re.IGNORECASE)
+    # Strip trailing social filler sentences
+    trailers = [
+        r'\s*[Ff]eel free to (ask|reach out|contact)[^.!?]*[.!]',
+        r'\s*[Ll]et me know if (you need|I can|there)[^.!?]*[.!]',
+        r'\s*[Ii]f you have any (questions|requests|queries)[^.!?]*[.!]',
+        r'\s*[Ii] hope (you enjoyed|this helped|this helps|this was)[^.!?]*[.!]',
+        r'\s*[Ii]s there anything (else|more)[^.!?]*[?!]',
+    ]
+    for pat in trailers:
+        text = re.sub(pat + r'$', '', text).strip()
     return text.strip()
 
 

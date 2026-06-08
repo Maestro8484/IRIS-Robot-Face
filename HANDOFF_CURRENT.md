@@ -23,7 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 | System | State |
 |---|---|
-| Pi4 | Operational — assistant.py, intent_router.py, iris_web.py, core/config.py, hardware/led.py deployed and persisted. Sleep LED brightness fixed S107. |
+| Pi4 | Operational — assistant.py, intent_router.py, iris_web.py, core/config.py, hardware/led.py, services/llm.py, services/vision.py deployed and persisted. TTS cap raised S108. Boilerplate cleaned S108. Vision 400 error handled S108. |
 | GandalfAI | Operational — **iris + iris-kids on qwen2.5:32b (S103 restore, text-only)**. Ollama 0.30.5 (firewall blocks auto-update to 0.30.6). qwen2.5vl GGUF on disk but unloadable — `clip.vision.n_wa_pattern` missing AND `fullatt_block_indexes=[]` empty; GGUF patch requires 20GB rewrite, deferred. Kokoro TTS (Docker port 8004). |
 | Teensy 4.1 | Operational — eye movement suspended during TTS. |
 | Teensy 4.0 | S69 FLASHED+INSTALLED. DS3218MG MS24 confirmed installed. PAJ7620U2 on I2C bus. REPO-ONLY (pending user flash): S70 ServoEasing async + PAN_MIN/MAX + PAN?, S72 all 8 gestures, TS40-S2 gesture debounce, TS40-S1 full modular split + phantom touch3 removal. Pi4 bridge/web DEPLOYED S72. |

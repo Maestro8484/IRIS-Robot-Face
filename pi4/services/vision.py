@@ -92,7 +92,12 @@ def ask_vision(image_bytes: bytes, prompt: str) -> str:
         },
         timeout=90,
     )
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 400:
+            return "My vision system isn't available right now. The current AI model doesn't support images."
+        raise
     data = r.json()
     reply = data.get("response", "") or data.get("message", {}).get("content", "")
     # Strip thinking blocks

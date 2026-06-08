@@ -2162,3 +2162,29 @@ git checkout -- tools/workbench/index.html tools/workbench/workbench.js tools/wo
 **Rollback:** git checkout -- pi4/core/config.py pi4/hardware/led.py pi4/iris_web.html then redeploy and restart assistant.
 
 ---
+
+## S108 — TTS truncation fix, vision 400 error, boilerplate cleanup (2026-06-08)
+
+**Status:** DEPLOYED+VERIFIED (Pi4 RAM=SD, assistant restarted clean)
+
+**Problems fixed:**
+
+1. **TTS truncation:** Long responses (stories, lists) were cut off after ~5-6 sentences. Root cause: `TTS_MAX_CHARS=900` applied by `_truncate_for_tts()` in `tts.py`. Kokoro generates 21s of audio per 900 chars in ~1.3s, so there is no performance reason to keep the cap this low. Dog story (2500+ chars) was being truncated to ~35% of its content.
+
+2. **Vision 400 error:** `VISION_MODEL="iris"` → `qwen2.5:32b` (text-only). Sending `images` payload to a text-only model causes HTTP 400. Error was caught generically in `assistant.py`, giving IRIS the response "I had trouble processing the image." New fix: `ask_vision()` now catches the 400 specifically and returns a clear "vision not available" message without raising, so IRIS speaks it cleanly.
+
+3. **Boilerplate AI speak:** `clean_llm_reply()` was missing several common boilerplate patterns. Added: opener strips for "Absolutely,", "It sounds like you...", "As an AI...", "I'm an AI..."; trailing sentence strips for "Feel free to ask", "Let me know if", "If you have any questions", "I hope you enjoyed", "Is there anything else"; `---` separator strip (clears trailing meta-comment appended after separator); numbered list artifact cleanup ("1. : Have..." → "Have...").
+
+**Changes:**
+
+- **`pi4/core/config.py`** — `TTS_MAX_CHARS=2500` (was 900). Comment updated.
+
+- **`pi4/services/llm.py`** — `clean_llm_reply()`: added 4 opener patterns (absolutely, it sounds like you, as an AI, I'm an AI), 5 trailer patterns (feel free to ask, let me know if, if you have any questions, I hope you enjoyed, is there anything else), `---` separator strip with re.DOTALL, numbered list artifact cleanup regex.
+
+- **`pi4/services/vision.py`** — `ask_vision()`: wraps `r.raise_for_status()` in try/except for HTTPError; catches 400 and returns "My vision system isn't available right now. The current AI model doesn't support images." instead of raising.
+
+**md5 (RAM=SD):** config.py 9d75f68d02d2a6f1cb2754d7df342b05 / llm.py 01b72e4c981c545bfe0cac016f8936a5 / vision.py 60a66d3a94310f90757d46ca1cbe5dc7
+
+**Rollback:** git checkout -- pi4/core/config.py pi4/services/llm.py pi4/services/vision.py then redeploy and restart assistant.
+
+---

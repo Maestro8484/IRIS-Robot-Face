@@ -95,7 +95,7 @@ NUM_PREDICT_MEDIUM    = 350   # explanations, multi-step answers
 NUM_PREDICT_LONG      = 700   # stories, detailed how-to, lists, comparisons
 NUM_PREDICT_MAX       = 1200  # "tell me everything about", essays, code
 # ── TTS ───────────────────────────────────────────────────────────────────────
-TTS_MAX_CHARS         = 900   # TTS hard-cap; ~5-8 spoken sentences
+TTS_MAX_CHARS         = 2500  # TTS hard-cap; raised S108 (was 900) -- Kokoro is fast, story responses need room
 CONVERSATION_LOG      = "/home/pi/logs/conversations.jsonl"
 BENCH_LOG             = "/home/pi/logs/iris_bench.jsonl"
 SD_BENCH_LOG          = "/media/root-ro/home/pi/logs/iris_bench.jsonl"
