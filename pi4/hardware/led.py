@@ -11,9 +11,8 @@ import time
 
 import spidev
 
-from core.config import (
-    LED_SLEEP_PEAK, LED_SLEEP_FLOOR, LED_SLEEP_PERIOD, LED_SLEEP_BRIGHT,
-)
+_SLEEP_CFG_PATH = "/home/pi/iris_config.json"
+_SLEEP_DEFAULTS = {"LED_SLEEP_PEAK": 8, "LED_SLEEP_FLOOR": 1, "LED_SLEEP_PERIOD": 8.0, "LED_SLEEP_BRIGHT": 0xE3}
 
 
 class APA102:
@@ -281,17 +280,34 @@ class APA102:
             self._run_anim(anim)
 
     def show_sleep(self):
-        """Very dim indigo breathe for sleep mode. Params from core.config LED_SLEEP_* constants."""
+        """Very dim indigo breathe for sleep mode. Re-reads iris_config.json each cycle
+        so WebUI peak/floor/period/bright changes take effect without restarting the assistant."""
+        import json as _json
+
+        def _load():
+            try:
+                with open(_SLEEP_CFG_PATH) as _f:
+                    _c = _json.load(_f)
+            except Exception:
+                _c = {}
+            return (
+                max(0, min(255, int(_c.get("LED_SLEEP_PEAK",   _SLEEP_DEFAULTS["LED_SLEEP_PEAK"])))),
+                max(0, min(255, int(_c.get("LED_SLEEP_FLOOR",  _SLEEP_DEFAULTS["LED_SLEEP_FLOOR"])))),
+                max(0.5, float(_c.get("LED_SLEEP_PERIOD", _SLEEP_DEFAULTS["LED_SLEEP_PERIOD"]))),
+                max(0xE0, min(0xFF, int(_c.get("LED_SLEEP_BRIGHT", _SLEEP_DEFAULTS["LED_SLEEP_BRIGHT"])))),
+            )
+
         def anim():
-            steps = 80; period = LED_SLEEP_PERIOD; floor = LED_SLEEP_FLOOR; peak = LED_SLEEP_PEAK
             while not self._stop_anim.is_set():
+                peak, floor_, period, bright = _load()
+                steps = 80
                 for i in range(steps):
                     if self._stop_anim.is_set():
                         return
                     t = i / steps
                     s = (math.sin(2 * math.pi * t - math.pi / 2) + 1) / 2
-                    v = floor + (peak - floor) * s
-                    self._write([(int(v * 0.5), 0, int(v))] * self.n, brightness=LED_SLEEP_BRIGHT)
+                    v = floor_ + (peak - floor_) * s
+                    self._write([(int(v * 0.5), 0, int(v))] * self.n, brightness=bright)
                     time.sleep(period / steps)
         self._run_anim(anim)
 

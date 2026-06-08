@@ -2142,3 +2142,23 @@ git checkout -- tools/workbench/index.html tools/workbench/workbench.js tools/wo
 ```
 
 ---
+
+## S107 — APA102 Sleep LED brightness fix (2026-06-08)
+
+**Status:** DEPLOYED+VERIFIED (Pi4 RAM=SD, assistant restarted, sleep LEDs active)
+
+**Problem:** ReSpeaker APA102 LEDs during sleep (indigo pulsing) were blinding at night. WebUI changes to peak brightness did nothing because (1) led.py had module-level imports fixed at process startup — WebUI saves required a service restart the user did not perform; (2) LED_SLEEP_BRIGHT = 0xFF set APA102 global brightness to 31/31 max, making even low color values produce visible output.
+
+**Changes:**
+
+- **`pi4/core/config.py`** — Lowered sleep LED defaults: LED_SLEEP_PEAK=8 (was 26), LED_SLEEP_FLOOR=1 (was 3), LED_SLEEP_BRIGHT=0xE3 (was 0xFF; 3/31 approx 10% global brightness). Added LED_SLEEP_BRIGHT to _OVERRIDABLE and _TYPE_COERCE (range 225-255).
+
+- **`pi4/hardware/led.py`** — Removed module-level LED_SLEEP_* imports. Rewrote show_sleep() to read iris_config.json directly at the start of each 8-second animation cycle via an inner _load() function. WebUI peak/floor/period/bright changes now take effect on the next cycle with no service restart needed.
+
+- **`pi4/iris_web.html`** — Updated APA102 Sleep LEDs hint: removed "restart required", updated defaults note to floor=1, peak=8.
+
+**md5 (RAM=SD):** config.py f6f55fb58bc42532e673b334b8a04c05 / led.py b4a78a069bbd331ae4f73c829e86e256 / iris_web.html b3ef97e941de491571f099df5557d140
+
+**Rollback:** git checkout -- pi4/core/config.py pi4/hardware/led.py pi4/iris_web.html then redeploy and restart assistant.
+
+---

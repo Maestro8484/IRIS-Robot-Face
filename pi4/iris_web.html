@@ -261,7 +261,7 @@
   <!-- APA102 Sleep LEDs (moved from Lights tab) -->
   <div class="card">
     <h2>APA102 Sleep LEDs (indigo breathe)</h2>
-    <p class="hint">Active while IRIS is sleeping. Very dim — floor=1, peak=10 are the intended defaults. Changes take effect after restarting the assistant.</p>
+    <p class="hint">Active while IRIS is sleeping. Defaults: floor=1, peak=8. Changes take effect on the next sleep cycle — no restart needed.</p>
     <div class="field-row"><label>Peak brightness (0–255)</label><input type="number" id="LED_SLEEP_PEAK" step="1" min="0" max="255"></div>
     <div class="field-row"><label>Floor brightness (0–255)</label><input type="number" id="LED_SLEEP_FLOOR" step="1" min="0" max="255"></div>
     <div class="field-row"><label>Cycle period (s)</label><input type="number" id="LED_SLEEP_PERIOD" step="0.5" min="1" max="60"></div>

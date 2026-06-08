@@ -64,10 +64,10 @@ LED_IDLE_FLOOR     = 3
 LED_IDLE_PERIOD    = 5.0    # seconds per full cycle
 LED_KIDS_PEAK      = 62     # yellow breathe kids mode max
 LED_KIDS_PERIOD    = 4.0
-LED_SLEEP_PEAK     = 26     # indigo breathe sleep max (~10% of 255)
-LED_SLEEP_FLOOR    = 3
+LED_SLEEP_PEAK     = 8      # indigo breathe sleep max (0-255 color value)
+LED_SLEEP_FLOOR    = 1
 LED_SLEEP_PERIOD   = 8.0
-LED_SLEEP_BRIGHT   = 0xFF   # APA102 global brightness byte (31/31, color value controls level)
+LED_SLEEP_BRIGHT   = 0xE3   # APA102 global brightness byte: 0xE0|(0-31); 0xE3=3/31≈10%, 0xFF=31/31=max
 
 # ── Interrupt / loud-stop ─────────────────────────────────────────────────────
 # RMS threshold for instant stop-playback trigger during TTS.
@@ -219,7 +219,7 @@ _OVERRIDABLE = {
     "VOL_MAX", "SPEAKER_VOLUME", "OLLAMA_MODEL_ADULT", "OLLAMA_MODEL_KIDS",
     "LED_IDLE_PEAK", "LED_IDLE_FLOOR", "LED_IDLE_PERIOD",
     "LED_KIDS_PEAK", "LED_KIDS_PERIOD",
-    "LED_SLEEP_PEAK", "LED_SLEEP_FLOOR", "LED_SLEEP_PERIOD",
+    "LED_SLEEP_PEAK", "LED_SLEEP_FLOOR", "LED_SLEEP_PERIOD", "LED_SLEEP_BRIGHT",
     "MOUTH_INTENSITY_AWAKE", "MOUTH_INTENSITY_SLEEP", "MOUTH_INTENSITY_IDLE",
     "OWW_DRAIN_SECS",
     "SLEEP_ANIM_SPEED",
@@ -271,6 +271,7 @@ _TYPE_COERCE = {
     "LED_SLEEP_PEAK":          (int,   (0, 255)),
     "LED_SLEEP_FLOOR":         (int,   (0, 255)),
     "LED_SLEEP_PERIOD":        (float, (0.5, 30.0)),
+    "LED_SLEEP_BRIGHT":        (int,   (225, 255)),   # 0xE1=1/31 (min useful) to 0xFF=31/31 (max)
     "MOUTH_INTENSITY_AWAKE":   (int,   (0, 15)),
     "MOUTH_INTENSITY_SLEEP":   (int,   (0, 15)),
     "MOUTH_INTENSITY_IDLE":    (int,   (0, 15)),
