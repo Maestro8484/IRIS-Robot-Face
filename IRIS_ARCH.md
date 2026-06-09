@@ -665,7 +665,8 @@ curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris\",\"prompt\":\
 - WoL triggered from Pi4 via assistant.py before Ollama polling begins.
 
 ### GandalfAI - VRAM Pressure
-- Kokoro ~2GB + gemma3:27b-it-qat ~14.1GB = ~16.1GB baseline. RTX 3090 = 24GB. Headroom ~7.9GB.
+- Kokoro ~2GB + qwen2.5vl:32b-q4_K_M ~21GB = ~23GB baseline. RTX 3090 = 24GB. Headroom ~1GB estimated (VL base live S112).
+- iris/iris-kids model base is qwen2.5vl:32b-q4_K_M. Vision live as of S112.
 - OLLAMA_FLASH_ATTENTION=1 and OLLAMA_KV_CACHE_TYPE=q8_0 are required at 27b scale (set machine-level S39).
 - Chrome, Claude Desktop, and any vision model all consume additional VRAM.
 - Close Chrome and Claude Desktop during inference-heavy sessions — headroom is tight at ~2.2GB when models are warm.
@@ -734,7 +735,7 @@ Claude may run `pio run`. User performs PlatformIO upload unless explicitly dire
 
 ### VRAM (GandalfAI)
 
-Kokoro ~2GB + gemma3:27b-it-qat ~14.1GB = ~16.1GB. RTX 3090 = 24GB. Headroom ~7.9GB.
+Kokoro ~2GB + qwen2.5vl:32b-q4_K_M ~21GB = ~23GB. RTX 3090 = 24GB. Headroom ~1GB estimated (VL base live S112).
 - Do not raise `num_ctx` above 4096.
 - Close Chrome and Claude Desktop during inference-heavy sessions.
 

@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S110 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S110
+**Session:** S112 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S112
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -22,7 +22,7 @@
 | System | Status |
 |---|---|
 | Pi4 192.168.1.200 | Operational. assistant.service active. ttyIRIS_EYES → ttyACM0 (serial 13625440, T41). udev corrected + SD persisted S97. |
-| GandalfAI 192.168.1.3 | Operational. iris/iris-kids on **qwen2.5:32b** (text LLM). **Vision: qwen2.5vl:32b-q4_K_M active (S109 restore)**. Ollama **0.24.0** (firewall blocks auto-update — 0.30.x breaks CLIP loader). Kokoro TTS port 8004. |
+| GandalfAI 192.168.1.3 | Operational. iris/iris-kids on **qwen2.5vl:32b-q4_K_M** (VL base, vision live S112). AMUSED calibration live (S112). Ollama **0.24.0** (firewall blocks auto-update — 0.30.x breaks CLIP loader). Kokoro TTS port 8004. |
 | Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
@@ -56,7 +56,14 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S110 — 2026-06-09)
+## Last Session Changes (S112 — 2026-06-09)
+
+- **`ollama/iris_modelfile.txt`** — `FROM qwen2.5vl:32b-q4_K_M` (was qwen2.5:32b). AMUSED calibration block added. DEPLOYED+VERIFIED. Smoke test: "You're dumb." → `[EMOTION:AMUSED]`. Both models rebuilt on GandalfAI. `ollama list` 21GB fresh timestamps.
+- **`ollama/iris-kids_modelfile.txt`** — `FROM qwen2.5vl:32b-q4_K_M` (was qwen2.5:32b). No other changes. DEPLOYED+VERIFIED. Smoke test: "tell me a joke" → `[EMOTION:HAPPY]` + kid-appropriate response.
+- **`IRIS_ARCH.md`** — VRAM baseline updated (VL base ~21GB, ~23GB total). Vision live note added S112.
+- **`HANDOFF_CURRENT.md`** — GandalfAI status updated. S111 Chat flags marked RESOLVED.
+
+## Previous Session Changes (S110 — 2026-06-09)
 
 - **`pi4/assistant.py`** — RPQR + pipeline latency overhaul. DEPLOYED+VERIFIED. md5=`fa5bf5b065951bdbf34ab27b3af0ea4e` RAM=SD.
   - **RPQR sleep-path fix**: removed `ensure_gandalf_up()` from sleep-wakeword branch — pre-cached quip now plays instantly without Ollama check.

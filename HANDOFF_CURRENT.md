@@ -24,7 +24,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | System | State |
 |---|---|
 | Pi4 | Operational — assistant.service active. assistant.py DEPLOYED+VERIFIED S110. md5=fa5bf5b065951bdbf34ab27b3af0ea4e RAM=SD. iris_config.json SILENCE_SECS=1.2 DEPLOYED S110. md5=9dbd091fff10409f1e6d544d9e26b603 RAM=SD. |
-| GandalfAI | Operational — iris/iris-kids on **qwen2.5:32b** (text LLM). **Vision: qwen2.5vl:32b-q4_K_M active (S109)**. **Ollama 0.24.0** (firewall blocks auto-update — 0.30.x CLIP engine broken for this model). Kokoro TTS (Docker port 8004). |
+| GandalfAI | Operational — iris/iris-kids on **qwen2.5vl:32b-q4_K_M** (VL base, vision live S112). AMUSED calibration live (S112). **Ollama 0.24.0** (firewall blocks auto-update — 0.30.x CLIP engine broken for this model). Kokoro TTS (Docker port 8004). |
 | Teensy 4.1 | Operational — firmware S101. Eye jitter fix (mouth 2Hz during TTS). |
 | Teensy 4.0 | S97 FLASHED. FACE_RETURN_MS 30000ms. Tracking working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
@@ -59,7 +59,10 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 - **[S98 Chat]** LLM streaming into sentence-boundary TTS not implemented — pipeline waits for full LLM response before TTS starts, adding 1-2.5s perceived latency; streaming cuts this 40-60%.
 - **[S98 Chat]** VAD silence threshold likely default 500-800ms — tighten to 200-300ms for free latency reduction with no accuracy impact.
 - **[S98 Chat → S111 VERIFIED]** Whisper model confirmed `large-v3-turbo` with `COMPUTE_TYPE=int8_float16`, `WHISPER_BEAM=1`. Already optimal — no change needed.
-- **[S98 Chat → S111 VERIFIED]** Ollama tok/s confirmed **17.6 tok/s** for iris (qwen2.5:32b Q4_K_M) on Ollama 0.24.0, RTX 3090. Not the worst-case 12 tok/s, not the pre-regression 35 tok/s. Use 17-18 tok/s as the planning baseline.
-- **[S98 Chat → S111 VERIFIED]** VRAM confirmed: 23,481 / 24,576 MiB used (845 MiB free). iris model occupies 19,020 MiB VRAM. No co-residency headroom for qwen2.5vl:32b-q4_K_M (~20 GB) — every vision query forces a model swap (unload iris → load vision → re-load iris on next text query). Vision latency penalty is model-load time each call.
+- **[S98 Chat → S111 VERIFIED]** Ollama tok/s confirmed **17.6 tok/s** for iris (qwen2.5:32b Q4_K_M) on Ollama 0.24.0, RTX 3090. Not the worst-case 12 tok/s, not the pre-regression 35 tok/s. Use 17-18 tok/s as the planning baseline (may shift slightly on VL base — re-bench if needed).
+- **[S98 Chat → S111 VERIFIED → S112 UPDATE]** VRAM: iris/iris-kids now on qwen2.5vl:32b-q4_K_M (21GB file, ~23GB loaded with Kokoro). RTX 3090 = 24GB. Headroom ~1GB estimated. Vision queries no longer require model swap — VL base handles both text and vision natively.
 - **[S98 Chat]** No weather handler in intent router Layer 2 — falls to LLM which cannot answer accurately; wttr.in call would make this a zero-LLM sub-100ms response.
 - **[S98 Chat]** Jokes route to LLM despite 20-joke modelfile bank — local Layer 1 joke handler would serve these with no round trip.
+- **[S111 Chat → S112 RESOLVED]** iris/iris-kids modelfiles now FROM qwen2.5vl:32b-q4_K_M. Vision live as of S112. DEPLOYED+VERIFIED.
+- **[S111 Chat → S112 RESOLVED]** AMUSED calibration block added to iris modelfile. iris smoke test confirmed [EMOTION:AMUSED] on "You're dumb." input.
+- **[S111 Chat → S112 RESOLVED]** All docs now correctly reflect qwen2.5vl:32b-q4_K_M as the active LLM base for iris/iris-kids.

@@ -2249,3 +2249,34 @@ git checkout -- tools/workbench/index.html tools/workbench/workbench.js tools/wo
 **Rollback:** `git checkout HEAD~1 -- pi4/assistant.py && scp ... && sudo systemctl restart assistant`. Revert iris_config.json SILENCE_SECS to 1.5.
 
 ---
+
+## S112 — VL Base Swap + AMUSED Calibration (2026-06-09)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Goal:** Wire qwen2.5vl:32b-q4_K_M into both iris and iris-kids modelfiles (enabling native vision support), and fix ANGRY overtrigger on insult inputs by adding AMUSED few-shot calibration to iris modelfile. Both models rebuilt on GandalfAI.
+
+**Background:** S111 perf audit confirmed iris/iris-kids had always run qwen2.5:32b (text-only). qwen2.5vl:32b-q4_K_M was already on GandalfAI (21GB, pulled S109) but never wired into the modelfiles. Harness showed 11/20 pass (55%) — 6 failures were ANGRY where AMUSED expected on insult inputs. AMUSED calibration and VL swap done in same pass.
+
+**Changes:**
+
+1. **`ollama/iris_modelfile.txt`** — DEPLOYED+VERIFIED.
+   - `FROM qwen2.5:32b` → `FROM qwen2.5vl:32b-q4_K_M`. Vision now native (no model-swap penalty per query).
+   - Added `# EMOTION CALIBRATION — INSULT INPUTS` block after joke few-shots. Six examples with [EMOTION:AMUSED] on direct insults ("You're dumb." / "You suck." / "I hate you." x2 / "You're useless.") and [EMOTION:NEUTRAL] on "Shut up."
+   - Smoke test: `curl` → "You're dumb." → `[EMOTION:AMUSED] Groundbreaking observation. Did you need something.` PASS.
+
+2. **`ollama/iris-kids_modelfile.txt`** — DEPLOYED+VERIFIED.
+   - `FROM qwen2.5:32b` → `FROM qwen2.5vl:32b-q4_K_M`. No other changes (kids model already had AMUSED on insults).
+   - Smoke test: "tell me a joke" → `[EMOTION:HAPPY]` + kid-appropriate joke + turn-back question. PASS.
+
+**Deploy:** Both modelfiles SFTP'd to GandalfAI `C:\IRIS\IRIS-Robot-Face\ollama\`, then `ollama create iris` / `ollama create iris-kids`. `ollama list` confirms both 21 GB, fresh timestamps. VRAM: ~23GB loaded (RTX 3090 = 24GB, ~1GB headroom estimated).
+
+**Rollback:**
+```
+git checkout HEAD~1 -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
+# SFTP both files to GandalfAI, then:
+ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt
+ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt
+```
+
+---
