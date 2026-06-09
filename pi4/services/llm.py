@@ -232,13 +232,20 @@ _LONG_PATTERNS = (
     "summary of", "summarize",
 )
 
-# Patterns that signal MAX tokens needed
+# Patterns that signal the MAX (story) tier -- the only tier that reaches ~1.5 min.
+# S117: MAX is now reached ONLY by these EXPLICIT story / long-form-writing triggers.
+# Everything else (explain/how/describe/list/...) tops out at LONG (~41 s).
+# Do NOT add bare "story" here -- it substring-matches "history of ..." and would
+# wrongly promote history questions to the story tier.
 _MAX_PATTERNS = (
-    "everything about", "tell me everything", "complete guide",
-    "comprehensive", "full explanation", "all you know",
-    "write a long", "write me a long", "write a detailed",
-    "essay", "full story", "long story",
-    "all the steps", "all the details",
+    # explicit story requests
+    "tell me a story", "tell a story", "tell us a story", "read me a story",
+    "make up a story", "a story about", "story about", "bedtime story",
+    "short story", "full story", "long story",
+    # explicit long-form writing requests
+    "tell me everything", "everything about", "complete guide",
+    "full explanation", "write a long", "write me a long", "write a detailed",
+    "essay",
 )
 
 
@@ -273,11 +280,10 @@ def classify_response_length(text: str,
     if any(p in t for p in _MAX_PATTERNS):
         return _max
 
-    # LONG tier
+    # LONG tier -- never promotes to MAX (S117: MAX is story/long-form only).
+    # A wordy "explain ..." question stays LONG (~41 s), it does not become a
+    # ~1.5 min monologue just for being long.
     if any(p in t for p in _LONG_PATTERNS):
-        # Scale within long tier by question complexity (word count proxy)
-        if word_count > 15:
-            return _max
         return _long
 
     # SHORT tier -- only if clearly a simple query

@@ -88,14 +88,34 @@ KIDS_FOLLOWUP_TIMEOUT = 15
 FOLLOWUP_SHORT_LEN    = 60
 FOLLOWUP_MAX_TURNS    = 3
 CONTEXT_TIMEOUT_SECS  = 300
-NUM_PREDICT           = 300
-# ── Response length tiers ──────────────────────────────────────────────────────
-NUM_PREDICT_SHORT     = 120   # greetings, yes/no, simple facts
-NUM_PREDICT_MEDIUM    = 350   # explanations, multi-step answers
-NUM_PREDICT_LONG      = 700   # stories, detailed how-to, lists, comparisons
-NUM_PREDICT_MAX       = 1200  # "tell me everything about", essays, code
+# ── Response length tiers (S117) ───────────────────────────────────────────────
+# IRIS is a VOICE CONVERSATIONAL robot, not a book narrator. num_predict is a
+# worst-case CEILING (token cap); a terse persona normally stops well short of it.
+# Sizing basis (measured S116 on Kokoro @ KOKORO_SPEED=1.0): ~0.23 s of speech per
+# generated token (700 tok -> ~160 s, repeatedly). So seconds ~= num_predict * 0.23.
+#   tier    tokens  worst-case speech
+#   SHORT     40     ~9 s    greetings, yes/no, time, one-fact
+#   MEDIUM    90     ~21 s   normal conversational reply (1-3 sentences)
+#   LONG     180     ~41 s   "explain / how does / describe" -- fuller chat answer
+#   MAX      400     ~92 s   STORY tier ONLY -- explicit "tell me a story" / essay
+# Lowered S117 from SHORT=120/MED=350/LONG=700/MAX=1200 (those were ~28/80/160/276 s
+# -- narrator-length rambling, confirmed in the S116 bench). The MAX tier is now
+# reached ONLY by explicit story/long-form triggers (see _MAX_PATTERNS in
+# services/llm.py; the old word-count LONG->MAX promotion was removed S117).
+# ROLLBACK (if replies become too clipped/short): restore the prior values
+#   NUM_PREDICT=300 SHORT=120 MEDIUM=350 LONG=700 MAX=1200 TTS_MAX_CHARS=2500
+# and revert the services/llm.py classifier change, then redeploy + restart.
+NUM_PREDICT           = 100   # default (followup loop + warmup) -- conversational
+NUM_PREDICT_SHORT     = 40    # greetings, yes/no, time, simple facts  (~9 s)
+NUM_PREDICT_MEDIUM    = 90    # normal conversational reply            (~21 s)
+NUM_PREDICT_LONG      = 180   # detailed-but-still-chat answers        (~41 s)
+NUM_PREDICT_MAX       = 400   # story tier ONLY -- explicit requests   (~92 s, ~1.5 min)
 # ── TTS ───────────────────────────────────────────────────────────────────────
-TTS_MAX_CHARS         = 2500  # TTS hard-cap; raised S108 (was 900) -- Kokoro is fast, story responses need room
+# Absolute hard backstop: truncates at the last sentence boundary before TTS so NO
+# reply -- no tier, no runaway generation -- can exceed ~1.5 min of audio. ~15 chars/s
+# measured, so 1500 chars ~= 100 s (~1.67 min). Lowered S117 from 2500 (~167 s).
+# ROLLBACK: set back to 2500 if legitimate long answers are being cut short.
+TTS_MAX_CHARS         = 1500  # ~100 s (~1.5 min) hard ceiling, all tiers (was 2500, S117)
 CONVERSATION_LOG      = "/home/pi/logs/conversations.jsonl"
 BENCH_LOG             = "/home/pi/logs/iris_bench.jsonl"
 SD_BENCH_LOG          = "/media/root-ro/home/pi/logs/iris_bench.jsonl"

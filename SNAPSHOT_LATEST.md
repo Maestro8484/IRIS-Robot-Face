@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S116 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S116
+**Session:** S117 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S117
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -56,7 +56,12 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S116 — 2026-06-09)
+## Last Session Changes (S117 — 2026-06-09)
+
+- **`pi4/core/config.py`** — Response-length tiers retuned for a voice robot (were narrator-length). `num_predict` SHORT 120→40 (~9s), MEDIUM 350→90 (~21s), LONG 700→180 (~41s), MAX 1200→400 (~92s≈1.5min), default 300→100. `TTS_MAX_CHARS` 2500→1500 (~100s hard backstop, all tiers). Basis: measured ~0.23s speech/token (S116). Inline rationale+rollback in file. md5=`5391ed8c079dee4527c72ec8e148237f` RAM=SD. DEPLOYED+VERIFIED.
+- **`pi4/services/llm.py`** — `_MAX_PATTERNS` now triggers MAX (story tier) ONLY on explicit "tell me a story"/essay/long-form requests; removed the `word_count>15` LONG→MAX promotion so wordy "explain…" stays LONG. md5=`b94427979460d21805765f817b8cf522` RAM=SD. DEPLOYED+VERIFIED (live: story→400, explain→180, history→180, essay→400, hello→40).
+
+## Previous Session Changes (S116 — 2026-06-09)
 
 - **`pi4/hardware/audio_io.py`** — New `play_pcm_stream()`: gapless back-to-back playback of a queue of per-sentence PCM blobs with one EYES:SPEAKING/mouth-anim/interrupt-listener spanning the whole utterance. `play_pcm`/`play_pcm_speaking` untouched. md5=`ada50cfc3ab6b8ae52efdc7c7f9aab9c` RAM=SD. DEPLOYED.
 - **`pi4/assistant.py`** — Main LLM block rewired: `stream_ollama()` → per-sentence `synthesize()` → background `play_pcm_stream` player. First audio now starts on the first sentence (was: full response synthesized in one blocking call). STOP checked per sentence dispatch. Emotion-on-first-chunk, Piper fallback, length classifier, follow-up loop all preserved. md5=`fe79c67bd5dfea50f5559e0304d37c35` RAM=SD. DEPLOYED.

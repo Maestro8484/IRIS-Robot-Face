@@ -2437,3 +2437,37 @@ git checkout -- pi4/assistant.py pi4/hardware/audio_io.py
 ```
 
 ---
+
+## S117 — Response-Length Tiers Retuned for a Voice Robot (2026-06-09)
+
+**Status:** DEPLOYED + VERIFIED (classifier tiers confirmed live on Pi4).
+
+**Why:** The S116 bench exposed that the response-length ceilings were narrator-length, not conversational. `num_predict` is a worst-case token CEILING, and the old values (`SHORT=120 / MEDIUM=350 / LONG=700 / MAX=1200`) allowed ~28 / 80 / 160 / 276 s of speech — and `MAX` was reached by any wordy question via a word-count `LONG→MAX` promotion. IRIS is a voice conversational robot, not a book narrator; the user asked for snappy replies with the MAX (story) tier reserved strictly for explicit "tell me a story" requests and hard-capped at ~1.5 min.
+
+**Sizing basis (measured S116, Kokoro @ KOKORO_SPEED=1.0):** ~0.23 s of speech per generated token (700 tok → ~160 s, repeatedly); ~15 chars/s. So `seconds ≈ num_predict × 0.23`.
+
+**What changed:**
+
+1. **`pi4/core/config.py`** — DEPLOYED. md5=`5391ed8c079dee4527c72ec8e148237f` RAM=SD.
+   - `NUM_PREDICT_SHORT` 120→**40** (~9 s), `NUM_PREDICT_MEDIUM` 350→**90** (~21 s), `NUM_PREDICT_LONG` 700→**180** (~41 s), `NUM_PREDICT_MAX` 1200→**400** (~92 s ≈ 1.5 min), `NUM_PREDICT` (followup/warmup default) 300→**100** (~23 s).
+   - `TTS_MAX_CHARS` 2500→**1500** — absolute hard backstop, truncates at the last sentence boundary so NO reply (no tier, no runaway generation) exceeds ~100 s (~1.5 min) of audio.
+   - Full rationale + rollback values are written inline in the file above the tier block.
+
+2. **`pi4/services/llm.py`** — DEPLOYED. md5=`b94427979460d21805765f817b8cf522` RAM=SD.
+   - `_MAX_PATTERNS` rewritten: MAX is now reached ONLY by explicit story triggers ("tell me a story", "tell a story", "bedtime story", "story about", "short/full/long story", "read me a story", "make up a story") and explicit long-form-writing triggers ("tell me everything", "everything about", "complete guide", "full explanation", "write a long/detailed", "essay"). Bare "story" deliberately excluded — it substring-matches "history of …".
+   - Removed the `if word_count > 15: return _max` promotion from the LONG branch — a wordy "explain …" now stays LONG (~41 s) instead of becoming a ~1.5 min monologue.
+
+**Verified (live on Pi4, real config values):** `tell me a story about a dragon` → MAX 400 · `explain the difference between a motor and a servo` → LONG 180 · `the history of rome in great detail` → LONG 180 (NOT promoted) · `what is the capital of france` → MED 90 · `write me a long essay` → MAX 400 · `hello` → SHORT 40.
+
+**Deploy:** both files SFTP'd to `/home/pi/` (llm.py via base64 for byte-exact unicode), `py_compile` OK, persisted to `/media/root-ro`, md5 RAM=SD verified, service restarted, `[INFO] Ready.`, no CFG warnings/tracebacks. `iris_config.json` does not override any of these keys, so the `core/config.py` defaults are authoritative.
+
+**Rollback (if replies get clipped/too short):**
+```
+git checkout -- pi4/core/config.py pi4/services/llm.py
+# redeploy both to /home/pi/ + /media/root-ro, sudo systemctl restart assistant
+# (or, no-redeploy hot fix: set the prior values in /home/pi/iris_config.json --
+#  NUM_PREDICT/_SHORT/_MEDIUM/_LONG/_MAX + TTS_MAX_CHARS -- and restart; iris_config
+#  overrides win over config.py. Classifier MAX-trigger change still needs llm.py revert.)
+```
+
+---
