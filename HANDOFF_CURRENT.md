@@ -24,7 +24,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | System | State |
 |---|---|
 | Pi4 | Operational — assistant.service active. assistant.py DEPLOYED+VERIFIED S110. md5=fa5bf5b065951bdbf34ab27b3af0ea4e RAM=SD. iris_config.json SILENCE_SECS=1.2 DEPLOYED S110. md5=9dbd091fff10409f1e6d544d9e26b603 RAM=SD. |
-| GandalfAI | Operational — iris/iris-kids on **qwen2.5vl:32b-q4_K_M** (VL base, vision live S112). AMUSED calibration live (S112). **Ollama 0.24.0** (firewall blocks auto-update — 0.30.x CLIP engine broken for this model). Kokoro TTS (Docker port 8004). |
+| GandalfAI | **DEGRADED — TEXT BROKEN (S113).** iris/iris-kids on **qwen3.5:27b**. Ollama **0.24.0** does not GPU-dispatch qwen3.5 — 2.8 tok/s CPU-only. Upgrade to **Ollama 0.30.0** required (P0 before next IRIS use). AMUSED calibration preserved. Vision gone (off VL base). Kokoro TTS port 8004 OK. |
 | Teensy 4.1 | Operational — firmware S101. Eye jitter fix (mouth 2Hz during TTS). |
 | Teensy 4.0 | S97 FLASHED. FACE_RETURN_MS 30000ms. Tracking working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
@@ -40,10 +40,12 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 - Pi4 and GandalfAI mutations require explicit user authorization.
 - GandalfAI model rebuilds require explicit `DEPLOY`.
 - Pi4 persistence: direct `/media/root-ro` remount only — see `CLAUDE.md`.
-- **DO NOT upgrade Ollama on GandalfAI.** 0.30.x series breaks qwen2.5vl CLIP loader. Firewall rule is in place. Leave it alone.
+- **Upgrade Ollama to 0.30.0 on GandalfAI — P0.** 0.30.x CLIP restriction no longer applies (we are off qwen2.5vl). Run: `$env:OLLAMA_VERSION="0.30.0"; irm https://ollama.com/install.ps1 | iex` then re-apply Windows Firewall outbound block for `ollama app.exe` to pin at 0.30.0. After upgrade: rebuild iris + iris-kids, verify tok/s ≥ 30.
 
 ## Next Work
 
+- **[P0 — IRIS BROKEN] Ollama 0.30.0 upgrade on GandalfAI:** Run PS command to install 0.30.0, re-apply firewall block for ollama app.exe, rebuild iris + iris-kids, verify tok/s ≥ 30. Then run persona harness pt001 (target ≥ 13/20). Update SNAPSHOT, HANDOFF, IRIS_ARCH.md VRAM section after confirmation.
+- **[P0 — IRIS BROKEN] HANDOFF_CURRENT.md + CLAUDE.md firewall note:** After upgrade confirmed, update Deployment Gates to "DO NOT upgrade past 0.30.0, pinned for qwen3.5 stability."
 - **Pure Pi4-local STT commands (deferred S110):** Simple commands like "hey jarvis… go to sleep" handled by Pi4 Whisper without waking GandalfAI. Design session needed — user flagged this during RPQR work.
 - **Wake-from-sleep fall-through:** Currently quip → re-sleep. Evaluate fall-through to active listening after quip (user must say "hey jarvis" twice to converse from sleep).
 - **T40 mechanical damper** — servo tracking confirmed working, user tuning physically. No firmware change needed.

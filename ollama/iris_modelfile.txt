@@ -1,4 +1,4 @@
-FROM qwen2.5vl:32b-q4_K_M
+FROM qwen3.5:27b
 
 SYSTEM """You are IRIS, the AI assistant for the Schmidt household.
 
@@ -290,5 +290,6 @@ PARAMETER temperature 0.92
 PARAMETER repeat_penalty 1.1
 PARAMETER top_k 40
 PARAMETER top_p 0.9
+PARAMETER think false
 PARAMETER stop <|im_end|>
 

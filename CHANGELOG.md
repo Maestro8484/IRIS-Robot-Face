@@ -6,6 +6,60 @@ Entries are in chronological order, oldest first. Active and forward-looking ite
 
 ---
 
+## S113 — qwen3.5:27b Modelfile Swap + GPU Offload Failure (2026-06-09)
+
+**Status:** PARTIAL — models rebuilt, GPU offload failed, Ollama upgrade needed
+
+**Goal:** Swap both iris and iris-kids from qwen2.5vl:32b-q4_K_M to qwen3.5:27b to restore GPU text inference (~40 tok/s expected vs 2.8 tok/s CPU-only on VL base).
+
+**What was done:**
+
+1. **`ollama/iris_modelfile.txt`** — DEPLOYED.
+   - `FROM qwen2.5vl:32b-q4_K_M` → `FROM qwen3.5:27b`
+   - Added `PARAMETER think false` (disables qwen3.5 thinking mode — required to suppress `<think>` blocks)
+   - Stop token `<|im_end|>` confirmed correct for qwen3.5.
+   - AMUSED calibration block preserved.
+
+2. **`ollama/iris-kids_modelfile.txt`** — DEPLOYED.
+   - `FROM qwen2.5vl:32b-q4_K_M` → `FROM qwen3.5:27b`
+   - Added `PARAMETER think false`
+   - Stop token `<|im_end|>` confirmed correct.
+
+3. **GandalfAI model rebuild** — DEPLOYED.
+   - `qwen3.5:27b` (17GB) confirmed present (pre-pulled by user).
+   - `ollama create iris` and `ollama create iris-kids` both succeeded. Fresh timestamps, 21GB each.
+
+4. **`tools/workbench/workbench.js`** — REPO-ONLY (uncommitted).
+   - `AbortSignal.timeout(60000)` → `AbortSignal.timeout(90000)` in `runHarness()`
+   - Fallback string `"iris (qwen2.5:32b)"` → `"iris"` in `callAnthropicLatencyAnalysis()`
+
+**GPU verification — FAILED:**
+- Warm inference: 2.8 tok/s (two runs). Matches CPU inference rate.
+- VRAM: 23,799 MiB used of 24,326 MiB — model IS loaded in VRAM.
+- GPU utilization: 0% during inference — compute dispatching to CPU.
+- Root cause: Ollama 0.24.0's llama.cpp build predates qwen3.5 architecture. Weights load into VRAM but GPU dispatch not supported for this architecture at this engine version.
+- Hard stop triggered per task spec.
+
+**Parts D (harness), C (GPU verify beyond stop) not completed.**
+
+**IRIS text queries currently broken — 2.8 tok/s CPU-only on qwen3.5:27b.**
+
+**Next required action:** Upgrade Ollama on GandalfAI to 0.30.0 (0.30.x VL CLIP restriction no longer applies — we are off VL base). User authorized upgrade during session but it was not executed. Run:
+```powershell
+$env:OLLAMA_VERSION="0.30.0"; irm https://ollama.com/install.ps1 | iex
+```
+Then re-apply Windows Firewall outbound block for `ollama app.exe`. Rebuild both models. Verify tok/s ≥ 30.
+
+**Rollback (if 0.30.0 also fails GPU dispatch):**
+```
+git checkout HEAD -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
+# pull qwen2.5:32b if not present, then:
+ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt
+ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt
+```
+
+---
+
 ## Batch 1A — Runtime Survival
 
 **Status:** Complete
