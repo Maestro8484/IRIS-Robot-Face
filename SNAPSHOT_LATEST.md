@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S114 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S114
+**Session:** S115 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S115
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -56,7 +56,13 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S114 — 2026-06-09)
+## Last Session Changes (S115 — 2026-06-09)
+
+- **`pi4/core/intent_router.py`** — `_TIME_RE` pattern: added `what time is it` explicit literal + `time please` variant. "what time is it" now routes to UTILITY (was falling through to LLM at ~1434ms). md5=ea9e0d82425f76d98053c2b71221ef99 RAM=SD. DEPLOYED+VERIFIED.
+- **`ollama/iris_modelfile.txt`** — Adversarial few-shot "You're dumb." example: `[EMOTION:ANGRY]` → `[EMOTION:AMUSED]`. Old ANGRY example was overriding S112 EMOTION CALIBRATION block. iris rebuilt on GandalfAI. DEPLOYED+VERIFIED.
+- **VAD** — `SILENCE_SECS=1.2` confirmed in iris_config.json. No change needed.
+
+## Previous Session Changes (S114 — 2026-06-09)
 
 - **GandalfAI Ollama** — Already at 0.30.7 (no upgrade needed). GPU dispatch confirmed for qwen3.5:27b: 35.2 tok/s VERIFIED.
 - **`ollama/iris_modelfile.txt`** — Removed `PARAMETER think false` (unsupported in Ollama 0.30.7; causes `ollama create` error). `"think": false` moved to API call level. iris rebuilt on GandalfAI. DEPLOYED+VERIFIED.

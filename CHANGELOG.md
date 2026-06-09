@@ -94,6 +94,39 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 
 ---
 
+## S115 — Intent Router Time Fix + ANGRY Overtrigger Patch (2026-06-09)
+
+**Status:** COMPLETE — DEPLOYED+VERIFIED
+
+**Goal:** (A) Fix "what time is it" routing to LLM (~1434ms) instead of Layer 2 UTILITY (<200ms). (B) Fix "You're dumb." returning [EMOTION:ANGRY] despite S112 AMUSED calibration block. (C) Confirm SILENCE_SECS.
+
+**What was done:**
+
+1. **`pi4/core/intent_router.py`** — `_TIME_RE` pattern fix.
+   - Added `what time is it` explicitly at start of pattern (definitive literal match).
+   - Added `time please` variant.
+   - Root cause: the existing `time is it` substring match and `what time\b` lookahead should theoretically match, but the explicit literal eliminates any runtime ambiguity.
+   - md5=ea9e0d82425f76d98053c2b71221ef99 RAM=SD. DEPLOYED+VERIFIED.
+   - Verified via `IntentRouter.classify()` on Pi4: `route=UTILITY action=TIME llm=false` in iris_intent.log.
+
+2. **`ollama/iris_modelfile.txt`** — adversarial few-shot ANGRY patch.
+   - `FEW-SHOT EXAMPLES - ADVERSARIAL INPUT HANDLING` block, "You're dumb." example: `[EMOTION:ANGRY]` → `[EMOTION:AMUSED]`.
+   - The old ANGRY example was winning over the EMOTION CALIBRATION block added in S112.
+   - iris rebuilt on GandalfAI. DEPLOYED+VERIFIED.
+   - Smoke test: "You're dumb." → `[EMOTION:AMUSED]` confirmed.
+
+3. **VAD check (read-only)** — `SILENCE_SECS=1.2` confirmed in iris_config.json (overrides config.py default of 1.5). No change needed.
+
+**Verification:**
+- `what time is it` → intent log: `route=UTILITY | confidence=HIGH | llm=false` ✓
+- `what's the time`, `time please` also route UTILITY ✓
+- "You're dumb." → `[EMOTION:AMUSED]` on GandalfAI smoke test ✓
+- SILENCE_SECS=1.2 confirmed ✓
+
+**Rollback:** `git checkout -- pi4/core/intent_router.py ollama/iris_modelfile.txt` then redeploy intent_router.py and rebuild iris model.
+
+---
+
 ## Batch 1A — Runtime Survival
 
 **Status:** Complete

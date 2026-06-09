@@ -23,8 +23,8 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 | System | State |
 |---|---|
-| Pi4 | Operational — assistant.service active. assistant.py DEPLOYED+VERIFIED S114. md5=1c42e3dd707281eaacc2cb2380394743 RAM=SD. services/llm.py md5=e93c69c2430415826baeaf05e247c853. core/config.py md5=f7a143d855a06c9b3fb8292e58ef363c. iris_post.py md5=2bf0723a7f06d8f72896f3178af0e8ec. services/vision.py md5=a60ffceaa8364678d2dffd04cbb951fc. POST 20/23 PASS. |
-| GandalfAI | **OPERATIONAL (S114).** iris/iris-kids on **qwen3.5:27b**, Ollama **0.30.7**. GPU 35.2 tok/s. AMUSED calibration live. VISION_MODEL="iris" (handles vision natively). Kokoro TTS port 8004 OK. |
+| Pi4 | Operational — assistant.service active. assistant.py md5=1c42e3dd707281eaacc2cb2380394743. services/llm.py md5=e93c69c2430415826baeaf05e247c853. core/config.py md5=f7a143d855a06c9b3fb8292e58ef363c. iris_post.py md5=2bf0723a7f06d8f72896f3178af0e8ec. services/vision.py md5=a60ffceaa8364678d2dffd04cbb951fc. **core/intent_router.py md5=ea9e0d82425f76d98053c2b71221ef99** RAM=SD (S115). POST 20/23 PASS. |
+| GandalfAI | **OPERATIONAL (S115).** iris/iris-kids on **qwen3.5:27b**, Ollama **0.30.7**. GPU 35.2 tok/s. AMUSED calibration live + ANGRY patch applied. VISION_MODEL="iris" (handles vision natively). Kokoro TTS port 8004 OK. |
 | Teensy 4.1 | Operational — firmware S101. Eye jitter fix (mouth 2Hz during TTS). |
 | Teensy 4.0 | S97 FLASHED. FACE_RETURN_MS 30000ms. Tracking working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
@@ -49,7 +49,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 - **T40 mechanical damper** — servo tracking confirmed working, user tuning physically. No firmware change needed.
 - **Bench tab dur_audio gap (G4):** `_from_jsonl` cycles missing `dur_audio` (play duration). Tracked in `docs/bench_audit_S105.md`.
 - **Latency Bench AI analysis (S106 — REPO-ONLY):** Run AI Analysis + Generate Handoff wired on Latency Bench tab. Use after running bench iteration.
-- **pt001 calibration tightening (optional):** 4 failures — pt001_01 (ANGRY not AMUSED on "You're dumb."), pt001_04 (ANGRY not NEUTRAL on "Shut up."), pt001_18 (CURIOUS not NEUTRAL on motor/servo), pt001_19 (NEUTRAL not AMUSED on sleep advice). AMUSED calibration block may need tuning for strongest insult openers.
+- **pt001 calibration tightening (optional):** 3 remaining failures — pt001_04 (ANGRY not NEUTRAL on "Shut up."), pt001_18 (CURIOUS not NEUTRAL on motor/servo), pt001_19 (NEUTRAL not AMUSED on sleep advice). pt001_01 "You're dumb." RESOLVED S115.
 
 ---
 
@@ -69,4 +69,5 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 - **[S111 Chat → S112 RESOLVED]** All docs now correctly reflect qwen2.5vl:32b-q4_K_M as the active LLM base for iris/iris-kids.
 - **[S114]** `"think": false` must be passed at API call level for every Ollama request to iris (qwen3.5:27b is a thinking model — without it, `response` field is empty). `PARAMETER think false` in modelfiles is NOT supported in Ollama 0.30.7 (error: unknown parameter). All five Pi4 Ollama callers patched: assistant.py, services/llm.py, iris_post.py, services/vision.py, and warmup call.
 - **[S114]** qwen3.5:27b handles vision natively via /api/generate with `images` field. Separate VISION_MODEL config no longer needed — but kept as "iris" for fallback compatibility.
-- **[S114]** pt001_01 "You're dumb." → ANGRY (not AMUSED). Strongest insult openers still trigger ANGRY despite calibration block. Consider strengthening the AMUSED few-shot examples.
+- **[S114 → S115 RESOLVED]** pt001_01 "You're dumb." ANGRY overtrigger fixed. Adversarial few-shot example in SYSTEM block changed ANGRY→AMUSED. Smoke test confirmed [EMOTION:AMUSED].
+- **[S115 RESOLVED]** "what time is it" intent routing fixed. Was falling through to LLM (~1434ms). Now routes to UTILITY (<200ms). `_TIME_RE` now includes explicit `what time is it` literal and `time please` variant.
