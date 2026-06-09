@@ -138,7 +138,7 @@ except ImportError:
 # ── Layer 2: UTILITY ──────────────────────────────────────────────────────────
 
 _TIME_RE = re.compile(
-    r"what'?s the time|tell me the time|time is it"
+    r"what time is it|what'?s the time|tell me the time|time is it|time please"
     r"|current time\b(?!\s+travel)"
     r"|what time\b(?!\s+(?:did|was|were|happened)\b)"
     r"|what hour\b(?!\s+(?:did|was|were|happened)\b)"
