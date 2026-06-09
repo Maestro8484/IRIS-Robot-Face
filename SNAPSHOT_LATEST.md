@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S108 | **Date:** 2026-06-08 | **Branch:** `main` | **Last commit:** S108
+**Session:** S109 | **Date:** 2026-06-08 | **Branch:** `main` | **Last commit:** S109
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -12,8 +12,7 @@
 ## WHAT'S NEXT (Priority Queue)
 
 1. **T40 mechanical damper** — servo tracking confirmed working, user tuning physically. No firmware change needed.
-2. **qwen2.5vl rollback when registry updated** — Ollama 0.30.6 broke CLIP loader. Pivot to qwen2.5:32b (text-only) is live S103. When upstream registry pushes a compatible mmproj blob, run model rebuild. See CHANGELOG S103 rollback steps.
-3. **Wake-from-sleep UX** — wakeword during sleep plays quip then re-enters sleep (S104 fix). UX question: should it fall through to listening after quip instead? Currently: wake → quip → sleep again; user must say "hey jarvis" twice to converse. Evaluate fall-through behavior.
+2. **Wake-from-sleep UX** — wakeword during sleep plays quip then re-enters sleep (S104 fix). UX question: should it fall through to listening after quip instead? Currently: wake → quip → sleep again; user must say "hey jarvis" twice to converse. Evaluate fall-through behavior.
 
 ---
 
@@ -22,7 +21,7 @@
 | System | Status |
 |---|---|
 | Pi4 192.168.1.200 | Operational. assistant.service active. ttyIRIS_EYES → ttyACM0 (serial 13625440, T41). udev corrected + SD persisted S97. |
-| GandalfAI 192.168.1.3 | Operational. iris/iris-kids on **qwen2.5:32b** (S103 restore — text-only, no vision). Ollama 0.30.5 (firewall blocks auto-update to 0.30.6). Kokoro TTS port 8004. |
+| GandalfAI 192.168.1.3 | Operational. iris/iris-kids on **qwen2.5:32b** (text LLM). **Vision: qwen2.5vl:32b-q4_K_M active (S109 restore)**. Ollama **0.24.0** (firewall blocks auto-update — 0.30.x breaks CLIP loader). Kokoro TTS port 8004. |
 | Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
@@ -31,7 +30,6 @@
 
 ## Active Issues
 
-- **LOW: qwen2.5vl vision restore pending** — GGUF blob missing `clip.vision.n_wa_pattern` AND `fullatt_block_indexes=[]` (empty). Patch requires 20GB file rewrite; deferred. Watch for Ollama registry update or proven GGUF patch tooling. See S103 CHANGELOG for details.
 - **LOW: Wake-from-sleep UX** — wakeword during sleep: IRIS wakes, plays quip, re-enters sleep (S104). Evaluate whether it should fall through to active listening instead of re-sleeping.
 
 ---
@@ -56,7 +54,14 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S108 — 2026-06-08)
+## Last Session Changes (S109 — 2026-06-08)
+
+- **`pi4/core/config.py`** — `VISION_MODEL = "qwen2.5vl:32b-q4_K_M"` (was `"iris"` — text-only model broke vision). DEPLOYED+VERIFIED. md5 RAM=SD=`2978ca89d5d9e6172a0153b1802f179c`.
+- **GandalfAI Ollama** — Downgraded 0.30.6 → **0.24.0** (0.30.x CLIP loader requires `clip.vision.n_wa_pattern` key missing from qwen2.5vl GGUF; 0.24.0 old engine does not check this). Installer via `$env:OLLAMA_VERSION="0.24.0"; irm https://ollama.com/install.ps1 | iex`.
+- **GandalfAI Firewall** — Rule re-applied blocking `ollama app.exe` outbound (prevents auto-update from restoring a broken version).
+- **Vision verified** — HTTP 200 from `/api/generate` with qwen2.5vl:32b-q4_K_M on Ollama 0.24.0. Pi4 assistant POST L1 PASS.
+
+## Previous Session Changes (S108 — 2026-06-08)
 
 - **`pi4/core/config.py`** — `TTS_MAX_CHARS=2500` (was 900). DEPLOYED+VERIFIED. md5 RAM=SD=`9d75f68d02d2a6f1cb2754d7df342b05`.
 - **`pi4/services/llm.py`** — `clean_llm_reply()`: added opener/trailer/separator/list-artifact cleanup patterns. DEPLOYED+VERIFIED. md5 RAM=SD=`01b72e4c981c545bfe0cac016f8936a5`.

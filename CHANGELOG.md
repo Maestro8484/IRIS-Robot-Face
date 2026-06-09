@@ -2188,3 +2188,31 @@ git checkout -- tools/workbench/index.html tools/workbench/workbench.js tools/wo
 **Rollback:** git checkout -- pi4/core/config.py pi4/services/llm.py pi4/services/vision.py then redeploy and restart assistant.
 
 ---
+
+## S109 — Vision Restore (Ollama Downgrade + VISION_MODEL Fix)
+
+**Date:** 2026-06-08
+**Status:** DEPLOYED+VERIFIED
+
+**Root cause:** A prior Claude Code session (S103) auto-upgraded GandalfAI Ollama from a working version to 0.30.6. Ollama 0.30.x switched to a new llama.cpp engine that requires the `clip.vision.n_wa_pattern` key in the GGUF vision projector metadata. The `qwen2.5vl:32b-q4_K_M` GGUF (blob sha256-043a363c) does not contain this key. Result: `/api/generate` with any image payload returned HTTP 500 "Failed to load CLIP model". Additionally, `VISION_MODEL = "iris"` in `pi4/core/config.py` pointed at the `iris` model (FROM qwen2.5:32b, text-only), causing HTTP 400 on image payloads even before the Ollama version issue.
+
+**Fix:**
+
+1. **GandalfAI Ollama downgraded 0.30.6 → 0.24.0** — 0.24.0 uses the old GGUF engine that does not check for `clip.vision.n_wa_pattern`. Vision loads correctly.
+   - Install command: `$env:OLLAMA_VERSION="0.24.0"; irm https://ollama.com/install.ps1 | iex`
+   - Verified: `ollama version is 0.24.0`
+   - Windows Firewall outbound block re-applied for `ollama app.exe` (path: `C:\Users\gandalf\AppData\Local\Programs\Ollama\ollama app.exe`) to prevent auto-update restoring a broken version.
+
+2. **`pi4/core/config.py`** — `VISION_MODEL = "qwen2.5vl:32b-q4_K_M"` (was `"iris"`). Deployed to Pi4 RAM + SD. md5=`2978ca89d5d9e6172a0153b1802f179c` (both paths match).
+
+**Verified:** HTTP 200 from `POST /api/generate` with base64 PNG image + prompt to GandalfAI:11434 using qwen2.5vl:32b-q4_K_M. Pi4 assistant.service POST L1 PASS. assistant.service active (running).
+
+**Note on Ollama version history:**
+- 0.24.0: old engine, no `clip.vision.n_wa_pattern` check — **WORKING**
+- 0.23.4: old engine, but `qwen25vl.(*ImageProcessor).SmartResize` panics on images smaller than 28x28 — avoid
+- 0.30.0–0.30.7: new llama.cpp engine requiring `clip.vision.n_wa_pattern` — BROKEN for qwen2.5vl:32b-q4_K_M
+- Do not upgrade Ollama until qwen2.5vl GGUF includes the required key or a compatible model build is available.
+
+**Rollback:** Reinstall Ollama 0.24.0 (same command above). Re-apply firewall block. Redeploy config.py with `VISION_MODEL = "qwen2.5vl:32b-q4_K_M"`. Restart assistant.
+
+---
