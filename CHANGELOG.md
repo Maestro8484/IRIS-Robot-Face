@@ -2216,3 +2216,36 @@ git checkout -- tools/workbench/index.html tools/workbench/workbench.js tools/wo
 **Rollback:** Reinstall Ollama 0.24.0 (same command above). Re-apply firewall block. Redeploy config.py with `VISION_MODEL = "qwen2.5vl:32b-q4_K_M"`. Restart assistant.
 
 ---
+
+## S110 — RPQR + Pipeline Latency Overhaul (2026-06-09)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Goal:** Fix RPQR responses being blocked by GandalfAI gate; add 4 new RPQR triggers; replace wakeword beep with snarky time-of-day quips on every activation; tighten silence detection.
+
+**Root cause found:** `ensure_gandalf_up()` was called *before* `_play_wake_quip()` in the sleep-wakeword path. Since quips are pre-cached PCM, Ollama is not needed — but the gate blocked them for up to 120s (WOL_BOOT_TIMEOUT) whenever GandalfAI was asleep. If Gandalf never came up, the quip never played.
+
+**Changes:**
+
+1. **`pi4/assistant.py`** — DEPLOYED. md5=`fa5bf5b065951bdbf34ab27b3af0ea4e` (RAM=SD).
+   - Sleep-path reordered: `_play_wake_quip()` now fires immediately on wakeword-during-sleep. `ensure_gandalf_up()` removed from this branch entirely (quip→re-sleep path never needs Gandalf).
+   - `_WAKE_QUIPS` expanded from 2 lines/band to 4–5 lines/band (26 unique lines). Beep replaced by time-of-day quip on every wakeword activation.
+   - New RPQR triggers added — all pre-cached at startup, fire before `ensure_gandalf_up()`:
+     - Double-tap: wakeword within 30s of previous (`_DOUBLE_TAP_QUIPS`: 3 lines)
+     - Post-speech: wakeword within 5s of IRIS finishing a response (`_POST_SPEECH_QUIPS`: 3 lines)
+     - Top-of-hour: wakeword within ±2 min of XX:00, 10-min cooldown (13 hour variants)
+     - First-of-day: first wakeword of calendar day ("Morning." before 09:00, "Finally." after)
+   - `_rpqr_state` dict tracks `t_last_wake`, `t_last_spoke`, `last_interaction_date`, `t_last_top_of_hour`.
+   - `t_last_spoke` updated after LLM main response and all follow-up responses.
+   - Stale `_quip_state` dict removed.
+
+2. **`pi4/iris_config.json`** — DEPLOYED. md5=`9dbd091fff10409f1e6d544d9e26b603` (RAM=SD).
+   - `SILENCE_SECS=1.2` (was 1.5) — saves ~0.3s per turn.
+
+3. **`docs/prompt_pipeline_latency_audit.md`** — NEW. Canned latency audit prompt for future sessions. REPO-ONLY.
+
+**Verified:** All 26 QUIP + 13 RPQR lines cached at startup (no misses). LLM warmup completed. Service active. SILENCE_SECS=1.2 confirmed in [CFG] startup log.
+
+**Rollback:** `git checkout HEAD~1 -- pi4/assistant.py && scp ... && sudo systemctl restart assistant`. Revert iris_config.json SILENCE_SECS to 1.5.
+
+---

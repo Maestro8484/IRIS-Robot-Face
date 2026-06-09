@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S109 | **Date:** 2026-06-08 | **Branch:** `main` | **Last commit:** S109
+**Session:** S110 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S110
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -12,7 +12,8 @@
 ## WHAT'S NEXT (Priority Queue)
 
 1. **T40 mechanical damper** — servo tracking confirmed working, user tuning physically. No firmware change needed.
-2. **Wake-from-sleep UX** — wakeword during sleep plays quip then re-enters sleep (S104 fix). UX question: should it fall through to listening after quip instead? Currently: wake → quip → sleep again; user must say "hey jarvis" twice to converse. Evaluate fall-through behavior.
+2. **Pure Pi4-local STT commands** — deferred from S110. Evaluate simple wakeword-only commands ("hey jarvis… go to sleep") handled by Pi4 Whisper without LLM, for cases where GandalfAI is asleep. Design session needed.
+3. **Wake-from-sleep fall-through** — still deferred. Current: wakeword during sleep → quip → re-sleep. Evaluate whether it should fall through to active listening after the quip.
 
 ---
 
@@ -30,7 +31,8 @@
 
 ## Active Issues
 
-- **LOW: Wake-from-sleep UX** — wakeword during sleep: IRIS wakes, plays quip, re-enters sleep (S104). Evaluate whether it should fall through to active listening instead of re-sleeping.
+- **LOW: Wake-from-sleep fall-through** — wakeword during sleep: IRIS wakes, plays quip, re-enters sleep (S104). Evaluate whether it should fall through to active listening instead of re-sleeping.
+- **LOW: Ollama auto-update preference** — user unchecked "automatically download updates" in Ollama UI (S110). Windows Firewall block on ollama app.exe also in place (redundant but left as belt-and-suspenders).
 
 ---
 
@@ -54,7 +56,18 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S109 — 2026-06-08)
+## Last Session Changes (S110 — 2026-06-09)
+
+- **`pi4/assistant.py`** — RPQR + pipeline latency overhaul. DEPLOYED+VERIFIED. md5=`fa5bf5b065951bdbf34ab27b3af0ea4e` RAM=SD.
+  - **RPQR sleep-path fix**: removed `ensure_gandalf_up()` from sleep-wakeword branch — pre-cached quip now plays instantly without Ollama check.
+  - **Quip on every wakeword**: beep replaced by time-of-day quip on all activations. `_WAKE_QUIPS` expanded to 4–5 lines/band (26 total cached).
+  - **New RPQR triggers** (all pre-cached PCM, fire before Gandalf gate): double-tap (<30s), post-speech (<5s after reply), top-of-hour (±2 min, 13 hour variants cached), first-of-day ("Morning."/"Finally.").
+  - **`t_last_spoke` tracking**: set after LLM main response and follow-up responses to drive post-speech trigger.
+  - **Removed** stale `_quip_state` dict (replaced by `_rpqr_state`).
+- **`pi4/iris_config.json`** — `SILENCE_SECS=1.2` (was 1.5, -0.3s per interaction). DEPLOYED+VERIFIED. md5=`9dbd091fff10409f1e6d544d9e26b603` RAM=SD.
+- **`docs/prompt_pipeline_latency_audit.md`** — NEW. Canned Claude Code prompt for pipeline latency troubleshooting: bottleneck table, fix templates, deploy sequence, bench check commands. REPO-ONLY.
+
+## Previous Session Changes (S109 — 2026-06-08)
 
 - **`pi4/core/config.py`** — `VISION_MODEL = "qwen2.5vl:32b-q4_K_M"` (was `"iris"` — text-only model broke vision). DEPLOYED+VERIFIED. md5 RAM=SD=`2978ca89d5d9e6172a0153b1802f179c`.
 - **GandalfAI Ollama** — Downgraded 0.30.6 → **0.24.0** (0.30.x CLIP loader requires `clip.vision.n_wa_pattern` key missing from qwen2.5vl GGUF; 0.24.0 old engine does not check this). Installer via `$env:OLLAMA_VERSION="0.24.0"; irm https://ollama.com/install.ps1 | iex`.

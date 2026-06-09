@@ -23,7 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 | System | State |
 |---|---|
-| Pi4 | Operational — assistant.service active. core/config.py DEPLOYED+VERIFIED S109. VISION_MODEL=qwen2.5vl:32b-q4_K_M. md5=2978ca89d5d9e6172a0153b1802f179c RAM=SD. |
+| Pi4 | Operational — assistant.service active. assistant.py DEPLOYED+VERIFIED S110. md5=fa5bf5b065951bdbf34ab27b3af0ea4e RAM=SD. iris_config.json SILENCE_SECS=1.2 DEPLOYED S110. md5=9dbd091fff10409f1e6d544d9e26b603 RAM=SD. |
 | GandalfAI | Operational — iris/iris-kids on **qwen2.5:32b** (text LLM). **Vision: qwen2.5vl:32b-q4_K_M active (S109)**. **Ollama 0.24.0** (firewall blocks auto-update — 0.30.x CLIP engine broken for this model). Kokoro TTS (Docker port 8004). |
 | Teensy 4.1 | Operational — firmware S101. Eye jitter fix (mouth 2Hz during TTS). |
 | Teensy 4.0 | S97 FLASHED. FACE_RETURN_MS 30000ms. Tracking working. Mechanical damper tuning ongoing. |
@@ -44,7 +44,8 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-- **Wake-from-sleep UX decision:** Currently: wakeword during sleep → quip → re-enter sleep (S104 fix). Evaluate whether IRIS should instead fall through to active listening after the quip.
+- **Pure Pi4-local STT commands (deferred S110):** Simple commands like "hey jarvis… go to sleep" handled by Pi4 Whisper without waking GandalfAI. Design session needed — user flagged this during RPQR work.
+- **Wake-from-sleep fall-through:** Currently quip → re-sleep. Evaluate fall-through to active listening after quip (user must say "hey jarvis" twice to converse from sleep).
 - **T40 mechanical damper** — servo tracking confirmed working, user tuning physically. No firmware change needed.
 - **Bench tab dur_audio gap (G4):** `_from_jsonl` cycles missing `dur_audio` (play duration). Tracked in `docs/bench_audit_S105.md`.
 - **Latency Bench AI analysis (S106 — REPO-ONLY):** Run AI Analysis + Generate Handoff wired on Latency Bench tab. Use after running bench iteration.

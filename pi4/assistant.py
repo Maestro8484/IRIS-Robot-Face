@@ -47,20 +47,55 @@ def get_model() -> str:
 # ── Wake quips ────────────────────────────────────────────────────────────────
 
 _WAKE_QUIPS = [
-    # (hour_start, hour_end, emotion, [line_a, line_b])
-    (5,  8,  "SLEEPY", ["It's early. Go ahead.",       "You're up. Fine."         ]),
-    (8,  12, "HAPPY",  ["Yeah, what?",                  "Go ahead."               ]),
-    (12, 17, "AMUSED", ["Go.",                          "What is it?"             ]),
-    (17, 21, "HAPPY",  ["What do you need?",            "Yeah, go."               ]),
-    (21, 23, "AMUSED", ["Still at it. Go ahead.",       "What is it?"             ]),
-    (23, 24, "SLEEPY", ["It's late. Make it quick.",    "This better be good."    ]),
-    (0,  5,  "SLEEPY", ["It's late. Make it quick.",    "This better be good."    ]),
+    # (hour_start, hour_end, emotion, [lines...])
+    (5,  8,  "SLEEPY", ["It's early. Go ahead.",    "You're up. Fine.",
+                         "Early start. Go on.",      "Right then. What?"          ]),
+    (8,  12, "HAPPY",  ["Yeah, what?",               "Go ahead.",
+                         "Go on then.",              "Yes?",          "What's up?"]),
+    (12, 17, "AMUSED", ["Go.",                       "What is it?",
+                         "Mm?",                      "Yeah?",         "Go on."    ]),
+    (17, 21, "HAPPY",  ["What do you need?",         "Yeah, go.",
+                         "Evening. What is it?",     "Go on."                     ]),
+    (21, 23, "AMUSED", ["Still at it. Go ahead.",    "Getting late. Go.",
+                         "What is it?",              "Yeah?"                      ]),
+    (23, 24, "SLEEPY", ["It's late. Make it quick.", "This better be good.",
+                         "Go on then.",              "Right. What?"               ]),
+    (0,  5,  "SLEEPY", ["It's the middle of the night.", "This better be good.",
+                         "Really. Go on.",           "Go. Quickly."               ]),
+]
+
+# ── Rapid Pre-canned Quick Responses (RPQR) ───────────────────────────────────
+
+_DOUBLE_TAP_QUIPS = [
+    "Still here. Haven't moved.",
+    "Yes, still on.",
+    "I didn't go anywhere.",
+]
+
+_POST_SPEECH_QUIPS = [
+    "I literally just answered that.",
+    "Give it a moment.",
+    "I just finished. Go on.",
+]
+
+_HOUR_NAMES = [
+    "Midnight", "One", "Two", "Three", "Four", "Five", "Six",
+    "Seven", "Eight", "Nine", "Ten", "Eleven", "Noon",
+    "One", "Two", "Three", "Four", "Five", "Six",
+    "Seven", "Eight", "Nine", "Ten", "Eleven",
 ]
 
 _wake_quip_cache: dict = {}
+_rpqr_cache: dict = {}
 _last_quip_line: str = ""
-# mutable dict so inline main_loop code can mutate without global declaration
-_quip_state: dict = {"count_since_quip": 0}
+
+# mutable state dict — avoids global declarations in main loop
+_rpqr_state: dict = {
+    "t_last_wake":          0.0,
+    "t_last_spoke":         0.0,
+    "last_interaction_date": None,
+    "t_last_top_of_hour":   0.0,
+}
 
 
 def _pick_wake_quip(hour: int) -> tuple:
@@ -89,14 +124,43 @@ def _play_wake_quip(hour: int, pa, teensy, leds) -> None:
         print(f"[QUIP] Failed: {_e}", flush=True)
 
 
+def _play_rpqr(line: str, emotion: str, pa, teensy, leds) -> None:
+    pcm = _rpqr_cache.get(line)
+    if not pcm:
+        print(f"[RPQR] No cache for '{line}' -- skipping", flush=True)
+        return
+    try:
+        emit_emotion(teensy, leds, emotion)
+        play_pcm_speaking(pcm, pa, teensy, restore_mouth_idx=0)
+        print(f"[RPQR] {emotion}: {line!r}", flush=True)
+    except Exception as _e:
+        print(f"[RPQR] Failed: {_e}", flush=True)
+
+
 def _pre_synthesize_quips() -> None:
-    unique = {l for _, _, _, lines in _WAKE_QUIPS for l in lines}
-    for line in unique:
+    unique_wake = {l for _, _, _, lines in _WAKE_QUIPS for l in lines}
+    for line in unique_wake:
         try:
             _wake_quip_cache[line] = synthesize(line)
             print(f"[QUIP] Cached: {line!r}", flush=True)
         except Exception as _e:
             print(f"[QUIP] Cache miss '{line}': {_e}", flush=True)
+
+    rpqr_lines: list = list(_DOUBLE_TAP_QUIPS) + list(_POST_SPEECH_QUIPS) + ["Morning.", "Finally."]
+    seen_toh: set = set()
+    for h in range(24):
+        name = _HOUR_NAMES[h]
+        toh = f"{name}. That's the whole thought." if name in ("Midnight", "Noon") \
+              else f"{name} o'clock. That's the whole thought."
+        if toh not in seen_toh:
+            rpqr_lines.append(toh)
+            seen_toh.add(toh)
+    for line in rpqr_lines:
+        try:
+            _rpqr_cache[line] = synthesize(line)
+            print(f"[RPQR] Cached: {line!r}", flush=True)
+        except Exception as _e:
+            print(f"[RPQR] Cache miss '{line}': {_e}", flush=True)
 
 
 # ── Conversation logger ───────────────────────────────────────────────────────
@@ -586,16 +650,46 @@ def main():
             if ptt_mode: print("\n[PTT]  Button pressed", flush=True); leds.show_ptt()
             else: print("\n[WAKE] Wake word detected", flush=True); leds.show_wake()
 
-            # Sleep mode check
+            # Sleep mode check — quip is pre-cached PCM, no Gandalf needed
             if os.path.exists('/tmp/iris_sleep_mode'):
-                print('[SLEEP] Wakeword during sleep -- waking IRIS', flush=True)
                 _do_wake(teensy, leds)
-                if not ensure_gandalf_up(leds, pa):
-                    leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
                 _play_wake_quip(time.localtime().tm_hour, pa, teensy, leds)
                 if in_sleep_window():
                     _do_sleep(teensy, leds)
                 show_idle_for_mode(leds); continue
+
+            # ── RPQR trigger cascade (pre-cached PCM, fires before Gandalf gate) ──
+            import random as _rnd
+            _now_rpqr = time.time()
+            _tm_rpqr  = time.localtime()
+            _h_rpqr   = _tm_rpqr.tm_hour
+            _mn_rpqr  = _tm_rpqr.tm_min
+            _today    = (_tm_rpqr.tm_year, _tm_rpqr.tm_mon, _tm_rpqr.tm_mday)
+
+            if _rpqr_state["last_interaction_date"] != _today:
+                _first_line = "Morning." if _h_rpqr < 9 else "Finally."
+                _play_rpqr(_first_line, "AMUSED", pa, teensy, leds)
+                _rpqr_state["last_interaction_date"] = _today
+            elif (_rpqr_state["t_last_wake"] > 0
+                  and _now_rpqr - _rpqr_state["t_last_wake"] < 30):
+                _play_rpqr(_rnd.choice(_DOUBLE_TAP_QUIPS), "AMUSED", pa, teensy, leds)
+            elif (_rpqr_state["t_last_spoke"] > 0
+                  and _now_rpqr - _rpqr_state["t_last_spoke"] < 5):
+                _play_rpqr(_rnd.choice(_POST_SPEECH_QUIPS), "AMUSED", pa, teensy, leds)
+            elif (_mn_rpqr <= 2
+                  and (_rpqr_state["t_last_top_of_hour"] == 0
+                       or _now_rpqr - _rpqr_state["t_last_top_of_hour"] > 600)):
+                _toh_name = _HOUR_NAMES[_h_rpqr]
+                _toh_line = (f"{_toh_name}. That's the whole thought."
+                             if _toh_name in ("Midnight", "Noon")
+                             else f"{_toh_name} o'clock. That's the whole thought.")
+                _play_rpqr(_toh_line, "AMUSED", pa, teensy, leds)
+                _rpqr_state["t_last_top_of_hour"] = _now_rpqr
+            else:
+                _play_wake_quip(_h_rpqr, pa, teensy, leds)
+
+            _rpqr_state["t_last_wake"] = _now_rpqr
+            # ─────────────────────────────────────────────────────────────────────
 
             try:
                 _gandalf_was_cold = not gandalf_is_up()
@@ -603,15 +697,6 @@ def main():
                 pass
             if not ensure_gandalf_up(leds, pa):
                 leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
-
-            _quip_state["count_since_quip"] += 1
-            if (state.last_interaction > 0
-                    and time.time() - state.last_interaction > 3600
-                    and _quip_state["count_since_quip"] > 2):
-                _play_wake_quip(time.localtime().tm_hour, pa, teensy, leds)
-                _quip_state["count_since_quip"] = 0
-            else:
-                play_beep(pa)
             teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_AWAKE}")
             _t_wake = time.time()
             _t_mono_wake = time.monotonic()
@@ -937,6 +1022,7 @@ def main():
             teensy.send_command("EMOTION:NEUTRAL")
             _interrupted = play_pcm_speaking(pcm_data, pa, teensy, emotion=_current_emotion,
                                              restore_mouth_idx=MOUTH_MAP.get(_current_emotion, 0))
+            _rpqr_state["t_last_spoke"] = time.time()
             _bench_interrupted = _interrupted
             try:
                 _t_audio = time.time()
@@ -1000,6 +1086,7 @@ def main():
                 leds.show_speaking(); mic.stop_stream()
                 _interrupted = play_pcm_speaking(pcm_data, pa, teensy, emotion=emotion,
                                                  restore_mouth_idx=MOUTH_MAP.get(emotion, 0))
+                _rpqr_state["t_last_spoke"] = time.time()
                 if button_pressed(): time.sleep(0.4)
                 if _interrupted:
                     print("[STOP] Playback interrupted mid-follow-up", flush=True); break
