@@ -2471,3 +2471,28 @@ git checkout -- pi4/core/config.py pi4/services/llm.py
 ```
 
 ---
+
+## S118 — Vision Fix: num_ctx Overflow on Camera Images (2026-06-09)
+
+**Status:** DEPLOYED + VERIFIED (web UI `/api/vision` → HTTP 200 with a real description; voice path fixed by the same change).
+
+**Symptom:** IRIS web UI vision demo "describe what you see" returned `Error: 400 Client Error: Bad Request for url: http://192.168.1.3:11434/api/generate`.
+
+**Root cause:** NOT a missing-vision-support problem — `iris` (qwen3.5:27b, family `qwen35`) reports `capabilities: ['completion','vision','tools','thinking']`. The 400 body was `"request (4570 tokens) exceeds the available context size (4096 tokens)"`. A real camera frame encodes to ~4570 vision tokens, which overflows the model's default 4096 context window. This broke vision for **both** the web UI and the voice "what do you see" path (the latter silently — `ask_vision()` catches the 400 and returns the misleading "the current AI model doesn't support images"). Latent since the S113/S114 swap from `qwen2.5vl` (larger default ctx) to `qwen3.5:27b`; the "vision works natively" claim was never tested with a real image at the new context size. Note: image resolution barely helps — qwen35 vision tokens stay ~4000–4600 from 512×384 up to 1024×768 — so raising `num_ctx` is the correct fix, not shrinking the image.
+
+**What changed (Pi4-only; GandalfAI unchanged):**
+
+1. **`pi4/services/vision.py`** — `ask_vision()` Ollama `/api/generate` payload gains `"options": {"num_ctx": 6144}` (image ~4570 + prompt + reply fit comfortably; 6144 verified to not OOM on the RTX 3090). DEPLOYED. md5=`1e5500958db39e888db4bb4294150b9d` RAM=SD.
+2. **`pi4/iris_web.py`** — `api_vision()` payload gains `"think": False` (qwen3.5 is a thinking model — without it the `response` field is empty) and `"options": {"num_ctx": cfg.get("VISION_NUM_CTX", 6144)}` (overridable via `iris_config.json`). DEPLOYED. md5=`9f7af3a6d023edd794cb067abdff3871` RAM=SD.
+
+**Deploy:** vision.py SFTP'd (base64, byte-exact); iris_web.py patched in place and md5-verified equal to the local edited file. `py_compile` OK, persisted to `/media/root-ro`, md5 RAM=SD verified, `iris-web` + `assistant` restarted.
+
+**Verified:** `POST http://127.0.0.1:5000/api/vision` → HTTP 200 in ~29 s, returned a correct scene description + emotion. (Empirical capability/ctx probes: 512×384=3994 tok fit at default ctx but starve the reply; 640×480=4102, 768×576=4234, 1024×768=4570 all need >4096; `num_ctx=6144` and `8192` both returned full descriptions.)
+
+**Rollback:**
+```
+git checkout -- pi4/services/vision.py pi4/iris_web.py
+# redeploy both to /home/pi/ + /media/root-ro, restart iris-web + assistant
+```
+
+---

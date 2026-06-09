@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S117 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S117
+**Session:** S118 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S118
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -22,7 +22,7 @@
 | System | Status |
 |---|---|
 | Pi4 192.168.1.200 | Operational. assistant.service active. ttyIRIS_EYES → ttyACM0 (serial 13625440, T41). udev corrected + SD persisted S97. |
-| GandalfAI 192.168.1.3 | **OPERATIONAL.** iris/iris-kids on **qwen3.5:27b**, Ollama **0.30.7** (S114). GPU inference 35.2 tok/s confirmed. AMUSED calibration live. Vision: iris model handles natively (VISION_MODEL="iris"). Kokoro TTS port 8004 OK. POST 20/23 PASS, 3 WARN, 0 FAIL. |
+| GandalfAI 192.168.1.3 | **OPERATIONAL.** iris/iris-kids on **qwen3.5:27b**, Ollama **0.30.7** (S114). GPU inference 35.2 tok/s confirmed. AMUSED calibration live. Vision: iris handles images natively (caps include `vision`) — **but needs `num_ctx≥6144` per request; a camera frame is ~4570 tokens and overflows the default 4096 ctx (was a silent 400 since the S113/S114 swap; fixed S118).** Kokoro TTS port 8004 OK. POST 20/23 PASS, 3 WARN, 0 FAIL. |
 | Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). **Streaming dispatch live (S116):** main LLM replies synthesized per sentence and played overlapped. |
@@ -56,7 +56,14 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S117 — 2026-06-09)
+## Last Session Changes (S118 — 2026-06-09)
+
+- **Vision 400 fixed.** Web UI "describe what you see" returned `400 Bad Request` from `/api/generate`. Root cause: a real camera frame = ~4570 vision tokens > the model's default 4096 `num_ctx` (`"exceeds the available context size"`). NOT a vision-support issue — iris has the `vision` capability. Broke both web UI and voice paths since the S113/S114 qwen2.5vl→qwen3.5 swap.
+- **`pi4/services/vision.py`** — `ask_vision()` adds `"options": {"num_ctx": 6144}`. md5=`1e5500958db39e888db4bb4294150b9d` RAM=SD. DEPLOYED.
+- **`pi4/iris_web.py`** — `api_vision()` adds `"think": False` (was missing → empty reply on thinking model) + `"options": {"num_ctx": cfg.get("VISION_NUM_CTX", 6144)}`. md5=`9f7af3a6d023edd794cb067abdff3871` RAM=SD. DEPLOYED.
+- **VERIFIED:** `POST /api/vision` → HTTP 200 in ~29 s with a correct scene description. (~29 s is inflated by an Ollama model reload — vision's 6144 ctx differs from the 4096 text default; see Proactive Flags.)
+
+## Previous Session Changes (S117 — 2026-06-09)
 
 - **`pi4/core/config.py`** — Response-length tiers retuned for a voice robot (were narrator-length). `num_predict` SHORT 120→40 (~9s), MEDIUM 350→90 (~21s), LONG 700→180 (~41s), MAX 1200→400 (~92s≈1.5min), default 300→100. `TTS_MAX_CHARS` 2500→1500 (~100s hard backstop, all tiers). Basis: measured ~0.23s speech/token (S116). Inline rationale+rollback in file. md5=`5391ed8c079dee4527c72ec8e148237f` RAM=SD. DEPLOYED+VERIFIED.
 - **`pi4/services/llm.py`** — `_MAX_PATTERNS` now triggers MAX (story tier) ONLY on explicit "tell me a story"/essay/long-form requests; removed the `word_count>15` LONG→MAX promotion so wordy "explain…" stays LONG. md5=`b94427979460d21805765f817b8cf522` RAM=SD. DEPLOYED+VERIFIED (live: story→400, explain→180, history→180, essay→400, hello→40).

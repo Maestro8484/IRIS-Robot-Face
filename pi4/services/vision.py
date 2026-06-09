@@ -90,8 +90,13 @@ def ask_vision(image_bytes: bytes, prompt: str) -> str:
             "images": [img_b64],
             "stream": False,
             "think": False,
+            # qwen3.5:27b encodes a camera frame to ~4570 vision tokens, which
+            # overflows the model's default 4096 context window and returns
+            # HTTP 400 "exceeds the available context size". Bump num_ctx for
+            # the image request so image+prompt+reply fit. (S118)
+            "options": {"num_ctx": 6144},
         },
-        timeout=90,
+        timeout=120,
     )
     try:
         r.raise_for_status()

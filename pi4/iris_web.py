@@ -590,9 +590,14 @@ def api_vision():
         try: os.unlink(img_path)
         except Exception: pass
         model = cfg.get("VISION_MODEL", "iris")
+        # think=False: qwen3.5:27b is a thinking model -- without it the response
+        # field comes back empty. num_ctx=6144: a camera frame encodes to ~4570
+        # vision tokens, overflowing the default 4096 context (HTTP 400). (S118)
         r = requests.post(
             f"http://{GANDALF}:{OLLAMA_PORT}/api/generate",
-            json={"model": model, "prompt": prompt, "images": [image_b64], "stream": False},
+            json={"model": model, "prompt": prompt, "images": [image_b64],
+                  "stream": False, "think": False,
+                  "options": {"num_ctx": cfg.get("VISION_NUM_CTX", 6144)}},
             timeout=120)
         r.raise_for_status()
         raw_reply = r.json().get("response", "").strip()

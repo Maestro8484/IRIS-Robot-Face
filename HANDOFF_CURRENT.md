@@ -23,7 +23,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 | System | State |
 |---|---|
-| Pi4 | Operational — assistant.service active. **assistant.py md5=fe79c67bd5dfea50f5559e0304d37c35** (S116 streaming). **hardware/audio_io.py md5=ada50cfc3ab6b8ae52efdc7c7f9aab9c** (S116). **services/llm.py md5=b94427979460d21805765f817b8cf522** (S117 tiers). **core/config.py md5=5391ed8c079dee4527c72ec8e148237f** (S117 tiers). iris_post.py md5=2bf0723a7f06d8f72896f3178af0e8ec. services/vision.py md5=a60ffceaa8364678d2dffd04cbb951fc. core/intent_router.py md5=ea9e0d82425f76d98053c2b71221ef99. RAM=SD (S117). POST 20/23 PASS. |
+| Pi4 | Operational — assistant.service active. **assistant.py md5=fe79c67bd5dfea50f5559e0304d37c35** (S116 streaming). **hardware/audio_io.py md5=ada50cfc3ab6b8ae52efdc7c7f9aab9c** (S116). **services/llm.py md5=b94427979460d21805765f817b8cf522** (S117 tiers). **core/config.py md5=5391ed8c079dee4527c72ec8e148237f** (S117 tiers). iris_post.py md5=2bf0723a7f06d8f72896f3178af0e8ec. **services/vision.py md5=1e5500958db39e888db4bb4294150b9d** (S118 num_ctx). **iris_web.py md5=9f7af3a6d023edd794cb067abdff3871** (S118 vision fix). core/intent_router.py md5=ea9e0d82425f76d98053c2b71221ef99. RAM=SD (S118). POST 20/23 PASS. |
 | GandalfAI | **OPERATIONAL (S115).** iris/iris-kids on **qwen3.5:27b**, Ollama **0.30.7**. GPU 35.2 tok/s. AMUSED calibration live + ANGRY patch applied. VISION_MODEL="iris" (handles vision natively). Kokoro TTS port 8004 OK. |
 | Teensy 4.1 | Operational — firmware S101. Eye jitter fix (mouth 2Hz during TTS). |
 | Teensy 4.0 | S97 FLASHED. FACE_RETURN_MS 30000ms. Tracking working. Mechanical damper tuning ongoing. |
@@ -56,6 +56,9 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 ## Proactive Flags
 
 *Cumulative. Append each session. Do not overwrite.*
+
+- **[S118]** Vision requests are slow (~29 s) mostly because Ollama RELOADS iris each call: vision uses `num_ctx=6144`, text uses the 4096 default, and a ctx change forces a model reload (and the next text query reloads back to 4096). To eliminate the reloads, unify the context — either bump the iris/iris-kids modelfile `num_ctx` to 6144 (GandalfAI rebuild + slightly more KV-cache VRAM, watch the ~1 GB headroom) so text+vision share one context, or have the Pi4 text callers (`stream_ollama`, `ask_ollama`, warmup) also pass `num_ctx=6144`. Functional already; this is a latency optimization.
+- **[S118]** Vision was silently broken on the VOICE path too (not just web UI) since the S113/S114 model swap — `ask_vision()` swallowed the 400 and spoke "the current AI model doesn't support images." Fixed S118. Any future base-model swap must re-test vision with a REAL camera frame, not assume the capability flag is enough (context budget matters).
 
 - **[S98 Chat → S116 RESOLVED]** LLM streaming into sentence-boundary TTS now implemented. `stream_ollama()` → per-sentence `synthesize()` → background `play_pcm_stream` player; first audio starts on the first sentence. Latency harness: LLM-start→first-audio p50=2086ms (was ~23s blocking on long replies). DEPLOYED S116, md5 RAM=SD verified. Behavioral hardware checks (speaker/emotion-face/spoken-STOP/Piper) still need a human in front of IRIS.
 - **[S98 Chat]** VAD silence threshold likely default 500-800ms — tighten to 200-300ms for free latency reduction with no accuracy impact.
