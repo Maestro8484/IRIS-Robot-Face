@@ -44,6 +44,8 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
+- **Vision latency fix (~29 s → <8 s):** full spec in `docs/handoff_vision_latency.md`. The 29 s is a model RELOAD from a num_ctx mismatch (vision 6144 vs text 4096), not inference. Fix = unify the context (Option 1: modelfile `num_ctx 6144` + GandalfAI rebuild; Option 2: all Pi4 callers pass num_ctx=6144). Verify VRAM headroom. **Recommended model: Opus.**
+
 - **Pure Pi4-local STT commands (deferred S110):** Simple commands like "hey jarvis… go to sleep" handled by Pi4 Whisper without waking GandalfAI. Design session needed — user flagged this during RPQR work.
 - **Wake-from-sleep fall-through:** Currently quip → re-sleep. Evaluate fall-through to active listening after quip (user must say "hey jarvis" twice to converse from sleep).
 - **T40 mechanical damper** — servo tracking confirmed working, user tuning physically. No firmware change needed.
