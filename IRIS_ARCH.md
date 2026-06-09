@@ -95,13 +95,26 @@ STT:
 Pi4 sends recorded audio to Wyoming Whisper on GandalfAI
 
 LLM:
-Pi4 sends prompt/context to Ollama on GandalfAI
+Pi4 streams prompt/context to Ollama on GandalfAI (`stream_ollama`, stream=True, think=False).
+Tokens are buffered and split on sentence boundaries (.!?); the leading
+`[EMOTION:X]` tag is extracted from the first tokens, then each complete sentence
+is yielded cleaned (`clean_llm_reply`) and ready for TTS.
 
-TTS:
-Pi4 requests Kokoro TTS (primary) or Piper fallback on GandalfAI
+TTS (streaming, S116):
+For each sentence chunk as it arrives, Pi4 requests Kokoro TTS (primary) or Piper
+fallback on GandalfAI and enqueues the PCM. TTS for sentence N+1 overlaps playback
+of sentence N. (Per-sentence dispatch also avoids feeding Kokoro one huge multi-
+minute input on long replies.)
 
-Playback:
-Pi4 plays PCM through wm8960 audio output
+Playback (streaming, S116):
+A background player (`play_pcm_stream` in `hardware/audio_io.py`) pulls PCM blobs
+from the queue and plays them back-to-back through wm8960 — first audio begins on
+the first sentence while later sentences are still generating. One `EYES:SPEAKING`
+setup, one continuous mouth animation, and one interrupt listener span the whole
+utterance. STOP is honored per sentence dispatch and per playback slice; the
+emotion tag still drives the face on the first chunk. The blocking single-call
+path (`play_pcm_speaking`) is retained for quips, RPQR, reflex/utility/command/
+vision replies, and the follow-up loop.
 
 Face:
 Pi4 sends serial commands to Teensy 4.1 through single-owner TeensyBridge

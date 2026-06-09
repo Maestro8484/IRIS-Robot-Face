@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S115 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S115
+**Session:** S116 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S116
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -25,7 +25,7 @@
 | GandalfAI 192.168.1.3 | **OPERATIONAL.** iris/iris-kids on **qwen3.5:27b**, Ollama **0.30.7** (S114). GPU inference 35.2 tok/s confirmed. AMUSED calibration live. Vision: iris model handles natively (VISION_MODEL="iris"). Kokoro TTS port 8004 OK. POST 20/23 PASS, 3 WARN, 0 FAIL. |
 | Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
-| TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
+| TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). **Streaming dispatch live (S116):** main LLM replies synthesized per sentence and played overlapped. |
 
 ---
 
@@ -56,7 +56,13 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S115 — 2026-06-09)
+## Last Session Changes (S116 — 2026-06-09)
+
+- **`pi4/hardware/audio_io.py`** — New `play_pcm_stream()`: gapless back-to-back playback of a queue of per-sentence PCM blobs with one EYES:SPEAKING/mouth-anim/interrupt-listener spanning the whole utterance. `play_pcm`/`play_pcm_speaking` untouched. md5=`ada50cfc3ab6b8ae52efdc7c7f9aab9c` RAM=SD. DEPLOYED.
+- **`pi4/assistant.py`** — Main LLM block rewired: `stream_ollama()` → per-sentence `synthesize()` → background `play_pcm_stream` player. First audio now starts on the first sentence (was: full response synthesized in one blocking call). STOP checked per sentence dispatch. Emotion-on-first-chunk, Piper fallback, length classifier, follow-up loop all preserved. md5=`fe79c67bd5dfea50f5559e0304d37c35` RAM=SD. DEPLOYED.
+- **Latency (LLM-start→first-audio, n=10 long prompts):** NEW p50=2086ms / p90=4257ms vs OLD (blocking) p50≈23.3s on these long replies. Resolves S98 streaming flag. Behavioral hardware checks (speaker/emotion-face/spoken-STOP/Piper) need a human — handed off.
+
+## Previous Session Changes (S115 — 2026-06-09)
 
 - **`pi4/core/intent_router.py`** — `_TIME_RE` pattern: added `what time is it` explicit literal + `time please` variant. "what time is it" now routes to UTILITY (was falling through to LLM at ~1434ms). md5=ea9e0d82425f76d98053c2b71221ef99 RAM=SD. DEPLOYED+VERIFIED.
 - **`ollama/iris_modelfile.txt`** — Adversarial few-shot "You're dumb." example: `[EMOTION:ANGRY]` → `[EMOTION:AMUSED]`. Old ANGRY example was overriding S112 EMOTION CALIBRATION block. iris rebuilt on GandalfAI. DEPLOYED+VERIFIED.

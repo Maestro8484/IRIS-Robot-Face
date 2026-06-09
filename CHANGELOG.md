@@ -2401,3 +2401,39 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 ```
 
 ---
+
+## S116 — Streaming LLM → Sentence-Boundary TTS (Overlapped Pipeline) (2026-06-09)
+
+**Status:** DEPLOYED + latency-VERIFIED. Behavioral hardware checks (speaker output, emotion-on-face, spoken STOP, Piper fallback) require a human in front of IRIS — handed off.
+
+**Goal:** First audio plays on the first complete sentence of the LLM response instead of after the full response. Resolves the long-standing S98 proactive flag.
+
+**Root finding:** The pipeline already *streamed* from Ollama (`stream_ollama`), but only used the stream to extract the emotion tag early. It accumulated every sentence chunk, joined them, then made **one** blocking `synthesize(reply)` call on the full text — so TTS still waited for the entire response. The sentence-boundary infrastructure (`stream_ollama`, `_split_sentences`, per-chunk `clean_llm_reply`, early emotion extraction) was all present and just needed wiring to per-sentence TTS dispatch.
+
+**What changed:**
+
+1. **`pi4/hardware/audio_io.py`** — DEPLOYED. md5=`ada50cfc3ab6b8ae52efdc7c7f9aab9c` RAM=SD.
+   - New `play_pcm_stream(pcm_queue, pa, teensy, emotion, restore_mouth_idx)`: gapless back-to-back playback of PCM blobs pulled from a `queue.Queue` (`None` sentinel = end). One `EYES:SPEAKING` setup, one continuous mouth animation, one interrupt listener (single bleed baseline) span the whole utterance. Sliced blocking writes with per-slice stop/interrupt/button checks; drains queue on interrupt. Returns `interrupted` bool.
+   - `play_pcm` / `play_pcm_speaking` left untouched — all other call sites (quips, RPQR, reflex/utility/command/vision, follow-up) unchanged.
+
+2. **`pi4/assistant.py`** — DEPLOYED. md5=`fe79c67bd5dfea50f5559e0304d37c35` RAM=SD. (Local file normalized CRLF→LF to match deployed artifact + repo convention.)
+   - Main LLM block rewritten: producer iterates `stream_ollama()`, emits emotion on first chunk (unchanged), synthesizes each sentence as it arrives, and starts the `play_pcm_stream` background player on the first PCM blob — `play_start_ms` now lands on the first sentence, not the full response.
+   - STOP checked per sentence dispatch (`if _stop_playback.is_set(): break`) in addition to per playback slice.
+   - Piper fallback preserved (handled inside `synthesize`); a both-engines-fail on a later sentence is logged and skipped rather than killing the turn.
+   - `classify_response_length` (SHORT/MEDIUM/LONG/MAX) and the follow-up loop (blocking `ask_ollama`) unchanged.
+
+**Deploy:** Both files SFTP'd to `/home/pi/`, `py_compile` OK on Pi4, persisted to `/media/root-ro`, md5 RAM=SD verified, `assistant.service` restarted, `[INFO] Ready.` confirmed, no ImportError/traceback.
+
+**Latency (S116 harness, real `stream_ollama` + real Kokoro, n=10 long multi-sentence prompts, LLM-start→first-audio):**
+- NEW (streaming): **p50 2086 ms, p90 4257 ms** (min 1505, max 5138)
+- OLD (blocking, modeled): p50 23261 ms, p90 25312 ms
+- First-audio savings p50 ≈ **21.3 s** on these long replies. Magnitude scales with reply length; upstream wake/record/STT/router stages are unchanged by S116. Result file: `/home/pi/logs/lat_bench_20260609_160520_post-streaming-pipeline.json`.
+- Note: not directly comparable to the post-h2-h3-baseline (p50 1623 ms full wake→play) — that baseline mixed shorter replies; this harness forced LONG/MAX prompts and measures only the LLM→first-audio segment (the only segment S116 touches). The streaming path also avoids feeding Kokoro a single multi-minute input on long replies.
+
+**Rollback:**
+```
+git checkout -- pi4/assistant.py pi4/hardware/audio_io.py
+# redeploy both to /home/pi/ + /media/root-ro, sudo systemctl restart assistant
+```
+
+---

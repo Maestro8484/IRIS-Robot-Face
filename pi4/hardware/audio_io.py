@@ -9,6 +9,7 @@ Key design notes:
 - _playback_interrupt_listener() uses adaptive baseline to ignore speaker bleed.
 """
 
+import queue
 import re
 import subprocess
 import threading
@@ -338,6 +339,99 @@ def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, emotion: str = 'NEUTRAL',
     stop_evt.set()
     t.join(timeout=1.0)
     teensy.send_command("EYES:SPEAKING:STOP")
+    return was_interrupted
+
+
+def play_pcm_stream(pcm_queue, pa, teensy, emotion: str = 'NEUTRAL',
+                    restore_mouth_idx: int = 0, rate: int = 48000) -> bool:
+    """
+    Gapless playback of a stream of PCM blobs pulled from pcm_queue (queue.Queue).
+
+    Producer thread puts s16le mono PCM bytes on the queue as each sentence is
+    synthesized; a None sentinel signals end-of-stream. Unlike play_pcm_speaking
+    (one blob), this sets EYES:SPEAKING once, runs a single continuous mouth
+    animation and a single interrupt listener (one bleed baseline) spanning the
+    whole multi-sentence utterance, and plays blobs back-to-back so audio starts
+    on the first sentence while later sentences are still being generated/synthesized.
+
+    Returns True if playback was interrupted mid-stream (stop phrase, loud stop,
+    button, or _stop_playback set externally).
+    """
+    _stop_playback.clear()
+    frames = _EMOTION_SPEAK_FRAMES.get(emotion.upper(), _EMOTION_SPEAK_FRAMES['NEUTRAL'])
+    interrupted = threading.Event()
+
+    # Single interrupt listener for the whole utterance (measures bleed baseline once)
+    _int_stop = threading.Event()
+    _int_thread = threading.Thread(
+        target=_playback_interrupt_listener,
+        args=(pa, _int_stop, interrupted),
+        daemon=True,
+    )
+    _int_thread.start()
+
+    # Single continuous mouth animation for the whole utterance
+    anim_stop = threading.Event()
+
+    def _animate():
+        i = 0
+        while not anim_stop.wait(0.50):
+            teensy.send_command(f"MOUTH:{frames[i % len(frames)]}")
+            i += 1
+        teensy.send_command(f"MOUTH:{restore_mouth_idx}")
+
+    teensy.send_command("EYES:SPEAKING")
+    time.sleep(0.35)
+    anim_thread = threading.Thread(target=_animate, daemon=True)
+    anim_thread.start()
+
+    stream = pa.open(format=pyaudio.paInt16, channels=2, rate=rate,
+                     output=True, frames_per_buffer=512)
+    _SLICE = 512 * 4  # bytes per blocking-write slice (512 frames * 2ch * 2B)
+
+    def _drain():
+        while True:
+            try:
+                if pcm_queue.get_nowait() is None:
+                    break
+            except queue.Empty:
+                break
+
+    try:
+        while True:
+            blob = pcm_queue.get()
+            if blob is None:
+                break
+            if interrupted.is_set() or _stop_playback.is_set() or button_pressed():
+                interrupted.set()
+                _drain()
+                break
+            raw = np.frombuffer(blob, dtype=np.int16).astype(np.float32)
+            samples = np.clip(raw, -32768, 32767).astype(np.int16)
+            stereo = np.column_stack([samples, samples]).flatten().tobytes()
+            pos = 0
+            while pos < len(stereo):
+                if interrupted.is_set() or _stop_playback.is_set() or button_pressed():
+                    interrupted.set()
+                    break
+                stream.write(stereo[pos:pos + _SLICE])
+                pos += _SLICE
+            if interrupted.is_set():
+                _drain()
+                break
+    finally:
+        stream.stop_stream()
+        stream.close()
+        anim_stop.set()
+        anim_thread.join(timeout=1.0)
+        teensy.send_command("EYES:SPEAKING:STOP")
+        _int_stop.set()
+        _int_thread.join(timeout=1.0)
+
+    was_interrupted = interrupted.is_set()
+    if was_interrupted:
+        print("[STOP] Streaming playback interrupted", flush=True)
+    _stop_playback.clear()
     return was_interrupted
 
 
