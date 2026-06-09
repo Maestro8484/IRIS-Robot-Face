@@ -49,3 +49,17 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 - **T40 mechanical damper** — servo tracking confirmed working, user tuning physically. No firmware change needed.
 - **Bench tab dur_audio gap (G4):** `_from_jsonl` cycles missing `dur_audio` (play duration). Tracked in `docs/bench_audit_S105.md`.
 - **Latency Bench AI analysis (S106 — REPO-ONLY):** Run AI Analysis + Generate Handoff wired on Latency Bench tab. Use after running bench iteration.
+
+---
+
+## Proactive Flags
+
+*Cumulative. Append each session. Do not overwrite.*
+
+- **[S98 Chat]** LLM streaming into sentence-boundary TTS not implemented — pipeline waits for full LLM response before TTS starts, adding 1-2.5s perceived latency; streaming cuts this 40-60%.
+- **[S98 Chat]** VAD silence threshold likely default 500-800ms — tighten to 200-300ms for free latency reduction with no accuracy impact.
+- **[S98 Chat → S111 VERIFIED]** Whisper model confirmed `large-v3-turbo` with `COMPUTE_TYPE=int8_float16`, `WHISPER_BEAM=1`. Already optimal — no change needed.
+- **[S98 Chat → S111 VERIFIED]** Ollama tok/s confirmed **17.6 tok/s** for iris (qwen2.5:32b Q4_K_M) on Ollama 0.24.0, RTX 3090. Not the worst-case 12 tok/s, not the pre-regression 35 tok/s. Use 17-18 tok/s as the planning baseline.
+- **[S98 Chat → S111 VERIFIED]** VRAM confirmed: 23,481 / 24,576 MiB used (845 MiB free). iris model occupies 19,020 MiB VRAM. No co-residency headroom for qwen2.5vl:32b-q4_K_M (~20 GB) — every vision query forces a model swap (unload iris → load vision → re-load iris on next text query). Vision latency penalty is model-load time each call.
+- **[S98 Chat]** No weather handler in intent router Layer 2 — falls to LLM which cannot answer accurately; wttr.in call would make this a zero-LLM sub-100ms response.
+- **[S98 Chat]** Jokes route to LLM despite 20-joke modelfile bank — local Layer 1 joke handler would serve these with no round trip.
