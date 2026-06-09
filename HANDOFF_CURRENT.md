@@ -23,8 +23,8 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 | System | State |
 |---|---|
-| Pi4 | Operational — assistant.service active. assistant.py DEPLOYED+VERIFIED S110. md5=fa5bf5b065951bdbf34ab27b3af0ea4e RAM=SD. iris_config.json SILENCE_SECS=1.2 DEPLOYED S110. md5=9dbd091fff10409f1e6d544d9e26b603 RAM=SD. |
-| GandalfAI | **DEGRADED — TEXT BROKEN (S113).** iris/iris-kids on **qwen3.5:27b**. Ollama **0.24.0** does not GPU-dispatch qwen3.5 — 2.8 tok/s CPU-only. Upgrade to **Ollama 0.30.0** required (P0 before next IRIS use). AMUSED calibration preserved. Vision gone (off VL base). Kokoro TTS port 8004 OK. |
+| Pi4 | Operational — assistant.service active. assistant.py DEPLOYED+VERIFIED S114. md5=1c42e3dd707281eaacc2cb2380394743 RAM=SD. services/llm.py md5=e93c69c2430415826baeaf05e247c853. core/config.py md5=f7a143d855a06c9b3fb8292e58ef363c. iris_post.py md5=2bf0723a7f06d8f72896f3178af0e8ec. services/vision.py md5=a60ffceaa8364678d2dffd04cbb951fc. POST 20/23 PASS. |
+| GandalfAI | **OPERATIONAL (S114).** iris/iris-kids on **qwen3.5:27b**, Ollama **0.30.7**. GPU 35.2 tok/s. AMUSED calibration live. VISION_MODEL="iris" (handles vision natively). Kokoro TTS port 8004 OK. |
 | Teensy 4.1 | Operational — firmware S101. Eye jitter fix (mouth 2Hz during TTS). |
 | Teensy 4.0 | S97 FLASHED. FACE_RETURN_MS 30000ms. Tracking working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
@@ -40,17 +40,16 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 - Pi4 and GandalfAI mutations require explicit user authorization.
 - GandalfAI model rebuilds require explicit `DEPLOY`.
 - Pi4 persistence: direct `/media/root-ro` remount only — see `CLAUDE.md`.
-- **Upgrade Ollama to 0.30.0 on GandalfAI — P0.** 0.30.x CLIP restriction no longer applies (we are off qwen2.5vl). Run: `$env:OLLAMA_VERSION="0.30.0"; irm https://ollama.com/install.ps1 | iex` then re-apply Windows Firewall outbound block for `ollama app.exe` to pin at 0.30.0. After upgrade: rebuild iris + iris-kids, verify tok/s ≥ 30.
+- **DO NOT upgrade Ollama past 0.30.7.** Currently at 0.30.7, pinned for qwen3.5:27b stability. Firewall outbound block on ollama app.exe in place.
 
 ## Next Work
 
-- **[P0 — IRIS BROKEN] Ollama 0.30.0 upgrade on GandalfAI:** Run PS command to install 0.30.0, re-apply firewall block for ollama app.exe, rebuild iris + iris-kids, verify tok/s ≥ 30. Then run persona harness pt001 (target ≥ 13/20). Update SNAPSHOT, HANDOFF, IRIS_ARCH.md VRAM section after confirmation.
-- **[P0 — IRIS BROKEN] HANDOFF_CURRENT.md + CLAUDE.md firewall note:** After upgrade confirmed, update Deployment Gates to "DO NOT upgrade past 0.30.0, pinned for qwen3.5 stability."
 - **Pure Pi4-local STT commands (deferred S110):** Simple commands like "hey jarvis… go to sleep" handled by Pi4 Whisper without waking GandalfAI. Design session needed — user flagged this during RPQR work.
 - **Wake-from-sleep fall-through:** Currently quip → re-sleep. Evaluate fall-through to active listening after quip (user must say "hey jarvis" twice to converse from sleep).
 - **T40 mechanical damper** — servo tracking confirmed working, user tuning physically. No firmware change needed.
 - **Bench tab dur_audio gap (G4):** `_from_jsonl` cycles missing `dur_audio` (play duration). Tracked in `docs/bench_audit_S105.md`.
 - **Latency Bench AI analysis (S106 — REPO-ONLY):** Run AI Analysis + Generate Handoff wired on Latency Bench tab. Use after running bench iteration.
+- **pt001 calibration tightening (optional):** 4 failures — pt001_01 (ANGRY not AMUSED on "You're dumb."), pt001_04 (ANGRY not NEUTRAL on "Shut up."), pt001_18 (CURIOUS not NEUTRAL on motor/servo), pt001_19 (NEUTRAL not AMUSED on sleep advice). AMUSED calibration block may need tuning for strongest insult openers.
 
 ---
 
@@ -68,3 +67,6 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 - **[S111 Chat → S112 RESOLVED]** iris/iris-kids modelfiles now FROM qwen2.5vl:32b-q4_K_M. Vision live as of S112. DEPLOYED+VERIFIED.
 - **[S111 Chat → S112 RESOLVED]** AMUSED calibration block added to iris modelfile. iris smoke test confirmed [EMOTION:AMUSED] on "You're dumb." input.
 - **[S111 Chat → S112 RESOLVED]** All docs now correctly reflect qwen2.5vl:32b-q4_K_M as the active LLM base for iris/iris-kids.
+- **[S114]** `"think": false` must be passed at API call level for every Ollama request to iris (qwen3.5:27b is a thinking model — without it, `response` field is empty). `PARAMETER think false` in modelfiles is NOT supported in Ollama 0.30.7 (error: unknown parameter). All five Pi4 Ollama callers patched: assistant.py, services/llm.py, iris_post.py, services/vision.py, and warmup call.
+- **[S114]** qwen3.5:27b handles vision natively via /api/generate with `images` field. Separate VISION_MODEL config no longer needed — but kept as "iris" for fallback compatibility.
+- **[S114]** pt001_01 "You're dumb." → ANGRY (not AMUSED). Strongest insult openers still trigger ANGRY despite calibration block. Consider strengthening the AMUSED few-shot examples.

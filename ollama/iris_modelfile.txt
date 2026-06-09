@@ -290,6 +290,5 @@ PARAMETER temperature 0.92
 PARAMETER repeat_penalty 1.1
 PARAMETER top_k 40
 PARAMETER top_p 0.9
-PARAMETER think false
 PARAMETER stop <|im_end|>
 

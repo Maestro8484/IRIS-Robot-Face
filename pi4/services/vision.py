@@ -89,6 +89,7 @@ def ask_vision(image_bytes: bytes, prompt: str) -> str:
             "prompt": vision_prompt,
             "images": [img_b64],
             "stream": False,
+            "think": False,
         },
         timeout=90,
     )

@@ -80,6 +80,15 @@ What changed, what now works, or what was decided? Write this for the human oper
 - Commit created? Y/N -- branch:
 - Push status:
 
+**Proactive Flags** - Optional. Add if anything was observed during the session worth surfacing for future work:
+Append a `## Proactive Flags` section to `HANDOFF_CURRENT.md` for any of the following observed during the session:
+- Latency bottlenecks or pipeline inefficiencies
+- Architectural inefficiencies or technical debt
+- Hardware upgrade opportunities
+- Model/inference performance issues
+- Reliability risks not yet filed as issues
+Format: one bullet per flag, one sentence each. Section is cumulative — do not overwrite prior flags, append.
+
 **Human follow-up needed**:
 
 ---

@@ -366,7 +366,7 @@ class _POST:
             import requests
             r = requests.post(
                 f"http://{GANDALF}:{OLLAMA_PORT}/api/generate",
-                json={"model": OLLAMA_MODEL_ADULT, "prompt": "hello", "stream": False},
+                json={"model": OLLAMA_MODEL_ADULT, "prompt": "hello", "stream": False, "think": False},
                 timeout=30)
             r.raise_for_status()
             if r.json().get("response"):

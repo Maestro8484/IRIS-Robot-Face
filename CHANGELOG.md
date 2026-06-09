@@ -60,6 +60,40 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 
 ---
 
+## S114 — qwen3.5:27b GPU Fix + think:false Pipeline Patch (2026-06-09)
+
+**Status:** COMPLETE — IRIS fully operational
+
+**Goal:** Fix IRIS text inference (2.8 tok/s CPU-only from S113). Root cause: Ollama 0.24.0 didn't GPU-dispatch qwen3.5:27b. Also add `"think": false` to all Ollama API calls (qwen3.5 thinking model consumes tokens in `thinking` field, leaving `response` empty without it).
+
+**What was done:**
+
+1. **GandalfAI Ollama** — Already at 0.30.7 (no upgrade needed). GPU dispatch confirmed: **35.2 tok/s** on RTX 3090. VRAM: model in VRAM, GPU utilization confirmed.
+
+2. **Modelfiles — `PARAMETER think false` removed** (unsupported in Ollama 0.30.7, caused `ollama create` error with "unknown parameter 'think'"). `"think": false` moved to API request level.
+   - `ollama/iris_modelfile.txt` — DEPLOYED+VERIFIED (rebuilt on GandalfAI)
+   - `ollama/iris-kids_modelfile.txt` — DEPLOYED+VERIFIED (rebuilt on GandalfAI)
+
+3. **Pi4 pipeline — `"think": False` added to all Ollama callers:**
+   - `pi4/assistant.py` — ask_ollama() and warmup call. md5=1c42e3dd707281eaacc2cb2380394743 RAM=SD. DEPLOYED+VERIFIED.
+   - `pi4/services/llm.py` — stream_ollama() payload. md5=e93c69c2430415826baeaf05e247c853 RAM=SD. DEPLOYED+VERIFIED.
+   - `pi4/iris_post.py` — l3_llm POST test. md5=2bf0723a7f06d8f72896f3178af0e8ec RAM=SD. DEPLOYED+VERIFIED.
+   - `pi4/services/vision.py` — ask_vision() /api/generate call. md5=a60ffceaa8364678d2dffd04cbb951fc RAM=SD. DEPLOYED+VERIFIED.
+
+4. **`pi4/core/config.py`** — `VISION_MODEL = "qwen2.5vl:32b-q4_K_M"` → `"iris"`. qwen3.5:27b handles vision natively. md5=f7a143d855a06c9b3fb8292e58ef363c RAM=SD. DEPLOYED+VERIFIED.
+
+5. **`tools/workbench/workbench.js`** — `"think": false` added to both /api/generate calls (harness + latency tester). REPO-ONLY.
+
+**Verification:**
+- Pi4 POST: **20/23 PASS, WARN: 3, FAIL: 0** (was 19/23 FAIL: 1 on LLM smoke before iris_post.py patch).
+- AMUSED calibration: "You're dumb." → `[EMOTION:AMUSED]` ✓
+- GPU inference: 35.2 tok/s ✓ (target ≥30)
+- No think block in responses ✓
+- **pt001 persona harness: 16/20 PASS (80%)** — target ≥13/20 MET.
+  - FAIL: pt001_01 (ANGRY not AMUSED on "You're dumb."), pt001_04 (ANGRY not NEUTRAL on "Shut up."), pt001_18 (CURIOUS not NEUTRAL on motor/servo), pt001_19 (NEUTRAL not AMUSED on sleep advice).
+
+---
+
 ## Batch 1A — Runtime Survival
 
 **Status:** Complete

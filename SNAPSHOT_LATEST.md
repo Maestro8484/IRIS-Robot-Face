@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S113 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S113
+**Session:** S114 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S114
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -22,7 +22,7 @@
 | System | Status |
 |---|---|
 | Pi4 192.168.1.200 | Operational. assistant.service active. ttyIRIS_EYES → ttyACM0 (serial 13625440, T41). udev corrected + SD persisted S97. |
-| GandalfAI 192.168.1.3 | **DEGRADED — TEXT BROKEN.** iris/iris-kids rebuilt on **qwen3.5:27b** (S113). Ollama **0.24.0** does not GPU-dispatch qwen3.5 — inference 2.8 tok/s CPU-only. VRAM 23.8GB used (model in VRAM but CPU-dispatched). Ollama upgrade to 0.30.0 required. AMUSED calibration preserved. Vision: gone (off VL base). Kokoro TTS port 8004 unaffected. |
+| GandalfAI 192.168.1.3 | **OPERATIONAL.** iris/iris-kids on **qwen3.5:27b**, Ollama **0.30.7** (S114). GPU inference 35.2 tok/s confirmed. AMUSED calibration live. Vision: iris model handles natively (VISION_MODEL="iris"). Kokoro TTS port 8004 OK. POST 20/23 PASS, 3 WARN, 0 FAIL. |
 | Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
@@ -32,7 +32,7 @@
 ## Active Issues
 
 - **LOW: Wake-from-sleep fall-through** — wakeword during sleep: IRIS wakes, plays quip, re-enters sleep (S104). Evaluate whether it should fall through to active listening instead of re-sleeping.
-- **LOW: Ollama auto-update preference** — user unchecked "automatically download updates" in Ollama UI (S110). Windows Firewall block on ollama app.exe also in place (redundant but left as belt-and-suspenders).
+- **LOW: Ollama version pin** — DO NOT upgrade past 0.30.7. Pinned for qwen3.5:27b stability. Firewall outbound block on ollama app.exe in place. User unchecked auto-update in Ollama UI (S110).
 
 ---
 
@@ -56,12 +56,19 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S113 — 2026-06-09)
+## Last Session Changes (S114 — 2026-06-09)
 
-- **`ollama/iris_modelfile.txt`** — `FROM qwen3.5:27b` (was qwen2.5vl:32b-q4_K_M). `PARAMETER think false` added. AMUSED calibration preserved. DEPLOYED. **GPU inference failed** — 2.8 tok/s CPU-only on Ollama 0.24.0. Ollama 0.30.0 upgrade required before IRIS text works.
-- **`ollama/iris-kids_modelfile.txt`** — `FROM qwen3.5:27b`. `PARAMETER think false` added. DEPLOYED. Same CPU-only issue.
-- **`tools/workbench/workbench.js`** — `AbortSignal.timeout(60000)→90000` in runHarness(); fallback string `"iris (qwen2.5:32b)"→"iris"`. REPO-ONLY (uncommitted).
-- **GandalfAI** — `ollama create iris` and `ollama create iris-kids` succeeded. Both 21GB, fresh timestamps. Ollama still 0.24.0 (upgrade interrupted).
+- **GandalfAI Ollama** — Already at 0.30.7 (no upgrade needed). GPU dispatch confirmed for qwen3.5:27b: 35.2 tok/s VERIFIED.
+- **`ollama/iris_modelfile.txt`** — Removed `PARAMETER think false` (unsupported in Ollama 0.30.7; causes `ollama create` error). `"think": false` moved to API call level. iris rebuilt on GandalfAI. DEPLOYED+VERIFIED.
+- **`ollama/iris-kids_modelfile.txt`** — Same removal. iris-kids rebuilt. DEPLOYED+VERIFIED.
+- **`pi4/assistant.py`** — `"think": False` added to `ask_ollama()` and warmup call. DEPLOYED+VERIFIED. md5=1c42e3dd707281eaacc2cb2380394743 RAM=SD.
+- **`pi4/services/llm.py`** — `"think": False` added to `stream_ollama()` payload. DEPLOYED+VERIFIED. md5=e93c69c2430415826baeaf05e247c853 RAM=SD.
+- **`pi4/core/config.py`** — `VISION_MODEL` changed from `"qwen2.5vl:32b-q4_K_M"` → `"iris"` (qwen3.5:27b handles vision natively). DEPLOYED+VERIFIED. md5=f7a143d855a06c9b3fb8292e58ef363c RAM=SD.
+- **`pi4/iris_post.py`** — `"think": False` added to l3_llm POST test. DEPLOYED+VERIFIED. md5=2bf0723a7f06d8f72896f3178af0e8ec RAM=SD.
+- **`pi4/services/vision.py`** — `"think": False` added to ask_vision() /api/generate call. DEPLOYED+VERIFIED. md5=a60ffceaa8364678d2dffd04cbb951fc RAM=SD.
+- **`tools/workbench/workbench.js`** — `"think": false` added to both /api/generate calls in harness + latency tester. REPO-ONLY.
+- **Pi4 POST** — 20/23 PASS, WARN: 3, FAIL: 0 (was 19/23, FAIL: 1 on LLM smoke). All FAIL resolved.
+- **pt001 persona harness** — 16/20 PASS (80%). Target ≥13/20 MET.
 
 ## Previous Session Changes (S112 — 2026-06-09)
 

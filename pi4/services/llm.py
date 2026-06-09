@@ -113,6 +113,7 @@ def stream_ollama(messages: list, model: str, num_predict: int):
         "model": model,
         "messages": messages,
         "stream": True,
+        "think": False,
         "options": {"num_predict": num_predict},
     }
 
