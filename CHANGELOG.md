@@ -2496,3 +2496,47 @@ git checkout -- pi4/services/vision.py pi4/iris_web.py
 ```
 
 ---
+
+## S119 — LLM Migration qwen3.5:27b → mistral-small3.2:24b (2026-06-09)
+
+**Status:** DEPLOYED + VERIFIED (both gates passed). Live voice + camera-vision human checks pending.
+
+**Goal:** Replace the iris/iris-kids LLM base with mistral-small3.2:24b — strictly better than all prior bases: faster vision than qwen3.5 (25–30s), cleaner persona lock than gemma3:27b-it-qat (RLHF blocked persona), stable vision unlike qwen2.5vl:32b (no-go).
+
+**Pre-flight reconciliation:** Brief premise was stale (referenced SNAPSHOT S98 / "qwen2.5vl still current"); live was S118 on **qwen3.5:27b** with working vision. mistral-small3.2:24b (15GB) confirmed already pulled on GandalfAI. GandalfAI is **Windows** — brief's `sudo systemctl` env-scope step (Step 1) is inapplicable; the three target env vars (FLASH_ATTENTION=1, CONTEXT_LENGTH=4096, NUM_PARALLEL=1) were already set Machine-scope and visible to the ollama process. No env change needed.
+
+**What changed:**
+
+1. **`ollama/iris_modelfile.txt`** — DEPLOYED (GandalfAI rebuilt).
+   - `FROM qwen3.5:27b` → `FROM mistral-small3.2:24b`.
+   - PARAMETER block replaced entirely: `num_gpu 99`, `num_ctx 4096`, `temperature 0.75`, `top_p 0.9`, `repeat_penalty 1.1`, `stop "[INST]"`, `stop "[/INST]"`, `stop "</s>"`, **`stop "User:"`** (added beyond brief spec — kills Mistral's few-shot turn-bleed; qwen's `<|im_end|>` had bounded it). Dropped qwen's `num_predict 800`/`top_k`/`stop <|im_end|>`.
+   - SYSTEM block + ROUTINE/ADVERSARIAL/JOKE/GENUINE-OPINION few-shots + EMOTION CALIBRATION + VISION block + NEVER-say list preserved verbatim (no Qwen tokens were present to remove). No TEMPLATE block added (Mistral's is provided by the base).
+
+2. **`ollama/iris-kids_modelfile.txt`** — DEPLOYED. Same FROM + same PARAMETER/stop set (incl. `User:`). Kids persona + EMOTION tags preserved.
+
+3. **`pi4/services/llm.py`** — DEPLOYED + VERIFIED. Removed `"think": False` from the `stream_ollama()` `/api/chat` payload (Mistral has no thinking mode; dead weight from S114 qwen3.5). Surgical one-line change (verified `diff` shows only line 116; all `clean_llm_reply` regexes byte-preserved). md5 RAM=SD=`911261166ce7aeed07a8e3ef1a2d044e`. assistant.service restarted; POST L1 iris+iris-kids PASS.
+
+**llm.py audit result (brief Step 3):** (a) `think:False` found+removed; (b) no hardcoded Qwen template tokens; (c) no vision path in llm.py (vision lives in vision.py, standard `images=[]` format); (d) no `if "qwen"` model conditionals. Clean apart from (a).
+
+**Gate 1 — PT-001 persona (15/20 emotion-tag):** Persona-locked, zero RLHF tells. `pt001_17 goodnight → NEUTRAL "Night."` passes (the one confirmed qwen modelfile bug — free on Mistral). `motor/servo → NEUTRAL` passes. 5 misses all borderline/fixture-debatable (08/09/12/13/15/19). First run (14/20) exposed `User:` few-shot bleed; after adding `stop "User:"` and rebuild → 15/20, bleed eliminated. Gate (≥12/17 non-fixture) met.
+
+**Gate 2 — latency:** Text 35.8 tok/s (vs 35.2 qwen3.5). Vision **100% GPU** (no CPU offload — Pixtral baked in), warm 1.37s total / 0.30s first-token / 41 tok/s, cold-after-text ~12.4s (vs ~29s qwen3.5). Residual cold latency = num_ctx 4096↔6144 reload, NOT offload. `ollama show iris`: arch=`mistral3`, 24.0B, caps include `vision`.
+
+**Live Pi4 verification:** deployed `stream_ollama` path tested on 3 prompts → correct `[EMOTION:]` tags (AMUSED/CURIOUS/AMUSED), zero `[INST]/[/INST]/</s>/User:` bleed, warm 31–43 tok/s.
+
+**Housekeeping:** swept stray root files (`$null`→`null_emptyfile`, `Update-IRISProjectFiles.bat/.ps1`) into `_housekeeping/S119_root_sweep/` with a MANIFEST documenting original→final + verified purpose; restored `LICENSE` (was an unstaged deletion). Updated stale `docs/sysmap.json` ollama `model_base`/`stop_token` (gemma3 → mistral-small3.2 / `[INST]`).
+
+**Deferred (documented in HANDOFF Next Work + Proactive Flags):**
+- Unify iris/iris-kids modelfile `num_ctx` to 6144 to kill the vision reload AND give text real generation headroom (~3700-tok prompt leaves only ~395 tok at 4096). VRAM-safe on Mistral (17/24 GB). Blocked on user sign-off — sysmap documents an obsolete `num_ctx ≤ 4096` hard limit.
+- Sweep `think:False` from the other 4 Pi4 callers (assistant.py, vision.py, iris_web.py, iris_post.py) — harmless on Mistral, kept this session's deploy surface to the brief-scoped llm.py.
+
+**Rollback:**
+```
+git checkout -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt pi4/services/llm.py
+# GandalfAI: restore both modelfiles to C:\IRIS\IRIS-Robot-Face\ollama\, then
+ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt
+ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt
+# Pi4: redeploy prior llm.py (md5 b94427979460d21805765f817b8cf522) to /home/pi/services/ + /media/root-ro, restart assistant
+```
+
+---

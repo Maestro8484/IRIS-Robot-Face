@@ -113,7 +113,8 @@ def stream_ollama(messages: list, model: str, num_predict: int):
         "model": model,
         "messages": messages,
         "stream": True,
-        "think": False,
+        # No "think" key: iris is mistral-small3.2 (S119), which has no thinking mode.
+        # (Was think:False for qwen3.5 in S114; Mistral silently ignores it -- removed as dead weight.)
         "options": {"num_predict": num_predict},
     }
 

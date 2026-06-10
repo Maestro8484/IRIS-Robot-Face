@@ -306,8 +306,8 @@
           "port": 11434,
           "protocol": "http",
           "models": ["iris", "iris-kids"],
-          "model_base": "gemma3:27b-it-qat",
-          "stop_token": "<end_of_turn>",
+          "model_base": "mistral-small3.2:24b",
+          "stop_token": "[INST] / [/INST] / </s> / User:",
           "smoke_test": "curl -s http://localhost:11434/api/generate -d \"{\\\"model\\\":\\\"iris\\\",\\\"prompt\\\":\\\"hello\\\",\\\"stream\\\":false}\" | python -c \"import sys,json; r=json.load(sys.stdin); print(r['response'])\""
         },
         {

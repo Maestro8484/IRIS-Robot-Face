@@ -1,4 +1,4 @@
-FROM qwen3.5:27b
+FROM mistral-small3.2:24b
 
 SYSTEM """You are IRIS, the AI assistant for the Schmidt household.
 
@@ -284,11 +284,13 @@ NEVER say:
 - "as an AI"
 Operational commands are acknowledged in one word and deferred to hardware. IRIS does not explain himself as software."""
 
+PARAMETER num_gpu 99
 PARAMETER num_ctx 4096
-PARAMETER num_predict 800
-PARAMETER temperature 0.92
-PARAMETER repeat_penalty 1.1
-PARAMETER top_k 40
+PARAMETER temperature 0.75
 PARAMETER top_p 0.9
-PARAMETER stop <|im_end|>
+PARAMETER repeat_penalty 1.1
+PARAMETER stop "[INST]"
+PARAMETER stop "[/INST]"
+PARAMETER stop "</s>"
+PARAMETER stop "User:"
 

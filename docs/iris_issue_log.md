@@ -441,3 +441,14 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Status:** Fixed — DEPLOYED+VERIFIED+PERSISTED. md5 RAM=SD=`8130b382bc38699ed14cd907be641e6d`.
 
 ---
+
+## 2026-06-09 | S119 | GandalfAI / ollama modelfiles — Mistral few-shot turn-bleed
+
+**Symptom:** After the qwen3.5→mistral-small3.2 swap, iris replies leaked a fake next turn, e.g. `"Done. User: You suck. You came here to say that..."` and `"Wrong. Try again. User: What's your problem? IRIS: I don't have one."` — caught in the first PT-001 run (pt001_04, pt001_05). Spoken aloud this is garbage.
+**Root cause:** The SYSTEM prompt is few-shot-heavy (`User: … / IRIS: …`). qwen's `<|im_end|>` stop implicitly bounded each turn; Mistral has no equivalent and continues the few-shot format past its own answer. The brief's stop set (`[INST]`/`[/INST]`/`</s>`) does not match a literal `User:`.
+**Fix:** Added `PARAMETER stop "User:"` to both `ollama/iris_modelfile.txt` and `ollama/iris-kids_modelfile.txt`; rebuilt both on GandalfAI. PT-001 re-run: bleed gone across all 20 cases, score 14→15/20.
+**Files:** `ollama/iris_modelfile.txt`, `ollama/iris-kids_modelfile.txt`
+**Commit:** S119
+**Status:** Fixed — DEPLOYED+VERIFIED (GandalfAI rebuild + live Pi4 `stream_ollama` path shows BLEED=[] on adversarial/joke prompts). Note for future base swaps with few-shot prompts: keep the `User:` stop.
+
+---
