@@ -22,7 +22,7 @@
 | System | Status |
 |---|---|
 | Pi4 192.168.1.200 | Operational. assistant.service active. ttyIRIS_EYES → ttyACM0 (serial 13625440, T41). udev corrected + SD persisted S97. |
-| GandalfAI 192.168.1.3 | **OPERATIONAL.** iris/iris-kids on **mistral-small3.2:24b** (S119, was qwen3.5:27b). Ollama **0.30.7**. arch=`mistral3`, 24.0B, caps include `vision` (Pixtral baked in, no mmproj). 15GB Q4, **100% GPU** confirmed (no CPU offload). Text 35.8 tok/s; vision warm 1.4s/0.3s first-token, vision cold-after-text ~12s (4096↔6144 ctx reload, vs 29s on qwen3.5). PT-001 15/20, persona-locked, no token bleed. Env (Machine scope): FLASH_ATTENTION=1, CONTEXT_LENGTH=4096, NUM_PARALLEL=1, KV_CACHE=q8_0. Kokoro TTS 8004 OK. |
+| GandalfAI 192.168.1.3 | **OPERATIONAL.** iris/iris-kids on **mistral-small3.2:24b** (S119, was qwen3.5:27b). Ollama **0.30.7**. arch=`mistral3`, 24.0B, caps include `vision` (Pixtral baked in, no mmproj). 15GB Q4, **100% GPU** confirmed (no CPU offload). **num_ctx 6144 unified (S119b)** so text+vision share one context — no reload. Text ~42 tok/s; vision cold-after-text **2.4s** (load 0.28s), warm 1.6s/0.3s first-token (vs 29s on qwen3.5). PT-001 15/20, persona-locked, no token bleed. Env (Machine scope): FLASH_ATTENTION=1, NUM_PARALLEL=1, KV_CACHE=q8_0. Kokoro TTS 8004 OK. |
 | Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). **Streaming dispatch live (S116):** main LLM replies synthesized per sentence and played overlapped. |
@@ -33,7 +33,7 @@
 
 - **LOW: Wake-from-sleep fall-through** — wakeword during sleep: IRIS wakes, plays quip, re-enters sleep (S104). Evaluate whether it should fall through to active listening instead of re-sleeping.
 - **LOW: Ollama version pin** — Currently 0.30.7 (runs mistral-small3.2:24b fine). Firewall outbound block on ollama app.exe in place; user unchecked auto-update in Ollama UI (S110). The qwen3.5 pin rationale is moot post-S119, but keep the firewall/pin to avoid surprise upgrades.
-- **REC (S119): unify iris num_ctx to 6144.** Vision forces `num_ctx=6144` per request while text uses the modelfile `num_ctx=4096`, so Ollama ping-pong-reloads the model on every text↔vision switch (~12s cold vision; also leaves only ~395 tok for generation against the ~3700-tok system prompt — the MAX 400-tok tier overflows). Mistral is 15GB so 6144 ctx is VRAM-safe (15+2 Kokoro = 17/24 GB; `ollama ps` shows 15GB at 6144). Deferred at modelfile level because sysmap documents a `num_ctx ≤ 4096` hard limit (gemma3/qwen-era, now obsolete) — needs user sign-off to raise.
+- **RESOLVED (S119b): iris/iris-kids modelfile `num_ctx` raised 4096 → 6144.** Text+vision now share one context — Ollama no longer reloads on text↔vision switches (vision cold-after-text 12.4s → 2.4s) and generation has real headroom vs the ~3700-tok system prompt. VRAM verified safe: `ollama ps` = 15GB at 6144, +Kokoro 2GB = 17/24 GB, 100% GPU. The old sysmap `num_ctx ≤ 4096` limit was gemma3/qwen-era (obsolete) and is updated.
 
 ---
 
@@ -65,7 +65,8 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 - **`pi4/services/llm.py`** — removed `"think": False` from `stream_ollama()` payload (Mistral has no thinking mode; was dead weight from S114 qwen3.5). md5 RAM=SD=`911261166ce7aeed07a8e3ef1a2d044e`. DEPLOYED+VERIFIED. assistant.service restarted, POST L1 iris+iris-kids PASS, live path emits correct emotion tags with zero `[INST]/</s>/User:` bleed.
 - **Gates:** PT-001 15/20 (persona-locked, no RLHF tells; cleaner than gemma3; `goodnight→NEUTRAL` and `motor/servo` now pass; remaining misses are borderline/fixture-debatable). Latency: text 35.8 tok/s, vision 100% GPU, warm 1.4s, cold 12s (vs 29s qwen3.5).
 - **Housekeeping:** stray root files (`$null`, `Update-IRISProjectFiles.*`) swept to `_housekeeping/S119_root_sweep/` with MANIFEST; `LICENSE` restored (was an unstaged deletion).
-- **NOT done (REPO-ONLY/follow-up):** num_ctx unification to 6144 (see Active Issues REC); `think:False` still present in 4 other Pi4 callers (assistant.py, vision.py, iris_web.py, iris_post.py) — harmless dead weight on Mistral, sweep next session. Live voice (wakeword→TTS) and camera-vision human checks pending.
+- **S119b:** num_ctx unified 4096→6144 on both modelfiles + GandalfAI rebuild (vision cold-after-text 12.4s→2.4s, no reload; VRAM 15GB at 6144, 100% GPU). No Pi4 change needed (vision.py already sent 6144; text callers inherit the new default).
+- **NOT done (follow-up):** `think:False` still present in 4 other Pi4 callers (assistant.py, vision.py, iris_web.py, iris_post.py) — harmless dead weight on Mistral, sweep next session. Live voice (wakeword→TTS) and camera-vision human checks pending. Repo-wide stale-reference sweep (old model names in docs/WebUI) recommended as its own session — see HANDOFF.
 
 ## Last Session Changes (S118 — 2026-06-09)
 

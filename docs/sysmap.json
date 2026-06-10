@@ -287,15 +287,14 @@
         "gemma3_27b_gb": 14.1,
         "baseline_used_gb": 16.1,
         "headroom_gb": 7.9,
-        "num_ctx_hard_limit": 4096,
+        "num_ctx_hard_limit": 6144,
         "env_required": {
           "OLLAMA_FLASH_ATTENTION": "1",
           "OLLAMA_KV_CACHE_TYPE": "q8_0"
         },
         "warnings": [
-          "Do not raise num_ctx above 4096.",
-          "Close Chrome and Claude Desktop during inference-heavy sessions.",
-          "Headroom drops to ~2.2GB when vision model also loaded."
+          "S119: iris/iris-kids = single mistral-small3.2:24b (15GB) serving text AND vision; num_ctx 6144 unified (ollama ps 15GB at 6144, +Kokoro 2GB = 17/24GB, 100% GPU). The old 4096 limit was gemma3/qwen2.5vl two-model-era and is obsolete.",
+          "Close Chrome and Claude Desktop during inference-heavy sessions."
         ]
       },
 

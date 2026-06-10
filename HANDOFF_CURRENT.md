@@ -24,7 +24,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 | System | State |
 |---|---|
 | Pi4 | Operational — assistant.service active. **assistant.py md5=fe79c67bd5dfea50f5559e0304d37c35** (S116 streaming). **hardware/audio_io.py md5=ada50cfc3ab6b8ae52efdc7c7f9aab9c** (S116). **services/llm.py md5=911261166ce7aeed07a8e3ef1a2d044e** (S119: think:False removed for Mistral). **core/config.py md5=5391ed8c079dee4527c72ec8e148237f** (S117 tiers). iris_post.py md5=2bf0723a7f06d8f72896f3178af0e8ec. **services/vision.py md5=1e5500958db39e888db4bb4294150b9d** (S118 num_ctx). **iris_web.py md5=9f7af3a6d023edd794cb067abdff3871** (S118 vision fix). core/intent_router.py md5=ea9e0d82425f76d98053c2b71221ef99. RAM=SD (S118). POST 20/23 PASS. |
-| GandalfAI | **OPERATIONAL (S119).** iris/iris-kids on **mistral-small3.2:24b** (was qwen3.5:27b), Ollama **0.30.7**. arch=mistral3, 15GB Q4, 100% GPU. Text 35.8 tok/s; vision warm 1.4s / cold ~12s. VISION_MODEL="iris" (Pixtral vision native). stop set includes `User:` (few-shot bleed fix). Kokoro TTS port 8004 OK. |
+| GandalfAI | **OPERATIONAL (S119).** iris/iris-kids on **mistral-small3.2:24b** (was qwen3.5:27b), Ollama **0.30.7**. arch=mistral3, 15GB Q4, 100% GPU, **num_ctx 6144 (S119b, unified text+vision)**. Text ~42 tok/s; vision cold-after-text 2.4s / warm 1.6s (no reload). VISION_MODEL="iris" (Pixtral vision native). stop set includes `User:` (few-shot bleed fix). Kokoro TTS port 8004 OK. |
 | Teensy 4.1 | Operational — firmware S101. Eye jitter fix (mouth 2Hz during TTS). |
 | Teensy 4.0 | S97 FLASHED. FACE_RETURN_MS 30000ms. Tracking working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). |
@@ -44,7 +44,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-- **Vision latency — unify num_ctx to 6144 (S119 follow-up, needs user sign-off).** S119 mistral swap already cut cold vision 29s→~12s and warm to 1.4s at 100% GPU. The residual ~12s is the same num_ctx reload (vision 6144 vs text/modelfile 4096). To kill it: set iris/iris-kids modelfile `num_ctx 6144` + GandalfAI rebuild so text+vision share one context (also fixes the cramped ~395-tok generation budget vs the ~3700-tok system prompt). VRAM verified safe on mistral (15+2 Kokoro = 17/24 GB; `ollama ps` shows 15GB at 6144). Blocked only by the sysmap `num_ctx ≤ 4096` documented hard limit (now obsolete) — confirm before raising. Old spec: `docs/handoff_vision_latency.md`.
+- **DONE (S119b): num_ctx unified to 6144.** iris/iris-kids modelfiles raised 4096→6144 + GandalfAI rebuild; text+vision share one context. Vision cold-after-text 12.4s→2.4s (no reload), warm 1.6s, 100% GPU, 15GB at 6144 (VRAM safe). Resolves the long-standing S118 vision-latency item (`docs/handoff_vision_latency.md` now historical).
 - **Sweep `think:False` from remaining Pi4 callers (S119 follow-up).** assistant.py, services/vision.py, iris_web.py, iris_post.py still send `think:False` (harmless dead weight on Mistral, no thinking mode). Remove for consistency + stale qwen comments. Deferred to keep S119 deploy surface to the one file the brief scoped (llm.py).
 
 - **Pure Pi4-local STT commands (deferred S110):** Simple commands like "hey jarvis… go to sleep" handled by Pi4 Whisper without waking GandalfAI. Design session needed — user flagged this during RPQR work.

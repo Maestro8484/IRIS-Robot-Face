@@ -2540,3 +2540,20 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 ```
 
 ---
+
+## S119b — Unify iris num_ctx to 6144 (2026-06-09)
+
+**Status:** DEPLOYED + VERIFIED (user-approved follow-up to S119).
+
+**Goal:** Eliminate the text↔vision model reload (the residual ~12s cold-vision after S119) by giving text and vision one shared context.
+
+**What changed:**
+- **`ollama/iris_modelfile.txt`** + **`ollama/iris-kids_modelfile.txt`** — `PARAMETER num_ctx 4096` → `6144`. Both rebuilt on GandalfAI.
+
+**Why it works:** vision (`vision.py`/`iris_web.py`) sends `num_ctx=6144` per request; text callers (`stream_ollama`, etc.) send none and inherit the modelfile default. With the default at 4096 they ping-pong-reloaded Ollama on every switch. At 6144 both paths match → no reload, and generation gets real headroom against the ~3700-token system prompt.
+
+**Verified:** vision cold-after-text **12.4s → 2.4s** (`load_duration` 0.28s = no reload), warm 1.6s; text ~42 tok/s; `ollama ps` = iris 15GB, **100% GPU, context 6144**. VRAM safe: 15GB + Kokoro 2GB = 17/24 GB. No Pi4 change required. sysmap `num_ctx_hard_limit` updated 4096→6144 (old limit was gemma3/qwen2.5vl two-model-era, obsolete).
+
+**Rollback:** set `PARAMETER num_ctx 4096` in both modelfiles, `ollama create iris`/`iris-kids` on GandalfAI.
+
+---

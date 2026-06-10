@@ -49,7 +49,7 @@ IRIS:
 Okay. I'll be here."""
 
 PARAMETER num_gpu 99
-PARAMETER num_ctx 4096
+PARAMETER num_ctx 6144
 PARAMETER temperature 0.75
 PARAMETER top_p 0.9
 PARAMETER repeat_penalty 1.1

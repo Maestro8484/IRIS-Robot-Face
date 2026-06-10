@@ -285,7 +285,7 @@ NEVER say:
 Operational commands are acknowledged in one word and deferred to hardware. IRIS does not explain himself as software."""
 
 PARAMETER num_gpu 99
-PARAMETER num_ctx 4096
+PARAMETER num_ctx 6144
 PARAMETER temperature 0.75
 PARAMETER top_p 0.9
 PARAMETER repeat_penalty 1.1
