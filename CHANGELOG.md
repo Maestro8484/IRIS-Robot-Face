@@ -2543,7 +2543,7 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 
 ## S120 — Stale-Reference Sweep: Docs + Tools (2026-06-09)
 
-**Status:** REPO-ONLY (Batches 1+2 of 3)
+**Status:** Batches 1+2 REPO-ONLY; **Batch 3 DEPLOYED + VERIFIED**.
 
 **Goal:** Remove all stale model references (qwen/gemma3/end_of_turn/think:False) from docs, JSON, and tool files. No behavior change.
 
@@ -2562,7 +2562,20 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 - `tools/persona_harness/run_harness.py` — updated stale qwen2.5vl comment on OLLAMA_TIMEOUT.
 - `tools/workbench/workbench.js` — removed `think: false` from both /api/generate calls (Mistral has no thinking mode; dead weight from S114).
 
-**Batch 3 (pending DEPLOY authorization):** Remove `think: False` from 4 Pi4 callers (assistant.py, services/vision.py, iris_web.py, iris_post.py) + refresh their stale qwen3.5 comments.
+**Batch 3 — Pi4 code (DEPLOYED + VERIFIED 2026-06-09):**
+- `pi4/assistant.py` — removed `think: False` from `ask_ollama` (chat) and the startup warmup `/api/generate` call.
+- `pi4/services/vision.py` — removed `think: False` from `ask_vision`; refreshed the qwen3.5 num_ctx comment to mistral-small3.2 (num_ctx 6144 KEPT — image tokens, now matches modelfile).
+- `pi4/iris_web.py` — removed `think: False` from `api_vision`; dropped the wrong "qwen3.5 is a thinking model" rationale, refreshed num_ctx comment (num_ctx 6144 KEPT).
+- `pi4/iris_post.py` — removed `think: False` from the `l3_llm` POST smoke.
+- WebUI: `pi4/iris_web.html` confirmed 0 gemma/qwen hits (only generic "Vision Model" + config-key labels). No change.
+
+**Deploy:** all 4 written to Pi4 RAM (surgical str-replace), persisted to `/media/root-ro` (chown pi:pi, chmod 644), RAM=SD md5 verified on each. `py_compile` clean. `assistant` + `iris-web` restarted. POST **20/23 PASS, 0 FAIL → AUTHORIZED**; L3 LLM smoke PASS; `[LLM] Model warmed.` Live LLM chat smoke: `[EMOTION:NEUTRAL]` tag present, no `[INST]`/`</s>`/`User:` bleed. Live vision smoke via `/api/vision`: clean frame description, no HTTP 400 (num_ctx intact), no bleed.
+
+**Live Pi4 md5 (RAM=SD):** assistant.py=`2350a4108468a1f687f0eb40b094b0d7`, services/vision.py=`31cb7a089060ce3102c86281ac2936c6`, iris_web.py=`077002b46dbc8691cb5b75b5e44b680b`, iris_post.py=`18748f348149590879f8a43b83f83f11`.
+
+**Drift found (not behavioral, out of this batch's scope):** the deployed Pi4 `assistant.py` is LF while repo master is CRLF (content identical); deployed `iris_post.py` is an ASCII-normalized variant (`-> x --`) vs repo Unicode (`→ × ──`) plus repo has one extra comment line in `l2_display`. Code logic byte-identical in both; only `think:False` is the behavioral change. vision.py and iris_web.py now byte-match repo exactly. Flagged for a future repo↔Pi4 normalization sweep.
+
+**Rollback:** pre-patch RAM backups saved to `/tmp/s120_bak/` (volatile); or restore prior baseline md5s from S118 HANDOFF and re-persist.
 
 ---
 

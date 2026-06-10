@@ -360,7 +360,7 @@ def ask_ollama(text, num_predict=None):
     r = requests.post(
         f"http://{GANDALF}:{OLLAMA_PORT}/api/chat",
         json={"model": get_model(), "messages": _build_messages(),
-              "stream": False, "think": False, "options": {"num_predict": num_predict if num_predict is not None else NUM_PREDICT}},
+              "stream": False, "options": {"num_predict": num_predict if num_predict is not None else NUM_PREDICT}},
         timeout=30
     )
     r.raise_for_status()
@@ -587,7 +587,7 @@ def main():
             requests.post(
                 f"http://{GANDALF}:{OLLAMA_PORT}/api/generate",
                 json={"model": get_model(), "prompt": ".", "stream": False,
-                      "think": False, "options": {"num_predict": 1}},
+                      "options": {"num_predict": 1}},
                 timeout=30
             )
             print("[LLM]  Model warmed.", flush=True)

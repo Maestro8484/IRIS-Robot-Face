@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S119 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S119
+**Session:** S120 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S120
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -56,6 +56,18 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 - `src/eyes/EyeController.h`
 
 ---
+
+## Last Session Changes (S120 — 2026-06-09)
+
+- **Stale-reference sweep, Batch 3 (Pi4 code) — DEPLOYED + VERIFIED.** Removed dead `think:False` from the 4 remaining Pi4 Ollama callers (Mistral has no thinking mode) and refreshed their stale qwen3.5 comments:
+  - **`pi4/assistant.py`** — `ask_ollama` (chat) + startup warmup. md5 RAM=SD=`2350a4108468a1f687f0eb40b094b0d7`.
+  - **`pi4/services/vision.py`** — `ask_vision`; num_ctx 6144 KEPT (image tokens, matches modelfile). md5=`31cb7a089060ce3102c86281ac2936c6`.
+  - **`pi4/iris_web.py`** — `api_vision`; removed wrong "qwen3.5 thinking model" rationale, num_ctx 6144 KEPT. md5=`077002b46dbc8691cb5b75b5e44b680b`.
+  - **`pi4/iris_post.py`** — `l3_llm` POST smoke. md5=`18748f348149590879f8a43b83f83f11`.
+- **WebUI:** `pi4/iris_web.html` confirmed 0 gemma/qwen hits (only generic "Vision Model" + config-key labels). No change.
+- **Verified live:** `py_compile` clean; assistant + iris-web restarted; POST **20/23 PASS, 0 FAIL → AUTHORIZED**; L3 LLM smoke PASS; `[LLM] Model warmed.`; LLM chat smoke `[EMOTION:NEUTRAL]` + no `[INST]/</s>/User:` bleed; `/api/vision` returned a clean frame description (no HTTP 400, num_ctx intact, no bleed).
+- **Flagged (non-behavioral drift):** repo `assistant.py` is CRLF vs live LF; repo `iris_post.py` is Unicode (`→ × ──`)+1 extra comment line vs live ASCII-normalized. Code logic byte-identical; only think:False changed. vision.py/iris_web.py byte-match repo. Future repo↔Pi4 normalization sweep recommended — see HANDOFF Proactive Flags.
+- (Batches 1+2 — docs/JSON + tools stale-ref sweep — committed REPO-ONLY earlier this session; see CHANGELOG S120.)
 
 ## Last Session Changes (S119 — 2026-06-09)
 
