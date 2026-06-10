@@ -2595,3 +2595,14 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 **Rollback:** set `PARAMETER num_ctx 4096` in both modelfiles, `ollama create iris`/`iris-kids` on GandalfAI.
 
 ---
+
+## S121 — Whole-Project Architectural Review (2026-06-10)
+
+**Status:** REPO-ONLY (review session — no deploys, no rebuilds, no flashes; one WoL packet sent to wake GandalfAI for inspection).
+
+**What was done:**
+- Full read-only review: Pi4 pipeline, GandalfAI inference, both Teensy firmwares, tooling, docs, VIGIL light pass. Live verification: Pi4 md5s all match HANDOFF baseline (RAM=SD), 0 journal errors/24h; GandalfAI live iris model verified correct (num_ctx 6144, 4 stops, calibration block).
+- Key findings (full list + evidence in `docs/handoffs_S121_review.md`): sysmap.json carries pre-S97 SWAPPED Teensy serials in 4 places (S63 outage repeat risk); watchtower auto-updates ALL GandalfAI containers incl. Kokoro/Whisper (S102-class risk); GandalfAI clone dirty at S115 (armed S49 failure); STOP doesn't halt streaming dispatch; TTS_MAX_CHARS backstop dead on streaming path; gesture MUTE broken (VOL_MIN clamp); RIGHT gesture unmapped end-to-end; TeensyBridge reader-thread death race.
+- **`docs/handoffs_S121_review.md`** — NEW. Six copy-pastable session prompts (prioritized: docs truth sweep → playback hardening → gesture/router fixes → GandalfAI hygiene → optional features) with model/effort guidance.
+
+**Live IRIS behavior: unchanged.**
