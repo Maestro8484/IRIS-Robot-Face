@@ -20,7 +20,26 @@ per session. Camera input for visual Q&A. Deep space sleep display at night.
 
 ## Demo
 
-> *(video + photos -- add when ready)*
+<!-- Once your YouTube video is live, replace the block below.
+     Steps:
+     1. Upload to YouTube.
+     2. In YouTube Studio, grab a thumbnail: right-click the thumbnail on the
+        video page and save as docs/demo_thumb.jpg (or any image in the repo).
+     3. Replace VIDEO_ID with your 11-character YouTube video ID.
+     4. Replace the img src path if you saved the thumbnail elsewhere.
+     5. Delete these comments.
+-->
+
+[![IRIS Demo](docs/demo_thumb.jpg)](https://www.youtube.com/watch?v=VIDEO_ID)
+
+> *Video coming soon. Subscribe: [@schm3116](https://youtube.com/@schm3116)*
+
+**What to expect in the demo:**
+- Wake from deep-space sleep display via "Hey Jarvis"
+- Snarky British LLM response with real-time emotion-driven face animation
+- Vision query ("what do you see?") — camera snapshot answered aloud
+- Gesture control (swipe to stop mid-sentence)
+- Kids mode switch via voice
 
 ---
 
@@ -80,9 +99,9 @@ switchable at runtime via serial command or web UI.
 | 3 | hazel | Web UI / EYE:3 |
 | 4 | blueFlame1 | Web UI / EYE:4 |
 | 5 | dragon | Web UI / EYE:5 |
-| 6 | bigBlue | Web UI / EYE:6 |
+| 6 | strikingBlue | Web UI / EYE:6 |
 
-> leopard and snake eye assets exist in `src/eyes/240x240/` but are not compiled into `src/config.h` eyeDefinitions. EYE:5 and EYE:6 are dragon and bigBlue respectively.
+> leopard and snake eye assets exist in `src/eyes/240x240/` but are not compiled into `src/config.h` eyeDefinitions. EYE:5 and EYE:6 are dragon and strikingBlue respectively.
 
 Eye parameters (pupil size, blink rate, gaze speed) adjust per detected
 emotion. Face tracking via Person Sensor is always active -- eyes follow the
@@ -242,7 +261,7 @@ python resources\eyes\240x240\genall.py src\eyes\240x240 resources\eyes\240x240
 ```
 
 After running `genall.py`, re-apply pupil reduction to nordicBlue, hazel,
-bigBlue (genall.py resets values from config.eye):
+strikingBlue (genall.py resets values from config.eye):
 ```powershell
 (Get-Content src\eyes\240x240\nordicBlue.h -Raw) `
   -replace '{ 0, 0, 0\.25, 0\.55 }','{ 0, 0, 0.21, 0.47 }' `
@@ -292,9 +311,9 @@ md5sum /home/pi/assistant.py /media/root-ro/home/pi/assistant.py
 - Session protection system established: Chat=planning, Code=implementation
 
 ### 2026-03-25
-- 9-eye system -- bigBlue (index 8) added
+- 9-eye system -- strikingBlue (index 6) added
 - All eyes unblocked for web UI direct selection
-- Pupil size reduced -15% (nordicBlue, hazel, bigBlue)
+- Pupil size reduced -15% (nordicBlue, hazel, strikingBlue)
 - ElevenLabs voice updated to custom "Snarky James Bond" (90eMKEeSf5nhJZMJeeVZ)
 - Web config panel live at http://192.168.1.200:5000
 

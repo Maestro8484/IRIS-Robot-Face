@@ -140,7 +140,7 @@
   .block-node-badge.pi4  { color: var(--accent-cyan);   border-color: var(--accent-cyan);   background: rgba(0,212,200,0.06); }
   .block-node-badge.gand { color: var(--accent-purple);  border-color: var(--accent-purple);  background: rgba(155,127,255,0.06); }
   .block-node-badge.t41  { color: var(--accent-amber);   border-color: var(--accent-amber);   background: rgba(245,166,35,0.06); }
-  .block-node-badge.pico { color: var(--accent-green);   border-color: var(--accent-green);   background: rgba(61,214,140,0.06); }
+  .block-node-badge.t40  { color: var(--accent-green);   border-color: var(--accent-green);   background: rgba(61,214,140,0.06); }
   .block-node-badge.sm   { color: var(--accent-blue);    border-color: var(--accent-blue);    background: rgba(74,158,255,0.06); }
 
   /* Block body */
@@ -355,8 +355,8 @@
 <div class="doc-header">
   <div class="doc-title">IRIS <span>//</span> System Map</div>
   <div class="doc-meta">
-    S50-planning · 2026-05-19<br>
-    Source: IRIS_ARCH.md · IRIS_CONFIG_MAP.md · servo_teensy/*.ino<br>
+    S121 · 2026-06-10<br>
+    Source: IRIS_ARCH.md · sysmap.json · SNAPSHOT_LATEST.md<br>
     sysmap.json is authoritative for machine lookup
   </div>
 </div>
@@ -407,12 +407,12 @@
         <td>Eye TFTs, mouth TFT, Person Sensor, sleep render</td>
       </tr>
       <tr>
-        <td><strong>Servo Pico</strong></td>
-        <td class="dim">standalone</td>
-        <td>Arduino/Pico</td>
-        <td class="dim">none — power toggle only</td>
+        <td><strong>Teensy 4.0</strong></td>
+        <td class="dim">/dev/ttyIRIS_SERVO</td>
+        <td>Arduino/Teensy</td>
+        <td class="dim">PlatformIO (user uploads)</td>
         <td>—</td>
-        <td>Pan/tilt servos, autonomous face tracking</td>
+        <td>Pan servo, PAJ7620U2 gesture, Person Sensor, USB-CDC to Pi4</td>
       </tr>
       <tr>
         <td><strong>NAS</strong></td>
@@ -457,7 +457,7 @@
     <div class="cols cols-2">
       <div>
         <div class="kv-row"><span class="kv-key">RECORD_SECONDS</span><span class="kv-val">10s</span></div>
-        <div class="kv-row"><span class="kv-key">SILENCE_SECS</span><span class="kv-val">1.5s</span><span class="kv-note">⟵ biggest latency knob, try 0.7s</span></div>
+        <div class="kv-row"><span class="kv-key">SILENCE_SECS</span><span class="kv-val">1.2s</span><span class="kv-note">deliberate — tuned S110/S115</span></div>
         <div class="kv-row"><span class="kv-key">SILENCE_RMS</span><span class="kv-val">300</span></div>
         <div class="kv-row"><span class="kv-key">SAMPLE_RATE</span><span class="kv-val">16000 Hz</span></div>
         <div class="kv-row"><span class="kv-key">CHANNELS</span><span class="kv-val">2</span><span class="kv-note">stereo required by wm8960</span></div>
@@ -521,21 +521,21 @@
         <div class="kv-row"><span class="kv-key">kids model</span><span class="kv-val">iris-kids</span></div>
         <div class="kv-row"><span class="kv-key">base</span><span class="kv-val">mistral-small3.2:24b</span></div>
         <div class="kv-row"><span class="kv-key">num_ctx</span><span class="kv-val">6144</span><span class="kv-note">unified text+vision (S119b)</span></div>
-        <div class="kv-row"><span class="kv-key">temp (adult)</span><span class="kv-val">0.82</span></div>
-        <div class="kv-row"><span class="kv-key">temp (kids)</span><span class="kv-val">0.90</span></div>
+        <div class="kv-row"><span class="kv-key">temp (adult)</span><span class="kv-val">0.75</span></div>
+        <div class="kv-row"><span class="kv-key">repeat_penalty</span><span class="kv-val">1.1</span></div>
         <div class="kv-row"><span class="kv-key">stop tokens</span><span class="kv-val">[INST] [/INST] &lt;/s&gt; User:</span></div>
       </div>
       <div>
-        <div class="kv-row"><span class="kv-key">NUM_PREDICT_SHORT</span><span class="kv-val">120</span><span class="kv-note">tokens</span></div>
-        <div class="kv-row"><span class="kv-key">NUM_PREDICT_MEDIUM</span><span class="kv-val">350</span></div>
-        <div class="kv-row"><span class="kv-key">NUM_PREDICT_LONG</span><span class="kv-val">700</span></div>
-        <div class="kv-row"><span class="kv-key">NUM_PREDICT_MAX</span><span class="kv-val">1200</span></div>
-        <div class="kv-row"><span class="kv-key">TTS_MAX_CHARS</span><span class="kv-val">900</span><span class="kv-note">char cap before TTS truncation</span></div>
-        <div class="kv-row"><span class="kv-key">VRAM used</span><span class="kv-val">~17 GB / 24 GB</span></div>
-        <div class="kv-row"><span class="kv-key">VRAM headroom</span><span class="kv-val">~7 GB</span></div>
+        <div class="kv-row"><span class="kv-key">NUM_PREDICT_SHORT</span><span class="kv-val">40</span><span class="kv-note">tokens ~9s</span></div>
+        <div class="kv-row"><span class="kv-key">NUM_PREDICT_MEDIUM</span><span class="kv-val">90</span><span class="kv-note">~21s</span></div>
+        <div class="kv-row"><span class="kv-key">NUM_PREDICT_LONG</span><span class="kv-val">180</span><span class="kv-note">~41s</span></div>
+        <div class="kv-row"><span class="kv-key">NUM_PREDICT_MAX</span><span class="kv-val">400</span><span class="kv-note">~92s — story/essay only</span></div>
+        <div class="kv-row"><span class="kv-key">TTS_MAX_CHARS</span><span class="kv-val">1500</span><span class="kv-note">~100s hard audio backstop</span></div>
+        <div class="kv-row"><span class="kv-key">VRAM used</span><span class="kv-val">~17 GB / 24 GB</span><span class="kv-note">15GB model + 2GB Kokoro</span></div>
+        <div class="kv-row"><span class="kv-key">tok/s (text)</span><span class="kv-val">~42</span><span class="kv-note">100% GPU, no offload</span></div>
       </div>
     </div>
-    <div class="callout" style="margin-top:7px;">VRAM env required on GandalfAI: OLLAMA_FLASH_ATTENTION=1 &nbsp;·&nbsp; OLLAMA_KV_CACHE_TYPE=q8_0</div>
+    <div class="callout" style="margin-top:7px;">VRAM env required on GandalfAI: OLLAMA_FLASH_ATTENTION=1 &nbsp;·&nbsp; OLLAMA_KV_CACHE_TYPE=q8_0 &nbsp;·&nbsp; OLLAMA_NUM_PARALLEL=1</div>
     <div class="callout red" style="margin-top:5px;">Drift check: ollama show iris --modelfile on GandalfAI. Compare SYSTEM block to repo. Check for PT-001 few-shot block. Three-way desync (SuperMaster / GitHub / GandalfAI) is a recurring hazard.</div>
     <div style="margin-top:6px;">
       <div class="kv-row"><span class="kv-key">modelfile (adult)</span><span class="kv-val">C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt</span></div>
@@ -560,6 +560,7 @@
         <div class="kv-row"><span class="kv-key">KOKORO_VOICE</span><span class="kv-val">bm_lewis</span></div>
         <div class="kv-row"><span class="kv-key">KOKORO_SPEED</span><span class="kv-val">1.0</span><span class="kv-note">hot-reload · try 1.15</span></div>
         <div class="kv-row"><span class="kv-key">KOKORO_ENABLED</span><span class="kv-val">true</span></div>
+        <div class="kv-row"><span class="kv-key">dispatch</span><span class="kv-val">per-sentence streaming</span><span class="kv-note">first audio on first sentence (S116)</span></div>
       </div>
       <div>
         <div class="kv-row"><span class="kv-key">fallback</span><span class="kv-val">Wyoming Piper (Docker)</span></div>
@@ -593,7 +594,7 @@
 <div class="flow-block">
   <div class="block-header">
     <div class="block-label">Emotion Tag → Hardware</div>
-    <div class="block-node-badge pi4">Pi4 → Teensy 4.1 via /dev/ttyACM0</div>
+    <div class="block-node-badge pi4">Pi4 → Teensy 4.1 via /dev/ttyIRIS_EYES</div>
   </div>
   <div class="block-body">
     <div class="callout blue" style="margin-bottom:7px;">LLM prepends [EMOTION:X] to every reply. Pi4 strips it, routes simultaneously to: eyes + mouth + LEDs. Serial owner: hardware/teensy_bridge.py ONLY. Everything else → UDP 127.0.0.1:10500</div>
@@ -620,7 +621,7 @@
         <div class="kv-row"><span class="kv-key">EYE:3</span><span class="kv-val">hazel</span></div>
         <div class="kv-row"><span class="kv-key">EYE:4</span><span class="kv-val">blueFlame1</span></div>
         <div class="kv-row"><span class="kv-key">EYE:5</span><span class="kv-val">dragon</span></div>
-        <div class="kv-row"><span class="kv-key">EYE:6</span><span class="kv-val">bigBlue</span></div>
+        <div class="kv-row"><span class="kv-key">EYE:6</span><span class="kv-val">strikingBlue</span></div>
         <div class="callout dim" style="margin-top:6px;">Eye movement suspended during TTS (S36). Person Sensor: face tracking always active.</div>
       </div>
     </div>
@@ -634,7 +635,7 @@
 <div class="flow-block">
   <div class="block-header">
     <div class="block-label">Teensy 4.1 Pin Map</div>
-    <div class="block-node-badge t41">USB COM7 · enclosure-mounted · no RESET/PROG access</div>
+    <div class="block-node-badge t41">USB COM7 · enclosure-mounted · no RESET/PROG access · firmware S101</div>
   </div>
   <div class="block-body">
     <div class="cols cols-2">
@@ -680,10 +681,10 @@
         <div class="kv-row"><span class="kv-key">FACE_COOLDOWN</span><span class="kv-val">30000 ms</span></div>
         <div class="kv-row"><span class="kv-key">ANGRY_EYE_DURATION</span><span class="kv-val">9000 ms</span></div>
         <div class="kv-row"><span class="kv-key">CONFUSED_EYE_DURATION</span><span class="kv-val">7000 ms</span></div>
-        <div class="kv-row"><span class="kv-key">SR_FRAME_MS (sleep)</span><span class="kv-val">150 ms</span></div>
+        <div class="kv-row"><span class="kv-key">SR_FRAME_MS (sleep)</span><span class="kv-val">155 ms</span></div>
         <div class="kv-row"><span class="kv-key">PS_SAMPLE_TIME_MS</span><span class="kv-val">70 ms</span></div>
         <div class="kv-row"><span class="kv-key">PS_CONF_THRESHOLD</span><span class="kv-val">60</span></div>
-        <div class="callout dim" style="margin-top:6px;">Free pins: 6,7,15-17,20-25,28-33,38-55. Pins 6/7 legacy MAX7219 removed.</div>
+        <div class="callout dim" style="margin-top:6px;">Free pins: 6,7,15-17,20-25,28-33,38-55. Pins 6/7 legacy MAX7219 removed. Bootloader reset: python3 -c "import serial,time; s=serial.Serial('/dev/ttyIRIS_EYES',134); time.sleep(0.5); s.close()"</div>
       </div>
     </div>
   </div>
@@ -691,35 +692,37 @@
 
 
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="phase-label"><span>05</span> Hardware — Servo Pico GPIO</div>
+<div class="phase-label"><span>05</span> Hardware — Teensy 4.0 (Base Mount)</div>
 
 <div class="flow-block">
   <div class="block-header">
-    <div class="block-label">Servo Pico Pin Map</div>
-    <div class="block-node-badge pico">Raspberry Pi Pico · standalone · power toggle only</div>
+    <div class="block-label">Teensy 4.0 Pin Map</div>
+    <div class="block-node-badge t40">/dev/ttyIRIS_SERVO · serial 12763490 · firmware S97</div>
   </div>
   <div class="block-body">
     <div class="cols cols-2">
       <div>
         <table>
           <tr><th>Pin</th><th>Signal</th><th>Device</th></tr>
-          <tr><td class="mono">0</td><td>PWM</td><td>Pan servo SG90</td></tr>
-          <tr><td class="mono">1</td><td>PWM</td><td>Tilt servo SG90</td></tr>
-          <tr><td class="mono">6</td><td>SDA</td><td>Person Sensor I2C 0x62</td></tr>
-          <tr><td class="mono">7</td><td>SCL</td><td>Person Sensor I2C 0x62</td></tr>
+          <tr><td class="mono">2</td><td>PWM</td><td>Miuzei DS3218MG pan servo (external 5V rail)</td></tr>
+          <tr><td class="mono">18</td><td>SDA</td><td>Person Sensor 0x62 + PAJ7620U2 0x73</td></tr>
+          <tr><td class="mono">19</td><td>SCL</td><td>Person Sensor 0x62 + PAJ7620U2 0x73</td></tr>
         </table>
+        <div class="callout dim" style="margin-top:6px;">Shared I2C bus. 4.7K external pullups on SDA+SCL. Servo 5V rail has enclosure toggle — cuts servo power only, Teensy stays live.</div>
       </div>
       <div>
-        <div class="kv-row"><span class="kv-key">PAN_SPEED</span><span class="kv-val">0.04</span></div>
-        <div class="kv-row"><span class="kv-key">TILT_SPEED</span><span class="kv-val">0.04</span></div>
-        <div class="kv-row"><span class="kv-key">PERSON_SENSOR_DELAY</span><span class="kv-val">50 ms</span></div>
-        <div class="kv-row"><span class="kv-key">servo range</span><span class="kv-val">0–180°</span><span class="kv-note">center 90°</span></div>
-        <div class="kv-row"><span class="kv-key">easing</span><span class="kv-val">EASE_CUBIC_OUT</span></div>
-        <div class="kv-row"><span class="kv-key">source</span><span class="kv-val">servo_teensy/*.ino</span></div>
+        <div class="kv-row"><span class="kv-key">PAN_MIN / MAX</span><span class="kv-val">65° / 115°</span><span class="kv-note">center 90°</span></div>
+        <div class="kv-row"><span class="kv-key">PAN_TRACK_SPEED</span><span class="kv-val">8.0 deg/s</span></div>
+        <div class="kv-row"><span class="kv-key">FACE_RETURN_MS</span><span class="kv-val">30000 ms</span></div>
+        <div class="kv-row"><span class="kv-key">GESTURE_DEBOUNCE_MS</span><span class="kv-val">400 ms</span><span class="kv-note">per-gesture</span></div>
+        <div class="kv-row"><span class="kv-key">GESTURE_COOLDOWN_MS</span><span class="kv-val">200 ms</span><span class="kv-note">global</span></div>
+        <div class="kv-row"><span class="kv-key">GESTURE_MOUNT_DEGREES</span><span class="kv-val">180</span><span class="kv-note">JST connector on left</span></div>
+        <div class="kv-row"><span class="kv-key">easing (track)</span><span class="kv-val">EASE_LINEAR</span></div>
+        <div class="kv-row"><span class="kv-key">easing (idle)</span><span class="kv-val">EASE_CUBIC_IN_OUT</span></div>
+        <div class="kv-row"><span class="kv-key">source</span><span class="kv-val">servo_teensy40/teensy40_base_mount/</span></div>
       </div>
     </div>
-    <div class="callout red" style="margin-top:7px;">INCONSISTENCY: IRIS_ARCH.md labels this board "Teensy 4.0" with servo on GPIO 3. Source file confirms Raspberry Pi Pico, pan GPIO 0, tilt GPIO 1. This table is authoritative. IRIS_ARCH.md needs correction (C1 docs task).</div>
-    <div class="callout dim" style="margin-top:5px;">No serial link to Pi4 or Teensy 4.1. No awareness of sleep/wake or TTS state. Power toggle on enclosure rear is the only runtime control.</div>
+    <div class="callout dim" style="margin-top:7px;">Gesture commands from T40 → Pi4 via USB-CDC serial: VOL+, VOL-, STOP, LISTEN, FORWARD, BACKWARD, CW, CCW. Handled by base_mount_bridge.py BaseMountBridge daemon thread. Actions configurable via iris_config.json GESTURE_MAP (web UI Gestures tab).</div>
   </div>
 </div>
 
@@ -742,13 +745,13 @@
           <tr><td class="mono">03:00 Sun</td><td class="mono">iris_backup.sh</td><td>NAS backup</td></tr>
         </table>
         <div class="kv-row" style="margin-top:5px;"><span class="kv-key">state flag</span><span class="kv-val">/tmp/iris_sleep_mode</span></div>
-        <div class="kv-row"><span class="kv-key">LED_SLEEP_PEAK</span><span class="kv-val">26</span><span class="kv-note">very dim — intentional</span></div>
-        <div class="kv-row"><span class="kv-key">LED_SLEEP_FLOOR</span><span class="kv-val">3</span></div>
+        <div class="kv-row"><span class="kv-key">LED_SLEEP_PEAK</span><span class="kv-val">8</span><span class="kv-note">very dim — intentional (S107)</span></div>
+        <div class="kv-row"><span class="kv-key">LED_SLEEP_FLOOR</span><span class="kv-val">1</span></div>
         <div class="kv-row"><span class="kv-key">LED_SLEEP_PERIOD</span><span class="kv-val">8.0s</span></div>
       </div>
       <div>
         <div class="kv-row"><span class="kv-key">MOUTH_INTENSITY_AWAKE</span><span class="kv-val">8</span></div>
-        <div class="kv-row"><span class="kv-key">MOUTH_INTENSITY_SLEEP</span><span class="kv-val">1</span></div>
+        <div class="kv-row"><span class="kv-key">MOUTH_INTENSITY_SLEEP</span><span class="kv-val">5</span><span class="kv-note">BL_MAP[5]=6% (S104 fix)</span></div>
         <div class="kv-row"><span class="kv-key">LED_IDLE_PEAK</span><span class="kv-val">65</span><span class="kv-note">cyan</span></div>
         <div class="kv-row"><span class="kv-key">LED_IDLE_PERIOD</span><span class="kv-val">5.0s</span></div>
         <div class="kv-row"><span class="kv-key">LED_KIDS_PEAK</span><span class="kv-val">62</span><span class="kv-note">yellow</span></div>
@@ -757,7 +760,7 @@
         <div class="kv-row"><span class="kv-key">WOL_BOOT_TIMEOUT</span><span class="kv-val">120s</span></div>
       </div>
     </div>
-    <div class="callout" style="margin-top:7px;">Wakeword stays active during sleep. hey_jarvis → WoL packet → ascending beep (660→880Hz) → wait for GandalfAI boot → resume pipeline.</div>
+    <div class="callout" style="margin-top:7px;">Wakeword stays active during sleep. hey_jarvis → WoL packet → time-of-day quip (pre-cached PCM, S110) → wait for GandalfAI boot → resume pipeline.</div>
   </div>
 </div>
 
@@ -817,6 +820,7 @@
     <div class="kv-row"><span class="kv-key">git pull first</span><span class="kv-val">cd C:\IRIS\IRIS-Robot-Face &amp;&amp; git pull origin main</span></div>
     <div class="kv-row"><span class="kv-key">start containers</span><span class="kv-val">docker compose -f C:\IRIS\docker\docker-compose.yml up -d</span></div>
     <div class="callout" style="margin-top:6px;">PowerShell ampersand rule: URLs with &amp; must NOT be handled inline in PS. Write Python script via sftp_write, execute via ssh_exec.</div>
+    <div class="callout red" style="margin-top:5px;">Clone drift hazard: C:\IRIS\IRIS-Robot-Face on GandalfAI may lag SuperMaster. Always git pull before ollama create. Verify HEAD matches origin/main.</div>
   </div>
 </div>
 
@@ -829,7 +833,7 @@
   </div>
   <div class="block-body">
     <div class="kv-row"><span class="kv-key">build</span><span class="kv-val">pio run</span><span class="kv-note">Claude runs this. User clicks upload.</span></div>
-    <div class="kv-row"><span class="kv-key">bootloader reset</span><span class="kv-val">python3 -c "import serial,time; s=serial.Serial('/dev/ttyACM0',134); time.sleep(0.5); s.close()"</span></div>
+    <div class="kv-row"><span class="kv-key">bootloader reset</span><span class="kv-val">python3 -c "import serial,time; s=serial.Serial('/dev/ttyIRIS_EYES',134); time.sleep(0.5); s.close()"</span></div>
     <div class="kv-row"><span class="kv-key">serial monitor</span><span class="kv-val">VS Code terminal on COM7</span><span class="kv-note">not PlatformIO monitor — locks port</span></div>
     <div class="callout red" style="margin-top:6px;">NEVER remote flash. NEVER transfer hex. NEVER run teensy_loader_cli. RESET/PROG not accessible.</div>
   </div>
@@ -849,7 +853,7 @@
         <div class="pin-group">SuperMaster</div>
         <div class="kv-row"><span class="kv-key">repo root</span><span class="kv-val" style="font-size:8.5px;">C:\Users\SuperMaster\Documents\PlatformIO\IRIS-Robot-Face</span></div>
         <div class="kv-row"><span class="kv-key">snapshot repo</span><span class="kv-val" style="font-size:8.5px;">C:\Users\SuperMaster\Documents\PlatformIO\iris-snapshot</span></div>
-        <div class="kv-row"><span class="kv-key">sysmap.json</span><span class="kv-val">docs/sysmap.json</span><span class="kv-note">gitignored · local only</span></div>
+        <div class="kv-row"><span class="kv-key">sysmap.json</span><span class="kv-val">docs/sysmap.json</span></div>
         <div class="pin-group">Pi4</div>
         <div class="kv-row"><span class="kv-key">home</span><span class="kv-val">/home/pi/</span></div>
         <div class="kv-row"><span class="kv-key">SD layer</span><span class="kv-val">/media/root-ro/home/pi/</span></div>
@@ -858,14 +862,15 @@
         <div class="kv-row"><span class="kv-key">intent log</span><span class="kv-val">/home/pi/logs/iris_intent.log</span></div>
         <div class="kv-row"><span class="kv-key">bench log</span><span class="kv-val">/home/pi/logs/iris_bench.jsonl</span></div>
         <div class="kv-row"><span class="kv-key">sleep flag</span><span class="kv-val">/tmp/iris_sleep_mode</span></div>
-        <div class="kv-row"><span class="kv-key">serial</span><span class="kv-val">/dev/ttyACM0</span><span class="kv-note">TeensyBridge only</span></div>
+        <div class="kv-row"><span class="kv-key">T41 serial</span><span class="kv-val">/dev/ttyIRIS_EYES</span><span class="kv-note">udev symlink, serial 13625440</span></div>
+        <div class="kv-row"><span class="kv-key">T40 serial</span><span class="kv-val">/dev/ttyIRIS_SERVO</span><span class="kv-note">udev symlink, serial 12763490</span></div>
       </div>
       <div>
         <div class="pin-group">GandalfAI</div>
         <div class="kv-row"><span class="kv-key">iris modelfile</span><span class="kv-val" style="font-size:8.5px;">C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt</span></div>
         <div class="kv-row"><span class="kv-key">kids modelfile</span><span class="kv-val" style="font-size:8.5px;">C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt</span></div>
         <div class="kv-row"><span class="kv-key">docker compose</span><span class="kv-val" style="font-size:8.5px;">C:\IRIS\docker\docker-compose.yml</span></div>
-        <div class="kv-row"><span class="kv-key">chatterbox voice</span><span class="kv-val" style="font-size:8.5px;">C:\IRIS\chatterbox\reference_audio\iris_voice.wav</span></div>
+        <div class="kv-row"><span class="kv-key">gandalf compose</span><span class="kv-val" style="font-size:8.5px;">C:\IRIS\docker\docker-compose.gandalf.yml</span></div>
         <div class="kv-row"><span class="kv-key">MCP scope</span><span class="kv-val">C:\Users\gandalf\</span><span class="kv-note">filesystem MCP limit</span></div>
         <div class="pin-group">Repo → Pi4 Mirror</div>
         <div class="kv-row"><span class="kv-key">pi4/ (repo)</span><span class="kv-val">↔ /home/pi/ (live)</span><span class="kv-note">1:1 mapping</span></div>
@@ -884,7 +889,7 @@
 
 <!-- FOOTNOTE -->
 <div class="footnote">
-  IRIS_SYSMAP_GUIDE.html · generated S50-planning · 2026-05-19 · for machine lookup use docs/sysmap.json · for current live status read SNAPSHOT_LATEST.md · for architectural reasoning read IRIS_ARCH.md
+  IRIS_SYSMAP_GUIDE.html · updated S121 · 2026-06-10 · for machine lookup use docs/sysmap.json · for current live status read SNAPSHOT_LATEST.md · for architectural reasoning read IRIS_ARCH.md
 </div>
 
 </body>

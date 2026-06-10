@@ -28,10 +28,11 @@ CHANGES:
 3. IRIS_ARCH.md — Key Constants block: same tier/LED values; GESTURE_SENSOR_REQUIRED is True; eye index 6 is strikingBlue not bigBlue (also fix pupil-table mention and repo-structure eye list; see src/config.h:56); GESTURE_MOUNT_DEGREES is 180 not 270 (paj7620.h:10); remove "num_predict 800" claim from the Ollama models section (not in modelfile); mark or trim the S23-era "System Status - Active Issues" table as historical.
 4. README.md — eye table says 6=bigBlue; firmware is strikingBlue. Fix.
 5. docs/iris_issue_log.md — close HW-004 (PAJ7620U2 replaced S82, gestures confirmed live S121).
-6. ROADMAP.md — remove RD-003 (verified S121: /home/pi/iris_sleep.log does not exist on live Pi4; only logs/iris_sleep.log remains).
-7. HANDOFF_CURRENT.md Proactive Flags — append: S98 VAD-tightening flag SUPERSEDED (SILENCE_SECS=1.2 deliberate per S110/S115); S120 CRLF drift flag also covers hardware/base_mount_bridge.py (CRLF-only, verified S121).
+6. HANDOFF_CURRENT.md Proactive Flags — append: S98 VAD-tightening flag SUPERSEDED (SILENCE_SECS=1.2 deliberate per S110/S115); S120 CRLF drift flag also covers hardware/base_mount_bridge.py (CRLF-only, verified S121).
 
-VERIFY: grep sysmap.json for 13625440 — appears only beside ttyIRIS_EYES/Teensy 4.1. Every constant edited matches its source file. git diff touches only the 6 docs listed.
+NOTE: RD-003 removal (iris_sleep.log duplicate) is deferred to Session 3 which has Pi4 SSH open. This session has NO SSH — do not act on any live Pi4 state claims.
+
+VERIFY: grep sysmap.json for 13625440 — appears only beside ttyIRIS_EYES/Teensy 4.1. Every constant edited matches its source file. git diff touches only the 5 docs listed.
 COMMIT: "S121 H-docs: sysmap serial fix + stale-constants sweep + tracker closures (REPO-ONLY)". Update CHANGELOG.md in the same session. Do not push.
 ```
 
@@ -77,7 +78,9 @@ FIX 1 — MUTE broken: set_volume() clamps to VOL_MIN=60, so base_mount_bridge M
 
 FIX 2 — RIGHT gesture dead: firmware emits "RIGHT"; neither default GESTURE_MAP (base_mount_bridge.py and iris_web.py copies) nor the web UI has a RIGHT key, so it dispatches SKIP. Docs say right-swipe = STOP. FIX: add "RIGHT": "STOP" to both default maps and expose RIGHT in the web Gestures tab. iris_config.json is PROTECTED — do not edit it; the user saves the mapping via web UI.
 
-FIX 3 — Router polish: in intent_router.py _layer0_reflex, prefix matches use bare startswith — "stopwatch timer" triggers REFLEX STOP. Use (norm == p or norm.startswith(p + " ")) for _STOP_STARTS/_SLEEP_STARTS/_WAKE_STARTS (assistant.py's main-loop STOP gate already does this — mirror it). Also: assistant.py ~line 728 hardcodes RMS 300, use SILENCE_RMS; handle_volume_command calls get_volume() (2 subprocesses) before any pattern check — move it after the first match; delete dead GESTURE_SENSOR_REQUIRED from core/config.py (grep-verified unused); fix play_pcm_speaking docstring (says 120ms/frame, code is 0.50s).
+FIX 3 — Router polish: in intent_router.py _layer0_reflex, prefix matches use bare startswith — "stopwatch timer" triggers REFLEX STOP. Use (norm == p or norm.startswith(p + " ")) for _STOP_STARTS/_SLEEP_STARTS/_WAKE_STARTS (assistant.py's main-loop STOP gate already does this — mirror it). Also: assistant.py ~line 728 hardcodes RMS 300, use SILENCE_RMS; handle_volume_command calls get_volume() (2 subprocesses) before any pattern check — move it after the first match; grep GESTURE_SENSOR_REQUIRED across pi4/ and core/ before deleting — confirm zero hits outside config.py itself, then delete; fix play_pcm_speaking docstring (says 120ms/frame, code is 0.50s).
+
+RD-003 CLOSURE: via SSH, run: ls /home/pi/iris_sleep.log. If the file does not exist, remove RD-003 from ROADMAP.md. If it does exist, leave RD-003 open and note the finding in HANDOFF_CURRENT.md.
 
 VERIFY: py_compile clean; deploy, restart assistant + iris-web, POST AUTHORIZED. CW gesture mutes to silence and second CW restores (amixer sget Speaker shows 0 then prior). Right swipe logs [GESTURE] gesture=RIGHT action=STOP. "stopwatch please" routes to LLM in iris_intent.log; "stop" still REFLEX/STOP. Persist all to /media/root-ro, md5 RAM=SD.
 COMMIT: "S12x: gesture MUTE/RIGHT fixes + router word-boundary polish (DEPLOYED+VERIFIED)". Update CHANGELOG.md and SNAPSHOT_LATEST.md.
@@ -90,16 +93,31 @@ COMMIT: "S12x: gesture MUTE/RIGHT fixes + router word-boundary polish (DEPLOYED+
 **Why:** the clone is armed to repeat the S49 deploy failure, and watchtower can
 silently break STT/TTS the same way Ollama auto-update broke vision twice (S102/S109).
 
+**PRE-FLIGHT (hard gate — do not start Part 1 until this passes):**
+On SuperMaster, run: `git rev-parse HEAD` and `git rev-parse origin/main`. Both must
+match. If they differ, push SuperMaster to GitHub first and confirm before proceeding.
+A clone reset against a stale origin will hard-reset GandalfAI to an older codebase.
+
+**SHELL NOTE:** sysmap.json records ssh_shell as PowerShell for GandalfAI. Fable's
+review noted cmd.exe behavior. Confirm the actual shell at session start by running a
+test command (`$PSVersionTable` for PowerShell, `ver` for cmd.exe) and adjust quoting
+accordingly. Compose `&&` chaining works in both; PowerShell-style variable expansion
+(`$env:`) does not work in cmd.exe.
+
 ```text
 TASK: GandalfAI maintenance: reset the stale dirty clone and scope watchtower away from the IRIS pipeline containers. I authorize DEPLOY on GandalfAI. No model rebuilds.
 
-READ FIRST: CLAUDE.md, SNAPSHOT_LATEST.md (first 50), IRIS_ARCH.md (GandalfAI sections + PowerShell ampersand rule). GandalfAI shell via ssh-gandalf is cmd.exe — no PowerShell cmdlets inline.
+READ FIRST: CLAUDE.md, SNAPSHOT_LATEST.md (first 50), IRIS_ARCH.md (GandalfAI sections + PowerShell ampersand rule).
 
-PART 1 — Clone reset: C:\IRIS\IRIS-Robot-Face is at S115 (1a6950b) with local uncommitted edits to both ollama modelfiles. S121 review verified those edits are functionally identical to canonical repo (trailing newline/CR only) and the LIVE iris/iris-kids models are already correct — so a hard reset is safe and NO ollama create is needed. Run: git fetch origin, git reset --hard origin/main (requires SuperMaster repo pushed to GitHub first — verify with the user that local main is pushed before resetting, otherwise the clone resets to an older origin). VERIFY: git status clean; git rev-parse HEAD matches origin/main; ollama show iris --modelfile still shows num_ctx 6144 and stop "User:" (models untouched).
+HARD GATE before any git operation: confirm git rev-parse HEAD == git rev-parse origin/main on SuperMaster (user must verify before this session runs — see pre-flight above).
 
-PART 2 — Watchtower scoping: docker inspect watchtower shows Args [--interval 300 --cleanup] with no label filtering — it auto-updates ALL containers including kokoro-tts, wyoming-whisper, wyoming-piper every 5 min check. This is the same failure class as the S102/S109 Ollama auto-update breakages. FIX: read C:\IRIS\docker\docker-compose.gandalf.yml and docker-compose.yml via sftp; add --label-enable to watchtower command and add the enable label ONLY to containers the user wants auto-updated (open-webui, watchtower itself); recreate the gandalf stack (docker compose -f C:\IRIS\docker\docker-compose.gandalf.yml up -d). VERIFY: docker inspect watchtower shows label-enable; curl http://localhost:8004/health healthy; ports 10300/10200 respond; docker ps shows all five containers up.
+SHELL DETECTION: run a probe command first to confirm PowerShell vs cmd.exe, then use correct quoting for the remainder of the session.
 
-ROLLBACK: git reflog on the clone for part 1; restore compose file backup (copy to C:\IRIS\backup\ before editing) for part 2.
+PART 1 — Clone reset: C:\IRIS\IRIS-Robot-Face is at S115 (1a6950b) with local uncommitted edits to both ollama modelfiles. S121 review verified those edits are functionally identical to canonical repo (trailing newline/CR only) and the LIVE iris/iris-kids models are already correct — so a hard reset is safe and NO ollama create is needed. Run: git fetch origin, git reset --hard origin/main. VERIFY: git status clean; git rev-parse HEAD matches origin/main; ollama show iris --modelfile still shows num_ctx 6144 and stop "User:" (models untouched).
+
+PART 2 — Watchtower scoping: docker inspect watchtower shows Args [--interval 300 --cleanup] with no label filtering — it auto-updates ALL containers including kokoro-tts, wyoming-whisper, wyoming-piper every 5 min check. This is the same failure class as the S102/S109 Ollama auto-update breakages. FIX: read C:\IRIS\docker\docker-compose.gandalf.yml and docker-compose.yml via sftp; copy both to C:\IRIS\backup\ before editing; add --label-enable to watchtower command and add the enable label ONLY to containers the user wants auto-updated (open-webui, watchtower itself); recreate the gandalf stack (docker compose -f C:\IRIS\docker\docker-compose.gandalf.yml up -d). VERIFY: docker inspect watchtower shows label-enable; curl http://localhost:8004/health healthy; ports 10300/10200 respond; docker ps shows all five containers up.
+
+ROLLBACK: git reflog on the clone for part 1; restore compose file backup from C:\IRIS\backup\ for part 2.
 Update CHANGELOG.md + SNAPSHOT_LATEST.md (GandalfAI row) + HANDOFF_CURRENT.md on SuperMaster repo and commit. Do not push unless I say so.
 ```
 
