@@ -1,5 +1,7 @@
 # Handoff — Vision Latency Fix (target: ~29 s → under ~8 s)
 
+> **SUPERSEDED by S119b.** The root cause (num_ctx mismatch forcing Ollama reload on text↔vision switch) was resolved in S119b by raising iris/iris-kids modelfile num_ctx to 6144 unified. Vision cold-after-text is now 2.4s (was 29s). This document is kept as historical reference only.
+
 **Created:** S118 (2026-06-09). **For:** next session. **Recommended model:** **Opus** (see "Why Opus" at the end).
 
 ---

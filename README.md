@@ -30,7 +30,7 @@ per session. Camera input for visual Q&A. Deep space sleep display at night.
 |---|---|
 | Wake word | `hey_jarvis` via OpenWakeWord |
 | Speech-to-text | Wyoming Whisper (GPU-accelerated, RTX 3090) |
-| LLM | Ollama `gemma3:27b-it-qat` -- fully local, no data leaves LAN |
+| LLM | Ollama `mistral-small3.2:24b` -- fully local, no data leaves LAN |
 | TTS | Kokoro (GandalfAI, local) → Piper fallback |
 | Eyes | Dual 1.28" round GC9A01A TFTs, 7 eye styles (EYE:0–6), Teensy 4.1 |
 | Mouth | ILI9341 2.8" TFT, 9 expressions + snore animation |
@@ -134,7 +134,7 @@ before TTS and uses it to simultaneously drive:
 
 ## LLM Models
 
-Two Ollama modelfiles in `/ollama/`, both running `gemma3:27b-it-qat`:
+Two Ollama modelfiles in `/ollama/`, both running `mistral-small3.2:24b`:
 
 **`iris` (adult mode)**
 Snarky British personality. Concise spoken answers, 3 sentences max, no
@@ -172,7 +172,7 @@ hey_jarvis  (OpenWakeWord, port 10400)
   → Wake-on-LAN to GandalfAI if sleeping  (MAC: A4:BB:6D:CA:83:20)
   → Wyoming Whisper STT  (port 10300)
   → Person Sensor recognition  (background thread, cooldown 300s)
-  → Ollama gemma3:27b-it-qat  (port 11434) -- iris or iris-kids
+  → Ollama mistral-small3.2:24b  (port 11434) -- iris or iris-kids
   → Strip [EMOTION:X]  → drive eyes + mouth + LEDs simultaneously
   → Kokoro TTS (GandalfAI, port 8004)  /  Piper fallback (port 10200)
   → play_pcm() 3x gain → wm8960 HAT → PAM8403 → 2x 3W speakers

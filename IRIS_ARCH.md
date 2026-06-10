@@ -95,7 +95,7 @@ STT:
 Pi4 sends recorded audio to Wyoming Whisper on GandalfAI
 
 LLM:
-Pi4 streams prompt/context to Ollama on GandalfAI (`stream_ollama`, stream=True, think=False).
+Pi4 streams prompt/context to Ollama on GandalfAI (`stream_ollama`, stream=True).
 Tokens are buffered and split on sentence boundaries (.!?); the leading
 `[EMOTION:X]` tag is extracted from the first tokens, then each complete sentence
 is yielded cleaned (`clean_llm_reply`) and ready for TTS.
@@ -271,8 +271,8 @@ C:\IRIS\
 ```
 
 Ollama modelfiles (canonical in repo):
-- `ollama/iris_modelfile.txt` - adult IRIS persona (gemma3:27b-it-qat)
-- `ollama/iris-kids_modelfile.txt` - kids IRIS persona (gemma3:27b-it-qat)
+- `ollama/iris_modelfile.txt` - adult IRIS persona (mistral-small3.2:24b)
+- `ollama/iris-kids_modelfile.txt` - kids IRIS persona (mistral-small3.2:24b)
 
 HF cache: `C:\Users\gandalf\.cache\huggingface` - stays in user profile, intentionally not moved.
 
@@ -441,8 +441,8 @@ IRIS-Robot-Face/
       teensy40_base_mount.ino   -- orchestration: setup/loop (modules: paj7620.*, person_sensor.*, pan_servo.*, diag.h)
       platformio.ini            -- env:t40, board teensy40, monitor_speed 115200
   ollama/
-    iris_modelfile.txt          -- adult IRIS persona (gemma3:27b-it-qat) -- canonical
-    iris-kids_modelfile.txt     -- kids IRIS persona (gemma3:27b-it-qat) -- canonical
+    iris_modelfile.txt          -- adult IRIS persona (mistral-small3.2:24b) -- canonical
+    iris-kids_modelfile.txt     -- kids IRIS persona (mistral-small3.2:24b) -- canonical
 ```
 
 ---
@@ -536,12 +536,12 @@ ANGRY_EYE_DURATION_MS=9000 | CONFUSED_EYE_DURATION_MS=7000
 EYE_IDX_DEFAULT=0, ANGRY=1, CONFUSED=2, COUNT=7
 ```
 
-### Ollama models (as of S39)
+### Ollama models (as of S119b)
 
-- `iris:latest` - gemma3:27b-it-qat, num_predict 800, temperature 0.82, num_ctx 4096
-- `iris-kids:latest` - gemma3:27b-it-qat, num_predict 800, temperature 0.90, num_ctx 4096
-- Stop token: `<end_of_turn>` (gemma family)
-- VRAM: Kokoro ~2GB + gemma3:27b-it-qat ~14.1GB = ~16.1GB total. Headroom ~7.9GB on RTX 3090 (24GB).
+- `iris:latest` - mistral-small3.2:24b, num_predict 800, temperature 0.75, num_ctx 6144
+- `iris-kids:latest` - mistral-small3.2:24b, num_predict 800, temperature 0.75, num_ctx 6144
+- Stop tokens: `[INST]`, `[/INST]`, `</s>`, `User:` (Mistral/few-shot bleed protection)
+- VRAM: Kokoro ~2GB + mistral-small3.2:24b ~15GB = ~17GB total. Headroom ~7GB on RTX 3090 (24GB). 100% GPU.
 - GandalfAI env required: `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0` (set S39, machine-level).
 
 ---
@@ -678,12 +678,11 @@ curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris\",\"prompt\":\
 - WoL triggered from Pi4 via assistant.py before Ollama polling begins.
 
 ### GandalfAI - VRAM Pressure
-- Kokoro ~2GB + qwen2.5vl:32b-q4_K_M ~21GB = ~23GB baseline. RTX 3090 = 24GB. Headroom ~1GB estimated (VL base live S112).
-- iris/iris-kids model base is qwen2.5vl:32b-q4_K_M. Vision live as of S112.
-- OLLAMA_FLASH_ATTENTION=1 and OLLAMA_KV_CACHE_TYPE=q8_0 are required at 27b scale (set machine-level S39).
-- Chrome, Claude Desktop, and any vision model all consume additional VRAM.
-- Close Chrome and Claude Desktop during inference-heavy sessions — headroom is tight at ~2.2GB when models are warm.
-- Do not raise `num_ctx` above 4096.
+- Kokoro ~2GB + mistral-small3.2:24b ~15GB = ~17GB baseline. RTX 3090 = 24GB. Headroom ~7GB (S119b). 100% GPU.
+- iris/iris-kids model base is mistral-small3.2:24b (Pixtral vision baked in). num_ctx 6144 unified (text+vision).
+- OLLAMA_FLASH_ATTENTION=1 and OLLAMA_KV_CACHE_TYPE=q8_0 are required (set machine-level S39).
+- Chrome, Claude Desktop, and any other GPU app all consume additional VRAM.
+- Close Chrome and Claude Desktop during inference-heavy sessions.
 
 ### GandalfAI - PowerShell Ampersand Rule
 - String operations involving URLs containing `&` must NOT be done inline in PowerShell.
@@ -748,8 +747,7 @@ Claude may run `pio run`. User performs PlatformIO upload unless explicitly dire
 
 ### VRAM (GandalfAI)
 
-Kokoro ~2GB + qwen2.5vl:32b-q4_K_M ~21GB = ~23GB. RTX 3090 = 24GB. Headroom ~1GB estimated (VL base live S112).
-- Do not raise `num_ctx` above 4096.
+Kokoro ~2GB + mistral-small3.2:24b ~15GB = ~17GB. RTX 3090 = 24GB. Headroom ~7GB (S119b). 100% GPU.
 - Close Chrome and Claude Desktop during inference-heavy sessions.
 
 ---

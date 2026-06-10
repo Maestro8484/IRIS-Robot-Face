@@ -8,8 +8,8 @@ live models are built from these files.
 
 | File | Model name | Mode | Base model |
 |---|---|---|---|
-| `iris_modelfile.txt` | `iris` | Adult (default) | gemma3:27b-it-qat |
-| `iris-kids_modelfile.txt` | `iris-kids` | Kids mode | gemma3:27b-it-qat |
+| `iris_modelfile.txt` | `iris` | Adult (default) | mistral-small3.2:24b |
+| `iris-kids_modelfile.txt` | `iris-kids` | Kids mode | mistral-small3.2:24b |
 
 ## Rebuild (run on GandalfAI)
 
@@ -38,8 +38,7 @@ Always write the local repo copy first, then deploy to GandalfAI with explicit `
 
 ## VRAM notes
 
-- gemma3:27b-it-qat: ~14.1GB VRAM
+- mistral-small3.2:24b: ~15GB VRAM (num_ctx 6144, 100% GPU)
 - Kokoro TTS (Docker): ~1–2GB VRAM
-- Combined: ~16GB on RTX 3090 (24GB). Headroom ~8GB.
+- Combined: ~17GB on RTX 3090 (24GB). Headroom ~7GB.
 - Required GandalfAI env (set machine-level, S39): `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0`
-- Do not raise `num_ctx` above 4096.

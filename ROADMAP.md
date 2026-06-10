@@ -70,15 +70,15 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 
 **Status:** Open — low priority, post-Batch D
 
-**Problem:** Current inference settings (temperature, num_ctx, etc.) have not been reviewed since gemma3:27b-it-qat was adopted. Defaults may not be optimal for IRIS's conversational persona and latency targets.
+**Problem:** Inference settings (temperature, num_ctx, etc.) were set during the mistral-small3.2:24b migration (S119) and have not been fully validated for IRIS's conversational persona and latency targets at scale.
 
-**Goal:** Audit `ollama/iris_modelfile.txt` PARAMETER block. Validate temperature (currently 0.82), num_ctx (currently ≤ 4096 per VRAM constraint), and any other relevant parameters. Adjust and rebuild iris model if warranted.
+**Goal:** Audit `ollama/iris_modelfile.txt` PARAMETER block. Validate temperature (currently 0.75), num_ctx (currently 6144), top_p, repeat_penalty, and any other relevant parameters. Adjust and rebuild iris model if warranted.
 
 **Impact:** May improve response quality, character consistency, or latency. Risk of regression if changes are not validated against real household use.
 
 **Risk:** Parameter changes require iris model rebuild on GandalfAI. A poorly chosen temperature or context window can degrade persona quality or increase latency.
 
-**Deployment gate:** GandalfAI — requires explicit `DEPLOY`. Do not raise num_ctx above 4096 (VRAM constraint: Kokoro ~2GB + gemma3:27b-it-qat ~14.1GB = ~16.1GB of 24GB).
+**Deployment gate:** GandalfAI — requires explicit `DEPLOY`. Current VRAM: Kokoro ~2GB + mistral-small3.2:24b ~15GB = ~17GB of 24GB (headroom ~7GB at num_ctx 6144).
 
 **Rollback:** Revert `ollama/iris_modelfile.txt` to prior commit. Rebuild iris model on GandalfAI.
 

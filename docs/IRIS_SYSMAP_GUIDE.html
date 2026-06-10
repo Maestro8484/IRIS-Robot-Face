@@ -519,11 +519,11 @@
       <div>
         <div class="kv-row"><span class="kv-key">adult model</span><span class="kv-val">iris</span></div>
         <div class="kv-row"><span class="kv-key">kids model</span><span class="kv-val">iris-kids</span></div>
-        <div class="kv-row"><span class="kv-key">base</span><span class="kv-val">gemma3:27b-it-qat</span></div>
-        <div class="kv-row"><span class="kv-key">num_ctx</span><span class="kv-val">4096</span><span class="kv-note">hard max — do not raise</span></div>
+        <div class="kv-row"><span class="kv-key">base</span><span class="kv-val">mistral-small3.2:24b</span></div>
+        <div class="kv-row"><span class="kv-key">num_ctx</span><span class="kv-val">6144</span><span class="kv-note">unified text+vision (S119b)</span></div>
         <div class="kv-row"><span class="kv-key">temp (adult)</span><span class="kv-val">0.82</span></div>
         <div class="kv-row"><span class="kv-key">temp (kids)</span><span class="kv-val">0.90</span></div>
-        <div class="kv-row"><span class="kv-key">stop token</span><span class="kv-val">&lt;end_of_turn&gt;</span></div>
+        <div class="kv-row"><span class="kv-key">stop tokens</span><span class="kv-val">[INST] [/INST] &lt;/s&gt; User:</span></div>
       </div>
       <div>
         <div class="kv-row"><span class="kv-key">NUM_PREDICT_SHORT</span><span class="kv-val">120</span><span class="kv-note">tokens</span></div>
@@ -531,8 +531,8 @@
         <div class="kv-row"><span class="kv-key">NUM_PREDICT_LONG</span><span class="kv-val">700</span></div>
         <div class="kv-row"><span class="kv-key">NUM_PREDICT_MAX</span><span class="kv-val">1200</span></div>
         <div class="kv-row"><span class="kv-key">TTS_MAX_CHARS</span><span class="kv-val">900</span><span class="kv-note">char cap before TTS truncation</span></div>
-        <div class="kv-row"><span class="kv-key">VRAM used</span><span class="kv-val">~16.1 GB / 24 GB</span></div>
-        <div class="kv-row"><span class="kv-key">VRAM headroom</span><span class="kv-val">~7.9 GB</span></div>
+        <div class="kv-row"><span class="kv-key">VRAM used</span><span class="kv-val">~17 GB / 24 GB</span></div>
+        <div class="kv-row"><span class="kv-key">VRAM headroom</span><span class="kv-val">~7 GB</span></div>
       </div>
     </div>
     <div class="callout" style="margin-top:7px;">VRAM env required on GandalfAI: OLLAMA_FLASH_ATTENTION=1 &nbsp;·&nbsp; OLLAMA_KV_CACHE_TYPE=q8_0</div>

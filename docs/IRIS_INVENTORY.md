@@ -27,7 +27,7 @@
 | iris-web (Flask) | Pi4 | 5000 | HTTP | systemd | Web UI at http://192.168.1.200:5000 |
 | cmd_listener | Pi4 | 10500 | UDP | in-process | Web UI + cron command bridge. Only path to Teensy for non-bridge code. |
 | wyoming-openwakeword | Pi4 | 10400 | TCP | subprocess | Launched by assistant.py. Restarts with assistant. |
-| ollama | GandalfAI | 11434 | HTTP | Windows service | Models: iris, iris-kids (gemma3:27b-it-qat) |
+| ollama | GandalfAI | 11434 | HTTP | Windows service | Models: iris, iris-kids (mistral-small3.2:24b) |
 | kokoro-tts | GandalfAI | 8004 | HTTP | Docker | Primary TTS. Does NOT auto-start on reboot. |
 | wyoming-whisper | GandalfAI | 10300 | TCP | Docker | STT: faster-whisper-large-v3-turbo |
 | wyoming-piper | GandalfAI | 10200 | TCP | Docker | TTS fallback: en_US-ryan-high |
@@ -182,12 +182,12 @@
 
 ## Ollama Models
 
-| Model | Base | num_ctx | temperature | Stop token |
+| Model | Base | num_ctx | temperature | Stop tokens |
 |---|---|---|---|---|
-| iris | gemma3:27b-it-qat | 4096 (hard max) | 0.82 | `<end_of_turn>` |
-| iris-kids | gemma3:27b-it-qat | 4096 (hard max) | 0.90 | `<end_of_turn>` |
+| iris | mistral-small3.2:24b | 6144 | 0.75 | `[INST]`, `[/INST]`, `</s>`, `User:` |
+| iris-kids | mistral-small3.2:24b | 6144 | 0.75 | `[INST]`, `[/INST]`, `</s>`, `User:` |
 
-> VRAM: Kokoro 2GB + model 14.1GB = 16.1GB of 24GB. Headroom 7.9GB.
+> VRAM: Kokoro 2GB + mistral-small3.2:24b 15GB = 17GB of 24GB. Headroom 7GB. 100% GPU (S119b).
 > Required env: `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0`
 > Drift check: `ollama show iris --modelfile` on GandalfAI. Compare SYSTEM block to repo. Check for PT-001 few-shot block.
 

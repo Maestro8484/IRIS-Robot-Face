@@ -284,9 +284,9 @@
         "gpu": "RTX 3090",
         "total_gb": 24,
         "kokoro_gb": 2,
-        "gemma3_27b_gb": 14.1,
-        "baseline_used_gb": 16.1,
-        "headroom_gb": 7.9,
+        "mistral_24b_gb": 15.0,
+        "baseline_used_gb": 17.0,
+        "headroom_gb": 7.0,
         "num_ctx_hard_limit": 6144,
         "env_required": {
           "OLLAMA_FLASH_ATTENTION": "1",
