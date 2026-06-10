@@ -2541,6 +2541,31 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 
 ---
 
+## S120 — Stale-Reference Sweep: Docs + Tools (2026-06-09)
+
+**Status:** REPO-ONLY (Batches 1+2 of 3)
+
+**Goal:** Remove all stale model references (qwen/gemma3/end_of_turn/think:False) from docs, JSON, and tool files. No behavior change.
+
+**Batch 1 — Docs/JSON:**
+- `IRIS_ARCH.md` — removed `think=False` from LLM pipeline description; updated 6 occurrences of modelfile/VRAM/model-spec sections from gemma3:27b-it-qat / qwen2.5vl / <end_of_turn> / num_ctx 4096 to mistral-small3.2:24b / [INST]+[/INST]+</s>+User: / num_ctx 6144 / ~17GB VRAM.
+- `docs/sysmap.json` — renamed `gemma3_27b_gb: 14.1` → `mistral_24b_gb: 15.0`; updated `baseline_used_gb` 16.1→17.0, `headroom_gb` 7.9→7.0.
+- `docs/IRIS_INVENTORY.md` — updated services table and Ollama models table (base, num_ctx, temperature, stop tokens, VRAM note).
+- `docs/IRIS_SYSMAP_GUIDE.html` — updated base, num_ctx note, stop tokens, VRAM used/headroom.
+- `README.md` — updated 3 gemma3:27b-it-qat references to mistral-small3.2:24b (feature table, LLM section, voice pipeline diagram).
+- `ROADMAP.md` (RD-005) — updated gemma3 model reference and VRAM constraint note to reflect mistral + 6144 headroom.
+- `ollama/README.md` — updated files table and VRAM notes section.
+- `docs/handoff_vision_latency.md` — added SUPERSEDED banner at top (resolved by S119b).
+
+**Batch 2 — Tools:**
+- `tools/iris_dashboard/app.py` — updated VRAM pressure troubleshooting note from gemma3:12b+Chatterbox to mistral-small3.2:24b+Kokoro.
+- `tools/persona_harness/run_harness.py` — updated stale qwen2.5vl comment on OLLAMA_TIMEOUT.
+- `tools/workbench/workbench.js` — removed `think: false` from both /api/generate calls (Mistral has no thinking mode; dead weight from S114).
+
+**Batch 3 (pending DEPLOY authorization):** Remove `think: False` from 4 Pi4 callers (assistant.py, services/vision.py, iris_web.py, iris_post.py) + refresh their stale qwen3.5 comments.
+
+---
+
 ## S119b — Unify iris num_ctx to 6144 (2026-06-09)
 
 **Status:** DEPLOYED + VERIFIED (user-approved follow-up to S119).

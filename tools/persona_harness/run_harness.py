@@ -42,7 +42,7 @@ from tts_client import kokoro_speak # noqa: E402
 # ── Ollama connection ─────────────────────────────────────────────────────────
 OLLAMA_HOST    = "192.168.1.3"
 OLLAMA_PORT    = 11434
-OLLAMA_TIMEOUT = 120  # seconds — qwen2.5vl:32b-q4_K_M is slow on first token
+OLLAMA_TIMEOUT = 120  # seconds — conservative; mistral-small3.2:24b first-token ~2-3s warm
 
 _DEFAULT_SCRIPT = os.path.join(_HERE, "turn_scripts", "starter.txt")
 _DEFAULT_OUTPUT = os.path.join(_HERE, "reports")

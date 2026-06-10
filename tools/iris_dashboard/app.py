@@ -361,7 +361,7 @@ body{background:var(--bg);color:var(--text);font-family:'Courier New',Menlo,Mona
       <span class="play-chevron">&#x203A;</span>
     </div>
     <div class="play-body">
-      <div class="note-box">VRAM pressure. gemma3:12b (~7GB) + Chatterbox (~4.5GB). Close any GPU apps on GandalfAI.</div>
+      <div class="note-box">VRAM pressure. mistral-small3.2:24b (~15GB) + Kokoro (~2GB) = ~17GB nominal. Close any GPU apps on GandalfAI.</div>
       <div class="step-row"><div class="step-num">1</div><div class="step-body"><strong>Check VRAM (GandalfAI PowerShell):</strong></div></div>
       <div class="cmd"><span class="cmd-text">nvidia-smi --query-gpu=memory.used,memory.free,memory.total --format=csv,noheader</span><button class="copy-btn" onclick="cp(this,'nvidia-smi --query-gpu=memory.used,memory.free,memory.total --format=csv,noheader')">copy</button></div>
       <div class="step-row"><div class="step-num">2</div><div class="step-body">Healthy: ~11-12GB used. <span class="flag">Bad: 23-24GB</span> — close browser/GUI apps on GandalfAI.</div></div>
