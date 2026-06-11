@@ -646,6 +646,10 @@ def api_post():
     return jsonify(ok=True, started=True)
 
 
+# NOTE: These defaults intentionally differ from hardware/base_mount_bridge._DEFAULT_GESTURE_MAP
+# (BACKWARD=SLEEP vs WAKE, CW=VOL+ vs MUTE, CCW=VOL- vs SKIP).
+# This map is used ONLY for web-UI display (GET /api/gesture_config).
+# Live runtime behavior is controlled exclusively by GESTURE_MAP in iris_config.json.
 _DEFAULT_GESTURE_MAP = {
     "VOL+":    "VOL+",
     "VOL-":    "VOL-",

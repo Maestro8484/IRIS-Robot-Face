@@ -79,15 +79,20 @@ def test_pass_outcome(quiet_post, all_checks_pass):
 
 
 def test_fail_outcome(quiet_post, all_checks_pass, monkeypatch):
+    # Only serial (ttyIRIS_EYES) and mic failures block startup (S104-era change).
+    # Fail l0_serial with its exact blocking check name so verdict == "FAIL".
     leds = FakeLeds()
-    monkeypatch.setattr(iris_post._POST, "l2_display", _stub_check("L2", "display", iris_post.FAIL))
+    monkeypatch.setattr(
+        iris_post._POST, "l0_serial",
+        _stub_check("L0", f"serial {iris_post.TEENSY_PORT}", iris_post.FAIL),
+    )
 
     result = iris_post.run_post(leds=leds, verbose=False)
 
     assert result["verdict"] == "FAIL"
     assert result["n_fail"] == 1
-    assert result["checks"][7]["layer"] == "L2"
-    assert result["checks"][7]["status"] == iris_post.FAIL
+    assert result["checks"][0]["layer"] == "L0"
+    assert result["checks"][0]["status"] == iris_post.FAIL
     assert iris_post._LED_FAIL in leds.writes
     assert leds.writes[-1] == iris_post._LED_FAIL
 
