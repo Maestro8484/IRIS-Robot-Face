@@ -244,14 +244,23 @@ class _POST:
 
     def l1_services(self):
         specs = [
-            (GANDALF,      KOKORO_PORT,   "Kokoro",        FAIL),
+            (GANDALF,      KOKORO_PORT,   "Kokoro",        WARN),   # non-blocking: Piper is fallback
             (GANDALF,      WHISPER_PORT,  "Whisper",       FAIL),
             (GANDALF,      PIPER_PORT,    "Piper",         WARN),
             ("127.0.0.1",  OWW_PORT,      "OpenWakeWord",  FAIL),
         ]
+        kokoro_ok = True
+        piper_ok  = True
         for host, port, name, on_fail in specs:
             ok = self.tcp_check(host, port)
             self.record("L1", f"{name} :{port}", PASS if ok else on_fail)
+            if name == "Kokoro":
+                kokoro_ok = ok
+            elif name == "Piper":
+                piper_ok = ok
+        if not kokoro_ok:
+            fallback = "Piper fallback active" if piper_ok else "Piper also down -- no TTS fallback"
+            self.log(f"[L1] TTS: Kokoro down -- {fallback}")
 
     def l1_models(self):
         try:

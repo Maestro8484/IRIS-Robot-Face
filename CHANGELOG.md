@@ -2774,3 +2774,41 @@ assistant.py=`db96f785b796b9a61bed0b591f6fe5d8`, audio_io.py=`035d43b6d7e623f959
 **Not covered by automated verification (needs a human in front of IRIS):** a real spoken follow-up through the mic (ask a question that ends in a question, answer with a LONG-tier "explain why…" — `record_followup` → STT → `_speak_llm_turn`), and a spoken "stop" mid-follow-up.
 
 **Rollback:** `git checkout 633f684 -- pi4/assistant.py pi4/services/llm.py`, redeploy both + persist, restart assistant.
+
+## S127 — GandalfAI Boot Self-Healing + Pi4 POST Kokoro Fallback Logging (2026-06-11)
+
+**Status:** DEPLOYED+VERIFIED
+
+**Goal:** Make GandalfAI reboot non-fragile: docker stacks auto-start without manual intervention; Pi4 POST logs explicit Kokoro-down/Piper-fallback message instead of silent degradation.
+
+### Part 1 — GandalfAI IRIS_DockerAutoStart scheduled task
+
+**Problem:** Docker Desktop auto-starts on logon (HKCU Run key, confirmed present), but both IRIS compose stacks (`docker-compose.yml` and `docker-compose.gandalf.yml`) require `docker compose up -d` to be run manually after each GandalfAI reboot. Containers have `restart: unless-stopped` but are stopped by `docker compose down` between sessions.
+
+**Changes:**
+- `C:\IRIS\iris_docker_autostart.ps1` (new, GandalfAI) — polls `docker info` every 10s (up to 3 min) until Docker engine ready, then runs both compose stacks. Logs to `C:\IRIS\logs\iris_docker_autostart.log`.
+- Windows Scheduled Task `\IRIS_DockerAutoStart` created via `schtasks`: trigger=AtLogon(gandalf), run-as=gandalf, RunLevel=Highest, action=`powershell.exe -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File C:\IRIS\iris_docker_autostart.ps1`.
+
+**Verified (manual `schtasks /run`):**
+- Task log: "Docker engine ready. Starting IRIS stacks..." → both stacks composed up in 3s.
+- `docker ps` after run: wyoming-whisper, kokoro-tts, wyoming-piper, open-webui, watchtower all Up.
+
+**Docker Desktop auto-start status:** CONFIRMED present in `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` — no change needed or made.
+
+### Part 2 — Pi4 iris_post.py Kokoro fallback logging
+
+**Problem:** When Kokoro is down, POST recorded a `FAIL` for it (misleading — IRIS degrades gracefully to Piper and boots anyway), and the summary contained no explicit "Kokoro down, Piper fallback active" message.
+
+**Changes:**
+- `pi4/iris_post.py` — `l1_services()`: Kokoro `on_fail` changed `FAIL → WARN` (non-blocking; Piper is fallback). After the service loop, if `kokoro_ok` is False, logs `[L1] TTS: Kokoro down -- Piper fallback active` (or `...Piper also down -- no TTS fallback` if both are down).
+
+**Deployed:** `/home/pi/iris_post.py` md5=`d42fe170b1e387e14d5941bc69a8cb4c` RAM=SD verified.
+
+**Verified (journal after assistant restart):**
+- `[L1] GandalfAI :11434 PASS`, `[L1] Kokoro :8004 PASS`, `[L1] Whisper :10300 PASS`, `[L1] Piper :10200 PASS`, `[L1] OpenWakeWord :10400 PASS` all named in journal.
+- POST result: **20/23 PASS, 3 WARN, 0 FAIL → AUTHORIZED**.
+
+**IRIS_ARCH.md:** GandalfAI reboot row updated FRAGILE → HARDENED S127; reboot checklist updated (manual step removed).
+
+**Rollback (task):** `schtasks /delete /tn "IRIS_DockerAutoStart" /f` on GandalfAI.
+**Rollback (post):** `git checkout HEAD -- pi4/iris_post.py`, redeploy + persist.

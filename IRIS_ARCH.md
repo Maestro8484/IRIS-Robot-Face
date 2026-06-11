@@ -224,13 +224,13 @@ GandalfAI personality/pipeline/model behavior.
 | Mouth TFT animation | **WORKING** - confirmed S29 | MOUTH:0-8 cycling during speech. BL on GPIO 5, web UI intensity control working. |
 | Sleep/wake cron (9PM/7:30AM) | Working but **REBOOT-FRAGILE** | Piper missing at /usr/local/bin/piper - sleep wakeword says nothing |
 | ALSA state on reboot | **HARDENED S23** | alsa-init.sh now sets all 6 critical switches explicitly |
-| GandalfAI reboot | **FRAGILE** | Kokoro docker must be started manually after reboot (`docker compose up -d`) |
+| GandalfAI reboot | **HARDENED S127** | Docker Desktop auto-starts on logon (HKCU Run). IRIS_DockerAutoStart schtask polls Docker engine then runs both compose stacks at logon. No manual action needed. |
 | Teensy flash (mouthSleepFrame) | **DONE** - confirmed by user, S27 | Firmware live on /dev/ttyIRIS_EYES (was /dev/ttyACM0 pre-S63 udev rules) |
 | Mouth smoke test | **DONE** - confirmed by user, S27 | MOUTH:0-8 via UDP 127.0.0.1:10500 confirmed |
 
 ### Reboot survival checklist
 On Pi4 reboot: alsa-init.sh runs automatically (hardened S23) - mic + speakers restore without manual intervention.
-On GandalfAI reboot: run `docker compose -f C:\IRIS\docker\docker-compose.yml up -d` manually - Kokoro does not auto-start.
+On GandalfAI reboot: IRIS_DockerAutoStart schtask fires at logon, polls Docker engine readiness, then runs both compose stacks automatically. Log at C:\IRIS\logs\iris_docker_autostart.log. (Hardened S127 — was manual.)
 On both rebooting simultaneously: GandalfAI must be up before assistant.py finishes boot or it will WoL-wait.
 
 ---
