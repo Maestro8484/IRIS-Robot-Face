@@ -426,7 +426,7 @@ IRIS-Robot-Face/
     services/tts.py             -- Kokoro->Piper routing (Chatterbox rollback only; ElevenLabs removed S20)
     services/stt.py             -- Wyoming Whisper STT (data_length payload parser)
     services/vision.py          -- camera capture + vision query
-    services/llm.py             -- stream_ollama(), ask_ollama(), emotion extraction, reply cleaning
+    services/llm.py             -- stream_ollama(), emotion extraction, reply cleaning (ask_ollama retired S126)
     services/wakeword.py        -- OWW + GPIO button handler
     hardware/audio_io.py        -- PCM playback, record, beep, interrupt detection
     hardware/led.py             -- APA102 driver

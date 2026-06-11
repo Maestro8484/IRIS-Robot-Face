@@ -6,7 +6,8 @@ extract_emotion_from_reply and clean_llm_reply are pure functions with no
 external dependencies -- safe to import anywhere.
 
 stream_ollama() streams sentence-boundary chunks from Ollama /api/chat.
-ask_ollama() is retained in assistant.py for the followup loop and vision path.
+assistant.py's _speak_llm_turn() drives it for both the main turn and the
+follow-up loop (the blocking ask_ollama() was retired in S126).
 """
 
 import json

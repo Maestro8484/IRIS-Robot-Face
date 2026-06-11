@@ -30,7 +30,7 @@ from hardware.audio_io import (
 from services.wyoming import wy_send, read_line
 from services.stt import transcribe
 from services.tts import synthesize, spoken_numbers
-from services.llm import extract_emotion_from_reply, clean_llm_reply, stream_ollama, classify_response_length
+from services.llm import stream_ollama, classify_response_length
 from services.vision import capture_image, is_vision_trigger, ask_vision
 from services.wakeword import wait_for_wakeword_or_button
 from state.state_manager import state
@@ -350,28 +350,203 @@ def _build_messages() -> list:
     return [date_inject] + list(state.conversation_history)
 
 
-def ask_ollama(text, num_predict=None):
+def _speak_llm_turn(text, num_predict, teensy, leds, pa, mic,
+                    bench_stages, t_mono_wake, gandalf_was_cold=False,
+                    stage_prefix=""):
     """
-    Blocking LLM query. Used for followup loop and vision path.
-    Returns (reply, emotion) tuple.
+    One streaming LLM turn, shared by the main turn and the follow-up loop:
+    stream_ollama() yields cleaned sentence chunks (emotion on the first); each
+    sentence is synthesized as it arrives and queued to a background
+    play_pcm_stream player that plays blobs back-to-back, so first audio starts
+    on the first sentence while later sentences are still being generated and
+    synthesized. STOP is checked per sentence dispatch, not just at end.
+
+    - Appends the user text to conversation history up front and the assistant
+      reply at the end (history trimmed at 20 messages) -- same contract the
+      blocking ask_ollama() had before it was retired (S126).
+    - synthesize() does Kokoro->Piper fallback internally; a sentence is
+      skipped (not fatal) if both engines fail.
+    - Cumulative TTS_MAX_CHARS cap across the whole utterance (S122).
+    - Producer owns the _stop_playback lifecycle: cleared at turn start and
+      turn end (play_pcm_stream never clears it -- see S122).
+    - Bench stages land in bench_stages; the caller owns _bench_write().
+      stage_prefix namespaces the journal [BENCH] stage names (follow-up turns
+      pass "fu_" so /api/bench's journal parser doesn't overwrite the main
+      turn's stages within the same wake cycle).
+    - mic is stopped when playback starts; the caller owns restarting it.
+    - _rpqr_state["t_last_spoke"] is stamped after playback drains.
+
+    Returns (reply, emotion, interrupted, ok). ok=False means the stream
+    failed before any audio started; the user message is already in history
+    and the caller decides recovery (error LED for the main turn, break for
+    the follow-up loop).
     """
+    _tier = {NUM_PREDICT_SHORT: "SHORT", NUM_PREDICT_MEDIUM: "MEDIUM",
+             NUM_PREDICT_LONG: "LONG", NUM_PREDICT_MAX: "MAX"}.get(num_predict, "CUSTOM")
+    print(f"[LLM]  Streaming... (model={get_model()}, num_predict={num_predict})", flush=True)
+    _t_llm0 = time.time()
+    _t_mono_llm0 = time.monotonic()
+    _t_mono_llm_first = _t_mono_llm0
+    _t_llm_first = _t_llm0
+    try:
+        bench_stages["tier"] = _tier
+        bench_stages["num_predict"] = num_predict
+        print(f"[BENCH] t={_t_llm0:.3f} stage={stage_prefix}llm_start tier={_tier} num_predict={num_predict} model={get_model()} gandalf_was_cold={str(gandalf_was_cold).lower()}", flush=True)
+    except Exception:
+        pass
     state.last_interaction = time.time()
     state.conversation_history.append({"role": "user", "content": text})
-    r = requests.post(
-        f"http://{GANDALF}:{OLLAMA_PORT}/api/chat",
-        json={"model": get_model(), "messages": _build_messages(),
-              "stream": False, "options": {"num_predict": num_predict if num_predict is not None else NUM_PREDICT}},
-        timeout=30
-    )
-    r.raise_for_status()
-    raw = r.json()["message"]["content"]
-    emotion, stripped = extract_emotion_from_reply(raw)
-    reply = clean_llm_reply(stripped)
-    print(f"[EYES] Emotion from LLM: {emotion}", flush=True)
+
+    reply_parts = []
+    _interrupted = False
+    _emotion_set = False
+    _current_emotion = "NEUTRAL"
+    _bench_first_chunk = True
+    _tts_first_done = False
+
+    _pcm_q = queue.Queue()
+    _player_thread = None
+    _player_result = {"interrupted": False}
+    # Shared with play_pcm_stream so the producer can observe the player's
+    # interrupt state directly -- _stop_playback alone raced: the player
+    # used to clear it on exit while the producer was still blocked in
+    # synthesize()/the LLM stream, so dispatch never saw the STOP.
+    _player_interrupted = threading.Event()
+    _tts_chars = 0  # cumulative chars dispatched to TTS this utterance
+
+    # Fresh turn: producer owns the _stop_playback lifecycle on the
+    # streaming path (play_pcm_stream no longer clears it). A STOP routed
+    # while idle would otherwise falsely abort this turn's first chunk.
+    _stop_playback.clear()
+
+    def _run_player(_emotion):
+        _player_result["interrupted"] = play_pcm_stream(
+            _pcm_q, pa, teensy, emotion=_emotion,
+            restore_mouth_idx=MOUTH_MAP.get(_emotion, 0),
+            interrupted=_player_interrupted)
+
+    try:
+        for chunk, chunk_emotion in stream_ollama(
+            _build_messages(), get_model(), num_predict
+        ):
+            # STOP checked per LLM chunk (UDP CMD, stop phrase, loud stop, button)
+            if _stop_playback.is_set() or _player_interrupted.is_set():
+                _interrupted = True
+                print("[STOP] Stop flag set mid-stream -- halting dispatch", flush=True)
+                break
+            # Cumulative TTS_MAX_CHARS backstop: per-sentence synthesis means
+            # _truncate_for_tts only caps each sentence, never the utterance.
+            # Once the budget is spent, stop dispatching AND stop consuming
+            # the LLM stream (break closes the generator -> HTTP stream).
+            if _tts_chars >= TTS_MAX_CHARS:
+                print(f"[TTS]  Utterance cap reached: {_tts_chars} chars dispatched >= TTS_MAX_CHARS={TTS_MAX_CHARS} -- halting stream", flush=True)
+                break
+            if chunk_emotion is not None and not _emotion_set:
+                emit_emotion(teensy, leds, chunk_emotion)
+                _current_emotion = chunk_emotion
+                _emotion_set = True
+            if _bench_first_chunk:
+                _t_llm_first = time.time()
+                _t_mono_llm_first = time.monotonic()
+                try:
+                    bench_stages["llm_first_token_ms"] = round((_t_mono_llm_first - _t_mono_llm0) * 1000)
+                    print(f"[BENCH] t={_t_llm_first:.3f} stage={stage_prefix}llm_first_chunk dur_ttfc={_t_llm_first-_t_llm0:.2f} llm_first_token_ms={bench_stages['llm_first_token_ms']}", flush=True)
+                except Exception:
+                    print(f"[BENCH] t={_t_llm_first:.3f} stage={stage_prefix}llm_first_chunk dur_ttfc={_t_llm_first-_t_llm0:.2f}", flush=True)
+                _bench_first_chunk = False
+            reply_parts.append(chunk)
+
+            # Synthesize this sentence. synthesize() does Kokoro->Piper
+            # fallback internally; it only raises if BOTH engines fail, in
+            # which case skip this sentence rather than killing the turn.
+            try:
+                _pcm = synthesize(chunk)
+            except Exception as _se:
+                print(f"[ERR]  TTS sentence skipped: {_se}", flush=True)
+                continue
+
+            # Re-check STOP after synthesize() -- it blocks ~1s+, which is
+            # exactly the window the old race lived in.
+            if _stop_playback.is_set() or _player_interrupted.is_set():
+                _interrupted = True
+                print("[STOP] Stop flag set post-synthesis -- halting dispatch", flush=True)
+                break
+
+            if not _tts_first_done:
+                _t_tts = time.time()
+                _t_mono_tts = time.monotonic()
+                try:
+                    bench_stages["tts_ms"] = round((_t_mono_tts - _t_mono_llm_first) * 1000)
+                    bench_stages["engine"] = "kokoro" if KOKORO_ENABLED else "piper"
+                    print(f"[BENCH] t={_t_tts:.3f} stage={stage_prefix}tts_first dur_tts={_t_tts-_t_llm_first:.2f} tts_ms={bench_stages['tts_ms']} engine={bench_stages['engine']}", flush=True)
+                except Exception:
+                    pass
+                _tts_first_done = True
+
+            # Start the player on the first synthesized sentence -- this is
+            # where first audio begins (perceived latency = play_start_ms).
+            if _player_thread is None:
+                leds.show_speaking(); mic.stop_stream()
+                teensy.send_command("EMOTION:NEUTRAL")
+                _t_mono_play = time.monotonic()
+                try:
+                    bench_stages["play_start_ms"] = round((_t_mono_play - t_mono_wake) * 1000)
+                    print(f"[BENCH] stage={stage_prefix}play_start play_start_ms={bench_stages['play_start_ms']} total_ms={bench_stages['play_start_ms']}", flush=True)
+                except Exception:
+                    pass
+                _player_thread = threading.Thread(
+                    target=_run_player, args=(_current_emotion,), daemon=True)
+                _player_thread.start()
+
+            _pcm_q.put(_pcm)
+            _tts_chars += len(chunk)
+    except Exception as e:
+        print(f"[ERR]  LLM stream: {e}", flush=True)
+        if _player_thread is not None:
+            _pcm_q.put(None)
+            _player_thread.join(timeout=30)
+            _interrupted = _player_result["interrupted"]
+        else:
+            return "", _current_emotion, False, False
+
+    if not _emotion_set:
+        emit_emotion(teensy, leds, "NEUTRAL")
+
+    reply = " ".join(reply_parts).strip()
+    print(f"[LLM]  '{reply}'", flush=True)
+    _t_llm1 = time.time()
+    _t_mono_llm1 = time.monotonic()
+    try:
+        bench_stages["llm_total_ms"] = round((_t_mono_llm1 - _t_mono_llm0) * 1000)
+        print(f"[BENCH] t={_t_llm1:.3f} stage={stage_prefix}llm_done dur_llm={_t_llm1-_t_llm0:.2f} llm_total_ms={bench_stages['llm_total_ms']} reply_chars={len(reply)}", flush=True)
+    except Exception:
+        print(f"[BENCH] t={_t_llm1:.3f} stage={stage_prefix}llm_done dur_llm={_t_llm1-_t_llm0:.2f} reply_chars={len(reply)}", flush=True)
+
+    # Signal end-of-stream and wait for overlapped playback to drain.
+    if _player_thread is not None:
+        _pcm_q.put(None)
+        _player_thread.join()
+        _interrupted = _player_result["interrupted"] or _interrupted
+    elif not reply:
+        print("[LLM]  Empty reply -- nothing to play", flush=True)
+
+    # Turn end: clear the stop flag here, not in play_pcm_stream, so a
+    # producer still mid-dispatch can never miss it.
+    _stop_playback.clear()
+
+    _rpqr_state["t_last_spoke"] = time.time()
+    try:
+        _t_audio = time.time()
+        print(f"[BENCH] t={_t_audio:.3f} stage={stage_prefix}audio_done dur_total={time.monotonic()-t_mono_wake:.2f}", flush=True)
+    except Exception:
+        pass
+    emit_emotion(teensy, leds, _current_emotion)
+
     state.conversation_history.append({"role": "assistant", "content": reply})
     if len(state.conversation_history) > 20:
         state.conversation_history.pop(0); state.conversation_history.pop(0)
-    return reply, emotion
+
+    return reply, _current_emotion, _interrupted, True
 
 
 # ── Follow-up ─────────────────────────────────────────────────────────────────
@@ -938,179 +1113,18 @@ def main():
                 # AMBIGUOUS/LLM falls through to LLM below
 
             # ── Streaming LLM → per-sentence TTS → overlapped playback ─────────
-            # stream_ollama() yields cleaned sentence chunks (emotion on the first).
-            # Each sentence is synthesized as it arrives and queued to a background
-            # player that plays blobs back-to-back, so first audio starts on the
-            # first sentence while later sentences are still being generated and
-            # synthesized. STOP is checked per sentence dispatch, not just at end.
+            # _speak_llm_turn() owns the whole turn: stream_ollama → per-sentence
+            # synthesize → background player, emotion on first chunk, STOP per
+            # sentence, history append + trim. See the helper docstring.
             _num_predict = classify_response_length(text)
-            _tier = {NUM_PREDICT_SHORT: "SHORT", NUM_PREDICT_MEDIUM: "MEDIUM",
-                     NUM_PREDICT_LONG: "LONG", NUM_PREDICT_MAX: "MAX"}.get(_num_predict, "CUSTOM")
-            print(f"[LLM]  Streaming... (model={get_model()}, num_predict={_num_predict})", flush=True)
-            _t_llm0 = time.time()
-            _t_mono_llm0 = time.monotonic()
-            _t_mono_llm_first = _t_mono_llm0
-            _t_llm_first = _t_llm0
-            try:
-                _bench_stages["tier"] = _tier
-                _bench_stages["num_predict"] = _num_predict
-                print(f"[BENCH] t={_t_llm0:.3f} stage=llm_start tier={_tier} num_predict={_num_predict} model={get_model()} gandalf_was_cold={str(_gandalf_was_cold).lower()}", flush=True)
-            except Exception:
-                pass
-            state.last_interaction = time.time()
-            state.conversation_history.append({"role": "user", "content": text})
-
-            reply_parts = []
-            _interrupted = False
-            _emotion_set = False
-            _current_emotion = "NEUTRAL"
-            _bench_first_chunk = True
-            _tts_first_done = False
-
-            _pcm_q = queue.Queue()
-            _player_thread = None
-            _player_result = {"interrupted": False}
-            # Shared with play_pcm_stream so the producer can observe the player's
-            # interrupt state directly -- _stop_playback alone raced: the player
-            # used to clear it on exit while the producer was still blocked in
-            # synthesize()/the LLM stream, so dispatch never saw the STOP.
-            _player_interrupted = threading.Event()
-            _tts_chars = 0  # cumulative chars dispatched to TTS this utterance
-
-            # Fresh turn: producer owns the _stop_playback lifecycle on the
-            # streaming path (play_pcm_stream no longer clears it). A STOP routed
-            # while idle would otherwise falsely abort this turn's first chunk.
-            _stop_playback.clear()
-
-            def _run_player(_emotion):
-                _player_result["interrupted"] = play_pcm_stream(
-                    _pcm_q, pa, teensy, emotion=_emotion,
-                    restore_mouth_idx=MOUTH_MAP.get(_emotion, 0),
-                    interrupted=_player_interrupted)
-
-            try:
-                for chunk, chunk_emotion in stream_ollama(
-                    _build_messages(), get_model(), _num_predict
-                ):
-                    # STOP checked per LLM chunk (UDP CMD, stop phrase, loud stop, button)
-                    if _stop_playback.is_set() or _player_interrupted.is_set():
-                        _interrupted = True
-                        print("[STOP] Stop flag set mid-stream -- halting dispatch", flush=True)
-                        break
-                    # Cumulative TTS_MAX_CHARS backstop: per-sentence synthesis means
-                    # _truncate_for_tts only caps each sentence, never the utterance.
-                    # Once the budget is spent, stop dispatching AND stop consuming
-                    # the LLM stream (break closes the generator -> HTTP stream).
-                    if _tts_chars >= TTS_MAX_CHARS:
-                        print(f"[TTS]  Utterance cap reached: {_tts_chars} chars dispatched >= TTS_MAX_CHARS={TTS_MAX_CHARS} -- halting stream", flush=True)
-                        break
-                    if chunk_emotion is not None and not _emotion_set:
-                        emit_emotion(teensy, leds, chunk_emotion)
-                        _current_emotion = chunk_emotion
-                        _emotion_set = True
-                    if _bench_first_chunk:
-                        _t_llm_first = time.time()
-                        _t_mono_llm_first = time.monotonic()
-                        try:
-                            _bench_stages["llm_first_token_ms"] = round((_t_mono_llm_first - _t_mono_llm0) * 1000)
-                            print(f"[BENCH] t={_t_llm_first:.3f} stage=llm_first_chunk dur_ttfc={_t_llm_first-_t_llm0:.2f} llm_first_token_ms={_bench_stages['llm_first_token_ms']}", flush=True)
-                        except Exception:
-                            print(f"[BENCH] t={_t_llm_first:.3f} stage=llm_first_chunk dur_ttfc={_t_llm_first-_t_llm0:.2f}", flush=True)
-                        _bench_first_chunk = False
-                    reply_parts.append(chunk)
-
-                    # Synthesize this sentence. synthesize() does Kokoro->Piper
-                    # fallback internally; it only raises if BOTH engines fail, in
-                    # which case skip this sentence rather than killing the turn.
-                    try:
-                        _pcm = synthesize(chunk)
-                    except Exception as _se:
-                        print(f"[ERR]  TTS sentence skipped: {_se}", flush=True)
-                        continue
-
-                    # Re-check STOP after synthesize() -- it blocks ~1s+, which is
-                    # exactly the window the old race lived in.
-                    if _stop_playback.is_set() or _player_interrupted.is_set():
-                        _interrupted = True
-                        print("[STOP] Stop flag set post-synthesis -- halting dispatch", flush=True)
-                        break
-
-                    if not _tts_first_done:
-                        _t_tts = time.time()
-                        _t_mono_tts = time.monotonic()
-                        try:
-                            _bench_stages["tts_ms"] = round((_t_mono_tts - _t_mono_llm_first) * 1000)
-                            _bench_stages["engine"] = "kokoro" if KOKORO_ENABLED else "piper"
-                            print(f"[BENCH] t={_t_tts:.3f} stage=tts_first dur_tts={_t_tts-_t_llm_first:.2f} tts_ms={_bench_stages['tts_ms']} engine={_bench_stages['engine']}", flush=True)
-                        except Exception:
-                            pass
-                        _tts_first_done = True
-
-                    # Start the player on the first synthesized sentence -- this is
-                    # where first audio begins (perceived latency = play_start_ms).
-                    if _player_thread is None:
-                        leds.show_speaking(); mic.stop_stream()
-                        teensy.send_command("EMOTION:NEUTRAL")
-                        _t_mono_play = time.monotonic()
-                        try:
-                            _bench_stages["play_start_ms"] = round((_t_mono_play - _t_mono_wake) * 1000)
-                            print(f"[BENCH] stage=play_start play_start_ms={_bench_stages['play_start_ms']} total_ms={_bench_stages['play_start_ms']}", flush=True)
-                        except Exception:
-                            pass
-                        _player_thread = threading.Thread(
-                            target=_run_player, args=(_current_emotion,), daemon=True)
-                        _player_thread.start()
-
-                    _pcm_q.put(_pcm)
-                    _tts_chars += len(chunk)
-            except Exception as e:
-                print(f"[ERR]  LLM stream: {e}", flush=True)
-                if _player_thread is not None:
-                    _pcm_q.put(None)
-                    _player_thread.join(timeout=30)
-                    _interrupted = _player_result["interrupted"]
-                else:
-                    leds.show_error(); time.sleep(1)
-                    show_idle_for_mode(leds); continue
-
-            if not _emotion_set:
-                emit_emotion(teensy, leds, "NEUTRAL")
-
-            reply = " ".join(reply_parts).strip()
-            print(f"[LLM]  '{reply}'", flush=True)
-            _t_llm1 = time.time()
-            _t_mono_llm1 = time.monotonic()
-            try:
-                _bench_stages["llm_total_ms"] = round((_t_mono_llm1 - _t_mono_llm0) * 1000)
-                print(f"[BENCH] t={_t_llm1:.3f} stage=llm_done dur_llm={_t_llm1-_t_llm0:.2f} llm_total_ms={_bench_stages['llm_total_ms']} reply_chars={len(reply)}", flush=True)
-            except Exception:
-                print(f"[BENCH] t={_t_llm1:.3f} stage=llm_done dur_llm={_t_llm1-_t_llm0:.2f} reply_chars={len(reply)}", flush=True)
-
-            # Signal end-of-stream and wait for overlapped playback to drain.
-            if _player_thread is not None:
-                _pcm_q.put(None)
-                _player_thread.join()
-                _interrupted = _player_result["interrupted"] or _interrupted
-            elif not reply:
-                print("[LLM]  Empty reply -- nothing to play", flush=True)
-
-            # Turn end: clear the stop flag here, not in play_pcm_stream, so a
-            # producer still mid-dispatch can never miss it.
-            _stop_playback.clear()
-
-            _rpqr_state["t_last_spoke"] = time.time()
+            reply, _current_emotion, _interrupted, _ok = _speak_llm_turn(
+                text, _num_predict, teensy, leds, pa, mic,
+                _bench_stages, _t_mono_wake, gandalf_was_cold=_gandalf_was_cold)
+            if not _ok:
+                leds.show_error(); time.sleep(1)
+                show_idle_for_mode(leds); continue
             _bench_interrupted = _interrupted
-            try:
-                _t_audio = time.time()
-                print(f"[BENCH] t={_t_audio:.3f} stage=audio_done dur_total={_t_audio-_t_wake:.2f}", flush=True)
-            except Exception:
-                pass
-            emit_emotion(teensy, leds, _current_emotion)
             _bench_write(_bench_stages, _bench_transcript, len(reply), get_model(), _gandalf_was_cold, _bench_route, _interrupted, emotion=_current_emotion)
-
-            state.conversation_history.append({"role": "assistant", "content": reply})
-            if len(state.conversation_history) > 20:
-                state.conversation_history.pop(0); state.conversation_history.pop(0)
 
             if button_pressed(): time.sleep(0.4)
 
@@ -1124,8 +1138,11 @@ def main():
                 rms = np.sqrt(np.mean(np.frombuffer(followup_audio, dtype=np.int16).astype(np.float32)**2))
                 if rms < 100: print("[FLWP] Silent", flush=True); break
                 leds.show_thinking(); print("[STT]  Transcribing follow-up...", flush=True)
+                _t_mono_fu0 = time.monotonic()
                 try: text = transcribe(followup_audio)
                 except Exception as e: print(f"[ERR]  STT follow-up: {e}", flush=True); break
+                # Per-follow-up-turn bench stages (caller-owned, like _bench_stages)
+                _fu_stages = {"stt_ms": round((time.monotonic() - _t_mono_fu0) * 1000)}
                 if not text: print("[FLWP] Empty transcript", flush=True); break
                 print(f"[STT]  '{text}'", flush=True)
                 _text_norm = text.lower().strip().strip(".!?,;:")
@@ -1143,26 +1160,32 @@ def main():
                        for phrase in FOLLOWUP_DISMISSALS):
                     print("[FLWP] Polite dismissal, ending follow-up", flush=True); break
                 time_reply = handle_time_command(text)
-                if time_reply is not None:
-                    reply = time_reply; emotion = "NEUTRAL"
+                vol_reply  = handle_volume_command(text) if time_reply is None else None
+                if time_reply is not None or vol_reply is not None:
+                    # Local fast-path: time/volume replies skip the LLM and play
+                    # as one pre-synthesized blob (no streaming needed).
+                    reply = time_reply if time_reply is not None else vol_reply
+                    emotion = "NEUTRAL"
+                    emit_emotion(teensy, leds, emotion)
+                    print("[TTS]  Synthesizing...", flush=True)
+                    try: pcm_data = synthesize(reply)
+                    except Exception as e: print(f"[ERR]  TTS follow-up: {e}", flush=True); break
+                    leds.show_speaking(); mic.stop_stream()
+                    _interrupted = play_pcm_speaking(pcm_data, pa, teensy, emotion=emotion,
+                                                     restore_mouth_idx=MOUTH_MAP.get(emotion, 0))
+                    _rpqr_state["t_last_spoke"] = time.time()
                 else:
-                    vol_reply = handle_volume_command(text)
-                    if vol_reply is not None:
-                        reply = vol_reply; emotion = "NEUTRAL"
-                    else:
-                        _followup_predict = classify_response_length(text)
-                        print(f"[LLM]  Thinking... (model={get_model()}, num_predict={_followup_predict})", flush=True)
-                        try: reply, emotion = ask_ollama(text, num_predict=_followup_predict)
-                        except Exception as e: print(f"[ERR]  LLM follow-up: {e}", flush=True); break
-                        print(f"[LLM]  '{reply}'", flush=True)
-                emit_emotion(teensy, leds, emotion)
-                print("[TTS]  Synthesizing...", flush=True)
-                try: pcm_data = synthesize(reply)
-                except Exception as e: print(f"[ERR]  TTS follow-up: {e}", flush=True); break
-                leds.show_speaking(); mic.stop_stream()
-                _interrupted = play_pcm_speaking(pcm_data, pa, teensy, emotion=emotion,
-                                                 restore_mouth_idx=MOUTH_MAP.get(emotion, 0))
-                _rpqr_state["t_last_spoke"] = time.time()
+                    # Streaming LLM follow-up: same pipeline as the main turn,
+                    # so first audio starts on the first sentence instead of
+                    # blocking for full generation + full synthesis (S126).
+                    _followup_predict = classify_response_length(text)
+                    reply, emotion, _interrupted, _fu_ok = _speak_llm_turn(
+                        text, _followup_predict, teensy, leds, pa, mic,
+                        _fu_stages, _t_mono_fu0, stage_prefix="fu_")
+                    if not _fu_ok:
+                        break
+                    _bench_write(_fu_stages, text, len(reply), get_model(),
+                                 False, "FOLLOWUP", _interrupted, emotion=emotion)
                 if button_pressed(): time.sleep(0.4)
                 if _interrupted:
                     print("[STOP] Playback interrupted mid-follow-up", flush=True); break

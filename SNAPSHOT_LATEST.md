@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S123 | **Date:** 2026-06-11 | **Branch:** `main` | **Last commit:** S123
+**Session:** S126 | **Date:** 2026-06-11 | **Branch:** `main` | **Last commit:** S126
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -25,7 +25,7 @@
 | GandalfAI 192.168.1.3 | **OPERATIONAL.** iris/iris-kids on **mistral-small3.2:24b** (S119, was qwen3.5:27b). Ollama **0.30.7**. arch=`mistral3`, 24.0B, caps include `vision` (Pixtral baked in, no mmproj). 15GB Q4, **100% GPU** confirmed (no CPU offload). **num_ctx 6144 unified (S119b)** so text+vision share one context — no reload. Text ~42 tok/s; vision cold-after-text **2.4s** (load 0.28s), warm 1.6s/0.3s first-token (vs 29s on qwen3.5). PT-001 15/20, persona-locked, no token bleed. Env (Machine scope): FLASH_ATTENTION=1, NUM_PARALLEL=1, KV_CACHE=q8_0. Kokoro TTS 8004 OK. **Clone `C:\IRIS\IRIS-Robot-Face` reset to S123/9a7f879 (S124, was S115/1a6950b + dirty modelfile edits).** **Watchtower scoped (S124):** `--label-enable` active; kokoro-tts, wyoming-whisper, wyoming-piper protected from auto-update; open-webui + watchtower labeled for auto-update. |
 | Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
-| TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). **Streaming dispatch live (S116):** main LLM replies synthesized per sentence and played overlapped. **Hardened S122:** STOP now halts producer dispatch within ~1 sentence (shared interrupt event); TTS_MAX_CHARS enforced cumulatively across the utterance. |
+| TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). **Streaming dispatch live (S116):** main LLM replies synthesized per sentence and played overlapped. **Hardened S122:** STOP now halts producer dispatch within ~1 sentence (shared interrupt event); TTS_MAX_CHARS enforced cumulatively across the utterance. **Unified S126:** follow-up turns use the same streaming pipeline via shared `_speak_llm_turn()` — first audio ~1.0–1.3 s after follow-up llm_start (was blocked for full generation + synthesis); follow-up turns now bench-logged (route=FOLLOWUP). |
 
 ---
 
@@ -57,7 +57,17 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S123 — 2026-06-11)
+## Last Session Changes (S126 — 2026-06-11)
+
+- **Follow-up loop unified onto the S116 streaming pipeline — DEPLOYED + VERIFIED (harness-level).** New shared `_speak_llm_turn()` in `pi4/assistant.py` drives BOTH the main turn and follow-up LLM turns: `stream_ollama` → per-sentence `synthesize` (Kokoro→Piper) → overlapped `play_pcm_stream`, emotion-on-first-chunk, STOP per chunk + post-synthesize, cumulative TTS_MAX_CHARS, producer-owned `_stop_playback`, history trim at 20, `t_last_spoke`. Follow-up answers now start speaking on the first sentence (~1.0–1.3 s after llm_start; previously blocked for full generation + full synthesis). Follow-up time/volume fast-paths and hallucination/dismissal/STOP gates unchanged.
+- **Follow-up turns now bench-logged:** journal `[BENCH]` stages `fu_`-prefixed (keeps `/api/bench` journal parser from overwriting main-turn stages within a wake cycle); `iris_bench.jsonl` gets a `route="FOLLOWUP"` record per turn with stt/llm/tts/play stages.
+- **Blocking `ask_ollama()` retired** (no callers left — vision uses `ask_vision()`); dead imports removed; `services/llm.py` docstring + `IRIS_ARCH.md` source map updated.
+- **Verified via live Pi4 harness on the deployed modules** (real stream_ollama + Kokoro + play_pcm_stream through the speaker): follow-up first audio 1250/1046 ms; STOP at t+3.0 s mid-MAX-story → dispatch halted at 3.21 s, stream abandoned; interrupt propagated player→producer→caller; JSONL FOLLOWUP records present. POST after restart: **20/23 PASS, 3 WARN, 0 FAIL → AUTHORIZED**, `[INFO] Ready.`
+- **Deployed (md5 RAM=SD):** assistant.py=`f48e258fdf86f3ef4c7bf4ceb5ca0bf0`, services/llm.py=`bc0e4bae31e616227840581a98adb7d4`.
+- **Pending human check:** real spoken follow-up through the mic + spoken "stop" mid-follow-up.
+- **Side-finding (pre-existing):** interrupt-listener STT substring-matches STOP_PHRASES — IRIS saying "…stops…" can self-interrupt when speaker bleed exceeds the detect threshold; bleed peaked 25733 > LOUD_STOP_THRESHOLD=25000 in harness conditions. See HANDOFF Proactive Flags.
+
+## Previous Session Changes (S123 — 2026-06-11)
 
 - **Gesture MUTE fixed — DEPLOYED + VERIFIED.** `set_volume()` clamped to VOL_MIN=60 so MUTE landed at ~47% and the `get_volume()==0` unmute branch was unreachable. Now: `set_volume(level, allow_zero=True)` bypasses the floor for MUTE only; bridge tracks `_muted` state explicitly and second CW restores `_mute_restore`. Live check on real ALSA: 123 → `Playback 0 [0%]` → restored 123.
 - **RIGHT gesture wired — DEPLOYED + VERIFIED.** Firmware emits `RIGHT` (right swipe) but no map had the key → SKIP. `"RIGHT": "STOP"` added to both default maps (bridge + iris_web); bridge `_load_gesture_map()` now merges stored config over defaults so RIGHT works with the existing stored GESTURE_MAP (iris_config.json untouched). Web Gestures tab has a RIGHT row; `/api/gesture_config` returns RIGHT:STOP. Physical-swipe log check pending human.

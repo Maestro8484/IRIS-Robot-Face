@@ -2748,3 +2748,29 @@ assistant.py=`db96f785b796b9a61bed0b591f6fe5d8`, audio_io.py=`035d43b6d7e623f959
 3. **`pi4/iris_web.py`** — added comment on `_DEFAULT_GESTURE_MAP` documenting that it intentionally differs from the bridge defaults (BACKWARD/CW/CCW) because it is used only for web-UI display; live runtime behavior is controlled exclusively by `iris_config.json`.
 
 **Result:** `python -m pytest tests/ -q` → 66 passed, 0 failures.
+
+## S126 — Follow-Up Loop Unified onto Streaming Pipeline (2026-06-11)
+
+**Status:** DEPLOYED + VERIFIED (harness-level on live Pi4 hardware; human voice loop check pending)
+
+**Goal:** Follow-up answers blocked for full LLM generation + full synthesis (blocking `ask_ollama()` → one `synthesize()` → one `play_pcm_speaking()`), while the main turn had streamed per-sentence since S116. Unify both onto one streaming path (Session 5 of the S121 review handoffs).
+
+**Changes:**
+- **`pi4/assistant.py`** — new module-level `_speak_llm_turn(text, num_predict, teensy, leds, pa, mic, bench_stages, t_mono_wake, gandalf_was_cold=False, stage_prefix="")`: owns the whole S116/S122 streaming turn — `stream_ollama` → per-sentence `synthesize` (Kokoro→Piper inside) → background `play_pcm_stream`; emotion-on-first-chunk; STOP checked per LLM chunk AND post-`synthesize()`; cumulative TTS_MAX_CHARS cap; producer-owned `_stop_playback` lifecycle; history append + trim at 20; `_rpqr_state["t_last_spoke"]`; bench stages written into the caller's dict. The main turn now calls it (code moved 1:1, not rewritten — behavior preserved). Follow-up LLM turns call it with `stage_prefix="fu_"` (journal `[BENCH]` stage names namespaced so `/api/bench`'s journal parser doesn't overwrite main-turn stages within a wake cycle) and a caller-side `_bench_write(route="FOLLOWUP")` — follow-up turns now appear in `iris_bench.jsonl` for the first time (with `stt_ms`). Follow-up time/volume fast-paths and hallucination/dismissal/STOP/dismissal gates unchanged (fast-paths still play via `play_pcm_speaking`). Blocking `ask_ollama()` retired (no remaining callers — the vision path uses `ask_vision()`); its now-dead `extract_emotion_from_reply`/`clean_llm_reply` imports removed.
+- **`pi4/services/llm.py`** — module docstring `ask_ollama` reference updated (comment-only).
+- **`IRIS_ARCH.md`** — `services/llm.py` source-map line updated.
+
+**Verified (live Pi4 harness on the deployed modules — real `stream_ollama` + real Kokoro + real `play_pcm_stream` through the speaker, assistant.service untouched; same pattern as S116/S122):**
+- Follow-up LONG turn ("explain why octopuses have three hearts", num_predict=180): `fu_llm_start` → first audio **1250 ms** (`llm_first_token_ms`=787, `tts_ms`=462, engine=kokoro). Second LONG turn: **1046 ms**. Within the 2–4 s target; the old blocking path on these replies waited `llm_total` (6.4 s) + full-utterance synthesis before any audio.
+- `iris_bench.jsonl` now records follow-up turns: `route="FOLLOWUP"` with stt_ms/tier/num_predict/llm_first_token_ms/tts_ms/engine/play_start_ms/llm_total_ms + emotion + interrupted.
+- STOP mid-stream on a follow-up (MAX-tier story, `_stop_playback` set at t+3.0 s): `[STOP] Stop flag set post-synthesis -- halting dispatch` → turn exited at **3.21 s**, LLM stream abandoned (reply truncated to 440 chars of a 400-token story).
+- Interrupt propagation player→producer→caller: turns where the player itself interrupted returned `interrupted=True` through the helper (follow-up loop break path).
+- POST after restart: **20/23 PASS, 3 WARN, 0 FAIL → AUTHORIZED**, `[LLM] Model warmed.`, `[INFO] Ready.`
+
+**Harness side-finding (pre-existing, NOT a regression — flagged in HANDOFF):** the playback interrupt listener's STT check matches STOP_PHRASES as *substrings* — it transcribed IRIS's own speaker bleed and `"...third heart stops beating"` matched `"stop"` → self-interrupt; bleed also peaked 25733 RMS > LOUD_STOP_THRESHOLD=25000. Observed under harness conditions (volume 123, no human present); production margin is thin.
+
+**Deploy:** both files pulled to Pi4 (LF-normalized), `py_compile` clean (local + Pi), installed to `/home/pi/`, persisted to `/media/root-ro`, **md5 RAM=SD**: assistant.py=`f48e258fdf86f3ef4c7bf4ceb5ca0bf0`, services/llm.py=`bc0e4bae31e616227840581a98adb7d4`. (Repo assistant.py remains CRLF — known drift; llm.py byte-matches.)
+
+**Not covered by automated verification (needs a human in front of IRIS):** a real spoken follow-up through the mic (ask a question that ends in a question, answer with a LONG-tier "explain why…" — `record_followup` → STT → `_speak_llm_turn`), and a spoken "stop" mid-follow-up.
+
+**Rollback:** `git checkout 633f684 -- pi4/assistant.py pi4/services/llm.py`, redeploy both + persist, restart assistant.
