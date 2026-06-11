@@ -2845,6 +2845,8 @@ could remain awake when woken later. Diagnosis: `docs/sleep_mode_diagnosis_S128.
   scheduled sleep against restarts/reboots that miss the 21:00 cron UDP.
 - `pi4/iris_sleep.py` — dead Piper goodnight replaced with an optional, network-free
   `/home/pi/sounds/goodnight.wav` aplay (skips silently if absent; no more nightly error).
+  Clip rendered via Kokoro (IRIS voice `bm_lewis`, 16-bit mono 24 kHz) + deployed to
+  `/home/pi/sounds/goodnight.wav` (md5 `6349193ebe4f99c42f01fd78e9364282`, RAM=SD verified).
 - `pi4/scripts/iris_cron_reference.txt` (new) — version-controls the `pi` user crontab
   sleep/wake/backup entries (previously only in the live crontab; confirmed SD-persisted).
 

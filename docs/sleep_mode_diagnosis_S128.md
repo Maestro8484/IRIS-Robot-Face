@@ -88,8 +88,11 @@ Repo hygiene:
 - iris_config.json `MOUTH_INTENSITY_SLEEP` 1->5 — live + SD (md5 RAM==SD).
 - assistant.py voice EYES_SLEEP/EYES_WAKE -> authoritative `_do_sleep`/`_do_wake`;
   startup sleep-state reconcile added — live + SD (md5 RAM==SD).
-- iris_sleep.py broken Piper goodnight -> optional /home/pi/sounds/goodnight.wav — live + SD.
+- iris_sleep.py broken Piper goodnight -> /home/pi/sounds/goodnight.wav — live + SD.
+  Clip rendered via Kokoro (IRIS voice, md5 6349193ebe4f99c42f01fd78e9364282, RAM==SD).
 - POST after restart: 20/23 PASS, 3 WARN, 0 FAIL -> AUTHORIZED.
 - Live functional test (10:57): EYES:SLEEP via CMD port -> `MOUTH_INTENSITY: 5` (was 1),
   `starfield starting`; EYES:WAKE -> `MOUTH_INTENSITY: 10`, displays restored.
+- Full cron-path test (11:13): `iris_sleep.py` -> `[SLEEP] Goodnight chime played` +
+  `MOUTH_INTENSITY: 5` + `starfield starting`; `iris_wake.py` -> displays restored, flag cleared.
 - Full 21:00 scheduled-sleep reconcile path exercises tonight (first live sleep window after deploy).

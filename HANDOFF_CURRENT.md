@@ -65,7 +65,7 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 *Cumulative. Append each session. Do not overwrite.*
 
-- **[S128]** Goodnight chime is now opt-in via `/home/pi/sounds/goodnight.wav` but the file does not yet exist (Kokoro/GandalfAI was asleep at deploy time). To restore a spoken goodnight: when GandalfAI is up, render "Goodnight." via Kokoro (8004) to 22050 Hz S16_LE mono WAV, save to `/home/pi/sounds/goodnight.wav`, persist to SD. Until then sleep proceeds silently (no error).
+- **[S128 — RESOLVED]** Goodnight chime deployed: `/home/pi/sounds/goodnight.wav` rendered via Kokoro (IRIS voice `bm_lewis`, 16-bit mono 24 kHz, md5 `6349193ebe4f99c42f01fd78e9364282`, RAM=SD verified). Full `iris_sleep.py` run confirmed `[SLEEP] Goodnight chime played`.
 - **[S128]** `in_sleep_window()` end hour is 8 but the wake cron fires at 07:30 → a 30-min window (07:30–08:00) where a wake-word quip immediately re-sleeps. Cosmetic; align `SLEEP_WINDOW_END_HOUR` to the wake cron (or vice-versa) if it ever annoys.
 
 - **[S118]** Vision requests are slow (~29 s) mostly because Ollama RELOADS iris each call: vision uses `num_ctx=6144`, text uses the 4096 default, and a ctx change forces a model reload (and the next text query reloads back to 4096). To eliminate the reloads, unify the context — either bump the iris/iris-kids modelfile `num_ctx` to 6144 (GandalfAI rebuild + slightly more KV-cache VRAM, watch the ~1 GB headroom) so text+vision share one context, or have the Pi4 text callers (`stream_ollama`, `ask_ollama`, warmup) also pass `num_ctx=6144`. Functional already; this is a latency optimization.
