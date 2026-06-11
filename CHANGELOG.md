@@ -2697,3 +2697,35 @@ assistant.py=`db96f785b796b9a61bed0b591f6fe5d8`, audio_io.py=`035d43b6d7e623f959
 **Not covered (needs a human at the sensor):** physical right swipe logging `[GESTURE] gesture=RIGHT action=STOP` and physical CW mute/unmute — the code path was exercised end-to-end short of the PAJ7620U2 serial event itself.
 
 **Rollback:** `git checkout a96fb1a -- pi4/assistant.py pi4/hardware/audio_io.py pi4/hardware/base_mount_bridge.py pi4/core/intent_router.py pi4/core/config.py pi4/iris_web.py pi4/iris_web.js pi4/iris_web.html`, redeploy all 8 + persist, restart assistant + iris-web.
+
+---
+
+## S124 — GandalfAI Hygiene: Clone Reset + Watchtower Scoping (2026-06-11)
+
+**Status:** DEPLOYED + VERIFIED
+
+**Goal:** Reset the stale dirty GandalfAI clone (was S115/1a6950b + uncommitted CR/LF modelfile edits) to canonical S123/9a7f879; scope watchtower away from IRIS pipeline containers (same failure class as S102/S109 Ollama auto-update breakages).
+
+**Part 1 — Clone reset (`C:\IRIS\IRIS-Robot-Face` on GandalfAI):**
+- Pre-flight confirmed SuperMaster HEAD == origin/main (9a7f879) before reset.
+- Shell probe: GandalfAI SSH shell is cmd.exe (not PowerShell).
+- `git fetch origin && git reset --hard origin/main` — advanced 1a6950b → 9a7f879. Uncommitted modelfile CR/LF edits discarded (S121 review confirmed trailing-whitespace-only, functionally identical to canonical).
+- Verified: `git status` clean; HEAD == origin/main (9a7f879); `ollama show iris --modelfile` shows `num_ctx 6144` and `stop User:` — live models untouched, no `ollama create` needed.
+
+**Part 2 — Watchtower scoping (`C:\IRIS\docker\docker-compose.gandalf.yml`):**
+- Problem: watchtower ran `--interval 300 --cleanup` with no label filtering — auto-updated ALL containers including kokoro-tts, wyoming-whisper, wyoming-piper every 5-min cycle. Same failure class as S102 (Ollama auto-update broke vision) and S109.
+- Backed up both compose files to `C:\IRIS\backup\` before editing.
+- Added `--label-enable` to watchtower command args.
+- Added `com.centurylinklabs.watchtower.enable: "true"` label to `open-webui` and `watchtower` only.
+- IRIS stack containers (kokoro-tts, wyoming-whisper, wyoming-piper) carry no label — protected from auto-update.
+- `docker compose -f C:\IRIS\docker\docker-compose.gandalf.yml up -d` — both containers recreated.
+
+**Verified:**
+- `docker inspect watchtower` Args: `[--interval 300 --cleanup --label-enable]`
+- `open-webui` label: `com.centurylinklabs.watchtower.enable=true`
+- `kokoro-tts` watchtower label: NOT FOUND (protected)
+- Kokoro health: `{"status":"healthy"}` (port 8004)
+- All 5 containers up: watchtower, open-webui, wyoming-whisper, kokoro-tts, wyoming-piper
+- Ports 10300 (Whisper), 10200 (Piper), 8004 (Kokoro) all bound
+
+**Rollback:** `copy C:\IRIS\backup\docker-compose.gandalf.yml.bak C:\IRIS\docker\docker-compose.gandalf.yml` then `docker compose -f C:\IRIS\docker\docker-compose.gandalf.yml up -d`. For clone: `git reset --hard 1a6950b` (no model impact).
