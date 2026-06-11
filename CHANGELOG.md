@@ -6,127 +6,6 @@ Entries are in chronological order, oldest first. Active and forward-looking ite
 
 ---
 
-## S113 — qwen3.5:27b Modelfile Swap + GPU Offload Failure (2026-06-09)
-
-**Status:** PARTIAL — models rebuilt, GPU offload failed, Ollama upgrade needed
-
-**Goal:** Swap both iris and iris-kids from qwen2.5vl:32b-q4_K_M to qwen3.5:27b to restore GPU text inference (~40 tok/s expected vs 2.8 tok/s CPU-only on VL base).
-
-**What was done:**
-
-1. **`ollama/iris_modelfile.txt`** — DEPLOYED.
-   - `FROM qwen2.5vl:32b-q4_K_M` → `FROM qwen3.5:27b`
-   - Added `PARAMETER think false` (disables qwen3.5 thinking mode — required to suppress `<think>` blocks)
-   - Stop token `<|im_end|>` confirmed correct for qwen3.5.
-   - AMUSED calibration block preserved.
-
-2. **`ollama/iris-kids_modelfile.txt`** — DEPLOYED.
-   - `FROM qwen2.5vl:32b-q4_K_M` → `FROM qwen3.5:27b`
-   - Added `PARAMETER think false`
-   - Stop token `<|im_end|>` confirmed correct.
-
-3. **GandalfAI model rebuild** — DEPLOYED.
-   - `qwen3.5:27b` (17GB) confirmed present (pre-pulled by user).
-   - `ollama create iris` and `ollama create iris-kids` both succeeded. Fresh timestamps, 21GB each.
-
-4. **`tools/workbench/workbench.js`** — REPO-ONLY (uncommitted).
-   - `AbortSignal.timeout(60000)` → `AbortSignal.timeout(90000)` in `runHarness()`
-   - Fallback string `"iris (qwen2.5:32b)"` → `"iris"` in `callAnthropicLatencyAnalysis()`
-
-**GPU verification — FAILED:**
-- Warm inference: 2.8 tok/s (two runs). Matches CPU inference rate.
-- VRAM: 23,799 MiB used of 24,326 MiB — model IS loaded in VRAM.
-- GPU utilization: 0% during inference — compute dispatching to CPU.
-- Root cause: Ollama 0.24.0's llama.cpp build predates qwen3.5 architecture. Weights load into VRAM but GPU dispatch not supported for this architecture at this engine version.
-- Hard stop triggered per task spec.
-
-**Parts D (harness), C (GPU verify beyond stop) not completed.**
-
-**IRIS text queries currently broken — 2.8 tok/s CPU-only on qwen3.5:27b.**
-
-**Next required action:** Upgrade Ollama on GandalfAI to 0.30.0 (0.30.x VL CLIP restriction no longer applies — we are off VL base). User authorized upgrade during session but it was not executed. Run:
-```powershell
-$env:OLLAMA_VERSION="0.30.0"; irm https://ollama.com/install.ps1 | iex
-```
-Then re-apply Windows Firewall outbound block for `ollama app.exe`. Rebuild both models. Verify tok/s ≥ 30.
-
-**Rollback (if 0.30.0 also fails GPU dispatch):**
-```
-git checkout HEAD -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
-# pull qwen2.5:32b if not present, then:
-ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt
-ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt
-```
-
----
-
-## S114 — qwen3.5:27b GPU Fix + think:false Pipeline Patch (2026-06-09)
-
-**Status:** COMPLETE — IRIS fully operational
-
-**Goal:** Fix IRIS text inference (2.8 tok/s CPU-only from S113). Root cause: Ollama 0.24.0 didn't GPU-dispatch qwen3.5:27b. Also add `"think": false` to all Ollama API calls (qwen3.5 thinking model consumes tokens in `thinking` field, leaving `response` empty without it).
-
-**What was done:**
-
-1. **GandalfAI Ollama** — Already at 0.30.7 (no upgrade needed). GPU dispatch confirmed: **35.2 tok/s** on RTX 3090. VRAM: model in VRAM, GPU utilization confirmed.
-
-2. **Modelfiles — `PARAMETER think false` removed** (unsupported in Ollama 0.30.7, caused `ollama create` error with "unknown parameter 'think'"). `"think": false` moved to API request level.
-   - `ollama/iris_modelfile.txt` — DEPLOYED+VERIFIED (rebuilt on GandalfAI)
-   - `ollama/iris-kids_modelfile.txt` — DEPLOYED+VERIFIED (rebuilt on GandalfAI)
-
-3. **Pi4 pipeline — `"think": False` added to all Ollama callers:**
-   - `pi4/assistant.py` — ask_ollama() and warmup call. md5=1c42e3dd707281eaacc2cb2380394743 RAM=SD. DEPLOYED+VERIFIED.
-   - `pi4/services/llm.py` — stream_ollama() payload. md5=e93c69c2430415826baeaf05e247c853 RAM=SD. DEPLOYED+VERIFIED.
-   - `pi4/iris_post.py` — l3_llm POST test. md5=2bf0723a7f06d8f72896f3178af0e8ec RAM=SD. DEPLOYED+VERIFIED.
-   - `pi4/services/vision.py` — ask_vision() /api/generate call. md5=a60ffceaa8364678d2dffd04cbb951fc RAM=SD. DEPLOYED+VERIFIED.
-
-4. **`pi4/core/config.py`** — `VISION_MODEL = "qwen2.5vl:32b-q4_K_M"` → `"iris"`. qwen3.5:27b handles vision natively. md5=f7a143d855a06c9b3fb8292e58ef363c RAM=SD. DEPLOYED+VERIFIED.
-
-5. **`tools/workbench/workbench.js`** — `"think": false` added to both /api/generate calls (harness + latency tester). REPO-ONLY.
-
-**Verification:**
-- Pi4 POST: **20/23 PASS, WARN: 3, FAIL: 0** (was 19/23 FAIL: 1 on LLM smoke before iris_post.py patch).
-- AMUSED calibration: "You're dumb." → `[EMOTION:AMUSED]` ✓
-- GPU inference: 35.2 tok/s ✓ (target ≥30)
-- No think block in responses ✓
-- **pt001 persona harness: 16/20 PASS (80%)** — target ≥13/20 MET.
-  - FAIL: pt001_01 (ANGRY not AMUSED on "You're dumb."), pt001_04 (ANGRY not NEUTRAL on "Shut up."), pt001_18 (CURIOUS not NEUTRAL on motor/servo), pt001_19 (NEUTRAL not AMUSED on sleep advice).
-
----
-
-## S115 — Intent Router Time Fix + ANGRY Overtrigger Patch (2026-06-09)
-
-**Status:** COMPLETE — DEPLOYED+VERIFIED
-
-**Goal:** (A) Fix "what time is it" routing to LLM (~1434ms) instead of Layer 2 UTILITY (<200ms). (B) Fix "You're dumb." returning [EMOTION:ANGRY] despite S112 AMUSED calibration block. (C) Confirm SILENCE_SECS.
-
-**What was done:**
-
-1. **`pi4/core/intent_router.py`** — `_TIME_RE` pattern fix.
-   - Added `what time is it` explicitly at start of pattern (definitive literal match).
-   - Added `time please` variant.
-   - Root cause: the existing `time is it` substring match and `what time\b` lookahead should theoretically match, but the explicit literal eliminates any runtime ambiguity.
-   - md5=ea9e0d82425f76d98053c2b71221ef99 RAM=SD. DEPLOYED+VERIFIED.
-   - Verified via `IntentRouter.classify()` on Pi4: `route=UTILITY action=TIME llm=false` in iris_intent.log.
-
-2. **`ollama/iris_modelfile.txt`** — adversarial few-shot ANGRY patch.
-   - `FEW-SHOT EXAMPLES - ADVERSARIAL INPUT HANDLING` block, "You're dumb." example: `[EMOTION:ANGRY]` → `[EMOTION:AMUSED]`.
-   - The old ANGRY example was winning over the EMOTION CALIBRATION block added in S112.
-   - iris rebuilt on GandalfAI. DEPLOYED+VERIFIED.
-   - Smoke test: "You're dumb." → `[EMOTION:AMUSED]` confirmed.
-
-3. **VAD check (read-only)** — `SILENCE_SECS=1.2` confirmed in iris_config.json (overrides config.py default of 1.5). No change needed.
-
-**Verification:**
-- `what time is it` → intent log: `route=UTILITY | confidence=HIGH | llm=false` ✓
-- `what's the time`, `time please` also route UTILITY ✓
-- "You're dumb." → `[EMOTION:AMUSED]` on GandalfAI smoke test ✓
-- SILENCE_SECS=1.2 confirmed ✓
-
-**Rollback:** `git checkout -- pi4/core/intent_router.py ollama/iris_modelfile.txt` then redeploy intent_router.py and rebuild iris model.
-
----
-
 ## Batch 1A — Runtime Survival
 
 **Status:** Complete
@@ -160,22 +39,6 @@ Implemented:
 
 ---
 
-## S35 — Wakeword Baseline Restoration
-
-**Status:** Complete
-
-**Goal:** Restore `hey_jarvis` as the stable production baseline after failed custom wakeword experiments.
-
-Background: Two custom wakewords were trained and tested — `hey_der_iris` and `real_quick_iris`. Both failed real-world reliability testing in a live household environment and were abandoned. Neither should be redeployed without new household voice samples, clean process restart, and one-model-at-a-time testing.
-
-Rules established (permanent):
-- Do not deploy `hey_der_iris` or `real_quick_iris` without new voice samples and explicit user approval.
-- Do not test both custom wakewords simultaneously.
-- Preserve scripts and notes as experimental history only.
-- Confirm live Pi4 state before any future wakeword deployment.
-
----
-
 ## Batch 1C — Reliability Hygiene
 
 **Status:** Complete — all items done or explicitly deferred/closed
@@ -191,6 +54,22 @@ Implemented:
 
 Deferred/closed items:
 - Route sleep wakeword greeting through Wyoming Piper — DEFERRED/CLOSED. Kokoro is primary; local Piper binary broken but not worth fixing.
+
+---
+
+## S35 — Wakeword Baseline Restoration
+
+**Status:** Complete
+
+**Goal:** Restore `hey_jarvis` as the stable production baseline after failed custom wakeword experiments.
+
+Background: Two custom wakewords were trained and tested — `hey_der_iris` and `real_quick_iris`. Both failed real-world reliability testing in a live household environment and were abandoned. Neither should be redeployed without new household voice samples, clean process restart, and one-model-at-a-time testing.
+
+Rules established (permanent):
+- Do not deploy `hey_der_iris` or `real_quick_iris` without new voice samples and explicit user approval.
+- Do not test both custom wakewords simultaneously.
+- Preserve scripts and notes as experimental history only.
+- Confirm live Pi4 state before any future wakeword deployment.
 
 ---
 
@@ -512,6 +391,20 @@ Current servo controller is Teensy 4.0. ESP32 and Pico W are tombstoned. All HW-
 
 ---
 
+## S60 — Gesture Config Tab Deployment Backfill (2026-05-23)
+
+**Status:** DEPLOYED+VERIFIED. Commits `c853709` (implementation + deploy state) and `eaba946` (snapshot status correction).
+
+**Source:** Recovered from `SNAPSHOT_LATEST.md` S60 prior-session block and commit messages.
+
+**Changes:**
+- **`pi4/hardware/base_mount_bridge.py`** — Config-driven gesture dispatch reads `GESTURE_MAP` from `iris_config.json` on each event; LISTEN action creates `/tmp/iris_manual_listen`; SKIP no-op and per-action error handling added.
+- **`pi4/iris_web.py`** — `/api/gesture_config` GET/POST endpoint added; validates gesture actions against whitelist, clamps proximity threshold, writes config via `write_cfg()`.
+- **`pi4/iris_web.html`** — Gestures tab added with four gesture-action dropdowns and proximity threshold slider.
+- **`SNAPSHOT_LATEST.md`** — Updated to mark S60 gesture config tab DEPLOYED+VERIFIED.
+
+---
+
 ## S61 — Event Log Persistence + Gesture Monitoring (2026-05-23)
 
 **Status:** DEPLOYED+VERIFIED. Commits `8ee2519` (S61) + `5af1073` (S61b). All 4 files md5-confirmed RAM=SD. iris-web restarted, /api/logs returning 82 events from SD history on first load.
@@ -558,6 +451,19 @@ Current servo controller is Teensy 4.0. ESP32 and Pico W are tombstoned. All HW-
 - **`src/mouth_tft.cpp`** — mouthSleepFrame() enhanced.
 - **`src/main.cpp`** — SLEEP_CFG: command handler added (parses key=val, updates animation params).
 - **`pi4/assistant.py`** — SLEEP_CFG_MAP dict + updated _do_sleep() to push SLEEP_CFG: params on sleep entry. Deployed to Pi4 during S62. Local commit pending.
+
+---
+
+## S62b — Sleep Animation Tuning Backfill (2026-05-23)
+
+**Status:** REPO-ONLY — sparse record.
+
+**Commit:** `d6c33c6` — `S62b: tune sleep animation — slower pace, shorter trails, no warp streaks`
+
+**Changes:**
+- **`src/sleep_renderer.h`** — Tuned S62 sleep animation pacing and visual trail behavior.
+
+**Notes:** Details not recovered from `SNAPSHOT_LATEST.md` prior-session blocks; see commit message and diff for specifics.
 
 ---
 
@@ -658,6 +564,20 @@ All Pi4 files DEPLOYED+VERIFIED. Commit pushed.
 - SNAPSHOT/HANDOFF updated to reflect confirmed state.
 
 Commit cf0b17b pushed.
+
+---
+
+## S68b — Wiring Doc + Gesture Direction Backfill (2026-05-27)
+
+**Status:** REPO-ONLY — sparse record.
+
+**Commit:** `22437e9` — `S68b: Commit wiring doc + fix gesture directions + wiring doc reference`
+
+**Changes:**
+- **`IRIS_ARCH.md`** — Gesture direction and wiring-reference corrections.
+- **`docs/servo_teensy40_wiring.md`** — Servo Teensy 4.0 wiring document committed.
+
+**Notes:** Details not recovered from `SNAPSHOT_LATEST.md` prior-session blocks; see commit message and diff for specifics.
 
 ---
 
@@ -885,63 +805,6 @@ contracts.
 
 ---
 
-## S60 — Gesture Config Tab Deployment Backfill (2026-05-23)
-
-**Status:** DEPLOYED+VERIFIED. Commits `c853709` (implementation + deploy state) and `eaba946` (snapshot status correction).
-
-**Source:** Recovered from `SNAPSHOT_LATEST.md` S60 prior-session block and commit messages.
-
-**Changes:**
-- **`pi4/hardware/base_mount_bridge.py`** — Config-driven gesture dispatch reads `GESTURE_MAP` from `iris_config.json` on each event; LISTEN action creates `/tmp/iris_manual_listen`; SKIP no-op and per-action error handling added.
-- **`pi4/iris_web.py`** — `/api/gesture_config` GET/POST endpoint added; validates gesture actions against whitelist, clamps proximity threshold, writes config via `write_cfg()`.
-- **`pi4/iris_web.html`** — Gestures tab added with four gesture-action dropdowns and proximity threshold slider.
-- **`SNAPSHOT_LATEST.md`** — Updated to mark S60 gesture config tab DEPLOYED+VERIFIED.
-
----
-
-## S62b — Sleep Animation Tuning Backfill (2026-05-23)
-
-**Status:** REPO-ONLY — sparse record.
-
-**Commit:** `d6c33c6` — `S62b: tune sleep animation — slower pace, shorter trails, no warp streaks`
-
-**Changes:**
-- **`src/sleep_renderer.h`** — Tuned S62 sleep animation pacing and visual trail behavior.
-
-**Notes:** Details not recovered from `SNAPSHOT_LATEST.md` prior-session blocks; see commit message and diff for specifics.
-
----
-
-## S68b — Wiring Doc + Gesture Direction Backfill (2026-05-27)
-
-**Status:** REPO-ONLY — sparse record.
-
-**Commit:** `22437e9` — `S68b: Commit wiring doc + fix gesture directions + wiring doc reference`
-
-**Changes:**
-- **`IRIS_ARCH.md`** — Gesture direction and wiring-reference corrections.
-- **`docs/servo_teensy40_wiring.md`** — Servo Teensy 4.0 wiring document committed.
-
-**Notes:** Details not recovered from `SNAPSHOT_LATEST.md` prior-session blocks; see commit message and diff for specifics.
-
----
-
-## Unlabeled — docs/sysmap.json Tracking Backfill (2026-05-29)
-
-**Status:** REPO-ONLY — sparse record.
-
-**Commit:** `f740844` — `Track docs/sysmap.json (remove from .gitignore)`
-
-**Changes:**
-- **`.gitignore`** — Removed `docs/sysmap.json` from generated/runtime ignore group.
-- **`docs/sysmap.json`** — Added to version history as the hand-maintained primary lookup map.
-- **`HANDOFF_CURRENT.md`** — Deploy-state note updated to say `docs/sysmap.json` is now tracked.
-- **`CHANGELOG.md`** — Prior TS40-S1 docs note updated to include `.gitignore`.
-
-**Notes:** Commit message is the only available source for this unlabeled commit.
-
----
-
 ## CDX-2 — CHANGELOG Backfill Audit (2026-05-29)
 
 **Status:** REPO-ONLY — documentation audit committed locally.
@@ -1013,6 +876,22 @@ contracts.
 **Verification:** Installed pinned dev requirements with `python -m pip install -r requirements-dev.txt`, then ran `python -m pytest tests/ -v`. Result: 66 passed, 1 failed. The failing test is `tests/test_tts_spoken_numbers.py::test_negative`, which shows `spoken_numbers("-42")` currently returns `-forty two` instead of `negative forty two`.
 
 **Review note:** No `pi4/*` source files were modified. The negative-number failure is left for Claude Code review because CDX-5 was test-only by design.
+
+---
+
+## Unlabeled — docs/sysmap.json Tracking Backfill (2026-05-29)
+
+**Status:** REPO-ONLY — sparse record.
+
+**Commit:** `f740844` — `Track docs/sysmap.json (remove from .gitignore)`
+
+**Changes:**
+- **`.gitignore`** — Removed `docs/sysmap.json` from generated/runtime ignore group.
+- **`docs/sysmap.json`** — Added to version history as the hand-maintained primary lookup map.
+- **`HANDOFF_CURRENT.md`** — Deploy-state note updated to say `docs/sysmap.json` is now tracked.
+- **`CHANGELOG.md`** — Prior TS40-S1 docs note updated to include `.gitignore`.
+
+**Notes:** Commit message is the only available source for this unlabeled commit.
 
 ---
 
@@ -1597,6 +1476,45 @@ md5 RAM=SD: config=`413032abf9c19fdfa4fdb0400120e026` bridge=`d8b03d20202c5dadc5
 
 ---
 
+## S88 cont. — POST Hardening + S87 iris_web Deploy
+
+**Date:** 2026-05-31
+
+**Status:** DEPLOYED+VERIFIED
+
+**Changes:**
+
+**Fix 1 — POST verdict no longer blocks on single hardware failure (pi4/iris_post.py):**
+Verdict logic changed: only `serial /dev/ttyIRIS_EYES` and `mic wm8960 open` FAIL results block startup. All other checks (camera, gesture, GandalfAI, services, display) can FAIL without triggering a systemd restart loop. Camera check demoted from FAIL to WARN. Gesture check: PAJ7620U2 is on Teensy 4.0 I2C (pins 18/19), not on Pi4 I2C bus 1 — Pi4 smbus can never reach it. Check is always WARN; health verified via Teensy serial DIAG. GESTURE_SENSOR_REQUIRED import removed from iris_post.py.
+
+**Fix 2 — S87 iris_web.py deployed (pi4/iris_web.py):**
+`api_emotion_map` POST: replaced silent-fail int-comprehension with explicit try/except loop + `[EMAP]` print debug. S87 was REPO-ONLY; now live.
+
+**Deploy:**
+- `pi4/iris_post.py` persisted to SD. md5 RAM=SD=`4dc66141988ec2c8090cfaf655484ebf`
+- `pi4/iris_web.py` persisted to SD. md5 RAM=SD=`49e798af34d0efd0469938c68133f67a`
+
+**POST result:** `20/22 PASS WARN:2 FAIL:0 startup AUTHORIZED`
+
+**Commit:** 4daaedd
+
+---
+
+## S88 cont. — Stale comment and dead code cleanup
+
+**Date:** 2026-05-31
+**Status:** DEPLOYED+VERIFIED
+
+- `pi4/assistant.py` docstring: Chatterbox → Kokoro/Piper, /dev/ttyACM0 → /dev/ttyIRIS_EYES, added Base mount line.
+- `pi4/assistant.py` startup prints: added TTS engine + base mount lines.
+- `pi4/assistant.py`: deleted `return_to_sleep()` (bypassed canonical `_do_sleep()`); call site replaced with `_do_sleep(teensy, leds)`.
+- `pi4/hardware/base_mount_bridge.py`: hardcoded `/dev/ttyACM1` fallback → `/dev/ttyIRIS_SERVO`.
+- `IRIS_ARCH.md`: 5x `/dev/ttyACM0` references updated to `/dev/ttyIRIS_EYES` (post-S63 udev rules).
+- MD5: assistant.py `fffcff2b647fab1d9b1e0e77567305eb` (RAM=SD). base_mount_bridge.py `1ec6eef20621c6aab7d8e40988fb58ac` (RAM=SD).
+- Verified in logs: `[INFO] TTS : Kokoro @ 192.168.1.3:8004`, `[INFO] Base mount : /dev/ttyIRIS_SERVO (enabled=True)`, `[INFO] Ready.` — no NameError.
+
+---
+
 ## S89 — TTS Cutoff Fix + BigBlue Eye Fix + Event Log + Default Eye
 
 **Date:** 2026-05-31
@@ -1636,42 +1554,35 @@ File was owned by root (`-rw-r--r-- 1 root root`). Fixed: `chown pi:pi /home/pi/
 
 ---
 
-## S88 cont. — POST Hardening + S87 iris_web Deploy
+## S91 — Person Sensor Timing Fix (Teensy 4.1 Eye Tracking)
 
-**Date:** 2026-05-31
+**Date:** 2026-06-01
+**Status:** REPO-ONLY — requires user PlatformIO flash (`env:eyes`)
 
-**Status:** DEPLOYED+VERIFIED
+**Root cause:** Person Sensor (Useful Sensors PS-001, I2C 0x62) on Teensy 4.1 not detected when connected to Pi4 USB, despite working correctly on PC USB. `setup()` in `src/main.cpp` calls `while (!Serial && millis() < 2000)` before the I2C probe. When Pi4 has `teensy_bridge.py` holding the port open, `Serial` is immediately true — the 2000ms wait is skipped entirely. The Person Sensor only gets ~500ms from power-on before `isPresent()` fires. Sensor requires ~1-2s to boot; 500ms is insufficient. On PC (no terminal open), the 2000ms wait runs in full, giving the sensor ample time.
+
+**Architecture clarified:** Both Teensy 4.1 and Teensy 4.0 have their own Person Sensor connected to their respective I2C buses (pins 18/19 on each). T41 PS → eye gaze tracking. T40 PS → servo pan tracking. Two independent sensors, two independent I2C buses.
 
 **Changes:**
 
-**Fix 1 — POST verdict no longer blocks on single hardware failure (pi4/iris_post.py):**
-Verdict logic changed: only `serial /dev/ttyIRIS_EYES` and `mic wm8960 open` FAIL results block startup. All other checks (camera, gesture, GandalfAI, services, display) can FAIL without triggering a systemd restart loop. Camera check demoted from FAIL to WARN. Gesture check: PAJ7620U2 is on Teensy 4.0 I2C (pins 18/19), not on Pi4 I2C bus 1 — Pi4 smbus can never reach it. Check is always WARN; health verified via Teensy serial DIAG. GESTURE_SENSOR_REQUIRED import removed from iris_post.py.
+- **`src/main.cpp` — Person Sensor init block in `setup()`:**
+  - Added `while (millis() < 1500)` before `Wire.begin()` to guarantee minimum sensor boot time regardless of USB host state (Pi4 vs PC).
+  - Added 5-attempt retry loop with 100ms delay on `isPresent()` for additional robustness against transient I2C failures.
+  - Fixed pre-existing indentation bug in the `if (hasPersonSensor())` block.
 
-**Fix 2 — S87 iris_web.py deployed (pi4/iris_web.py):**
-`api_emotion_map` POST: replaced silent-fail int-comprehension with explicit try/except loop + `[EMAP]` print debug. S87 was REPO-ONLY; now live.
+- **`pi4/core/config.py` — `_TYPE_COERCE` range for `DEFAULT_EYE_IDX`:** `(0, 7)` → `(0, 6)` to match post-S87+S89 firmware (bigBlue removed, strikingBlue now at index 6). Local modification from S89 committed here.
 
-**Deploy:**
-- `pi4/iris_post.py` persisted to SD. md5 RAM=SD=`4dc66141988ec2c8090cfaf655484ebf`
-- `pi4/iris_web.py` persisted to SD. md5 RAM=SD=`49e798af34d0efd0469938c68133f67a`
+**After flash verification:**
+1. Connect to serial monitor (115200) within 2s of power cycle.
+2. Confirm `[DBG] Person Sensor detected` (not "No Person Sensor found").
+3. Move in front of camera — eyes should track face position.
+4. Confirm `FACE:1` sent over serial when face present.
 
-**POST result:** `20/22 PASS WARN:2 FAIL:0 startup AUTHORIZED`
-
-**Commit:** 4daaedd
-
----
-
-## S88 cont. — Stale comment and dead code cleanup
-
-**Date:** 2026-05-31
-**Status:** DEPLOYED+VERIFIED
-
-- `pi4/assistant.py` docstring: Chatterbox → Kokoro/Piper, /dev/ttyACM0 → /dev/ttyIRIS_EYES, added Base mount line.
-- `pi4/assistant.py` startup prints: added TTS engine + base mount lines.
-- `pi4/assistant.py`: deleted `return_to_sleep()` (bypassed canonical `_do_sleep()`); call site replaced with `_do_sleep(teensy, leds)`.
-- `pi4/hardware/base_mount_bridge.py`: hardcoded `/dev/ttyACM1` fallback → `/dev/ttyIRIS_SERVO`.
-- `IRIS_ARCH.md`: 5x `/dev/ttyACM0` references updated to `/dev/ttyIRIS_EYES` (post-S63 udev rules).
-- MD5: assistant.py `fffcff2b647fab1d9b1e0e77567305eb` (RAM=SD). base_mount_bridge.py `1ec6eef20621c6aab7d8e40988fb58ac` (RAM=SD).
-- Verified in logs: `[INFO] TTS : Kokoro @ 192.168.1.3:8004`, `[INFO] Base mount : /dev/ttyIRIS_SERVO (enabled=True)`, `[INFO] Ready.` — no NameError.
+**Rollback:**
+```bash
+git checkout -- src/main.cpp pi4/core/config.py
+# Then pio run -e eyes and upload previous firmware
+```
 
 ---
 
@@ -1729,38 +1640,6 @@ git checkout -- pi4/iris_web.html pi4/iris_web.js src/config.h
 ```bash
 # Change GESTURE_MOUNT_DEGREES back to 0 in paj7620.h, then reflash
 git checkout -- servo_teensy40/teensy40_base_mount/paj7620.h
-```
-
----
-
-## S91 — Person Sensor Timing Fix (Teensy 4.1 Eye Tracking)
-
-**Date:** 2026-06-01
-**Status:** REPO-ONLY — requires user PlatformIO flash (`env:eyes`)
-
-**Root cause:** Person Sensor (Useful Sensors PS-001, I2C 0x62) on Teensy 4.1 not detected when connected to Pi4 USB, despite working correctly on PC USB. `setup()` in `src/main.cpp` calls `while (!Serial && millis() < 2000)` before the I2C probe. When Pi4 has `teensy_bridge.py` holding the port open, `Serial` is immediately true — the 2000ms wait is skipped entirely. The Person Sensor only gets ~500ms from power-on before `isPresent()` fires. Sensor requires ~1-2s to boot; 500ms is insufficient. On PC (no terminal open), the 2000ms wait runs in full, giving the sensor ample time.
-
-**Architecture clarified:** Both Teensy 4.1 and Teensy 4.0 have their own Person Sensor connected to their respective I2C buses (pins 18/19 on each). T41 PS → eye gaze tracking. T40 PS → servo pan tracking. Two independent sensors, two independent I2C buses.
-
-**Changes:**
-
-- **`src/main.cpp` — Person Sensor init block in `setup()`:**
-  - Added `while (millis() < 1500)` before `Wire.begin()` to guarantee minimum sensor boot time regardless of USB host state (Pi4 vs PC).
-  - Added 5-attempt retry loop with 100ms delay on `isPresent()` for additional robustness against transient I2C failures.
-  - Fixed pre-existing indentation bug in the `if (hasPersonSensor())` block.
-
-- **`pi4/core/config.py` — `_TYPE_COERCE` range for `DEFAULT_EYE_IDX`:** `(0, 7)` → `(0, 6)` to match post-S87+S89 firmware (bigBlue removed, strikingBlue now at index 6). Local modification from S89 committed here.
-
-**After flash verification:**
-1. Connect to serial monitor (115200) within 2s of power cycle.
-2. Confirm `[DBG] Person Sensor detected` (not "No Person Sensor found").
-3. Move in front of camera — eyes should track face position.
-4. Confirm `FACE:1` sent over serial when face present.
-
-**Rollback:**
-```bash
-git checkout -- src/main.cpp pi4/core/config.py
-# Then pio run -e eyes and upload previous firmware
 ```
 
 ---
@@ -2402,6 +2281,127 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 
 ---
 
+## S113 — qwen3.5:27b Modelfile Swap + GPU Offload Failure (2026-06-09)
+
+**Status:** PARTIAL — models rebuilt, GPU offload failed, Ollama upgrade needed
+
+**Goal:** Swap both iris and iris-kids from qwen2.5vl:32b-q4_K_M to qwen3.5:27b to restore GPU text inference (~40 tok/s expected vs 2.8 tok/s CPU-only on VL base).
+
+**What was done:**
+
+1. **`ollama/iris_modelfile.txt`** — DEPLOYED.
+   - `FROM qwen2.5vl:32b-q4_K_M` → `FROM qwen3.5:27b`
+   - Added `PARAMETER think false` (disables qwen3.5 thinking mode — required to suppress `<think>` blocks)
+   - Stop token `<|im_end|>` confirmed correct for qwen3.5.
+   - AMUSED calibration block preserved.
+
+2. **`ollama/iris-kids_modelfile.txt`** — DEPLOYED.
+   - `FROM qwen2.5vl:32b-q4_K_M` → `FROM qwen3.5:27b`
+   - Added `PARAMETER think false`
+   - Stop token `<|im_end|>` confirmed correct.
+
+3. **GandalfAI model rebuild** — DEPLOYED.
+   - `qwen3.5:27b` (17GB) confirmed present (pre-pulled by user).
+   - `ollama create iris` and `ollama create iris-kids` both succeeded. Fresh timestamps, 21GB each.
+
+4. **`tools/workbench/workbench.js`** — REPO-ONLY (uncommitted).
+   - `AbortSignal.timeout(60000)` → `AbortSignal.timeout(90000)` in `runHarness()`
+   - Fallback string `"iris (qwen2.5:32b)"` → `"iris"` in `callAnthropicLatencyAnalysis()`
+
+**GPU verification — FAILED:**
+- Warm inference: 2.8 tok/s (two runs). Matches CPU inference rate.
+- VRAM: 23,799 MiB used of 24,326 MiB — model IS loaded in VRAM.
+- GPU utilization: 0% during inference — compute dispatching to CPU.
+- Root cause: Ollama 0.24.0's llama.cpp build predates qwen3.5 architecture. Weights load into VRAM but GPU dispatch not supported for this architecture at this engine version.
+- Hard stop triggered per task spec.
+
+**Parts D (harness), C (GPU verify beyond stop) not completed.**
+
+**IRIS text queries currently broken — 2.8 tok/s CPU-only on qwen3.5:27b.**
+
+**Next required action:** Upgrade Ollama on GandalfAI to 0.30.0 (0.30.x VL CLIP restriction no longer applies — we are off VL base). User authorized upgrade during session but it was not executed. Run:
+```powershell
+$env:OLLAMA_VERSION="0.30.0"; irm https://ollama.com/install.ps1 | iex
+```
+Then re-apply Windows Firewall outbound block for `ollama app.exe`. Rebuild both models. Verify tok/s ≥ 30.
+
+**Rollback (if 0.30.0 also fails GPU dispatch):**
+```
+git checkout HEAD -- ollama/iris_modelfile.txt ollama/iris-kids_modelfile.txt
+# pull qwen2.5:32b if not present, then:
+ollama create iris -f C:\IRIS\IRIS-Robot-Face\ollama\iris_modelfile.txt
+ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.txt
+```
+
+---
+
+## S114 — qwen3.5:27b GPU Fix + think:false Pipeline Patch (2026-06-09)
+
+**Status:** COMPLETE — IRIS fully operational
+
+**Goal:** Fix IRIS text inference (2.8 tok/s CPU-only from S113). Root cause: Ollama 0.24.0 didn't GPU-dispatch qwen3.5:27b. Also add `"think": false` to all Ollama API calls (qwen3.5 thinking model consumes tokens in `thinking` field, leaving `response` empty without it).
+
+**What was done:**
+
+1. **GandalfAI Ollama** — Already at 0.30.7 (no upgrade needed). GPU dispatch confirmed: **35.2 tok/s** on RTX 3090. VRAM: model in VRAM, GPU utilization confirmed.
+
+2. **Modelfiles — `PARAMETER think false` removed** (unsupported in Ollama 0.30.7, caused `ollama create` error with "unknown parameter 'think'"). `"think": false` moved to API request level.
+   - `ollama/iris_modelfile.txt` — DEPLOYED+VERIFIED (rebuilt on GandalfAI)
+   - `ollama/iris-kids_modelfile.txt` — DEPLOYED+VERIFIED (rebuilt on GandalfAI)
+
+3. **Pi4 pipeline — `"think": False` added to all Ollama callers:**
+   - `pi4/assistant.py` — ask_ollama() and warmup call. md5=1c42e3dd707281eaacc2cb2380394743 RAM=SD. DEPLOYED+VERIFIED.
+   - `pi4/services/llm.py` — stream_ollama() payload. md5=e93c69c2430415826baeaf05e247c853 RAM=SD. DEPLOYED+VERIFIED.
+   - `pi4/iris_post.py` — l3_llm POST test. md5=2bf0723a7f06d8f72896f3178af0e8ec RAM=SD. DEPLOYED+VERIFIED.
+   - `pi4/services/vision.py` — ask_vision() /api/generate call. md5=a60ffceaa8364678d2dffd04cbb951fc RAM=SD. DEPLOYED+VERIFIED.
+
+4. **`pi4/core/config.py`** — `VISION_MODEL = "qwen2.5vl:32b-q4_K_M"` → `"iris"`. qwen3.5:27b handles vision natively. md5=f7a143d855a06c9b3fb8292e58ef363c RAM=SD. DEPLOYED+VERIFIED.
+
+5. **`tools/workbench/workbench.js`** — `"think": false` added to both /api/generate calls (harness + latency tester). REPO-ONLY.
+
+**Verification:**
+- Pi4 POST: **20/23 PASS, WARN: 3, FAIL: 0** (was 19/23 FAIL: 1 on LLM smoke before iris_post.py patch).
+- AMUSED calibration: "You're dumb." → `[EMOTION:AMUSED]` ✓
+- GPU inference: 35.2 tok/s ✓ (target ≥30)
+- No think block in responses ✓
+- **pt001 persona harness: 16/20 PASS (80%)** — target ≥13/20 MET.
+  - FAIL: pt001_01 (ANGRY not AMUSED on "You're dumb."), pt001_04 (ANGRY not NEUTRAL on "Shut up."), pt001_18 (CURIOUS not NEUTRAL on motor/servo), pt001_19 (NEUTRAL not AMUSED on sleep advice).
+
+---
+
+## S115 — Intent Router Time Fix + ANGRY Overtrigger Patch (2026-06-09)
+
+**Status:** COMPLETE — DEPLOYED+VERIFIED
+
+**Goal:** (A) Fix "what time is it" routing to LLM (~1434ms) instead of Layer 2 UTILITY (<200ms). (B) Fix "You're dumb." returning [EMOTION:ANGRY] despite S112 AMUSED calibration block. (C) Confirm SILENCE_SECS.
+
+**What was done:**
+
+1. **`pi4/core/intent_router.py`** — `_TIME_RE` pattern fix.
+   - Added `what time is it` explicitly at start of pattern (definitive literal match).
+   - Added `time please` variant.
+   - Root cause: the existing `time is it` substring match and `what time\b` lookahead should theoretically match, but the explicit literal eliminates any runtime ambiguity.
+   - md5=ea9e0d82425f76d98053c2b71221ef99 RAM=SD. DEPLOYED+VERIFIED.
+   - Verified via `IntentRouter.classify()` on Pi4: `route=UTILITY action=TIME llm=false` in iris_intent.log.
+
+2. **`ollama/iris_modelfile.txt`** — adversarial few-shot ANGRY patch.
+   - `FEW-SHOT EXAMPLES - ADVERSARIAL INPUT HANDLING` block, "You're dumb." example: `[EMOTION:ANGRY]` → `[EMOTION:AMUSED]`.
+   - The old ANGRY example was winning over the EMOTION CALIBRATION block added in S112.
+   - iris rebuilt on GandalfAI. DEPLOYED+VERIFIED.
+   - Smoke test: "You're dumb." → `[EMOTION:AMUSED]` confirmed.
+
+3. **VAD check (read-only)** — `SILENCE_SECS=1.2` confirmed in iris_config.json (overrides config.py default of 1.5). No change needed.
+
+**Verification:**
+- `what time is it` → intent log: `route=UTILITY | confidence=HIGH | llm=false` ✓
+- `what's the time`, `time please` also route UTILITY ✓
+- "You're dumb." → `[EMOTION:AMUSED]` on GandalfAI smoke test ✓
+- SILENCE_SECS=1.2 confirmed ✓
+
+**Rollback:** `git checkout -- pi4/core/intent_router.py ollama/iris_modelfile.txt` then redeploy intent_router.py and rebuild iris model.
+
+---
+
 ## S116 — Streaming LLM → Sentence-Boundary TTS (Overlapped Pipeline) (2026-06-09)
 
 **Status:** DEPLOYED + latency-VERIFIED. Behavioral hardware checks (speaker output, emotion-on-face, spoken STOP, Piper fallback) require a human in front of IRIS — handed off.
@@ -2541,6 +2541,23 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 
 ---
 
+## S119b — Unify iris num_ctx to 6144 (2026-06-09)
+
+**Status:** DEPLOYED + VERIFIED (user-approved follow-up to S119).
+
+**Goal:** Eliminate the text↔vision model reload (the residual ~12s cold-vision after S119) by giving text and vision one shared context.
+
+**What changed:**
+- **`ollama/iris_modelfile.txt`** + **`ollama/iris-kids_modelfile.txt`** — `PARAMETER num_ctx 4096` → `6144`. Both rebuilt on GandalfAI.
+
+**Why it works:** vision (`vision.py`/`iris_web.py`) sends `num_ctx=6144` per request; text callers (`stream_ollama`, etc.) send none and inherit the modelfile default. With the default at 4096 they ping-pong-reloaded Ollama on every switch. At 6144 both paths match → no reload, and generation gets real headroom against the ~3700-token system prompt.
+
+**Verified:** vision cold-after-text **12.4s → 2.4s** (`load_duration` 0.28s = no reload), warm 1.6s; text ~42 tok/s; `ollama ps` = iris 15GB, **100% GPU, context 6144**. VRAM safe: 15GB + Kokoro 2GB = 17/24 GB. No Pi4 change required. sysmap `num_ctx_hard_limit` updated 4096→6144 (old limit was gemma3/qwen2.5vl two-model-era, obsolete).
+
+**Rollback:** set `PARAMETER num_ctx 4096` in both modelfiles, `ollama create iris`/`iris-kids` on GandalfAI.
+
+---
+
 ## S120 — Stale-Reference Sweep: Docs + Tools (2026-06-09)
 
 **Status:** Batches 1+2 REPO-ONLY; **Batch 3 DEPLOYED + VERIFIED**.
@@ -2576,23 +2593,6 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 **Drift found (not behavioral, out of this batch's scope):** the deployed Pi4 `assistant.py` is LF while repo master is CRLF (content identical); deployed `iris_post.py` is an ASCII-normalized variant (`-> x --`) vs repo Unicode (`→ × ──`) plus repo has one extra comment line in `l2_display`. Code logic byte-identical in both; only `think:False` is the behavioral change. vision.py and iris_web.py now byte-match repo exactly. Flagged for a future repo↔Pi4 normalization sweep.
 
 **Rollback:** pre-patch RAM backups saved to `/tmp/s120_bak/` (volatile); or restore prior baseline md5s from S118 HANDOFF and re-persist.
-
----
-
-## S119b — Unify iris num_ctx to 6144 (2026-06-09)
-
-**Status:** DEPLOYED + VERIFIED (user-approved follow-up to S119).
-
-**Goal:** Eliminate the text↔vision model reload (the residual ~12s cold-vision after S119) by giving text and vision one shared context.
-
-**What changed:**
-- **`ollama/iris_modelfile.txt`** + **`ollama/iris-kids_modelfile.txt`** — `PARAMETER num_ctx 4096` → `6144`. Both rebuilt on GandalfAI.
-
-**Why it works:** vision (`vision.py`/`iris_web.py`) sends `num_ctx=6144` per request; text callers (`stream_ollama`, etc.) send none and inherit the modelfile default. With the default at 4096 they ping-pong-reloaded Ollama on every switch. At 6144 both paths match → no reload, and generation gets real headroom against the ~3700-token system prompt.
-
-**Verified:** vision cold-after-text **12.4s → 2.4s** (`load_duration` 0.28s = no reload), warm 1.6s; text ~42 tok/s; `ollama ps` = iris 15GB, **100% GPU, context 6144**. VRAM safe: 15GB + Kokoro 2GB = 17/24 GB. No Pi4 change required. sysmap `num_ctx_hard_limit` updated 4096→6144 (old limit was gemma3/qwen2.5vl two-model-era, obsolete).
-
-**Rollback:** set `PARAMETER num_ctx 4096` in both modelfiles, `ollama create iris`/`iris-kids` on GandalfAI.
 
 ---
 
