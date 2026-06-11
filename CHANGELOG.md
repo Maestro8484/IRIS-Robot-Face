@@ -2812,3 +2812,53 @@ assistant.py=`db96f785b796b9a61bed0b591f6fe5d8`, audio_io.py=`035d43b6d7e623f959
 
 **Rollback (task):** `schtasks /delete /tn "IRIS_DockerAutoStart" /f` on GandalfAI.
 **Rollback (post):** `git checkout HEAD -- pi4/iris_post.py`, redeploy + persist.
+
+---
+
+## S128 — Sleep-Mode Display Fix + Scheduled-Sleep Hardening (2026-06-11)
+
+**Status:** DEPLOYED + VERIFIED (Pi4). Firmware: no change required.
+
+**Problem:** After the designated evening sleep time IRIS failed to fully sleep its displays
+— the TFT mouth showed a darkened-but-lit backlight with no visible animation, and the eyes
+could remain awake when woken later. Diagnosis: `docs/sleep_mode_diagnosis_S128.md`.
+
+**Root causes (live-confirmed):**
+1. **Blank mouth:** live `/home/pi/iris_config.json` overrode `MOUTH_INTENSITY_SLEEP=1`
+   → firmware `BL_MAP[1]=2/255≈0.8%` backlight. The starfield animation *was* rendering but
+   was invisible at 0.8%. `core/config.py` already defaulted this to 5 ("was 1 … appeared
+   blank") but the live override won.
+2. **Eyes stay awake (state desync):** `state.eyes_sleeping` is in-memory, defaults False, and
+   was not seeded at startup; the voice `EYES_SLEEP`/`EYES_WAKE` branches were *guarded* by it
+   (`if not state.eyes_sleeping:`), so a desync (e.g. an assistant restart inside the sleep
+   window — one happened 06:36) made "go to sleep" a silent no-op. (Firmware is self-consistent:
+   the render loop is gated on `eyesSleeping`, so no firmware change was needed.)
+3. **Broken goodnight:** `iris_sleep.py` called `/usr/local/bin/piper` + `/home/pi/piper/*.onnx`
+   — neither exists on this box; it errored every night.
+
+**Changes:**
+- `iris_config.json` (live-only; not in repo) — `MOUTH_INTENSITY_SLEEP` 1 → 5.
+- `pi4/assistant.py` — voice `EYES_SLEEP`/`EYES_WAKE` now route through the authoritative
+  `_do_sleep()`/`_do_wake()` (SLEEP_CFG burst, MOUTH:8, sleep LEDs, `/tmp` flag, state) —
+  unconditional/idempotent, never a no-op. Added startup sleep-state reconcile: if
+  `in_sleep_window()` OR `/tmp/iris_sleep_mode` is set, re-assert `_do_sleep()` — hardens the
+  scheduled sleep against restarts/reboots that miss the 21:00 cron UDP.
+- `pi4/iris_sleep.py` — dead Piper goodnight replaced with an optional, network-free
+  `/home/pi/sounds/goodnight.wav` aplay (skips silently if absent; no more nightly error).
+- `pi4/scripts/iris_cron_reference.txt` (new) — version-controls the `pi` user crontab
+  sleep/wake/backup entries (previously only in the live crontab; confirmed SD-persisted).
+
+**Deployed (md5 RAM=SD verified):** assistant.py=`2092e0a8baa7e1bf0091c643436fdfec`,
+iris_sleep.py=`d697798794ca50f544321aa7288f7106`, iris_config.json=`bb5c803b0e7a8298e95869bfe27f71f0`.
+
+**Verified (live Pi4):** POST after restart **20/23 PASS, 3 WARN, 0 FAIL → AUTHORIZED**.
+Daytime restart reconcile correctly did NOT false-sleep. Functional test (10:57): EYES:SLEEP
+via CMD port → firmware `MOUTH_INTENSITY: 5` (was 1) + `starfield starting`; EYES:WAKE →
+`MOUTH_INTENSITY: 10` + displays restored. Full 21:00 scheduled-sleep reconcile exercises tonight.
+
+**Note:** repo `pi4/assistant.py`/`iris_sleep.py` carry the same logic with Unicode-punctuation
+comments; the live Pi copies use ASCII comments (consistent with the documented CRLF/ASCII
+drift). md5 gate is RAM==SD, which passed.
+
+**Rollback:** `/tmp/*.bak` on Pi4 (`assistant.py.bak`, `iris_sleep.py.bak`,
+`iris_config.json.bak`); restore + remount-rw copy to `/media/root-ro` + remount-ro + restart.

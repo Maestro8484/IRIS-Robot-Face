@@ -28,14 +28,20 @@ try:
 except Exception as e:
     log(f'[SLEEP] Flag write error: {e}')
 
-try:
-    subprocess.run([
-        'bash', '-c',
-        'echo "Goodnight." | /usr/local/bin/piper'
-        ' --model /home/pi/piper/en_US-ryan-high.onnx'
-        ' --output_raw | aplay -r 22050 -f S16_LE -t raw -'
-    ], timeout=15)
-except Exception as e:
-    log(f'[SLEEP] Piper TTS error (non-fatal): {e}')
+# Optional goodnight chime. The previous hard-coded Piper invocation referenced
+# /usr/local/bin/piper and /home/pi/piper/*.onnx -- neither exists on this box,
+# so it errored every night. Kokoro TTS lives on GandalfAI, which is normally
+# asleep at bedtime, so the sleep trigger must never depend on the network.
+# Drop a pre-rendered /home/pi/sounds/goodnight.wav to enable a spoken goodnight;
+# absent it, sleep proceeds silently (no error).
+GOODNIGHT_WAV = '/home/pi/sounds/goodnight.wav'
+if os.path.exists(GOODNIGHT_WAV):
+    try:
+        subprocess.run(['aplay', '-q', GOODNIGHT_WAV], timeout=15)
+        log('[SLEEP] Goodnight chime played')
+    except Exception as e:
+        log(f'[SLEEP] Goodnight playback error (non-fatal): {e}')
+else:
+    log('[SLEEP] No goodnight.wav present -- skipping chime')
 
 log('[SLEEP] Sleep mode activated')

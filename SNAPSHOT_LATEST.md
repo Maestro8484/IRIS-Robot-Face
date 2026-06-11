@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S127 | **Date:** 2026-06-11 | **Branch:** `main` | **Last commit:** S127
+**Session:** S128 | **Date:** 2026-06-11 | **Branch:** `main` | **Last commit:** S128
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -23,7 +23,7 @@
 |---|---|
 | Pi4 192.168.1.200 | Operational. assistant.service active. ttyIRIS_EYES → ttyACM0 (serial 13625440, T41). udev corrected + SD persisted S97. |
 | GandalfAI 192.168.1.3 | **OPERATIONAL.** iris/iris-kids on **mistral-small3.2:24b** (S119, was qwen3.5:27b). Ollama **0.30.7**. arch=`mistral3`, 24.0B, caps include `vision` (Pixtral baked in, no mmproj). 15GB Q4, **100% GPU** confirmed (no CPU offload). **num_ctx 6144 unified (S119b)** so text+vision share one context — no reload. Text ~42 tok/s; vision cold-after-text **2.4s** (load 0.28s), warm 1.6s/0.3s first-token (vs 29s on qwen3.5). PT-001 15/20, persona-locked, no token bleed. Env (Machine scope): FLASH_ATTENTION=1, NUM_PARALLEL=1, KV_CACHE=q8_0. Kokoro TTS 8004 OK. **Clone `C:\IRIS\IRIS-Robot-Face` reset to S123/9a7f879 (S124, was S115/1a6950b + dirty modelfile edits).** **Watchtower scoped (S124):** `--label-enable` active; kokoro-tts, wyoming-whisper, wyoming-piper protected from auto-update; open-webui + watchtower labeled for auto-update. **Reboot hardened S127:** IRIS_DockerAutoStart schtask (AtLogon/gandalf/Highest) auto-starts both compose stacks. Docker Desktop auto-starts via HKCU Run. No manual action needed on reboot. |
-| Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). |
+| Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). **Sleep mouth fixed S128:** sleep backlight now `MOUTH_INTENSITY:5` (BL_MAP[5]≈6%, starfield visible) — live config was overriding to 1 (≈0.8%, appeared blank). No firmware change. |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). **Streaming dispatch live (S116):** main LLM replies synthesized per sentence and played overlapped. **Hardened S122:** STOP now halts producer dispatch within ~1 sentence (shared interrupt event); TTS_MAX_CHARS enforced cumulatively across the utterance. **Unified S126:** follow-up turns use the same streaming pipeline via shared `_speak_llm_turn()` — first audio ~1.0–1.3 s after follow-up llm_start (was blocked for full generation + synthesis); follow-up turns now bench-logged (route=FOLLOWUP). |
 
@@ -33,6 +33,7 @@
 
 - **LOW: Wake-from-sleep fall-through** — wakeword during sleep: IRIS wakes, plays quip, re-enters sleep (S104). Evaluate whether it should fall through to active listening instead of re-sleeping.
 - **LOW: Ollama version pin** — Currently 0.30.7 (runs mistral-small3.2:24b fine). Firewall outbound block on ollama app.exe in place; user unchecked auto-update in Ollama UI (S110). The qwen3.5 pin rationale is moot post-S119, but keep the firewall/pin to avoid surprise upgrades.
+- **RESOLVED (S128): evening sleep mode now fully sleeps the displays.** Mouth was blank because live `iris_config.json` forced `MOUTH_INTENSITY_SLEEP=1` (≈0.8% backlight, starfield invisible) → raised to 5. Eyes could stay awake on state desync because voice `EYES_SLEEP`/`EYES_WAKE` were guarded by the in-memory `state.eyes_sleeping` → now route unconditionally through `_do_sleep()`/`_do_wake()`, plus a startup reconcile re-asserts sleep when booting/restarting inside the sleep window. DEPLOYED + VERIFIED (full 21:00 path exercises tonight).
 - **RESOLVED (S119b): iris/iris-kids modelfile `num_ctx` raised 4096 → 6144.** Text+vision now share one context — Ollama no longer reloads on text↔vision switches (vision cold-after-text 12.4s → 2.4s) and generation has real headroom vs the ~3700-tok system prompt. VRAM verified safe: `ollama ps` = 15GB at 6144, +Kokoro 2GB = 17/24 GB, 100% GPU. The old sysmap `num_ctx ≤ 4096` limit was gemma3/qwen-era (obsolete) and is updated.
 
 ---
@@ -56,6 +57,16 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 - `src/eyes/EyeController.h`
 
 ---
+
+## Last Session Changes (S128 — 2026-06-11)
+
+- **Evening sleep-mode display fix + scheduled-sleep hardening — DEPLOYED + VERIFIED (Pi4). No firmware change.** Full diagnosis: `docs/sleep_mode_diagnosis_S128.md`.
+- **Blank mouth (root cause):** live `iris_config.json` overrode `MOUTH_INTENSITY_SLEEP=1` → firmware `BL_MAP[1]=2/255≈0.8%`; the starfield was rendering but invisible. Raised to **5** (= the firmware's own `mouthSetSleepIntensity()` BL_MAP[5], matches repo `config.py` default).
+- **Eyes stay awake (root cause):** `state.eyes_sleeping` is in-memory, defaults False, never seeded; voice `EYES_SLEEP`/`EYES_WAKE` were guarded by it so a desync (e.g. an assistant restart inside the sleep window) made "go to sleep" a silent no-op. Now both route through authoritative `_do_sleep()`/`_do_wake()` (unconditional/idempotent), and a **startup reconcile** re-asserts sleep when `in_sleep_window()` OR `/tmp/iris_sleep_mode`. Firmware needs no change — its render loop is gated on `eyesSleeping`, so it's self-consistent.
+- **Goodnight chime:** `iris_sleep.py` called a non-existent `/usr/local/bin/piper` (errored nightly) → now plays an optional, network-free `/home/pi/sounds/goodnight.wav` (skips silently if absent).
+- **Cron version-controlled:** added `pi4/scripts/iris_cron_reference.txt` (the `pi` user crontab sleep/wake/backup entries; confirmed SD-persisted).
+- **Deployed (md5 RAM=SD):** assistant.py=`2092e0a8baa7e1bf0091c643436fdfec`, iris_sleep.py=`d697798794ca50f544321aa7288f7106`, iris_config.json=`bb5c803b0e7a8298e95869bfe27f71f0`. POST **20/23 PASS, 0 FAIL → AUTHORIZED**. Functional test: EYES:SLEEP → `MOUTH_INTENSITY: 5` + `starfield starting`; EYES:WAKE → restored.
+- **Pending human check:** confirm tonight's automatic 21:00 sleep — mouth shows visible starfield, eyes show starfield; wake-word after that wakes then re-sleeps.
 
 ## Last Session Changes (S126 — 2026-06-11)
 

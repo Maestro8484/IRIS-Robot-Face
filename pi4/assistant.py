@@ -770,6 +770,18 @@ def main():
             print(f"[LLM]  Warmup skipped: {_e}", flush=True)
     # ─────────────────────────────────────────────────────────────────────────
 
+    # ── Sleep-state reconciliation ────────────────────────────────────────────
+    # state.eyes_sleeping is in-memory and defaults False; the /tmp flag lives in
+    # RAM and is cleared on full reboot. Either an assistant restart (flag may
+    # survive) or a full reboot (flag gone) during the sleep window would leave
+    # the Pi awake while the clock says bedtime. Reconcile from ground truth at
+    # startup: if we're inside the sleep window OR the flag is set, re-assert
+    # sleep authoritatively (idempotent — _do_sleep is safe to call when already
+    # asleep). This hardens the scheduled sleep against restarts/reboots.
+    if in_sleep_window() or os.path.exists('/tmp/iris_sleep_mode'):
+        _do_sleep(teensy, leds)
+        print("[SLEEP] Startup reconcile: sleep window/flag active -- sleep re-asserted", flush=True)
+
     try:
         while True:
             # Restart OWW process if it has died
@@ -999,19 +1011,17 @@ def main():
 
             elif _route == ROUTE_COMMAND:
                 if _result.action == "EYES_SLEEP":
-                    if not state.eyes_sleeping:
-                        state.eyes_sleeping = True
-                        teensy.send_command("EYES:SLEEP")
-                        teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_SLEEP}")
-                        print("[EYES] Eyes deactivated by voice", flush=True)
-                    show_idle_for_mode(leds); continue
+                    # Route through the authoritative _do_sleep() so a voice sleep
+                    # is identical to the scheduled/quip path: SLEEP_CFG burst, sleep
+                    # face (MOUTH:8), sleep LEDs, /tmp flag written, state set.
+                    # Unconditional/idempotent — never a silent no-op on state desync.
+                    _do_sleep(teensy, leds)
+                    print("[EYES] Eyes deactivated by voice", flush=True)
+                    continue
                 elif _result.action == "EYES_WAKE":
-                    if state.eyes_sleeping:
-                        state.eyes_sleeping = False
-                        teensy.send_command("EYES:WAKE")
-                        teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_AWAKE}")
-                        print("[EYES] Eyes activated by voice", flush=True)
-                    show_idle_for_mode(leds); continue
+                    _do_wake(teensy, leds)
+                    print("[EYES] Eyes activated by voice", flush=True)
+                    continue
                 elif _result.action in ("KIDS_ON", "KIDS_OFF"):
                     kids_reply, new_mode = handle_kids_mode_command(text)
                     if kids_reply is not None:
