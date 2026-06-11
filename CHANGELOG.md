@@ -2606,3 +2606,23 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 - **`docs/handoffs_S121_review.md`** — NEW. Six copy-pastable session prompts (prioritized: docs truth sweep → playback hardening → gesture/router fixes → GandalfAI hygiene → optional features) with model/effort guidance.
 
 **Live IRIS behavior: unchanged.**
+
+---
+
+## S121 H-docs — Documentation Truth Sweep (2026-06-10)
+
+**Status:** REPO-ONLY. No deploys, no SSH, no code changes.
+
+**Goal:** Fix documentation errors flagged in the S121 review before they can poison future agent sessions.
+
+**What changed:**
+
+- **`docs/sysmap.json`** — 5 serial fixes (pre-S97 swap, confirmed S121): `_meta.notes`, `pi4.serial.usb_serial_number`, `pi4.teensy40_serial.usb_serial_number`, `pi4.udev_rules.entries` (both entries), `teensy40.usb_serial_number`. All corrected to truth: ttyIRIS_EYES = 13625440 (T41), ttyIRIS_SERVO = 12763490 (T40). Config-key defaults updated to match `pi4/core/config.py`: NUM_PREDICT_SHORT/MEDIUM/LONG/MAX = 40/90/180/400 (was 120/350/700/1200), TTS_MAX_CHARS = 1500 (was 900), LED_SLEEP_PEAK/FLOOR = 8/1 (was 26/3), MOUTH_INTENSITY_SLEEP = 5 (was 1). Missing `_OVERRIDABLE` keys added: `LED_SLEEP_BRIGHT`, `MOUTH_INTENSITY_IDLE`, `OWW_POST_PLAY_DRAIN_SECS`, `LOUD_STOP_THRESHOLD`, `DEFAULT_EYE_IDX`, all 24 `SLEEP_ANIM_*` keys. Eye index 6 renamed bigBlue → strikingBlue in `eye_index_map` and `pupil_values`.
+
+- **`IRIS_ARCH.md`** — Key Constants: GESTURE_SENSOR_REQUIRED False → True (PAJ7620U2 replaced S82); tier values updated to match config.py (same as sysmap above); LED_SLEEP_BRIGHT 0xFF → 0xE3. Eye index map: 6 = bigBlue → strikingBlue (4 locations: Eye Index Map, pupil table, repo structure list, Eye Editing Workflow). GESTURE_MOUNT_DEGREES: current-install note updated 270 → 180 (matches paj7620.h:10). Ollama models section: removed stale "num_predict 800" claim (not in modelfile). System Status — Active Issues table: marked as historical S23-era snapshot.
+
+- **`docs/iris_issue_log.md`** — HW-004 closed: PAJ7620U2 replacement installed S82, gestures confirmed live S121.
+
+- **`HANDOFF_CURRENT.md`** — Proactive Flags: appended S121 supersession of S98 VAD flag (SILENCE_SECS deliberate); appended S120 CRLF drift scope update (also covers `base_mount_bridge.py`).
+
+**Verify:** `grep -r "12763490" docs/sysmap.json` — appears only beside ttyIRIS_SERVO. `grep -r "13625440" docs/sysmap.json` — appears only beside ttyIRIS_EYES. All constants verified against source files this session.

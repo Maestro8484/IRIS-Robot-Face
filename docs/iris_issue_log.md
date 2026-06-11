@@ -340,14 +340,14 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 
 ---
 
-## open | HW-004 | Teensy 4.0 — PAJ7620U2 gesture sensor dead
+## fixed | HW-004 | Teensy 4.0 — PAJ7620U2 gesture sensor dead (replacement installed S82)
 
 **Symptom:** `DIAG: PAJ7620U2 0x73 ACK=NO` and `init=FAIL` on every boot. No gesture commands fire. `pajOk=0` in all telemetry. I2C scan (full 1–127 sweep) finds no device at 0x73 or any valid PAJ7620U2 address (0x13, 0x1B, 0x23, 0x2B, 0x5B, 0x63, 0x6B, 0x73).
 **Root cause:** Sensor IC hardware failure. Ruled out: I2C bus fault (Person Sensor 0x62 responds correctly), VIN power (3.3V confirmed with multimeter), SDA/SCL wiring (continuity confirmed to Teensy pins 18/19), VBUS (GY-PAJ7620 5-pin breakout ties VBUS to VIN internally), cold joint on header pins (reflow attempted — no change).
 **Fix:** Replace GY-PAJ7620 breakout module. Replacement on order.
 **Blocked:** TS40-S1 firmware flash, gesture debounce verify, GESTURE_SENSOR_REQUIRED=True Pi4 deploy.
 **Files:** None — firmware complete (TS40-S1 + TS40-S2 REPO-ONLY), blocked on hardware only.
-**Status:** Open — BLOCKED on hardware replacement (2026-05-29)
+**Status:** Fixed — GY-PAJ7620 replacement installed S82. Gestures confirmed live S121 (DIAG pajOk=1, all 8 commands firing).
 
 ---
 

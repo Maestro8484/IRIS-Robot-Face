@@ -214,6 +214,8 @@ GandalfAI personality/pipeline/model behavior.
 
 ## System Status - Active Issues
 
+> **Historical — S23-era snapshot. Not current system status. See SNAPSHOT_LATEST.md for live issues.**
+
 | Item | Status | Notes |
 |---|---|---|
 | Wake word (hey_jarvis) | **WORKING** - confirmed S23 2026-04-18 | OWW score=1.000, full pipeline fires |
@@ -388,7 +390,7 @@ Physical gesture direction depends on how the sensor is mounted. Change `#define
 | 180° (upside-down) | 0x04 | 0x08 | 0x02 | 0x01 |
 | 270° CW / 90° CCW | 0x01 | 0x02 | 0x04 | 0x08 |
 
-**Current install:** `GESTURE_MOUNT_DEGREES 270` (sensor rotated 90° CCW relative to viewer)
+**Current install:** `GESTURE_MOUNT_DEGREES 180` (GY-PAJ7620 — JST connector on left, 180° rotation from default)
 
 **Sensor axis → command mapping (all orientations):**
 - Physical UP → `VOL+`
@@ -416,7 +418,7 @@ IRIS-Robot-Face/
     sleep_renderer.h            -- deep space starfield (SR_FRAME_MS=155)
     displays/GC9A01A_Display.h  -- display driver
     eyes/EyeController.h        -- eye movement/blink/pupil (setTargetPosition seed fix intact)
-    eyes/240x240/               -- nordicBlue/flame/hypnoRed/hazel/blueFlame1/dragon/bigBlue .h
+    eyes/240x240/               -- nordicBlue/flame/hypnoRed/hazel/blueFlame1/dragon/strikingBlue .h
     sensors/PersonSensor.h/.cpp -- I2C face detection (SAMPLE_TIME_MS=70, conf>60, is_facing)
     mouth_tft.cpp/.h            -- ILI9341 TFT mouth driver (KurtE/ILI9341_t3n, SPI2)
   pi4/                          -- mirrors /home/pi/ on Pi4
@@ -474,7 +476,7 @@ lib_deps =
 3 = hazel
 4 = blueFlame1
 5 = dragon
-6 = bigBlue
+6 = strikingBlue
 ```
 
 ### Pupil values - re-apply manually after every genall.py run
@@ -483,7 +485,7 @@ lib_deps =
 |---|---|---|
 | nordicBlue | 0.21 | 0.47 |
 | hazel | 0.25 | 0.47 |
-| bigBlue | 0.24 | 0.50 |
+| strikingBlue | 0.24 | 0.50 |
 | hypnoRed | 0.25 | 0.50 |
 
 ---
@@ -512,16 +514,16 @@ CHATTERBOX_EXAGGERATION = 0.45
 CHATTERBOX_ENABLED      = True     # rollback only; Kokoro is primary
 TEENSY_PORT             = "/dev/ttyIRIS_EYES"
 BASE_MOUNT_PORT         = "/dev/ttyIRIS_SERVO"
-GESTURE_SENSOR_REQUIRED = False    # flip after PAJ7620U2 replacement is verified
-NUM_PREDICT             = 300      # legacy fallback; tier values below are primary
-NUM_PREDICT_SHORT       = 120
-NUM_PREDICT_MEDIUM      = 350
-NUM_PREDICT_LONG        = 700
-NUM_PREDICT_MAX         = 1200
-LED_SLEEP_PEAK          = 26
-LED_SLEEP_FLOOR         = 3
+GESTURE_SENSOR_REQUIRED = True
+NUM_PREDICT             = 100      # default (followup loop + warmup)
+NUM_PREDICT_SHORT       = 40       # greetings, yes/no (~9 s)
+NUM_PREDICT_MEDIUM      = 90       # normal conversational reply (~21 s)
+NUM_PREDICT_LONG        = 180      # detailed answers (~41 s)
+NUM_PREDICT_MAX         = 400      # story tier ONLY (~92 s)
+LED_SLEEP_PEAK          = 8
+LED_SLEEP_FLOOR         = 1
 LED_SLEEP_PERIOD        = 8.0
-LED_SLEEP_BRIGHT        = 0xFF
+LED_SLEEP_BRIGHT        = 0xE3
 ```
 
 ### iris_config.json on Pi4
@@ -538,8 +540,8 @@ EYE_IDX_DEFAULT=0, ANGRY=1, CONFUSED=2, COUNT=7
 
 ### Ollama models (as of S119b)
 
-- `iris:latest` - mistral-small3.2:24b, num_predict 800, temperature 0.75, num_ctx 6144
-- `iris-kids:latest` - mistral-small3.2:24b, num_predict 800, temperature 0.75, num_ctx 6144
+- `iris:latest` - mistral-small3.2:24b, temperature 0.75, num_ctx 6144
+- `iris-kids:latest` - mistral-small3.2:24b, temperature 0.75, num_ctx 6144
 - Stop tokens: `[INST]`, `[/INST]`, `</s>`, `User:` (Mistral/few-shot bleed protection)
 - VRAM: Kokoro ~2GB + mistral-small3.2:24b ~15GB = ~17GB total. Headroom ~7GB on RTX 3090 (24GB). 100% GPU.
 - GandalfAI env required: `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0` (set S39, machine-level).
@@ -656,7 +658,7 @@ curl -s http://localhost:11434/api/generate -d "{\"model\":\"iris\",\"prompt\":\
 
 1. Edit `resources/eyes/240x240/<eye>/config.eye`
 2. Run `python resources/eyes/240x240/genall.py` to regenerate `.h` files
-3. Re-apply pupil values manually to nordicBlue.h, hazel.h, bigBlue.h (genall.py resets them)
+3. Re-apply pupil values manually to nordicBlue.h, hazel.h, strikingBlue.h (genall.py resets them)
 4. PlatformIO upload
 
 ---
