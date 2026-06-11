@@ -2729,3 +2729,22 @@ assistant.py=`db96f785b796b9a61bed0b591f6fe5d8`, audio_io.py=`035d43b6d7e623f959
 - Ports 10300 (Whisper), 10200 (Piper), 8004 (Kokoro) all bound
 
 **Rollback:** `copy C:\IRIS\backup\docker-compose.gandalf.yml.bak C:\IRIS\docker\docker-compose.gandalf.yml` then `docker compose -f C:\IRIS\docker\docker-compose.gandalf.yml up -d`. For clone: `git reset --hard 1a6950b` (no model impact).
+
+## S125 — Fix 4 pre-S123 Pytest Failures (2026-06-11)
+
+**Status:** REPO-ONLY
+
+**Goal:** Resolve 4 failing tests that pre-dated S123 without touching live IRIS systems.
+
+**What was done:**
+
+1. **`tests/test_base_mount_bridge.py`** — updated 3 parametrize rows in `test_gesture_map_dispatch` to match `base_mount_bridge._DEFAULT_GESTURE_MAP` as updated in S123:
+   - `BACKWARD`: `SLEEP → WAKE` / effect `EYES:SLEEP → EYES:WAKE`
+   - `CW`: `VOL+ → MUTE` / effect `audio louder → mute 0`
+   - `CCW`: `VOL- → SKIP` / effect `audio quieter → noop`
+
+2. **`tests/test_iris_post.py`** — fixed `test_fail_outcome`: since the S104-era change only `serial /dev/ttyIRIS_EYES` and `mic wm8960 open` FAILs block startup. The test was failing `l2_display` (non-blocking) but asserting `verdict=="FAIL"`. Fixed by failing `l0_serial` with the exact blocking check name; updated checks index from [7]/L2 to [0]/L0.
+
+3. **`pi4/iris_web.py`** — added comment on `_DEFAULT_GESTURE_MAP` documenting that it intentionally differs from the bridge defaults (BACKWARD/CW/CCW) because it is used only for web-UI display; live runtime behavior is controlled exclusively by `iris_config.json`.
+
+**Result:** `python -m pytest tests/ -q` → 66 passed, 0 failures.
