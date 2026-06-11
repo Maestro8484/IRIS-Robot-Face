@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S120 | **Date:** 2026-06-09 | **Branch:** `main` | **Last commit:** S120
+**Session:** S122 | **Date:** 2026-06-11 | **Branch:** `main` | **Last commit:** S122
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -25,7 +25,7 @@
 | GandalfAI 192.168.1.3 | **OPERATIONAL.** iris/iris-kids on **mistral-small3.2:24b** (S119, was qwen3.5:27b). Ollama **0.30.7**. arch=`mistral3`, 24.0B, caps include `vision` (Pixtral baked in, no mmproj). 15GB Q4, **100% GPU** confirmed (no CPU offload). **num_ctx 6144 unified (S119b)** so text+vision share one context — no reload. Text ~42 tok/s; vision cold-after-text **2.4s** (load 0.28s), warm 1.6s/0.3s first-token (vs 29s on qwen3.5). PT-001 15/20, persona-locked, no token bleed. Env (Machine scope): FLASH_ATTENTION=1, NUM_PARALLEL=1, KV_CACHE=q8_0. Kokoro TTS 8004 OK. |
 | Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
-| TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). **Streaming dispatch live (S116):** main LLM replies synthesized per sentence and played overlapped. |
+| TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). **Streaming dispatch live (S116):** main LLM replies synthesized per sentence and played overlapped. **Hardened S122:** STOP now halts producer dispatch within ~1 sentence (shared interrupt event); TTS_MAX_CHARS enforced cumulatively across the utterance. |
 
 ---
 
@@ -56,6 +56,16 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 - `src/eyes/EyeController.h`
 
 ---
+
+## Last Session Changes (S122 — 2026-06-11)
+
+- **Streaming playback pipeline hardening — DEPLOYED + VERIFIED** (Session 2 of S121 review handoffs). Three fixes:
+  - **STOP race fixed.** `play_pcm_stream()` no longer clears `_stop_playback` (entry or exit); it accepts a shared `interrupted` Event. The producer in `assistant.py` owns the flag lifecycle (clear at turn start + turn end) and checks `_stop_playback OR _player_interrupted` per LLM chunk and again after each `synthesize()`. Live harness: STOP at t=2.0s mid-synthesis → dispatch halted in 0.21s, LLM stream abandoned at 2/10 sentences. Also fixes latent inverse bug (stale STOP from idle aborting the next turn's first chunk).
+  - **TTS_MAX_CHARS now enforced on the streaming path.** Cumulative dispatched-char counter; at ≥1500 chars dispatch stops and the LLM stream stops being consumed. Live harness: num_predict=2000 story → halted at 1567 chars/15 sentences. `config.py` comment names both enforcement points.
+  - **TeensyBridge reader can no longer die silently.** Reader snapshots `_ser` under the lock, except handler uses the snapshot, broad `except Exception` → log + retry. Live harness reproduced the previously-fatal error class (`'NoneType' object cannot be interpreted as an integer`) → reader logged, reconnected, sends resumed.
+- **Deployed files (md5 RAM=SD verified):** `assistant.py`=`e55bbda4a02f971ce6f31398dee01ab9` (now LF on Pi), `hardware/audio_io.py`=`09e6468d7dbce097408001d03890eec8`, `hardware/teensy_bridge.py`=`f662309a45b8aa065dad1f0a40c27f85`, `core/config.py`=`b5d8d57b9e66185d90a56d7b40f606ed`.
+- **POST after restart: 19/23 PASS, 4 WARN, 0 FAIL → AUTHORIZED**, `[INFO] Ready.` (WARN delta vs S120 is the no-[VER]-on-restart artifact.)
+- **Pending human check:** voice-spoken "stop" through the mic during a LONG reply (interrupt-listener STT path) + immediate next-wakeword acceptance.
 
 ## Last Session Changes (S120 — 2026-06-09)
 

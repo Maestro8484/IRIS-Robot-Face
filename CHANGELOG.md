@@ -2626,3 +2626,34 @@ ollama create iris-kids -f C:\IRIS\IRIS-Robot-Face\ollama\iris-kids_modelfile.tx
 - **`HANDOFF_CURRENT.md`** — Proactive Flags: appended S121 supersession of S98 VAD flag (SILENCE_SECS deliberate); appended S120 CRLF drift scope update (also covers `base_mount_bridge.py`).
 
 **Verify:** `grep -r "12763490" docs/sysmap.json` — appears only beside ttyIRIS_SERVO. `grep -r "13625440" docs/sysmap.json` — appears only beside ttyIRIS_EYES. All constants verified against source files this session.
+
+---
+
+## S122 — Streaming Playback Pipeline Hardening (2026-06-11)
+
+**Status:** DEPLOYED + VERIFIED (mechanism-level on live Pi4 hardware; human voice-"stop" check pending).
+
+**Goal:** Three resiliency bugs in the speech path (Session 2 of the S121 review handoffs): STOP didn't actually stop the producer, the TTS_MAX_CHARS audio backstop was dead on the streaming path since S116, and a serial race could permanently kill the TeensyBridge reader thread.
+
+**Bug 1 — STOP race (`pi4/hardware/audio_io.py` + `pi4/assistant.py`):**
+- `play_pcm_stream()` cleared `_stop_playback` on entry and exit; the producer was normally blocked inside `synthesize()` or the LLM stream during that window, so after a STOP it never saw the flag and kept streaming LLM tokens + calling Kokoro for the whole remaining reply.
+- Fix: `play_pcm_stream()` now accepts a shared `interrupted` Event (optional param, back-compatible) and no longer touches `_stop_playback`'s lifecycle. The producer in assistant.py owns the flag: clears it at turn start (also fixes a latent inverse bug — a STOP routed while idle would have falsely aborted the next streaming turn's first chunk) and at turn end, checks `_stop_playback OR _player_interrupted` per LLM chunk AND again after each `synthesize()` call (the ~1s+ blocking window the race lived in).
+- Verified live (harness on deployed modules, real stream_ollama+Kokoro+play_pcm_stream): STOP at t=2.00s mid-synthesis → dispatch halted 0.21s later after 1 dispatched sentence, stream consumption stopped at 2/10 sentences, no further [KOK] lines. Second run: STOP at t=6.00s during playback → turn exited at t=6.01s instead of draining ~60s of queued audio.
+
+**Bug 2 — cumulative TTS cap (`pi4/assistant.py` + `pi4/core/config.py` comment):**
+- Per-sentence synthesis (S116) meant `_truncate_for_tts` capped each sentence, never the utterance — the documented ~100s hard audio backstop silently stopped applying to the main voice path.
+- Fix: cumulative dispatched-char counter in the streaming loop; once ≥ TTS_MAX_CHARS, one `[TTS] Utterance cap` log line, dispatch stops AND the LLM stream stops being consumed (generator close → HTTP stream close). config.py comment block updated to name both enforcement points.
+- Verified live: num_predict=2000 story prompt → dispatch halted at 1567 chars (first check past 1500), 15 sentences dispatched, stream abandoned.
+
+**Bug 3 — TeensyBridge reader death (`pi4/hardware/teensy_bridge.py`):**
+- `_reader()` dereferenced `self._ser` unlocked; a concurrent failed send sets `self._ser = None`, and the resulting AttributeError (or TypeError from pyserial on a torn-down fd) was not caught (only SerialException/OSError) — the reader thread died silently, no reconnect ever, all sends DROP until service restart. Same hazard on `self._ser.close()` inside the except handler.
+- Fix: snapshot `ser = self._ser` under the lock before readline; except handler uses the snapshot and only nulls `self._ser` if it still is that handle; added a broad `except Exception` (log + sleep 5 + continue) so the reader can never die.
+- Verified live: harness tore down `_ser` mid-read → log showed `[EYES] Reader error: 'NoneType' object cannot be interpreted as an integer -- will retry` (exactly the previously-fatal class) → reader reconnected → subsequent send OK.
+
+**Deploy:** all four files pulled byte-exact to Pi4 (md5 fidelity-checked against LF-normalized repo content), py_compile clean (local + Pi), installed to /home/pi/, persisted to /media/root-ro, **md5 RAM=SD verified all four**. assistant.service restarted: POST **19/23 PASS, 4 WARN, 0 FAIL → AUTHORIZED**, `[INFO] Ready.`, Teensy connected. (The WARN delta vs S120's 20/23 is `firmware version — no [VER] in journal`, expected on service restart without Teensy power cycle.)
+
+Live md5s (LF): assistant.py=`e55bbda4a02f971ce6f31398dee01ab9`, hardware/audio_io.py=`09e6468d7dbce097408001d03890eec8`, hardware/teensy_bridge.py=`f662309a45b8aa065dad1f0a40c27f85`, core/config.py=`b5d8d57b9e66185d90a56d7b40f606ed`. Note: repo assistant.py remains CRLF (known S120 drift), so its repo md5 differs from live; the other three byte-match the repo.
+
+**Not covered by automated verification (needs a human in front of IRIS):** voice-spoken "stop" through the mic during a LONG reply (the interrupt-listener STT path into the new shared event), and next-wakeword acceptance immediately after a STOP.
+
+**Rollback:** `git checkout 81525bf -- pi4/assistant.py pi4/hardware/audio_io.py pi4/hardware/teensy_bridge.py pi4/core/config.py`, redeploy all four + persist, restart assistant.

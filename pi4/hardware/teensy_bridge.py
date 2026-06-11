@@ -39,24 +39,36 @@ class TeensyBridge:
 
     def _reader(self):
         while self._active:
+            # Snapshot the handle under the lock: a concurrent failed send sets
+            # self._ser = None, and reading the attribute unlocked mid-loop used
+            # to raise an uncaught AttributeError that silently killed this
+            # thread -- no reconnect ever, all sends DROP until service restart.
             with self._lock:
                 if self._ser is None or not self._ser.is_open:
                     self._ser = self._open()
-            if self._ser is None:
+                ser = self._ser
+            if ser is None:
                 time.sleep(5)
                 continue
             try:
-                line = self._ser.readline().decode(errors="ignore").strip()
+                line = ser.readline().decode(errors="ignore").strip()
                 if line:
                     print(f"[EYES] << {line}", flush=True)
             except (serial.SerialException, OSError):
                 print("[EYES] Serial disconnected -- will retry", flush=True)
                 with self._lock:
                     try:
-                        self._ser.close()
+                        ser.close()
                     except Exception:
                         pass
-                    self._ser = None
+                    if self._ser is ser:
+                        self._ser = None
+                time.sleep(5)
+            except Exception as e:
+                # Belt-and-braces: the reader thread must never die. Anything
+                # unexpected (e.g. races on a handle being torn down by a send)
+                # logs and retries instead of silently ending reconnects.
+                print(f"[EYES] Reader error: {e} -- will retry", flush=True)
                 time.sleep(5)
 
     def send_emotion(self, emotion: str) -> bool:

@@ -111,9 +111,16 @@ NUM_PREDICT_MEDIUM    = 90    # normal conversational reply            (~21 s)
 NUM_PREDICT_LONG      = 180   # detailed-but-still-chat answers        (~41 s)
 NUM_PREDICT_MAX       = 400   # story tier ONLY -- explicit requests   (~92 s, ~1.5 min)
 # ── TTS ───────────────────────────────────────────────────────────────────────
-# Absolute hard backstop: truncates at the last sentence boundary before TTS so NO
-# reply -- no tier, no runaway generation -- can exceed ~1.5 min of audio. ~15 chars/s
-# measured, so 1500 chars ~= 100 s (~1.67 min). Lowered S117 from 2500 (~167 s).
+# Absolute hard backstop: NO reply -- no tier, no runaway generation -- can exceed
+# ~1.5 min of audio. ~15 chars/s measured, so 1500 chars ~= 100 s (~1.67 min).
+# Enforced at TWO points (S122):
+#   1. assistant.py streaming loop -- cumulative dispatched-char counter; once
+#      exceeded, sentence dispatch AND LLM stream consumption stop. This is the
+#      live enforcement for the main voice path (per-sentence synthesis since
+#      S116 made the old single-call truncation a no-op there).
+#   2. services/tts.py _truncate_for_tts -- still caps any single synthesize()
+#      call (follow-up loop, utility replies, quips, vision replies).
+# Lowered S117 from 2500 (~167 s).
 # ROLLBACK: set back to 2500 if legitimate long answers are being cut short.
 TTS_MAX_CHARS         = 1500  # ~100 s (~1.5 min) hard ceiling, all tiers (was 2500, S117)
 CONVERSATION_LOG      = "/home/pi/logs/conversations.jsonl"

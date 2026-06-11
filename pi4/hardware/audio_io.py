@@ -343,7 +343,8 @@ def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, emotion: str = 'NEUTRAL',
 
 
 def play_pcm_stream(pcm_queue, pa, teensy, emotion: str = 'NEUTRAL',
-                    restore_mouth_idx: int = 0, rate: int = 48000) -> bool:
+                    restore_mouth_idx: int = 0, rate: int = 48000,
+                    interrupted: threading.Event | None = None) -> bool:
     """
     Gapless playback of a stream of PCM blobs pulled from pcm_queue (queue.Queue).
 
@@ -354,12 +355,20 @@ def play_pcm_stream(pcm_queue, pa, teensy, emotion: str = 'NEUTRAL',
     whole multi-sentence utterance, and plays blobs back-to-back so audio starts
     on the first sentence while later sentences are still being generated/synthesized.
 
+    `interrupted` may be passed in by the producer so it can observe the player's
+    interrupt state while it is still consuming the LLM stream / synthesizing.
+
+    This function does NOT touch _stop_playback's set/clear lifecycle: the
+    producer owns clearing it at turn start and turn end. (It used to clear on
+    entry and exit, which raced the producer's per-sentence STOP check — the
+    flag vanished before the producer, blocked in synthesize(), could see it.)
+
     Returns True if playback was interrupted mid-stream (stop phrase, loud stop,
     button, or _stop_playback set externally).
     """
-    _stop_playback.clear()
     frames = _EMOTION_SPEAK_FRAMES.get(emotion.upper(), _EMOTION_SPEAK_FRAMES['NEUTRAL'])
-    interrupted = threading.Event()
+    if interrupted is None:
+        interrupted = threading.Event()
 
     # Single interrupt listener for the whole utterance (measures bleed baseline once)
     _int_stop = threading.Event()
@@ -431,7 +440,6 @@ def play_pcm_stream(pcm_queue, pa, teensy, emotion: str = 'NEUTRAL',
     was_interrupted = interrupted.is_set()
     if was_interrupted:
         print("[STOP] Streaming playback interrupted", flush=True)
-    _stop_playback.clear()
     return was_interrupted
 
 

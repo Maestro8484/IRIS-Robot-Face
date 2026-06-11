@@ -970,20 +970,39 @@ def main():
             _pcm_q = queue.Queue()
             _player_thread = None
             _player_result = {"interrupted": False}
+            # Shared with play_pcm_stream so the producer can observe the player's
+            # interrupt state directly -- _stop_playback alone raced: the player
+            # used to clear it on exit while the producer was still blocked in
+            # synthesize()/the LLM stream, so dispatch never saw the STOP.
+            _player_interrupted = threading.Event()
+            _tts_chars = 0  # cumulative chars dispatched to TTS this utterance
+
+            # Fresh turn: producer owns the _stop_playback lifecycle on the
+            # streaming path (play_pcm_stream no longer clears it). A STOP routed
+            # while idle would otherwise falsely abort this turn's first chunk.
+            _stop_playback.clear()
 
             def _run_player(_emotion):
                 _player_result["interrupted"] = play_pcm_stream(
                     _pcm_q, pa, teensy, emotion=_emotion,
-                    restore_mouth_idx=MOUTH_MAP.get(_emotion, 0))
+                    restore_mouth_idx=MOUTH_MAP.get(_emotion, 0),
+                    interrupted=_player_interrupted)
 
             try:
                 for chunk, chunk_emotion in stream_ollama(
                     _build_messages(), get_model(), _num_predict
                 ):
-                    # STOP checked per sentence dispatch (UDP CMD, stop phrase, etc.)
-                    if _stop_playback.is_set():
+                    # STOP checked per LLM chunk (UDP CMD, stop phrase, loud stop, button)
+                    if _stop_playback.is_set() or _player_interrupted.is_set():
                         _interrupted = True
                         print("[STOP] Stop flag set mid-stream -- halting dispatch", flush=True)
+                        break
+                    # Cumulative TTS_MAX_CHARS backstop: per-sentence synthesis means
+                    # _truncate_for_tts only caps each sentence, never the utterance.
+                    # Once the budget is spent, stop dispatching AND stop consuming
+                    # the LLM stream (break closes the generator -> HTTP stream).
+                    if _tts_chars >= TTS_MAX_CHARS:
+                        print(f"[TTS]  Utterance cap reached: {_tts_chars} chars dispatched >= TTS_MAX_CHARS={TTS_MAX_CHARS} -- halting stream", flush=True)
                         break
                     if chunk_emotion is not None and not _emotion_set:
                         emit_emotion(teensy, leds, chunk_emotion)
@@ -1008,6 +1027,13 @@ def main():
                     except Exception as _se:
                         print(f"[ERR]  TTS sentence skipped: {_se}", flush=True)
                         continue
+
+                    # Re-check STOP after synthesize() -- it blocks ~1s+, which is
+                    # exactly the window the old race lived in.
+                    if _stop_playback.is_set() or _player_interrupted.is_set():
+                        _interrupted = True
+                        print("[STOP] Stop flag set post-synthesis -- halting dispatch", flush=True)
+                        break
 
                     if not _tts_first_done:
                         _t_tts = time.time()
@@ -1036,6 +1062,7 @@ def main():
                         _player_thread.start()
 
                     _pcm_q.put(_pcm)
+                    _tts_chars += len(chunk)
             except Exception as e:
                 print(f"[ERR]  LLM stream: {e}", flush=True)
                 if _player_thread is not None:
@@ -1066,6 +1093,10 @@ def main():
                 _interrupted = _player_result["interrupted"] or _interrupted
             elif not reply:
                 print("[LLM]  Empty reply -- nothing to play", flush=True)
+
+            # Turn end: clear the stop flag here, not in play_pcm_stream, so a
+            # producer still mid-dispatch can never miss it.
+            _stop_playback.clear()
 
             _rpqr_state["t_last_spoke"] = time.time()
             _bench_interrupted = _interrupted
