@@ -26,26 +26,6 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 
 ---
 
-## RD-003 — Duplicate Sleep Log Cleanup
-
-**Status:** Open — Low priority
-
-**Problem:** `/home/pi/iris_sleep.log` (Pi4 root home) may duplicate `/home/pi/logs/iris_sleep.log`. Duplicate logs waste space and create ambiguity when diagnosing sleep/wake issues.
-
-**Goal:** Confirm which log is actively written by the current sleep/wake system. If duplicate, remove the stale path and update any log-reading references to point to the canonical location.
-
-**Impact:** Cleaner diagnostics. Less ambiguity when tracing sleep-related bugs.
-
-**Risk:** Low — log file only. No runtime behavior changes unless a log reader references the stale path.
-
-**Deployment gate:** Pi4 — requires explicit user authorization. Use standard `/media/root-ro` persistence pattern documented in `CLAUDE.md`.
-
-**Rollback:** Restore deleted log file, symlink, or path reference from prior commit or Pi4 backup if any log reader depends on the removed path.
-
-**Files:** Pi4 runtime only — `/home/pi/iris_sleep.log`, `/home/pi/logs/iris_sleep.log`, relevant `pi4/` sleep/wake scripts if they reference the log path.
-
----
-
 ## RD-004 — Teensy Hardware/Firmware Pass (Batch 2)
 
 **Status:** Open — blocked until Pi4 runtime is stable

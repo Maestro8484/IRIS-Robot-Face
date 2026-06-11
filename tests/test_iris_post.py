@@ -102,21 +102,12 @@ def _install_missing_smbus(monkeypatch):
     monkeypatch.setitem(sys.modules, "smbus", module)
 
 
-def test_gesture_sensor_required_false(quiet_post, monkeypatch):
+def test_gesture_check_unreachable_is_warn(quiet_post, monkeypatch):
+    # PAJ7620U2 is on Teensy 4.0 I2C — Pi4 smbus can never reach it, so the
+    # check demotes to WARN, never FAIL (GESTURE_SENSOR_REQUIRED was deleted).
     _install_missing_smbus(monkeypatch)
-    monkeypatch.setattr(iris_post, "GESTURE_SENSOR_REQUIRED", False)
 
     post = iris_post._POST(leds=None, teensy=None, pa=None, verbose=False)
 
     assert post.l0_gesture() == iris_post.WARN
     assert post.results[-1]["status"] == iris_post.WARN
-
-
-def test_gesture_sensor_required_true(quiet_post, monkeypatch):
-    _install_missing_smbus(monkeypatch)
-    monkeypatch.setattr(iris_post, "GESTURE_SENSOR_REQUIRED", True)
-
-    post = iris_post._POST(leds=None, teensy=None, pa=None, verbose=False)
-
-    assert post.l0_gesture() == iris_post.FAIL
-    assert post.results[-1]["status"] == iris_post.FAIL

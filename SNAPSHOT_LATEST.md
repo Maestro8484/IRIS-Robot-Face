@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S122 | **Date:** 2026-06-11 | **Branch:** `main` | **Last commit:** S122
+**Session:** S123 | **Date:** 2026-06-11 | **Branch:** `main` | **Last commit:** S123
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -57,7 +57,16 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 
 ---
 
-## Last Session Changes (S122 — 2026-06-11)
+## Last Session Changes (S123 — 2026-06-11)
+
+- **Gesture MUTE fixed — DEPLOYED + VERIFIED.** `set_volume()` clamped to VOL_MIN=60 so MUTE landed at ~47% and the `get_volume()==0` unmute branch was unreachable. Now: `set_volume(level, allow_zero=True)` bypasses the floor for MUTE only; bridge tracks `_muted` state explicitly and second CW restores `_mute_restore`. Live check on real ALSA: 123 → `Playback 0 [0%]` → restored 123.
+- **RIGHT gesture wired — DEPLOYED + VERIFIED.** Firmware emits `RIGHT` (right swipe) but no map had the key → SKIP. `"RIGHT": "STOP"` added to both default maps (bridge + iris_web); bridge `_load_gesture_map()` now merges stored config over defaults so RIGHT works with the existing stored GESTURE_MAP (iris_config.json untouched). Web Gestures tab has a RIGHT row; `/api/gesture_config` returns RIGHT:STOP. Physical-swipe log check pending human.
+- **Router word-boundary polish — DEPLOYED + VERIFIED.** `_layer0_reflex` prefix matches now require exact-or-phrase+space ("stopwatch please"→LLM, "cancelled order"→LLM; "stop"/"cancel"/"stop talking now" still REFLEX/STOP — confirmed in live iris_intent.log).
+- **Cleanups:** assistant.py RMS gate uses `SILENCE_RMS` (was hardcoded 300); `handle_volume_command` calls `get_volume()` lazily (saves 2 subprocesses on non-matches); `play_pcm_speaking` docstring 120ms→0.50s; dead `GESTURE_SENSOR_REQUIRED` deleted from core/config.py (+ IRIS_ARCH/IRIS_CONFIG_MAP updated, 2 stale tests replaced). **RD-003 closed** (`/home/pi/iris_sleep.log` does not exist; removed from ROADMAP).
+- **Deployed (md5 repo=RAM=SD, all 8):** assistant.py=`db96f785b796b9a61bed0b591f6fe5d8`, hardware/audio_io.py=`035d43b6d7e623f959354a9938110c5a`, hardware/base_mount_bridge.py=`9ba56cbb0862c11d2b28823700c4d2ad`, core/intent_router.py=`692c8e17b5340c0336bb1ade476ef1e0`, core/config.py=`d9ebc9c5751a2db89af9424b1af7c83f`, iris_web.py=`1fe3acc39ce4f54bc16c0e5621dd51d4`, iris_web.js=`5ffc825a52a53816a79d832cc37fd56e`, iris_web.html=`5925e0afd477917f37a62becba4efd18`.
+- **POST after restart: 20/23 PASS, 3 WARN, 0 FAIL → AUTHORIZED**, `[BASE] Teensy 4.0 connected`, `[INFO] Ready.` iris-web restarted and serving the new UI.
+
+## Previous Session Changes (S122 — 2026-06-11)
 
 - **Streaming playback pipeline hardening — DEPLOYED + VERIFIED** (Session 2 of S121 review handoffs). Three fixes:
   - **STOP race fixed.** `play_pcm_stream()` no longer clears `_stop_playback` (entry or exit); it accepts a shared `interrupted` Event. The producer in `assistant.py` owns the flag lifecycle (clear at turn start + turn end) and checks `_stop_playback OR _player_interrupted` per LLM chunk and again after each `synthesize()`. Live harness: STOP at t=2.0s mid-synthesis → dispatch halted in 0.21s, LLM stream abandoned at 2/10 sentences. Also fixes latent inverse bug (stale STOP from idle aborting the next turn's first chunk).

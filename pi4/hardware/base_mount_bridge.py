@@ -12,6 +12,7 @@ _DEFAULT_GESTURE_MAP = {
     "VOL+":    "VOL+",
     "VOL-":    "VOL-",
     "STOP":    "STOP",
+    "RIGHT":   "STOP",
     "LISTEN":  "LISTEN",
     "FORWARD": "LISTEN",
     "BACKWARD":"WAKE",
@@ -21,13 +22,18 @@ _DEFAULT_GESTURE_MAP = {
 
 # Restore level used by MUTE toggle (mutable single-element list for closure capture)
 _mute_restore = [70]
+_muted = [False]
 
 
 def _load_gesture_map():
     try:
         with open(_CONFIG_PATH) as f:
             cfg = json.load(f)
-        return cfg.get("GESTURE_MAP", _DEFAULT_GESTURE_MAP)
+        # Overlay stored map on defaults so gestures added after the config
+        # was saved (e.g. RIGHT) still dispatch their default action.
+        merged = dict(_DEFAULT_GESTURE_MAP)
+        merged.update(cfg.get("GESTURE_MAP", {}))
+        return merged
     except Exception:
         return _DEFAULT_GESTURE_MAP
 
@@ -86,14 +92,17 @@ class BaseMountBridge:
         elif action == "MUTE":
             try:
                 from hardware.audio_io import get_volume, set_volume
-                v = get_volume()
-                if v > 0:
-                    _mute_restore[0] = v
-                    set_volume(0)
+                if not _muted[0]:
+                    v = get_volume()
+                    if v > 0:
+                        _mute_restore[0] = v
+                    set_volume(0, allow_zero=True)
+                    _muted[0] = True
                     print("[BASE] MUTE: muted", flush=True)
                 else:
                     restore = _mute_restore[0] if _mute_restore[0] > 0 else 70
                     set_volume(restore)
+                    _muted[0] = False
                     print(f"[BASE] MUTE: unmuted to {restore}", flush=True)
             except Exception as e:
                 print(f"[BASE] MUTE error: {e}", flush=True)

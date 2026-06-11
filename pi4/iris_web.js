@@ -698,7 +698,7 @@ function toggleBenchAuto(cb) {
 }
 
 // ── Gesture config ────────────────────────────────────────────────────────────
-const _GESTURE_KEYS    = ['VOL+', 'VOL-', 'STOP', 'FORWARD', 'BACKWARD', 'CW', 'CCW'];
+const _GESTURE_KEYS    = ['VOL+', 'VOL-', 'STOP', 'RIGHT', 'FORWARD', 'BACKWARD', 'CW', 'CCW'];
 const _GESTURE_ACTIONS = ['VOL+', 'VOL-', 'STOP', 'LISTEN', 'SLEEP', 'WAKE', 'MUTE', 'SKIP'];
 const _GESTURE_LABELS  = {
   'VOL+':    'VOL+ — volume up',

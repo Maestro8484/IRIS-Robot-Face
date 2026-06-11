@@ -514,7 +514,6 @@ CHATTERBOX_EXAGGERATION = 0.45
 CHATTERBOX_ENABLED      = True     # rollback only; Kokoro is primary
 TEENSY_PORT             = "/dev/ttyIRIS_EYES"
 BASE_MOUNT_PORT         = "/dev/ttyIRIS_SERVO"
-GESTURE_SENSOR_REQUIRED = True
 NUM_PREDICT             = 100      # default (followup loop + warmup)
 NUM_PREDICT_SHORT       = 40       # greetings, yes/no (~9 s)
 NUM_PREDICT_MEDIUM      = 90       # normal conversational reply (~21 s)

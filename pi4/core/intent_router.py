@@ -255,12 +255,18 @@ class IntentRouter:
         return result
 
     # ── Layer 0 ───────────────────────────────────────────────────────────────
+    @staticmethod
+    def _starts_phrase(norm: str, prefixes) -> bool:
+        # Exact match or phrase followed by a space — avoids false matches on
+        # "stopwatch", "quietly", "cancelled" (mirrors assistant.py STOP gate).
+        return any(norm == p or norm.startswith(p + " ") for p in prefixes)
+
     def _layer0_reflex(self, norm: str) -> Optional[IntentResult]:
-        if norm in _SLEEP_EXACT or any(norm.startswith(p) for p in _SLEEP_STARTS):
+        if norm in _SLEEP_EXACT or self._starts_phrase(norm, _SLEEP_STARTS):
             return IntentResult(ROUTE_REFLEX, "SLEEP", CONF_HIGH, response="Goodnight.")
-        if norm in _STOP_EXACT or any(norm.startswith(p) for p in _STOP_STARTS):
+        if norm in _STOP_EXACT or self._starts_phrase(norm, _STOP_STARTS):
             return IntentResult(ROUTE_REFLEX, "STOP", CONF_HIGH)
-        if norm in _WAKE_EXACT or any(norm.startswith(p) for p in _WAKE_STARTS):
+        if norm in _WAKE_EXACT or self._starts_phrase(norm, _WAKE_STARTS):
             return IntentResult(ROUTE_REFLEX, "WAKE", CONF_HIGH)
         return None
 

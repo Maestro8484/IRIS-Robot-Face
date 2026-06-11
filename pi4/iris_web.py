@@ -650,6 +650,7 @@ _DEFAULT_GESTURE_MAP = {
     "VOL+":    "VOL+",
     "VOL-":    "VOL-",
     "STOP":    "STOP",
+    "RIGHT":   "STOP",
     "LISTEN":  "LISTEN",
     "FORWARD": "LISTEN",
     "BACKWARD":"SLEEP",

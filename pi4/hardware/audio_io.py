@@ -111,8 +111,11 @@ def get_volume() -> int:
     return 110
 
 
-def set_volume(level: int) -> int:
-    level = max(VOL_MIN, min(VOL_MAX, level))
+def set_volume(level: int, allow_zero: bool = False) -> int:
+    # allow_zero bypasses the VOL_MIN floor for the gesture MUTE toggle;
+    # voice commands keep the floor so "volume down" can never silence IRIS.
+    floor = 0 if allow_zero else VOL_MIN
+    level = max(floor, min(VOL_MAX, level))
     subprocess.run(
         ["amixer", "-c", str(_find_wm8960_card()), "sset", VOL_CONTROL, str(level)],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -122,7 +125,6 @@ def set_volume(level: int) -> int:
 def handle_volume_command(text: str) -> str | None:
     """Handle voice volume commands. Returns response string or None if not a volume command."""
     t = text.lower().strip().rstrip(".!?")
-    current = get_volume()
     pct_match = re.search(r'(\d+)\s*(?:percent|%)', t)
     if pct_match and 'volume' in t:
         target = max(VOL_MIN, min(VOL_MAX, int(int(pct_match.group(1)) / 100 * VOL_MAX)))
@@ -136,16 +138,16 @@ def handle_volume_command(text: str) -> str | None:
         set_volume(VOL_MIN); return "Volume set to minimum."
     if any(p in t for p in ("volume up", "louder", "turn it up", "increase volume",
                              "turn up", "raise volume", "higher volume", "more volume")):
-        return f"Volume increased to {int(set_volume(current + VOL_STEP) / VOL_MAX * 100)} percent."
+        return f"Volume increased to {int(set_volume(get_volume() + VOL_STEP) / VOL_MAX * 100)} percent."
     if any(p in t for p in ("volume down", "quieter", "turn it down", "decrease volume",
                              "lower volume", "turn down", "reduce volume",
                              "less volume", "softer", "too loud")):
-        return f"Volume decreased to {int(set_volume(current - VOL_STEP) / VOL_MAX * 100)} percent."
+        return f"Volume decreased to {int(set_volume(get_volume() - VOL_STEP) / VOL_MAX * 100)} percent."
     if any(p in t for p in ("what's the volume", "whats the volume", "current volume",
                              "volume level", "how loud", "what volume")):
-        return f"Volume is at {int(current / VOL_MAX * 100)} percent."
+        return f"Volume is at {int(get_volume() / VOL_MAX * 100)} percent."
     if 'volume' in set(t.split()) and len(t.split()) <= 6:
-        return f"Volume is at {int(current / VOL_MAX * 100)} percent."
+        return f"Volume is at {int(get_volume() / VOL_MAX * 100)} percent."
     return None
 
 
@@ -318,7 +320,7 @@ _EMOTION_SPEAK_FRAMES = {
 
 def play_pcm_speaking(pcm_bytes: bytes, pa, teensy, emotion: str = 'NEUTRAL',
                       restore_mouth_idx: int = 0, rate: int = 48000) -> bool:
-    """play_pcm with emotion-driven mouth animation. Cycles per-emotion frames at 120 ms/frame.
+    """play_pcm with emotion-driven mouth animation. Cycles per-emotion frames at 0.50 s/frame.
     Suspends Person Sensor eye tracking during playback to prevent jitter.
     Returns True if playback was interrupted mid-stream."""
     frames = _EMOTION_SPEAK_FRAMES.get(emotion.upper(), _EMOTION_SPEAK_FRAMES['NEUTRAL'])

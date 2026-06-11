@@ -2657,3 +2657,43 @@ Live md5s (LF): assistant.py=`e55bbda4a02f971ce6f31398dee01ab9`, hardware/audio_
 **Not covered by automated verification (needs a human in front of IRIS):** voice-spoken "stop" through the mic during a LONG reply (the interrupt-listener STT path into the new shared event), and next-wakeword acceptance immediately after a STOP.
 
 **Rollback:** `git checkout 81525bf -- pi4/assistant.py pi4/hardware/audio_io.py pi4/hardware/teensy_bridge.py pi4/core/config.py`, redeploy all four + persist, restart assistant.
+
+---
+
+## S123 — Gesture MUTE/RIGHT Fixes + Router Word-Boundary Polish (2026-06-11)
+
+**Status:** DEPLOYED + VERIFIED
+
+**Goal:** Fix two broken user-facing gestures (CW→MUTE landed at VOL_MIN=60 and could never unmute; right swipe dispatched SKIP) plus small router/cleanup fixes.
+
+**Fix 1 — Gesture MUTE (`pi4/hardware/audio_io.py`, `pi4/hardware/base_mount_bridge.py`):**
+- `set_volume()` gained `allow_zero=False` kwarg — bypasses the VOL_MIN floor only for the gesture MUTE toggle; voice volume commands keep the floor.
+- Bridge MUTE branch now tracks `_muted` state explicitly (module-level, like `_mute_restore`). First CW: save current volume, `set_volume(0, allow_zero=True)`. Second CW: restore `_mute_restore`. The old `get_volume()==0` unmute branch was unreachable because the clamp made 0 impossible.
+
+**Fix 2 — RIGHT gesture dead (`base_mount_bridge.py`, `iris_web.py`, `iris_web.js`, `iris_web.html`):**
+- Firmware emits literal `RIGHT` on right swipe (paj7620.cpp:161, unchanged) but no map had a RIGHT key → SKIP.
+- `"RIGHT": "STOP"` added to both `_DEFAULT_GESTURE_MAP` copies; web Gestures tab now has a RIGHT (swipe right) row; STOP label corrected to "(swipe left)".
+- Bridge `_load_gesture_map()` now overlays the stored config map on the defaults (same merge iris_web GET already did), so RIGHT works immediately with the older stored `GESTURE_MAP` in iris_config.json (PROTECTED — not edited).
+
+**Fix 3 — Router/cleanup polish:**
+- `core/intent_router.py` — `_layer0_reflex` prefix matching now requires exact match or phrase + space (`_starts_phrase` helper, mirrors assistant.py main-loop STOP gate). "stopwatch timer" no longer triggers REFLEX/STOP.
+- `pi4/assistant.py` — main-loop RMS gate uses `SILENCE_RMS` instead of hardcoded 300.
+- `hardware/audio_io.py` — `handle_volume_command()` no longer calls `get_volume()` (2 subprocesses) before pattern checks; called lazily only in branches that need it. `play_pcm_speaking` docstring corrected (0.50 s/frame, not 120 ms).
+- `core/config.py` — `GESTURE_SENSOR_REQUIRED` deleted (zero references in pi4/ outside config.py; iris_post.py stopped reading it when l0_gesture became always-WARN). `IRIS_ARCH.md` + `IRIS_CONFIG_MAP.md` updated. Two stale tests in `tests/test_iris_post.py` that monkeypatched the long-gone `iris_post.GESTURE_SENSOR_REQUIRED` attr (already erroring pre-session) replaced with one always-WARN test; conftest mock_audio `set_volume` accepts `allow_zero`.
+
+**RD-003 CLOSED:** `ls /home/pi/iris_sleep.log` → No such file or directory. Removed from ROADMAP.md.
+
+**Deploy (Pi4, paramiko script):** assistant.py, hardware/audio_io.py, hardware/base_mount_bridge.py, core/intent_router.py, core/config.py, iris_web.py, iris_web.js, iris_web.html → `/home/pi/<same>`, persisted to `/media/root-ro`, **md5 repo=RAM=SD all 8 files**:
+assistant.py=`db96f785b796b9a61bed0b591f6fe5d8`, audio_io.py=`035d43b6d7e623f959354a9938110c5a`, base_mount_bridge.py=`9ba56cbb0862c11d2b28823700c4d2ad`, intent_router.py=`692c8e17b5340c0336bb1ade476ef1e0`, config.py=`d9ebc9c5751a2db89af9424b1af7c83f`, iris_web.py=`1fe3acc39ce4f54bc16c0e5621dd51d4`, iris_web.js=`5ffc825a52a53816a79d832cc37fd56e`, iris_web.html=`5925e0afd477917f37a62becba4efd18`. (Repo↔live now byte-match for these 8 — supersedes the S120/S121 CRLF-drift notes for them.)
+
+**Verified live (assistant + iris-web restarted):**
+- POST `RESULT: 20/23 PASS WARN:3 FAIL:0`, startup AUTHORIZED, `[BASE] Teensy 4.0 connected`, `[INFO] Ready.`
+- MUTE toggle via real `_dispatch("MUTE")` on live ALSA: 123 → `Playback 0 [0%]` → restored `Playback 123 [97%]`.
+- `_load_gesture_map()` on live config: RIGHT→STOP, CW→MUTE (stored map merged over defaults).
+- Router on live Pi4 + iris_intent.log: "stopwatch please"→LLM, "stop"/"stop talking now"/"cancel"→REFLEX/STOP, "cancelled order"→LLM, "goodnight"→REFLEX/SLEEP.
+- `/api/gesture_config` returns RIGHT:STOP; served iris_web.js/html contain the RIGHT row.
+- pytest: 62 passed; 4 remaining failures pre-exist this session (3 stale bridge default-map dispatch params + test_fail_outcome) — verified identical on the pre-edit tree.
+
+**Not covered (needs a human at the sensor):** physical right swipe logging `[GESTURE] gesture=RIGHT action=STOP` and physical CW mute/unmute — the code path was exercised end-to-end short of the PAJ7620U2 serial event itself.
+
+**Rollback:** `git checkout a96fb1a -- pi4/assistant.py pi4/hardware/audio_io.py pi4/hardware/base_mount_bridge.py pi4/core/intent_router.py pi4/core/config.py pi4/iris_web.py pi4/iris_web.js pi4/iris_web.html`, redeploy all 8 + persist, restart assistant + iris-web.

@@ -725,8 +725,8 @@ def main():
                 print(f"[BENCH] t={_t_rec:.3f} stage=rec_done dur_rec={_t_rec-_t_wake:.2f} rms={rms:.0f}", flush=True)
 
             # ── RMS gate + Whisper hallucination filter ────────────────────────
-            if rms < 300:
-                print(f"[REC]  Below RMS gate ({rms:.0f} < 300), ignoring", flush=True)
+            if rms < SILENCE_RMS:
+                print(f"[REC]  Below RMS gate ({rms:.0f} < {SILENCE_RMS}), ignoring", flush=True)
                 show_idle_for_mode(leds); continue
 
             leds.show_thinking(); print("[STT]  Transcribing...", flush=True)

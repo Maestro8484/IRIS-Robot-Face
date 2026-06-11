@@ -57,7 +57,7 @@ def mock_audio(monkeypatch):
     def get_volume():
         return state["volume"]
 
-    def set_volume(value):
+    def set_volume(value, allow_zero=False):
         state["volume"] = value
 
     def play_pcm(pcm, pa=None):
