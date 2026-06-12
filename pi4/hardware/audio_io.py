@@ -431,6 +431,19 @@ def play_pcm_stream(pcm_queue, pa, teensy, emotion: str = 'NEUTRAL',
                 _drain()
                 break
     finally:
+        # Flush ALSA's output buffer before stopping. In blocking mode
+        # stream.write() returns once data is handed to ALSA, not when it has
+        # actually been played out; stop_stream() then drops the last unplayed
+        # period and clips the final syllable of the utterance. Writing a short
+        # silence tail clocks the real samples through the buffer first. Skip
+        # when interrupted -- there we WANT an immediate cut. (Inter-sentence
+        # writes are contiguous, so only the final blob is at risk.)
+        if not interrupted.is_set():
+            _tail = b"\x00" * (rate * 4 // 5)  # ~200 ms stereo s16le silence
+            try:
+                stream.write(_tail)
+            except Exception:
+                pass
         stream.stop_stream()
         stream.close()
         anim_stop.set()

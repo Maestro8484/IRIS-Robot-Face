@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S128 | **Date:** 2026-06-11 | **Branch:** `main` | **Last commit:** S128
+**Session:** S129 | **Date:** 2026-06-12 | **Branch:** `main` | **Last commit:** S129
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -25,7 +25,7 @@
 | GandalfAI 192.168.1.3 | **OPERATIONAL.** iris/iris-kids on **mistral-small3.2:24b** (S119, was qwen3.5:27b). Ollama **0.30.7**. arch=`mistral3`, 24.0B, caps include `vision` (Pixtral baked in, no mmproj). 15GB Q4, **100% GPU** confirmed (no CPU offload). **num_ctx 6144 unified (S119b)** so text+vision share one context — no reload. Text ~42 tok/s; vision cold-after-text **2.4s** (load 0.28s), warm 1.6s/0.3s first-token (vs 29s on qwen3.5). PT-001 15/20, persona-locked, no token bleed. Env (Machine scope): FLASH_ATTENTION=1, NUM_PARALLEL=1, KV_CACHE=q8_0. Kokoro TTS 8004 OK. **Clone `C:\IRIS\IRIS-Robot-Face` reset to S123/9a7f879 (S124, was S115/1a6950b + dirty modelfile edits).** **Watchtower scoped (S124):** `--label-enable` active; kokoro-tts, wyoming-whisper, wyoming-piper protected from auto-update; open-webui + watchtower labeled for auto-update. **Reboot hardened S127:** IRIS_DockerAutoStart schtask (AtLogon/gandalf/Highest) auto-starts both compose stacks. Docker Desktop auto-starts via HKCU Run. No manual action needed on reboot. |
 | Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). **Sleep mouth fixed S128:** sleep backlight now `MOUTH_INTENSITY:5` (BL_MAP[5]≈6%, starfield visible) — live config was overriding to 1 (≈0.8%, appeared blank). No firmware change. |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
-| TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). **Streaming dispatch live (S116):** main LLM replies synthesized per sentence and played overlapped. **Hardened S122:** STOP now halts producer dispatch within ~1 sentence (shared interrupt event); TTS_MAX_CHARS enforced cumulatively across the utterance. **Unified S126:** follow-up turns use the same streaming pipeline via shared `_speak_llm_turn()` — first audio ~1.0–1.3 s after follow-up llm_start (was blocked for full generation + synthesis); follow-up turns now bench-logged (route=FOLLOWUP). |
+| TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). **Streaming dispatch live (S116):** main LLM replies synthesized per sentence and played overlapped. **Hardened S122:** STOP now halts producer dispatch within ~1 sentence (shared interrupt event); TTS_MAX_CHARS enforced cumulatively across the utterance. **Unified S126:** follow-up turns use the same streaming pipeline via shared `_speak_llm_turn()` — first audio ~1.0–1.3 s after follow-up llm_start (was blocked for full generation + synthesis); follow-up turns now bench-logged (route=FOLLOWUP). **Tail-clip fixed S129:** `play_pcm_stream()` writes a ~200 ms silence tail before `stream.stop_stream()` (blocking-mode ALSA was dropping the last unplayed period → clipped final syllable since S116). Skipped when interrupted so STOP still cuts instantly. |
 
 ---
 
@@ -57,6 +57,13 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 - `src/eyes/EyeController.h`
 
 ---
+
+## Last Session Changes (S129 — 2026-06-12)
+
+- **TTS tail-clip fix — DEPLOYED (Pi4). No firmware change.** Spoken LLM replies were dropping the final syllable. Root cause: S116-streaming regression — `play_pcm_stream()` uses blocking `stream.write()` then called `stream.stop_stream()` right after the last write; in blocking mode `write()` returns when data is handed to ALSA (not played), so `stop_stream()` discarded the last unplayed period. Only the final blob was affected (inter-sentence writes are contiguous) → end-of-response clip. The callback-mode `play_pcm()` (single-blob path) never clipped because PortAudio drains before going inactive.
+- **Fix:** `pi4/hardware/audio_io.py` `play_pcm_stream()` `finally` writes a ~200 ms stereo s16le silence tail (`b"\x00" * (rate*4//5)`) before `stop_stream()`, only when **not** interrupted (STOP still cuts instantly). Inaudible; no rate/pitch change.
+- **Deployed (md5 RAM=SD=repo):** audio_io.py=`d5139a4c0942fe99fdf9a0dc59896b35` (CRLF; live byte-identical to repo). POST **20/23 PASS, 3 WARN, 0 FAIL → AUTHORIZED**, RAM vs SD md5 PASS.
+- **Pending human check:** speak any reply — last word no longer clipped; "stop" mid-reply still cuts immediately.
 
 ## Last Session Changes (S128 — 2026-06-11)
 

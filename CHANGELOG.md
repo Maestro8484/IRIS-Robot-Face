@@ -2864,3 +2864,38 @@ drift). md5 gate is RAM==SD, which passed.
 
 **Rollback:** `/tmp/*.bak` on Pi4 (`assistant.py.bak`, `iris_sleep.py.bak`,
 `iris_config.json.bak`); restore + remount-rw copy to `/media/root-ro` + remount-ro + restart.
+
+## S129 — TTS Tail-Clip Fix (Streaming Playback) (2026-06-12)
+
+**Status:** DEPLOYED (Pi4). Firmware: no change. Audible tail confirmation pending human listen.
+
+**Problem:** Spoken LLM responses were clipped — the final syllable/word of a reply got cut off.
+
+**Root cause:** Regression introduced with the S116 streaming pipeline. The single-blob path
+`play_pcm()` uses PyAudio **callback mode**, where PortAudio drains all buffered audio before
+`is_active()` goes false — nothing clips. The streaming path `play_pcm_stream()` (used for every
+main + follow-up LLM reply since S116) uses **blocking `stream.write()`** and called
+`stream.stop_stream()` immediately after the last write. In blocking mode `write()` returns when
+data is handed to ALSA, not when it is played out; `stop_stream()` then discarded the last unplayed
+ALSA period, cutting the final syllable. Only the very last blob is affected (inter-sentence writes
+are contiguous), which is exactly why the *end* of responses was clipped.
+
+**Change:**
+- `pi4/hardware/audio_io.py` — `play_pcm_stream()` `finally` block now writes a ~200 ms stereo
+  s16le silence tail (`b"\x00" * (rate * 4 // 5)`) before `stream.stop_stream()`, but **only when
+  not interrupted** (a STOP still cuts immediately). The silence occupies the buffer tail so the
+  real final samples clock all the way out to the DAC. Inaudible, no rate/pitch change, STOP path
+  unchanged.
+
+**Deployed (md5 RAM=SD=repo verified):** audio_io.py=`d5139a4c0942fe99fdf9a0dc59896b35` (CRLF;
+live file byte-identical to repo worktree — no drift on this file).
+
+**Verified (live Pi4):** in-place patch reproduced the repo worktree md5 exactly; `py_compile`
+clean; POST after restart **20/23 PASS, 3 WARN, 0 FAIL → AUTHORIZED**, RAM vs SD md5 PASS.
+(WARN profile unchanged: no [VER] firmware, unknown config keys GESTURE_MAP/GESTURE_SENSOR_REQUIRED.)
+
+**Pending human check:** speak any LLM reply and confirm the last word is no longer clipped; say
+"stop" mid-reply and confirm it still cuts immediately (no added trailing audio).
+
+**Rollback:** `/tmp/audio_io.py.bak.S129` on Pi4; restore + remount-rw copy to
+`/media/root-ro/home/pi/hardware/audio_io.py` + remount-ro + `systemctl restart assistant`.
