@@ -109,3 +109,108 @@ Revert the tracking-path edits + `FIRMWARE_VERSION`, reflash the prior build. If
 ## Status terminology
 Firmware stays REPO-ONLY until the operator flashes; don't mark VERIFIED without the operator observing
 sustained tracking at the bench. Update CHANGELOG.md before closing.
+
+---
+
+## Autonomous prep — S132 (2026-06-13, build ready)
+
+**Diagnosis from full code review:**
+
+| Candidate | Finding |
+|---|---|
+| `EyeController.h setTargetPosition` seeding (`ed8fa41`) | **INTACT** — lines 518-529 seed `eyeOldX/Y` from current interpolated position before any new target. No regression. |
+| Internal wander timer override | **ELIMINATED** — `applyAutoMove()` returns early when `!autoMove && !inMotion`. No rogue saccade fires while tracking. |
+| `mouthGreet()` BOING blocking | **PRIMARY — CONFIRMED.** Three synchronous SWSPI `fillScreen+draw` calls in the 0–600 ms window directly follow face acquisition. See below. |
+| `box_confidence` / `is_facing` flicker | **SECONDARY** — a single low-confidence frame zeros `maxSize`, resets `faceWasPresent`, and starves a tracking update. Compounds primary. |
+
+**Why mouthGreet is the primary suspect:**
+
+When `mouthGreet()` fires (only when `_idleActive && _idleAnim==0xFF`), it calls `mouthTFTShow(5)` which:
+1. `_tft->fillScreen(MTFT_BLACK)` — clears the full 320×240 display over bit-bang SPI
+2. `_draw_surprised()` — 314 `fillRect` SWSPI calls
+
+This runs **synchronously inside `reportFaceState()`**, BEFORE `setTargetPosition()` is called — so the
+very first target command is delayed by the SWSPI block. The BOING animation then fires two more blocking
+redraws via `mouthIdleTick()`:
+- T≈300ms: `mouthTFTShow(0)` (phase 2 transition)
+- T≈600ms: `mouthApplyIdleTint()` (restore)
+
+Total loop disruption window: **0–600 ms = exactly the observed ~0.5 s drop**.
+
+**S132 implements `DEBUG_FACE` instrumentation. The firmware is built and REPO-ONLY.**
+
+---
+
+### Bench checklist — operator steps to flash + diagnose
+
+**1. Flash S132 firmware:**
+```powershell
+# On SuperMaster, in the repo directory:
+.\scripts\flash_t41.ps1
+# Wait for: [VER] IRIS-EYES firmware=S132 built=Jun 13 2026
+# Verify in journalctl:
+# ssh pi@192.168.1.200 "journalctl -u assistant | grep VER"
+```
+
+**2. Enable `DEBUG_FACE` build (to observe the drop):**
+
+The shipped S132 build has `DEBUG_FACE=0` (production-safe). To get the debug prints, rebuild with the
+flag enabled:
+```cpp
+// In src/main.cpp, change line:
+#define DEBUG_FACE 0
+// to:
+#define DEBUG_FACE 1
+// Then rebuild: pio run -e eyes
+// Then reflash: .\scripts\flash_t41.ps1
+```
+Or add `-DDEBUG_FACE=1` to `platformio.ini` `build_flags` for the eyes env temporarily.
+
+**3. Watch the serial output when you sit in front of IRIS:**
+```bash
+ssh pi@192.168.1.200 "journalctl -u assistant -f" | grep "DBG-F\|FACE:"
+```
+Or open a serial terminal on `/dev/ttyIRIS_EYES` at 115200 on the Pi4 (while bridge is stopped):
+```bash
+# Stop the bridge temporarily for raw serial:
+sudo systemctl stop assistant
+minicom -D /dev/ttyIRIS_EYES -b 115200
+# Then restart: sudo systemctl start assistant
+```
+
+**4. What to observe at the ~0.5 s drop moment:**
+
+| `[DBG-F]` field | What it tells you |
+|---|---|
+| `greet block_ms=NNN` | **Primary confirmation.** If NNN > 100ms, `mouthGreet()` is blocking the loop at acquisition; disable/gate greet during tracking to fix. |
+| `mxSz=0` after a run of `mxSz>0` | **Confidence flicker.** Face disappeared for one read; add hysteresis (require N consecutive misses). |
+| `aM=1` while face is present | `autoMove` re-enabled prematurely — `FACE_LOST_TIMEOUT_MS` path firing. Should not occur at 0.5 s. |
+| `conf=NN` fluctuating around 60 | Confidence on the threshold; lower gate to 50 or add hysteresis. |
+| `tLost=NN` large while `mxSz>0` | `lastDetectionTimeMs` not resetting for the qualifying face — PersonSensor bug. |
+| `spk=1` | `eyesSpeaking=true` — tracking suppressed for TTS. Expected during speech. |
+
+**5. Expected output for the mouthGreet primary mechanism:**
+```
+FACE:1
+[DBG-F] greet block_ms=250          <-- ~100-400ms blocking here is the bug
+[DBG-F] nF=1 mxSz=1234 conf=180 fac=1 tX=0.12 tY=-0.05 aM=0 spk=0 tLost=0
+[DBG-F] nF=1 mxSz=1198 conf=175 fac=1 tX=0.11 tY=-0.04 aM=0 spk=0 tLost=70
+[DBG-F] nF=1 mxSz=1210 conf=178 fac=1 tX=0.13 tY=-0.03 aM=0 spk=0 tLost=140
+... (tracking reads, face holds)
+[DBG-F] greet block_ms≈0 (not printed)   <-- BOING phase 2 at ~300ms blocks mouthIdleTick
+[DBG-F] nF=1 mxSz=0 conf=180 fac=1 ...  <-- <-- if THIS appears, it's confidence flicker
+```
+
+**6. Proposed fix (test after confirming `block_ms` > 50ms):**
+
+In `reportFaceState()`, gate `mouthGreet()` to skip if face was recently present OR is currently
+being tracked. Simplest version — don't greet if face was recently present within the cooldown window
+(it's already debounced by `FACE_COOLDOWN_MS=30s`, but the root issue is the greet blocking the
+loop at ALL). Consider: defer the greet via a non-blocking flag that fires the BOING from
+`mouthIdleTick` on the next iteration AFTER `setTargetPosition()` has already been called.
+
+**7. If `mxSz` stays consistently > 0 and `greet block_ms` is small:**
+→ The primary hypothesis is wrong. Look for `aM=1` (wander re-enabled early) or check
+`EyeController.h` for any per-frame override of the target position.
+
+**Rollback:** `git checkout -- src/main.cpp src/config.h && pio run -e eyes && .\scripts\flash_t41.ps1`

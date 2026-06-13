@@ -3062,3 +3062,58 @@ seen at the S130 audit). Live state at session start was healthy (overlay 1%, no
 - Bridge: `git checkout -- pi4/hardware/teensy_bridge.py`, redeploy + SD-persist + restart assistant.
 - journald: restore `iris.conf` (500M/1yr) or delete it + main conf, re-persist both, restart systemd-journald.
 - WebUI: `git checkout` the three files, redeploy + SD-persist + restart iris-web.
+
+---
+
+## S132 — RD-033 Autonomous Prep: DEBUG_FACE instrumentation + build validation (2026-06-13)
+
+**Status:** REPO-ONLY — firmware built clean, pending operator bench flash.
+
+**Goal:** Autonomous session (no operator present). Bounded prep work only for the face-tracking drop bug
+(RD-033): read all relevant source in full, confirm/refine the diagnosis, implement gated serial debug
+instrumentation, bump FIRMWARE_VERSION, build clean, and prepare the bench checklist.
+
+**Diagnosis confirmed from code review:**
+
+- **ed8fa41 eyeOldX seeding fix (`EyeController.h:518-529`) — INTACT.** Correctly seeds `eyeOldX/Y`
+  from the current interpolated position before any new target move. No regression.
+- **Internal EyeController wander timer — ELIMINATED as a mechanism.** `applyAutoMove()` returns
+  early when `!autoMove && !inMotion`, freezing the eye at the last target. No rogue saccade fires in
+  tracking mode regardless of elapsed time.
+- **PRIMARY SUSPECT CONFIRMED: `mouthGreet()` BOING animation creates three synchronous SWSPI
+  blocking redraws in the 0–600 ms window after face acquisition — exactly matching the ~0.5 s drop.**
+  - T=0ms (FACE:1 rising edge): `mouthGreet()` → `mouthTFTShow(5)` → `fillScreen(BLACK)` +
+    `_draw_surprised()` (314 `fillRect` calls over bit-bang SPI) — blocks `loop()` while the face lock
+    is first being established and `setTargetPosition()` has not yet been called.
+  - T≈300ms: BOING phase 2 in `mouthIdleTick()` → `mouthTFTShow(0)` → `fillScreen(BLACK)` + arc
+  - T≈600ms: `_idleRestore()` → `mouthApplyIdleTint()` → `fillScreen(BLACK)` + arc
+  - The greet fires only when `_idleActive && _idleAnim==0xFF` (idle engine at rest), which is the
+    normal pre-interaction state. All three SWSPI calls block `loop()` synchronously.
+- **SECONDARY: `box_confidence` flicker** — if confidence momentarily drops below 60 or `is_facing=0`
+  for one PersonSensor read (70ms cadence), `maxSize=0` → `faceWasPresent` resets. Next positive
+  read restores tracking but with `FACE_COOLDOWN_MS=30s` preventing a second greet. Each flicker
+  frame starves the tracking update and compounds the BOING blocking window.
+- **`lastDetectionTimeMs` in PersonSensor.cpp:24** resets for ANY face (even below the
+  `box_confidence>60/is_facing` gate used in main.cpp). Conservative but harmless for the 5s autoMove
+  timeout. Noted for future reference.
+
+**Changes (`src/main.cpp` only):**
+
+- **`DEBUG_FACE` compile gate** (`#ifndef DEBUG_FACE #define DEBUG_FACE 0 #endif`, default OFF) added
+  after the PersonSensor include. Gating is `#if DEBUG_FACE` throughout — zero runtime cost when off;
+  respects RD-031/`feedback_no_unbounded_logging`.
+- **Per-read debug block** (inside `personSensor.read()` block, one print per sensor read ≈14Hz):
+  `numFacesFound`, `maxSize`, face-0 `box_confidence`, `is_facing`, computed `targetX/Y` (when
+  qualifying), `autoMoveEnabled()`, `eyesSpeaking`, `timeSinceFaceDetectedMs()`. Tag: `[DBG-F]`.
+- **`mouthGreet()` timing block** (inside `reportFaceState()`, FACE:1 rising-edge path):
+  captures `millis()` before/after `mouthGreet()` and prints `[DBG-F] greet block_ms=<N>` to
+  measure the SWSPI blocking duration directly.
+- `FIRMWARE_VERSION` bumped to `S132` in `src/config.h`.
+- **`pio run -e eyes` — [SUCCESS] in 7.72 s.** FLASH: 1372120 data, 94744 code. RAM1/RAM2 within bounds.
+- **No other files touched.** `src/eyes/EyeController.h` not modified (read-only this session per CLAUDE.md).
+
+**Rollback:**
+```bash
+git checkout -- src/main.cpp src/config.h
+# Then pio run -e eyes; reflash prior S131 build if needed.
+```

@@ -13,6 +13,15 @@
 #include "sensors/LightSensor.h"
 #include "sensors/PersonSensor.h"
 
+// RD-033 tracking debug — set to 1 to log per-read face state to Serial.
+// DEFAULT OFF (0): one line per sensor read at ~14 Hz would fill journald.
+// Compile with DEBUG_FACE=1, flash via scripts\flash_t41.ps1, then watch:
+//   journalctl -u assistant -f | grep DBG-F
+// or open a serial monitor on /dev/ttyIRIS_EYES at 115200.
+#ifndef DEBUG_FACE
+#define DEBUG_FACE 0
+#endif
+
 // ---------------------------------------------------------------------------
 // JARVIS SERIAL BRIDGE CONFIG
 // ---------------------------------------------------------------------------
@@ -351,7 +360,12 @@ static void reportFaceState(bool facePresent) {
       lastFace1SentMs = now;
       // RD-030 #3: greet the arriving person (no-op unless the idle engine owns the
       // mouth, i.e. IRIS has been at rest — so it never interrupts a conversation).
+#if DEBUG_FACE
+      { uint32_t _t0 = millis(); mouthGreet();
+        Serial.print("[DBG-F] greet block_ms="); Serial.println(millis() - _t0); }
+#else
       mouthGreet();
+#endif
     }
     faceWasPresent = true;
   } else if (!facePresent && faceWasPresent) {
@@ -428,6 +442,29 @@ void loop() {
         if (size > maxSize) { maxSize = size; maxFace = face; }
       }
     }
+#if DEBUG_FACE
+    {
+      int _nf = personSensor.numFacesFound();
+      Serial.print("[DBG-F] nF="); Serial.print(_nf);
+      Serial.print(" mxSz="); Serial.print(maxSize);
+      if (_nf > 0) {
+        person_sensor_face_t _f0 = personSensor.faceDetails(0);
+        Serial.print(" conf="); Serial.print(_f0.box_confidence);
+        Serial.print(" fac="); Serial.print((int)_f0.is_facing);
+      }
+      if (maxSize > 0) {
+        float _tx = -((static_cast<float>(maxFace.box_left) +
+                       static_cast<float>(maxFace.box_right - maxFace.box_left) / 2.0f) / 127.5f - 1.0f);
+        float _ty =  (static_cast<float>(maxFace.box_top) +
+                       static_cast<float>(maxFace.box_bottom - maxFace.box_top) / 3.0f) / 127.5f - 1.0f;
+        Serial.print(" tX="); Serial.print(_tx, 2);
+        Serial.print(" tY="); Serial.print(_ty, 2);
+      }
+      Serial.print(" aM="); Serial.print(eyes->autoMoveEnabled() ? 1 : 0);
+      Serial.print(" spk="); Serial.print(eyesSpeaking ? 1 : 0);
+      Serial.print(" tLost="); Serial.println(personSensor.timeSinceFaceDetectedMs());
+    }
+#endif
     reportFaceState(maxSize > 0);
     if (!eyesSpeaking) {
       if (maxSize > 0) {
