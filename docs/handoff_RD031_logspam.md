@@ -1,7 +1,11 @@
-# Handoff — RD-031 (log spam / unbounded disk writes) + RD-032 (resource monitor)  ⚠️ TOP PRIORITY
+# Handoff — RD-031 (log spam) + RD-032 (resource monitor) + RD-033 (sensor/tracking)  ⚠️ TOP PRIORITY = RD-031
 
-> **Bundled handoff.** RD-031 = remove/cap every spammy or unbounded writer. RD-032 = the early-warning
-> companion (resource trend collector — already deployed — plus a WebUI panel). Do both in one Opus session.
+> **Bundled handoff — one Opus session, three distinct tracked items** (consolidated per operator request).
+> RD-031 (TOP PRIORITY) = remove/cap every spammy or unbounded writer. RD-032 = early-warning companion
+> (resource trend collector — already deployed — plus a WebUI panel). RD-033 = Person Sensor face-tracking
+> **sustainment** bug (acquires then drops after ~0.5 s) — see ROADMAP RD-033 for the full diagnosis and the
+> S130 `mouthGreet()`-in-`FACE:1`-path suspect. Keep RD-031 first; RD-033 is independent and can be tackled
+> in the same session or split off if it needs heavy observe-iterate time with the operator at the bench.
 
 > **Data already waiting for you:** a capped resource-trend collector was deployed S130
 > (`/home/pi/res_trend.sh`, cron `* * * * *` → `/home/pi/logs/res_trend.csv`, self-trimmed to ~3 days).
@@ -89,6 +93,18 @@ high-rate writer so space exhaustion cannot recur, and cap the ones that must ke
   `journalctl --disk-usage`, `/home/pi/logs` size) — computed on request, **never logged**. Add a card
   in `iris_web.html` + poll in `iris_web.js` (~5–10 s); optional sparkline from `res_trend.csv`.
 - Deploy + md5 RAM=SD + restart `iris-web`.
+
+### 8. RD-033 — Person Sensor face-tracking sustainment (firmware; observe-iterate with operator)
+- **Symptom (operator-confirmed, authoritative):** sensor detects + eyes acquire a face, then **tracking
+  drops after ~0.5 s** and redirects. Recurs after code changes. NOT a detection failure. Full diagnosis +
+  candidate mechanisms in ROADMAP RD-033 — do not re-litigate detection from `FACE:` log counts (rate-limited,
+  no Pi4 consumer); diagnose from observed eye behavior + added serial debug.
+- **First suspects:** (a) S130 `mouthGreet()` added into `reportFaceState()` `FACE:1` path — blocking SWSPI
+  redraw on acquisition; gate/defer it during active tracking. (b) `EyeController.h` `setTargetPosition`
+  seeding (`eyeOldX`, prior fix ed8fa41 — **protected file, explicit OK only**). (c) gaze-timeout /
+  `FACE_LOST_TIMEOUT_MS` autoMove re-engagement on brief confidence dips.
+- **Per the standing rule, add serial debug BEFORE any reflash** (memory `feedback_dont_push_unverified_tracking`).
+  Bump `FIRMWARE_VERSION` (live=S130); REPO-ONLY → operator flashes via `scripts\flash_t41.ps1`.
 
 ## Verification (run after the batch)
 - Idle/sleep ~10 min, then `journalctl -u assistant -n 5000 | grep -c '\[SR\] frame'` ≈ 0 and

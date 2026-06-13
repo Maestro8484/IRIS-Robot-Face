@@ -82,20 +82,28 @@ runout wasn't caught early. Live snapshot at open was healthy (load ~0.5, 452 MB
 **Status:** OPEN — own session (do NOT fold into RD-031; different domain). Recommended model: Opus
 (firmware + hardware reasoning + observe-iterate; tracking debug is delicate).
 
-**Symptom (S130):** After the S130 flash, **two consecutive boots logged `[DBG] No Person Sensor found`**
-(08:24:45 fresh boot included) and **zero `FACE:` events** were emitted with a face in frame — so the
-firmware's loop skips the sensor block entirely (`hasPersonSensor()==false`) and the eyes run autoMove
-(autonomous wander), which reads as "brief lock then redirect." A reflash (MCU reset) did **not** restore
-detection; only a power cycle (Pi4 reboot / USB unplug) was expected to clear a wedged sensor I2C state.
-**S130 power-cycle result: did NOT restore detection.** Pi4 rebooted 08:40 (USB 5V drop → Teensy
-power-cycle). Definitive live test: bridge logs every serial line (`teensy_bridge.py:56`, unfiltered), and
-a forced step-out→step-in produced **zero `FACE:` events** → firmware is not reading the sensor; eyes run
-autoMove. So **reflash (MCU reset) AND power cycle both failed** — rules out a transient probe race;
-implicates a **physical I2C connection / sensor fault** (reseat the Person Sensor connector first) or a
-consistently-losing boot-probe timing. Also note: a clean Pi4 reboot does NOT capture the `[VER]` or
-`Person Sensor` setup() lines (Teensy boots before the assistant opens the port → POST logs
-`firmware version … WARN (no [VER])`) — so on reboots, `FACE:` transitions are the only detection signal.
-NOTE: the Pi4 has no `FACE:` consumer — tracking is firmware-internal; `FACE:1/0` to the Pi4 is informational.
+**Symptom (S130, per live operator observation — authoritative):** The Person Sensor IS detecting —
+the eyes acquire/lock onto a face — but **tracking is not sustained: it drops after ~0.5 s** and the gaze
+redirects. Operator confirms this exact "brief lock then lose" has **recurred multiple times after code
+changes** (a known regression-prone path). So this is a **tracking-SUSTAINMENT bug, not a detection
+failure.** (Two flash boots earlier logged `No Person Sensor found`, and a clean Pi4 reboot at 08:40 didn't
+print a probe line — but a clean reboot can't capture the one-shot `setup()` lines because the Teensy boots
+before the assistant opens the port, so those logs are inconclusive. Detection is confirmed live by the
+operator seeing the lock.) Note: log-based `FACE:`-event testing is unreliable here — `FACE:1` is
+rate-limited to once / 30 s (`FACE_COOLDOWN_MS`) so steady presence emits nothing; the Pi4 has no `FACE:`
+consumer anyway (tracking is firmware-internal; `FACE:1/0` is informational). Diagnose from observed eye
+behavior + added serial debug, NOT from `FACE:` log counts.
+
+**Likely mechanism — the ~0.5 s drop:** after acquisition the firmware should `setTargetPosition()` to the
+face every loop while `maxSize>0`. The drop implicates one of:
+- `EyeController.h` `setTargetPosition` restart/seeding (`eyeOldX` not seeded — the prior bug, fix ed8fa41,
+  memory `project_tracking_eyecontroller_fix`); **EyeController.h is a protected file** — touch only with explicit OK.
+- gaze-timeout (`setMaxGazeMs`/`maxGazeMs` per emotion) re-centering, or `FACE_LOST_TIMEOUT_MS` autoMove
+  re-engagement firing too eagerly when face confidence/`is_facing` briefly dips.
+- **S130 SUSPECT (mine):** RD-030 #3 added `mouthGreet()` into `reportFaceState()`'s `FACE:1` branch — a
+  **blocking SWSPI mouth redraw on face-acquisition** that stalls the eye loop right as tracking starts.
+  Must verify whether this contributes to / triggers the 0.5 s drop; if so, gate or defer the greet so it
+  never runs during active tracking.
 
 **Root-cause candidates:**
 1. **One-shot boot probe with no retry** — `setup()` probes I2C 5× over ~400 ms once; a flash/glitch or a
