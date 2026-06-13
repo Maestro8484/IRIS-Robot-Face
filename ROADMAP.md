@@ -8,9 +8,31 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 
 ## RD-031 — Eliminate log spam / unbounded disk writes  ⚠️ TOP PRIORITY (S130)
 
-**Status:** OPEN — **first-order priority** (user directive S130). A disk/space runout crippled the
-Pi4 ~3 weeks ago (≈late May 2026); this item exists to remove every unbounded/high-rate writer so it
-can't recur. Dedicated handoff with full detail + model recommendation: `docs/handoff_RD031_logspam.md`.
+**Status (S131):** ~RESOLVED~ — all Pi4-side fixes **DEPLOYED + VERIFIED**; one firmware piece is
+**REPO-ONLY pending the next flash**. See CHANGELOG S131. Remaining: flash firmware **S131** (gates the
+`[SR] frame` print) via `scripts\flash_t41.ps1`, then confirm `journalctl -u assistant | grep -c '\[SR\] frame'`
+stays ≈0 across a sleep cycle (the bridge RX gate already suppresses it even on the current S130 firmware,
+so the journal stays clean tonight regardless).
+
+**Done S131 (DEPLOYED unless noted):**
+- Bridge `teensy_bridge.py`: default-off `IRIS_DEBUG_SERIAL` gate suppresses routine `[SR]` inbound +
+  high-rate `MOUTH:`/`MOUTH_INTENSITY:` outbound echoes (the ~90% spam driver). Verified live: 0 `>> MOUTH`
+  lines over 25 s, non-routine logging intact. (md5 RAM=SD `10f189ae`.)
+- journald cap: consolidated into the existing `/etc/systemd/journald.conf.d/iris.conf` drop-in (which had
+  been *expanding* limits to 500M/1yr) → now `SystemMaxUse=50M` + `RuntimeMaxUse=50M`; main conf reverted to
+  distro default. Journal is volatile (`/run`), so RuntimeMaxUse governs. SD-persisted, both md5 RAM=SD.
+  Versioned at `pi4/scripts/journald_iris.conf`.
+- Firmware `src/sleep_renderer.h`: `[SR] frame` print gated behind `#ifdef DEBUG_SR` (default off);
+  `FIRMWARE_VERSION` → `S131`; builds clean. **REPO-ONLY (user flashes).**
+- Daily log-export retention: **already capped at 100 MB** (size-based) — live `iris_log_export.sh` md5 ==
+  repo == SD; the "unbounded" finding was stale. Now also shrinks going forward (exports pull from the
+  de-spammed journal). pip cache (169 MB) pruned to 0.
+- Audit: `find / -xdev -size +20M` → no other unbounded IRIS writers (only swapfile, apt/pip/venv/system libs).
+
+<details><summary>Original S130 finding/plan (historical)</summary>
+
+A disk/space runout crippled the Pi4 ~3 weeks ago (≈late May 2026); this item existed to remove every
+unbounded/high-rate writer so it can't recur. Dedicated handoff: `docs/handoff_RD031_logspam.md`.
 
 **Quantified S130 findings (live Pi4):**
 - `[SR] frame=N` (Teensy sleep-renderer debug print, relayed by the bridge) = **52%** of the last 5000
@@ -48,11 +70,17 @@ usual — a bad `journald.conf` or a missed SD-persist can brick logging or re-f
 ("ANY other spam source"), and high-stakes (prior space-exhaustion crippled the device + system-path
 persistence discipline). Not a mechanical one-file edit.
 
+</details>
+
 ---
 
 ## RD-032 — WebUI resource monitor + trend collector (S130, sibling of RD-031)
 
-**Status:** Collector **DEPLOYED (S130)**; WebUI panel **OPEN**. Build alongside RD-031 (same Opus session).
+**Status (S131):** ~RESOLVED~ — collector DEPLOYED (S130); **WebUI panel DEPLOYED + VERIFIED (S131).**
+`/api/sysstat` (computed on request, never logged) returns disk-first numbers (overlay %, SD %, journal
+size, `/home/pi/logs` size) + load/mem/temp/throttle/uptime + a 60-sample trend; `iris_web.html` gained a
+Resource Monitor card with a journal sparkline, `iris_web.js` polls every 10 s. Live md5 RAM=SD on all
+three WebUI files. See CHANGELOG S131.
 
 **Why:** No historical resource logging existed (no sysstat, no cron) — which is why the May space
 runout wasn't caught early. Live snapshot at open was healthy (load ~0.5, 452 MB used / 3.3 GB free,

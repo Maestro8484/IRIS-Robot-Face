@@ -132,6 +132,61 @@ def api_status():
     return jsonify(cpu_temp=cpu_temp(), running=running, uptime=uptime_str(),
                    sleeping=os.path.exists(SLEEP_FLAG))
 
+@app.route("/api/sysstat")
+def api_sysstat():
+    """Live resource snapshot for the WebUI monitor (RD-032). Computed on request
+    only — NEVER written to any log/file (RD-031: no new disk writers). Disk-first:
+    overlay % used, SD % used, journal size, /home/pi/logs size, plus
+    load/mem/temp/uptime/throttle and a 60-sample trend from res_trend.csv."""
+    import re as _re
+    def _sh(c):
+        try:
+            return subprocess.check_output(["bash", "-c", c], text=True,
+                                           stderr=subprocess.DEVNULL, timeout=5).strip()
+        except Exception:
+            return ""
+    try:
+        load1, load5, load15 = open("/proc/loadavg").read().split()[:3]
+    except Exception:
+        load1 = load5 = load15 = "?"
+    mem_total = mem_used = mem_avail = 0
+    try:
+        parts = _sh("free -m | awk '/^Mem:/{print $2,$3,$7}'").split()
+        if len(parts) == 3:
+            mem_total, mem_used, mem_avail = (int(x) for x in parts)
+    except Exception:
+        pass
+    overlay_pct = _sh("df -h / | awk 'NR==2{print $5}'")
+    sd_pct      = _sh("df -h /media/root-ro | awk 'NR==2{print $5}'")
+    journal     = _sh("journalctl --disk-usage 2>/dev/null | grep -oE '[0-9.]+[KMGB]+' | tail -1")
+    logs_mb     = _sh("du -sm /home/pi/logs 2>/dev/null | cut -f1")
+    throttled   = _sh("vcgencmd get_throttled 2>/dev/null | cut -d= -f2")
+    trend = []
+    for ln in _sh("tail -n 60 /home/pi/logs/res_trend.csv 2>/dev/null").splitlines():
+        d = {}
+        for tok in ln.split(","):
+            if "=" in tok:
+                k, v = tok.split("=", 1)
+                d[k] = v
+        if not d:
+            continue
+        trend.append({
+            "ts":        ln.split(",", 1)[0],
+            "load":      d.get("load"),
+            "overlay":   d.get("overlay"),
+            "journalMB": _re.sub(r"[^0-9.]", "", d.get("journal", "")) or None,
+            "logsMB":    d.get("logsMB"),
+            "temp":      _re.sub(r"[^0-9.]", "", d.get("temp", "")) or None,
+        })
+    return jsonify(
+        load=[load1, load5, load15], ncpu=(os.cpu_count() or 4),
+        mem_used_mb=mem_used, mem_avail_mb=mem_avail, mem_total_mb=mem_total,
+        temp_c=cpu_temp(), uptime=uptime_str(),
+        overlay_pct=overlay_pct, sd_pct=sd_pct,
+        journal=journal, logs_mb=logs_mb, throttled=throttled,
+        trend=trend,
+    )
+
 @app.route("/api/config", methods=["GET","POST"])
 def api_config():
     if request.method == "POST":

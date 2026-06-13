@@ -3003,3 +3003,62 @@ Deployed the data-gathering half of RD-032 so the RD-031 session starts with rea
 
 **Rollback:** `crontab -e` remove the `res_trend.sh` line + re-persist the spool; `rm /home/pi/res_trend.sh`
 and its SD copy. (Collector is bounded/RAM-only, so leaving it running is harmless.)
+
+---
+
+## S131 — RD-031 log-spam elimination + RD-032 WebUI resource monitor (2026-06-13)
+
+**Status:** Pi4 fixes **DEPLOYED+VERIFIED**; firmware **REPO-ONLY** (user flashes S131).
+
+**Context:** First-order priority (RD-031) — a late-May 2026 disk/space runout crippled the Pi4. Goal: remove
+every unbounded/high-rate writer. Note: the Pi had rebooted ~08:45 this morning, so the res_trend.csv had
+only ~9 min of data (not the hoped-for 24–48 h) and the volatile journal was reset (9.1 MB, not the 73.8 MB
+seen at the S130 audit). Live state at session start was healthy (overlay 1%, no throttle).
+
+**RD-031 — fixes:**
+- **Firmware `src/sleep_renderer.h` (REPO-ONLY):** the `[SR] frame=N` print (fired every 10 sleep frames all
+  night — 52% of journal lines) gated behind `#ifdef DEBUG_SR` (default off). `srFrameCount++` kept (used for
+  animation timing). `FIRMWARE_VERSION` `S130`→`S131`. `pio run -e eyes` SUCCESS. User flashes via
+  `scripts\flash_t41.ps1`.
+- **Bridge `pi4/hardware/teensy_bridge.py` (DEPLOYED, md5 RAM=SD=`10f189ae02e30f3b558ee97c48bdae2d`):**
+  added default-off `IRIS_DEBUG_SERIAL` env gate. When off, suppresses routine `[SR]` inbound echoes and
+  high-rate `MOUTH:`/`MOUTH_INTENSITY:` outbound echoes (the ~90% spam driver) via `str.startswith` tuple
+  checks; always keeps `[VER]`, `FACE:`, errors, DROPs, connect/disconnect, EMOTION. This is the systemic
+  fix — clears the journal tonight even on the current S130 firmware (defense in depth). Verified live: 0
+  `[EYES] >> MOUTH` lines over 25 s while non-routine commands (`EYE:0`, state changes) logged normally,
+  service active, no errors.
+- **journald cap (SYSTEM PATH, DEPLOYED + SD-persisted):** a prior drop-in
+  `/etc/systemd/journald.conf.d/iris.conf` was *expanding* limits (`SystemMaxUse=500M`, `MaxRetentionSec=1year`).
+  Consolidated to `SystemMaxUse=50M` + `RuntimeMaxUse=50M` in that drop-in; reverted the main
+  `/etc/systemd/journald.conf` to distro default (single source, systemd-recommended). Journal is volatile
+  (`/run/log/journal`; `/var/log/journal` du=0) so RuntimeMaxUse governs. `systemd-analyze cat-config` confirms
+  50M/50M effective. Both files md5 RAM=SD (`ce023979…` main / `b9d3bfbb…` drop-in). Versioned copy +
+  restore steps: `pi4/scripts/journald_iris.conf`.
+- **Daily log-export retention:** **already capped at 100 MB** (size-based prune in `iris_log_export.sh`); live
+  md5 == SD == repo (`5fe88e7d…`), cron `*/15`. The S130 "unbounded, no retention" finding was stale. Exports
+  also shrink going forward (they're journal exports → de-spammed). `/home/pi/logs` = 50 MB, under cap.
+- **pip cache:** `/home/pi/.cache/pip` 169 MB → 0.
+- **Audit (`find / -xdev -size +20M`):** no other unbounded IRIS writers — only the swapfile, apt/pip caches,
+  venv (numpy/openblas) and system libs. Largest daily log is the 19 MB 2026-05-31 file (incident window).
+
+**RD-032 — WebUI resource monitor (DEPLOYED+VERIFIED):**
+- **`pi4/iris_web.py`:** new `/api/sysstat` route — computed on request, **never logged** (it must not become
+  a writer). Disk-first: overlay %, SD %, `journalctl --disk-usage`, `/home/pi/logs` size; plus load/mem/temp/
+  throttle/uptime and a 60-sample trend parsed from `res_trend.csv`.
+- **`pi4/iris_web.html`:** Resource Monitor card (disk-first fields with warn/crit coloring, journal sparkline
+  canvas, Refresh button). **`pi4/iris_web.js`:** `pollSysstat()` + `_drawSpark()` + `_pctColor()`, init call,
+  10 s poll.
+- Deployed via in-place splice on the live files (which were byte-identical to the committed S130 repo);
+  diffs confirmed clean (only the new blocks added), `py_compile` OK. md5 RAM=SD on all three
+  (`c1ea0afd…`/`8f639ec8…`/`e5d0315b…`; differ from the CRLF repo working-tree only by pre-existing line-ending
+  convention). Verified: `/api/sysstat` returns valid JSON (journal 15.4M, overlay 4%, SD 19%, full trend),
+  page serves the card, JS serves `pollSysstat`. `iris-web` restarted, active.
+
+**Verification still pending (tonight's 21:00 sleep cycle):** `journalctl -u assistant | grep -c '\[SR\] frame'`
+≈ 0 and `[EYES]` journal share sharply reduced across the sleep window; `journalctl --disk-usage` stays capped.
+
+**Rollback:**
+- Firmware: revert `sleep_renderer.h` gate + `FIRMWARE_VERSION`, reflash prior build.
+- Bridge: `git checkout -- pi4/hardware/teensy_bridge.py`, redeploy + SD-persist + restart assistant.
+- journald: restore `iris.conf` (500M/1yr) or delete it + main conf, re-persist both, restart systemd-journald.
+- WebUI: `git checkout` the three files, redeploy + SD-persist + restart iris-web.

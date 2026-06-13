@@ -10,12 +10,25 @@ Provides:
     .close()                    — stops reader thread, closes serial
 """
 
+import os
 import threading
 import time
 
 import serial
 
 from core.config import TEENSY_PORT, TEENSY_BAUD
+
+# RD-031: routine high-rate serial traffic was ~90% of journal volume — inbound
+# sleep-frame echoes ([SR] …) plus per-turn outbound MOUTH/MOUTH_INTENSITY updates
+# (2 Hz during TTS + idle breathe). Suppress those echoes by default. Set
+# IRIS_DEBUG_SERIAL=1 to log every serial line again. Errors, DROPs,
+# connect/disconnect, [VER] and FACE: state are always logged.
+DEBUG_SERIAL = os.environ.get("IRIS_DEBUG_SERIAL", "").lower() not in ("", "0", "false", "no")
+
+# Outbound command prefixes that fire at high rate (mouth animation / idle breathe).
+_ROUTINE_TX_PREFIXES = ("MOUTH:", "MOUTH_INTENSITY:")
+# Inbound line prefixes that are routine per-frame chatter.
+_ROUTINE_RX_PREFIXES = ("[SR]",)
 
 
 class TeensyBridge:
@@ -52,7 +65,7 @@ class TeensyBridge:
                 continue
             try:
                 line = ser.readline().decode(errors="ignore").strip()
-                if line:
+                if line and (DEBUG_SERIAL or not line.startswith(_ROUTINE_RX_PREFIXES)):
                     print(f"[EYES] << {line}", flush=True)
             except (serial.SerialException, OSError):
                 print("[EYES] Serial disconnected -- will retry", flush=True)
@@ -99,7 +112,8 @@ class TeensyBridge:
             try:
                 self._ser.write(f"{cmd}\n".encode())
                 self._ser.flush()
-                print(f"[EYES] >> {cmd}", flush=True)
+                if DEBUG_SERIAL or not cmd.startswith(_ROUTINE_TX_PREFIXES):
+                    print(f"[EYES] >> {cmd}", flush=True)
                 return True
             except (serial.SerialException, OSError) as e:
                 print(f"[EYES] Send failed: {e}", flush=True)

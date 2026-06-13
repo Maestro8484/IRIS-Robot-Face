@@ -553,10 +553,14 @@ static inline void renderSleepFrame(GC9A01A_t3n* left, GC9A01A_t3n* right) {
     if (nowMs - srLastFrameMs < SR_FRAME_MS) return;
     srLastFrameMs = nowMs;
     srFrameCount++;
+#ifdef DEBUG_SR
+    // RD-031: default-off. This print fired every 10 sleep frames all night
+    // (~52% of journal volume). Build with -DDEBUG_SR to re-enable.
     if ((srFrameCount % 10) == 0) {
         Serial.print("[SR] frame=");
         Serial.println(srFrameCount);
     }
+#endif
 
     // ── Left eye ──────────────────────────────────────────────────────────
     left->fillScreen(SR_BLACK);

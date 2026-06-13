@@ -379,6 +379,28 @@
       <button class="btn btn-sm" style="background:var(--input-bg);border:1px solid var(--border);color:var(--text)" onclick="pollStatus()">Refresh Status</button>
     </div>
   </div>
+  <!-- Resource Monitor (RD-032) -->
+  <div class="card">
+    <h2>Resource Monitor</h2>
+    <p class="hint" style="margin-bottom:12px">Live snapshot (auto-refresh ~10 s) — computed on request, never logged (RD-031). Disk-first early warning so a space/journal runout can't recur silently. Sparkline = journal size over the last 60 min from <code style="color:var(--blue)">res_trend.csv</code>.</p>
+    <div class="field-row"><label>Overlay root (/)</label><span id="ss-overlay" style="color:var(--muted)">--</span></div>
+    <div class="field-row"><label>SD card (/media/root-ro)</label><span id="ss-sd" style="color:var(--muted)">--</span></div>
+    <div class="field-row"><label>Journal size</label><span id="ss-journal" style="color:var(--muted)">--</span></div>
+    <div class="field-row"><label>/home/pi/logs</label><span id="ss-logs" style="color:var(--muted)">--</span></div>
+    <div class="field-row"><label>Load (1/5/15m)</label><span id="ss-load" style="color:var(--muted)">--</span></div>
+    <div class="field-row"><label>Memory</label><span id="ss-mem" style="color:var(--muted)">--</span></div>
+    <div class="field-row"><label>CPU temp</label><span id="ss-temp" style="color:var(--muted)">--</span></div>
+    <div class="field-row"><label>Throttle flags</label><span id="ss-throttle" style="color:var(--muted)">--</span></div>
+    <div class="field-row"><label>Uptime</label><span id="ss-uptime" style="color:var(--muted)">--</span></div>
+    <div style="margin-top:10px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Journal trend (last 60 min)</div>
+      <canvas id="ss-spark" width="320" height="44" style="width:100%;max-width:340px;height:44px;background:var(--input-bg);border:1px solid var(--border);border-radius:4px"></canvas>
+    </div>
+    <div style="margin-top:12px">
+      <button class="btn btn-sm" style="background:var(--input-bg);border:1px solid var(--border);color:var(--text)" onclick="pollSysstat()">Refresh Now</button>
+    </div>
+  </div>
+
   <!-- POST diagnostic card -->
   <div class="card">
     <h2>Power-On Self-Test (POST)</h2>

@@ -452,3 +452,14 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Status:** Fixed — DEPLOYED+VERIFIED (GandalfAI rebuild + live Pi4 `stream_ollama` path shows BLEED=[] on adversarial/joke prompts). Note for future base swaps with few-shot prompts: keep the `User:` stop.
 
 ---
+
+## 2026-06-13 | S131 | Cross-stack / Logging (RD-031, RD-032)
+
+**Symptom:** Pi4 disk/space runout crippled IRIS ~late May 2026. Routine serial traffic dominated the journal: `[SR] frame` sleep-renderer print = 52% of journal lines, all `[EYES]` echo = 60% (~90% routine, emitted continuously through the ~10 h nightly sleep). journald uncapped; an `iris.conf` drop-in had *expanded* limits to `SystemMaxUse=500M`/`MaxRetentionSec=1year`.
+**Root cause:** (1) Teensy `renderSleepFrame()` printed `[SR] frame=N` every 10 frames unconditionally. (2) Bridge logged every serial line `[EYES] >>/<<`. (3) journald had no effective size cap (drop-in expanded it). Daily log export was already 100 MB-capped (the "unbounded" report was stale); pip cache held 169 MB.
+**Fix:** Firmware `sleep_renderer.h` — `[SR] frame` print gated `#ifdef DEBUG_SR` (default off), `FIRMWARE_VERSION`→S131. Bridge `teensy_bridge.py` — default-off `IRIS_DEBUG_SERIAL` gate suppresses `[SR]` inbound + `MOUTH:`/`MOUTH_INTENSITY:` outbound echoes. journald — `journald.conf.d/iris.conf` set to `SystemMaxUse=50M`+`RuntimeMaxUse=50M`, main conf reverted to distro default (SD-persisted). pip cache pruned. RD-032: added `/api/sysstat` + WebUI Resource Monitor card (disk-first, computed on request, never logged) for early warning.
+**Files:** `src/sleep_renderer.h`, `src/config.h`, `pi4/hardware/teensy_bridge.py`, `pi4/scripts/journald_iris.conf`, `/etc/systemd/journald.conf.d/iris.conf` (live), `pi4/iris_web.py`, `pi4/iris_web.html`, `pi4/iris_web.js`
+**Commit:** S131
+**Status:** Pi4 fixes DEPLOYED+VERIFIED (md5 RAM=SD; bridge 0 `>> MOUTH`/25 s; journald `cat-config` 50M/50M; `/api/sysstat` returns valid JSON). Firmware REPO-ONLY (user flashes S131). Pending: confirm `grep -c '\[SR\] frame'`≈0 across the next 21:00 sleep cycle.
+
+---

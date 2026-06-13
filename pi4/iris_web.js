@@ -394,6 +394,59 @@ async function pollStatus() {
   if (typeof j.sleeping === 'boolean') updateSleepUI(j.sleeping);
 }
 
+// ── Resource Monitor (RD-032) ───────────────────────────────────────────────────
+function _pctColor(s, warn, crit) {
+  const n = parseInt(s, 10);
+  if (isNaN(n)) return 'var(--muted)';
+  if (n >= crit) return 'var(--red)';
+  if (n >= warn) return 'var(--amber, #d8a200)';
+  return 'var(--green)';
+}
+function _drawSpark(id, vals) {
+  const c = document.getElementById(id);
+  if (!c || !c.getContext) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height, pad = 3;
+  ctx.clearRect(0, 0, W, H);
+  const nums = vals.map(v => parseFloat(v)).filter(v => !isNaN(v));
+  if (nums.length < 2) return;
+  const min = Math.min(...nums), max = Math.max(...nums), span = (max - min) || 1;
+  ctx.beginPath();
+  ctx.strokeStyle = 'var(--blue)';
+  ctx.lineWidth = 1.5;
+  nums.forEach((v, i) => {
+    const x = pad + (W - 2 * pad) * (i / (nums.length - 1));
+    const y = H - pad - (H - 2 * pad) * ((v - min) / span);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  });
+  ctx.stroke();
+}
+async function pollSysstat() {
+  let j;
+  try { j = await (await fetch('/api/sysstat')).json(); }
+  catch (e) { return; }
+  const set = (id, txt, color) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = txt;
+    if (color) el.style.color = color;
+  };
+  set('ss-overlay', j.overlay_pct || '?', _pctColor(j.overlay_pct, 75, 90));
+  set('ss-sd',      j.sd_pct || '?',      _pctColor(j.sd_pct, 75, 90));
+  const jn = parseFloat(j.journal) || 0;
+  set('ss-journal', (j.journal || '?') + ' / 50M cap', jn >= 45 ? 'var(--amber,#d8a200)' : 'var(--text)');
+  const lm = parseInt(j.logs_mb, 10) || 0;
+  set('ss-logs',    (j.logs_mb || '?') + 'M / 100M cap', lm >= 90 ? 'var(--amber,#d8a200)' : 'var(--text)');
+  set('ss-load',    (j.load || []).join(' / '), 'var(--text)');
+  set('ss-mem',     `${j.mem_used_mb}M used / ${j.mem_avail_mb}M avail / ${j.mem_total_mb}M`, 'var(--text)');
+  set('ss-temp',    (j.temp_c != null ? j.temp_c + 'C' : '?'),
+                    (j.temp_c >= 70 ? 'var(--red)' : 'var(--text)'));
+  set('ss-throttle', j.throttled || '?',
+                    (j.throttled && j.throttled !== '0x0') ? 'var(--red)' : 'var(--green)');
+  set('ss-uptime',  j.uptime || '?', 'var(--text)');
+  _drawSpark('ss-spark', (j.trend || []).map(t => t.journalMB));
+}
+
 async function restartAssistant() {
   await fetch('/api/restart', {method:'POST'});
   toast('Restarting IRIS...');
@@ -888,6 +941,8 @@ loadEmotionMap();
 pollStatus();
 pollSleepState();
 checkSDStatus();
+pollSysstat();
 setInterval(pollStatus, 15000);
 setInterval(pollSleepState, 5000);
 setInterval(checkSDStatus, 30000);
+setInterval(pollSysstat, 10000);
