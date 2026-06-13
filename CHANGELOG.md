@@ -2899,3 +2899,61 @@ clean; POST after restart **20/23 PASS, 3 WARN, 0 FAIL → AUTHORIZED**, RAM vs 
 
 **Rollback:** `/tmp/audio_io.py.bak.S129` on Pi4; restore + remount-rw copy to
 `/media/root-ro/home/pi/hardware/audio_io.py` + remount-ro + `systemctl restart assistant`.
+
+---
+
+## S130 — Awake/idle mouth too dark + brightness control had no lasting effect
+
+**Status:** DEPLOYED + VERIFIED (Pi4). No firmware change.
+
+**Symptom:** During awake/daytime the TFT mouth appeared dark; adjusting backlight had no
+lasting effect; the mouth (and its random idle animations) seemed to vanish after periods of
+inactivity.
+
+**Root cause — three compounding issues:**
+1. **`MOUTH_INTENSITY_IDLE = 3`** (BL_MAP[3] = 7/255 ≈ 2.7%, near-black) is the resting level the
+   Pi4 sends after *every* interaction (`assistant.py`) and after POST/boot (`iris_post.py`).
+   The mouth sits at ~2.7% almost all the time, and the firmware's own idle-animation engine
+   (breathe/drift/blink/twitch) modulates *around* that level, so the animations are effectively
+   invisible — "mouth missing after inactivity."
+2. **`assistant.py` does `from core.config import *`** so `MOUTH_INTENSITY_{AWAKE,IDLE,SLEEP}` are
+   frozen as startup constants. WebUI "Save & Apply Now" did a one-shot Teensy push, but the next
+   turn/idle reverted to the startup values — "backlight has no effect."
+3. **WebUI exposed only AWAKE + SLEEP, not IDLE** — the dominant resting brightness had no control.
+
+**Changes:**
+- `pi4/core/config.py` — `MOUTH_INTENSITY_IDLE` 3 → **8** (BL_MAP[8] = 40/255 ≈ 16%, daytime-visible;
+  idle animations now read). md5 RAM=SD=`272a33f973a3644fc730b3e5ff08819b`.
+- `pi4/assistant.py` — new `_mouth_intensity(kind)` helper reads `MOUTH_INTENSITY_{AWAKE,IDLE,SLEEP}`
+  live from `/home/pi/iris_config.json` each time (falls back to the imported default, clamps 0–15),
+  wired into all 5 send sites (`_do_sleep`, `_do_wake`, wakeword wake, auto-wake, end-of-turn idle).
+  WebUI changes now stick across turns without an assistant restart. md5 RAM=SD=`f2909a7e0503e15752edb99ba6619460`.
+- `pi4/iris_post.py` — post-boot resting `MOUTH_INTENSITY_IDLE` 3 → **8** (matches core.config).
+  md5 RAM=SD=`c4c4d813af1817144cf34bc4ab031890`.
+- `pi4/iris_web.html` — added an **Idle intensity (0–15)** slider to the TFT Mouth Intensity card;
+  hint corrected (ILI9341 backlight PWM, not "MAX7219 register"). md5 RAM=SD=`968f7045261309fb8d50eaca12473677`.
+- `pi4/iris_web.js` — `saveMouthIntensity()` persists IDLE too and (when awake) immediately pushes the
+  idle level so the slider gives live feedback on the resting brightness; both display-sync blocks
+  updated. md5 RAM=SD=`370ac02a712d9148ac7268bf676bb448`.
+
+**Deployed:** applied as surgical in-place edits to the 5 live `/home/pi` files (each anchor asserted
+to match exactly once), persisted to `/media/root-ro` (RAM=SD md5 MATCH on all 5), services restarted.
+
+**Verified (live Pi4):** `py_compile` clean (config/assistant/iris_post); POST after restart
+**AUTHORIZED** (L2 `MOUTH:0-8 cycle` PASS, `EYES:SLEEP/WAKE` PASS, `MOUTH_INTENSITY ramp` PASS);
+post-boot resting intensity now `MOUTH_INTENSITY:8` (firmware echoed `[DBG] MOUTH_INTENSITY: 8`,
+was 3); WebUI serves the new Idle slider + JS wiring (port 5000); live-helper data path confirmed
+returns AWAKE=10 (json), IDLE=8 (default — absent from json), SLEEP=3 (json).
+
+**Pending human check:** look at the mouth between interactions in daylight — clearly lit (~16%) with
+visible breathe/blink/twitch idle animation; change the new Idle slider in the WebUI → "Save & Apply
+Now" and confirm the resting brightness changes immediately and persists across the next conversation.
+
+**Note:** live `iris_config.json` (protected) was not modified; it has no `MOUTH_INTENSITY_IDLE` key,
+so the new config.py default (8) governs until the user sets it via the WebUI. Live `AWAKE=10`,
+`SLEEP=3` are the user's existing values and were left untouched.
+
+**Rollback:** `MOUTH_INTENSITY_IDLE` 8→3 in `/home/pi/core/config.py` + `/home/pi/iris_post.py`;
+revert the `_mouth_intensity()` helper/sites in `assistant.py` and the IDLE slider in
+`iris_web.html`/`iris_web.js`; remount-rw copy each to `/media/root-ro/home/pi/...` + remount-ro +
+`systemctl restart assistant iris-web`. (Repo git revert of the S130 commit covers the worktree.)

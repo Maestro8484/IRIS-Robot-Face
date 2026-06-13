@@ -240,13 +240,20 @@
   <!-- TFT Mouth Intensity -->
   <div class="card">
     <h2>TFT Mouth Intensity</h2>
-    <p class="hint">MAX7219 backlight register 0–15. "Apply Now" sends the value matching the current sleep state to Teensy immediately.</p>
+    <p class="hint">ILI9341 backlight PWM, level 0–15 (logarithmic). "Apply Now" persists all three and immediately pushes the level matching the current state (idle when awake, else sleep). Idle is the resting level shown between interactions — keep it visible so the random idle animations read.</p>
     <div class="field-row">
       <label>Awake intensity (0–15)</label>
       <input type="range" id="MOUTH_INTENSITY_AWAKE" min="0" max="15" step="1" value="8"
              style="width:180px;accent-color:#a78bfa;height:6px;cursor:pointer"
              oninput="document.getElementById('mouth-awake-display').textContent=this.value">
       <span id="mouth-awake-display" style="width:24px;color:var(--text);font-size:13px;flex-shrink:0">8</span>
+    </div>
+    <div class="field-row">
+      <label>Idle intensity (0–15)</label>
+      <input type="range" id="MOUTH_INTENSITY_IDLE" min="0" max="15" step="1" value="8"
+             style="width:180px;accent-color:#34d399;height:6px;cursor:pointer"
+             oninput="document.getElementById('mouth-idle-display').textContent=this.value">
+      <span id="mouth-idle-display" style="width:24px;color:var(--text);font-size:13px;flex-shrink:0">8</span>
     </div>
     <div class="field-row">
       <label>Sleep intensity (0–15)</label>

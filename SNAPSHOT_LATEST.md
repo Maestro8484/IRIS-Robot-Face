@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S129 | **Date:** 2026-06-12 | **Branch:** `main` | **Last commit:** S129
+**Session:** S130 | **Date:** 2026-06-12 | **Branch:** `main` | **Last commit:** S130
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -23,7 +23,7 @@
 |---|---|
 | Pi4 192.168.1.200 | Operational. assistant.service active. ttyIRIS_EYES → ttyACM0 (serial 13625440, T41). udev corrected + SD persisted S97. |
 | GandalfAI 192.168.1.3 | **OPERATIONAL.** iris/iris-kids on **mistral-small3.2:24b** (S119, was qwen3.5:27b). Ollama **0.30.7**. arch=`mistral3`, 24.0B, caps include `vision` (Pixtral baked in, no mmproj). 15GB Q4, **100% GPU** confirmed (no CPU offload). **num_ctx 6144 unified (S119b)** so text+vision share one context — no reload. Text ~42 tok/s; vision cold-after-text **2.4s** (load 0.28s), warm 1.6s/0.3s first-token (vs 29s on qwen3.5). PT-001 15/20, persona-locked, no token bleed. Env (Machine scope): FLASH_ATTENTION=1, NUM_PARALLEL=1, KV_CACHE=q8_0. Kokoro TTS 8004 OK. **Clone `C:\IRIS\IRIS-Robot-Face` reset to S123/9a7f879 (S124, was S115/1a6950b + dirty modelfile edits).** **Watchtower scoped (S124):** `--label-enable` active; kokoro-tts, wyoming-whisper, wyoming-piper protected from auto-update; open-webui + watchtower labeled for auto-update. **Reboot hardened S127:** IRIS_DockerAutoStart schtask (AtLogon/gandalf/Highest) auto-starts both compose stacks. Docker Desktop auto-starts via HKCU Run. No manual action needed on reboot. |
-| Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). **Sleep mouth fixed S128:** sleep backlight now `MOUTH_INTENSITY:5` (BL_MAP[5]≈6%, starfield visible) — live config was overriding to 1 (≈0.8%, appeared blank). No firmware change. |
+| Teensy 4.1 (eyes+mouth) | **FLASHED S101.** [VER] confirmed `firmware=S101 built=Jun 7 2026`. Bridge live, no DROPs. Mouth update rate 2Hz during TTS (eye jitter fix). **Sleep mouth fixed S128:** sleep backlight now `MOUTH_INTENSITY:5` (BL_MAP[5]≈6%, starfield visible) — live config was overriding to 1 (≈0.8%, appeared blank). **Awake/idle mouth fixed S130:** resting `MOUTH_INTENSITY_IDLE` 3→8 (BL_MAP[8]≈16%, daytime-visible — was ≈2.7% near-black; idle breathe/blink/twitch now read), Pi4 now reads mouth intensities live from iris_config.json (WebUI changes stick), WebUI gained an Idle slider. No firmware change. |
 | Teensy 4.0 (servo+gesture) | **FLASHED S97** (FACE_RETURN_MS 30000ms). Tracking confirmed working. Mechanical damper tuning ongoing. |
 | TTS | Kokoro primary (Docker 8004), Piper fallback (Wyoming 10200). **Streaming dispatch live (S116):** main LLM replies synthesized per sentence and played overlapped. **Hardened S122:** STOP now halts producer dispatch within ~1 sentence (shared interrupt event); TTS_MAX_CHARS enforced cumulatively across the utterance. **Unified S126:** follow-up turns use the same streaming pipeline via shared `_speak_llm_turn()` — first audio ~1.0–1.3 s after follow-up llm_start (was blocked for full generation + synthesis); follow-up turns now bench-logged (route=FOLLOWUP). **Tail-clip fixed S129:** `play_pcm_stream()` writes a ~200 ms silence tail before `stream.stop_stream()` (blocking-mode ALSA was dropping the last unplayed period → clipped final syllable since S116). Skipped when interrupted so STOP still cuts instantly. |
 
@@ -57,6 +57,14 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 - `src/eyes/EyeController.h`
 
 ---
+
+## Last Session Changes (S130 — 2026-06-12)
+
+- **Awake/idle mouth too dark + brightness control had no lasting effect — DEPLOYED + VERIFIED (Pi4). No firmware change.** Root cause was threefold: (1) `MOUTH_INTENSITY_IDLE=3` (BL_MAP[3]≈2.7%, near-black) is the resting level sent after every interaction and after POST/boot — the mouth sits near-black most of the time and the firmware idle animations modulate around it (invisible); (2) `assistant.py` froze `MOUTH_INTENSITY_*` as startup constants (`from core.config import *`) so WebUI "Apply Now" only did a one-shot push that the next turn reverted; (3) WebUI exposed only AWAKE+SLEEP, not the dominant IDLE level.
+- **Fixes:** `core/config.py` `MOUTH_INTENSITY_IDLE` 3→**8** (≈16%); `assistant.py` new `_mouth_intensity(kind)` helper reads the three intensities live from `iris_config.json` (default fallback, 0–15 clamp), wired into all 5 send sites — WebUI changes now persist across turns without a restart; `iris_post.py` post-boot idle 3→8; `iris_web.html` added an **Idle intensity** slider (+hint corrected to ILI9341 PWM); `iris_web.js` `saveMouthIntensity()` persists IDLE and pushes it live when awake.
+- **Deployed (md5 RAM=SD, all 5):** core/config.py=`272a33f973a3644fc730b3e5ff08819b`, assistant.py=`f2909a7e0503e15752edb99ba6619460`, iris_post.py=`c4c4d813af1817144cf34bc4ab031890`, iris_web.html=`968f7045261309fb8d50eaca12473677`, iris_web.js=`370ac02a712d9148ac7268bf676bb448`. POST after restart **AUTHORIZED** (MOUTH:0-8, EYES:SLEEP/WAKE, MOUTH_INTENSITY ramp all PASS); post-boot resting intensity now `MOUTH_INTENSITY:8`. Live `iris_config.json` (protected) untouched: AWAKE=10, SLEEP=3, no IDLE key → config default 8 governs.
+- **Pending human check:** in daylight, the mouth between interactions is clearly lit (~16%) with visible breathe/blink/twitch idle animation; the new WebUI Idle slider changes resting brightness immediately and persists across the next conversation.
+- **Deferred (proposed, not implemented):** 3 anthropomorphic mouth enhancements logged in ROADMAP (amplitude-reactive TTS mouth, emotion-colored idle breathing tied to last sentiment, "noticed you" greet animation on Person Sensor face-acquire). See ROADMAP S130 entry.
 
 ## Last Session Changes (S129 — 2026-06-12)
 

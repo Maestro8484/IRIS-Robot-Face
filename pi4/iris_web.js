@@ -86,6 +86,8 @@ function tab(name, btn) {
     pollSleepState();
     const ma = document.getElementById('MOUTH_INTENSITY_AWAKE');
     if (ma) document.getElementById('mouth-awake-display').textContent = ma.value;
+    const mi = document.getElementById('MOUTH_INTENSITY_IDLE');
+    if (mi) document.getElementById('mouth-idle-display').textContent = mi.value;
     const ms = document.getElementById('MOUTH_INTENSITY_SLEEP');
     if (ms) document.getElementById('mouth-sleep-display').textContent = ms.value;
   }
@@ -158,6 +160,8 @@ async function loadConfig() {
   // Sync range slider display spans after values are populated
   const ma = document.getElementById('MOUTH_INTENSITY_AWAKE');
   if (ma) document.getElementById('mouth-awake-display').textContent = ma.value;
+  const mi = document.getElementById('MOUTH_INTENSITY_IDLE');
+  if (mi) document.getElementById('mouth-idle-display').textContent = mi.value;
   const ms = document.getElementById('MOUTH_INTENSITY_SLEEP');
   if (ms) document.getElementById('mouth-sleep-display').textContent = ms.value;
   // Show active wakeword model name
@@ -293,11 +297,14 @@ async function triggerWake() {
 // ── Mouth intensity ────────────────────────────────────────────────────────────
 async function saveMouthIntensity() {
   const awake = Math.max(0, Math.min(15, parseInt(document.getElementById('MOUTH_INTENSITY_AWAKE').value)));
+  const idle   = Math.max(0, Math.min(15, parseInt(document.getElementById('MOUTH_INTENSITY_IDLE').value)));
   const sleep  = Math.max(0, Math.min(15, parseInt(document.getElementById('MOUTH_INTENSITY_SLEEP').value)));
   await fetch('/api/config', {method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({MOUTH_INTENSITY_AWAKE: awake, MOUTH_INTENSITY_SLEEP: sleep})});
-  const intensity = _isSleeping ? sleep : awake;
+    body: JSON.stringify({MOUTH_INTENSITY_AWAKE: awake, MOUTH_INTENSITY_IDLE: idle, MOUTH_INTENSITY_SLEEP: sleep})});
+  // When awake the mouth rests at the idle level between interactions — push that
+  // so the slider gives immediate feedback on the resting brightness being tuned.
+  const intensity = _isSleeping ? sleep : idle;
   await fetch('/api/teensy', {method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({cmd: 'MOUTH_INTENSITY:' + intensity})});

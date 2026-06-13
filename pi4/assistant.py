@@ -646,6 +646,22 @@ SLEEP_CFG_MAP = {
 }
 
 
+def _mouth_intensity(kind):
+    """Live MOUTH_INTENSITY_<kind> from /home/pi/iris_config.json so WebUI changes
+    take effect without an assistant restart. core.config is imported once at startup
+    (`from core.config import *`), so these constants would otherwise be frozen and
+    WebUI 'Apply Now' would only land a one-shot push (S130). kind: AWAKE|SLEEP|IDLE."""
+    default = {"AWAKE": MOUTH_INTENSITY_AWAKE,
+               "SLEEP": MOUTH_INTENSITY_SLEEP,
+               "IDLE":  MOUTH_INTENSITY_IDLE}[kind]
+    try:
+        with open("/home/pi/iris_config.json") as _f:
+            v = int(json.load(_f).get(f"MOUTH_INTENSITY_{kind}", default))
+        return v if 0 <= v <= 15 else default
+    except Exception:
+        return default
+
+
 def _do_sleep(teensy, leds):
     teensy.send_command("EYES:SLEEP")
     try:
@@ -662,7 +678,7 @@ def _do_sleep(teensy, leds):
     except Exception as _e:
         print(f"[SLEEP] SLEEP_CFG push failed: {_e}", flush=True)
     teensy.send_command("MOUTH:8")
-    teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_SLEEP}")
+    teensy.send_command(f"MOUTH_INTENSITY:{_mouth_intensity('SLEEP')}")
     state.eyes_sleeping = True
     open("/tmp/iris_sleep_mode", "w").close()
     leds.show_sleep()
@@ -672,7 +688,7 @@ def _do_sleep(teensy, leds):
 def _do_wake(teensy, leds):
     teensy.send_command("EYES:WAKE")
     teensy.send_command("MOUTH:0")
-    teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_AWAKE}")
+    teensy.send_command(f"MOUTH_INTENSITY:{_mouth_intensity('AWAKE')}")
     state.eyes_sleeping = False
     try: os.remove("/tmp/iris_sleep_mode")
     except FileNotFoundError: pass
@@ -884,7 +900,7 @@ def main():
                 pass
             if not ensure_gandalf_up(leds, pa):
                 leds.show_error(); time.sleep(2); show_idle_for_mode(leds); continue
-            teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_AWAKE}")
+            teensy.send_command(f"MOUTH_INTENSITY:{_mouth_intensity('AWAKE')}")
             _t_wake = time.time()
             _t_mono_wake = time.monotonic()
             try:
@@ -983,7 +999,7 @@ def main():
             if state.eyes_sleeping and _needs_eye_wake:
                 state.eyes_sleeping = False
                 teensy.send_command("EYES:WAKE")
-                teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_AWAKE}")
+                teensy.send_command(f"MOUTH_INTENSITY:{_mouth_intensity('AWAKE')}")
                 print("[EYES] Eyes auto-waked by interaction", flush=True)
 
             if _route == ROUTE_REFLEX:
@@ -1213,7 +1229,7 @@ def main():
                 except Exception:
                     break
             emit_emotion(teensy, leds, "NEUTRAL")
-            teensy.send_command(f"MOUTH_INTENSITY:{MOUTH_INTENSITY_IDLE}")
+            teensy.send_command(f"MOUTH_INTENSITY:{_mouth_intensity('IDLE')}")
             show_idle_for_mode(leds)
             if in_sleep_window():
                 _do_sleep(teensy, leds)

@@ -44,7 +44,7 @@ OLLAMA_MODEL_ADULT  = "iris"
 OLLAMA_MODEL_KIDS   = "iris-kids"
 NUM_LEDS            = 3
 DEFAULT_EYE_IDX     = 0
-MOUTH_INTENSITY_IDLE = 3
+MOUTH_INTENSITY_IDLE = 8   # post-boot resting brightness; matches core.config (was 3 ≈2.7% near-black, S130)
 
 try:
     from core.config import (

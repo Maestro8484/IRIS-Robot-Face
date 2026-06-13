@@ -6,6 +6,41 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 
 ---
 
+## RD-030 — Anthropomorphic Mouth Enhancements (proposed S130)
+
+**Status:** Proposed — design only, not implemented. Logged during the S130 awake/idle mouth brightness fix.
+
+Three options to make the TFT mouth project more lifelike. All are additive to the existing
+`src/mouth_tft.cpp` idle engine + emotion palette; none require new hardware.
+
+1. **Amplitude-reactive TTS mouth (lip-sync feel).** Today the mouth cycles through a fixed `frames[]`
+   list at a fixed rate during TTS (`pi4/hardware/audio_io.py` `play_pcm_stream`/`play_pcm_speaking`).
+   Instead, derive a per-chunk RMS/envelope from the PCM being played and send a mouth-openness level
+   (e.g. a new `MOUTH_OPEN:<0-15>` firmware command, or reuse `MOUTH:` indices mapped to open amounts)
+   so the mouth opens wider on loud syllables and closes on pauses. Approximates lip-sync without
+   phoneme analysis. Firmware: a parametric open-mouth draw. Risk: SWSPI redraw cost at 2Hz cap —
+   keep the openness quantized to a few levels to stay within the eye-loop budget.
+
+2. **Emotion-tinted idle breathing.** The firmware idle BREATHE/DRIFT animations only modulate the
+   backlight around the neutral cyan mouth. Carry the last emotion's color (the existing RGB565
+   palette in `mouth_tft.cpp`) into the idle resting expression and breathe *that* hue, so after a
+   happy exchange IRIS idles warmly (yellow) and after a sad one cooler (blue), decaying back to
+   neutral cyan over a few minutes. Pi4 sends the last sentiment; firmware tints the idle draw.
+   Cheap, high personality payoff. Pairs naturally with the now-visible idle level (S130).
+
+3. **"Noticed you" greet on face-acquire.** The Teensy already has the Person Sensor and emits
+   `FACE:1`/`FACE:0` (`src/main.cpp` `reportFaceState`). On a fresh `FACE:1` after idle, trigger a
+   brief one-shot mouth greet (e.g. a quick SURPRISED→SMILE "boop", reusing the existing BOING/
+   SIDESMIRK idle primitives) and a small backlight bump, so IRIS visibly reacts to a person
+   entering frame even before any wakeword. Optional Pi4-side pairing with a soft RPQR quip. Risk:
+   debounce against the existing `FACE_COOLDOWN_MS` so it doesn't re-greet on flicker.
+
+**Deployment gate:** All three touch firmware (`src/mouth_tft.cpp`, `src/main.cpp`) → REPO-ONLY at
+session close; user performs the PlatformIO upload. Options 1–2 also touch `pi4/` (audio_io.py /
+emotion plumbing) → Pi4 deploy with explicit authorization.
+
+---
+
 ## RD-001 — Stop/Cancel Pre-STT Intercept
 
 **Status:** Deferred — Option 1 (post-STT STOP phrase gate) deployed to Pi4 (commit 54d576c, 2026-05-02). Pre-STT RMS intercept (Option 2) is not currently active scope.
