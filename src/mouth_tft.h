@@ -24,3 +24,8 @@ void mouthIdleStart();
 void mouthIdleStop();
 void mouthIdleTick(uint32_t nowMs);
 bool mouthIdleIsActive();
+
+// RD-030 #2: redraw the idle resting face tinted toward the last expressed mood.
+void mouthApplyIdleTint();
+// RD-030 #3: one-shot "noticed you" greet when a person enters frame while idle.
+void mouthGreet();

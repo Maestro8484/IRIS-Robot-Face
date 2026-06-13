@@ -2957,3 +2957,30 @@ so the new config.py default (8) governs until the user sets it via the WebUI. L
 revert the `_mouth_intensity()` helper/sites in `assistant.py` and the IDLE slider in
 `iris_web.html`/`iris_web.js`; remount-rw copy each to `/media/root-ro/home/pi/...` + remount-ro +
 `systemctl restart assistant iris-web`. (Repo git revert of the S130 commit covers the worktree.)
+
+### S130 firmware — RD-030 #2 + #3 (REPO-ONLY, pending user flash)
+
+**Status:** REPO-ONLY. Firmware builds clean (`pio run -e eyes` SUCCESS; RAM1 free ~397KB).
+`FIRMWARE_VERSION` bumped `S101` → `S130`. User flashes via PlatformIO upload; verify `[VER]
+firmware=S130` in `journalctl -u assistant | grep VER` after flash.
+
+Two anthropomorphic mouth features (the third, amplitude-reactive lip-sync, is deferred to its own
+session because it spans Pi4 + firmware and touches the hot playback loop). Both are pure-firmware,
+additive, and independent:
+
+- **#2 Emotion-tinted idle resting face** (`src/mouth_tft.cpp`, `src/mouth_tft.h`, `src/main.cpp`).
+  `mouthTFTShow()` captures the last clearly-coloured mood (HAPPY/SILLY→yellow, ANGRY→red,
+  SLEEPY→purple, SAD→blue, CONFUSED→magenta; neutral/curious/surprised/sleep do **not** overwrite).
+  New `mouthApplyIdleTint()` redraws the neutral resting curve blended toward that hue, fading to
+  cyan over `IDLE_TINT_DECAY_MS` (4 min) via a new `_blend565()` helper. Called on idle entry
+  (`main.cpp` auto-start) and between idle anims (`_idleRestore`, neutral-saved case). One arc per
+  redraw — same cost as a normal `MOUTH:` render, ≤ once per 20–60 s — so no eye-loop budget impact.
+  Effect: IRIS idles "warm" after a happy chat, "cool" after a sad one, decaying to neutral.
+- **#3 "Noticed you" greet on face-acquire** (`src/mouth_tft.cpp`, `src/mouth_tft.h`, `src/main.cpp`).
+  New `mouthGreet()` fires a one-shot surprised-pop→settle (reuses the tested BOING anim-7 path) when
+  a person enters frame — but only while the idle engine owns the mouth (post-2 min inactivity) and
+  no idle anim is mid-flight, so it never interrupts a conversation. Hooked into `reportFaceState()`
+  inside the existing `FACE:1` branch, so it inherits the 30 s `FACE_COOLDOWN_MS` debounce.
+
+**Rollback:** revert the RD-030 #2/#3 hunks in `src/mouth_tft.cpp`, `src/mouth_tft.h`, `src/main.cpp`
+and `FIRMWARE_VERSION` to `S101`; re-flash the prior S101 build.

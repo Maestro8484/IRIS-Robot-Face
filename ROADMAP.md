@@ -6,9 +6,13 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 
 ---
 
-## RD-030 — Anthropomorphic Mouth Enhancements (proposed S130)
+## RD-030 — Anthropomorphic Mouth Enhancements (S130)
 
-**Status:** Proposed — design only, not implemented. Logged during the S130 awake/idle mouth brightness fix.
+**Status:** #2 + #3 **IMPLEMENTED REPO-ONLY (S130)** — firmware builds clean, pending user PlatformIO
+flash (`FIRMWARE_VERSION=S130`). #1 (amplitude-reactive lip-sync) **still proposed/deferred** — it
+spans Pi4 (`audio_io.py` envelope in the hot playback loop) + firmware (new `MOUTH_OPEN` command +
+parametric draw) and risks the S101 eye-jitter tuning, so it deserves its own session with bench
+measurement of the SWSPI redraw budget. See CHANGELOG S130 firmware addendum for the #2/#3 build.
 
 Three options to make the TFT mouth project more lifelike. All are additive to the existing
 `src/mouth_tft.cpp` idle engine + emotion palette; none require new hardware.

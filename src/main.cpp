@@ -349,6 +349,9 @@ static void reportFaceState(bool facePresent) {
     if ((now - lastFace1SentMs) >= FACE_COOLDOWN_MS) {
       Serial.println("FACE:1");
       lastFace1SentMs = now;
+      // RD-030 #3: greet the arriving person (no-op unless the idle engine owns the
+      // mouth, i.e. IRIS has been at rest — so it never interrupts a conversation).
+      mouthGreet();
     }
     faceWasPresent = true;
   } else if (!facePresent && faceWasPresent) {
@@ -497,6 +500,7 @@ void loop() {
   uint32_t nowLoop = millis();
   if (!mouthIdleIsActive() && (nowLoop - lastCommandMs) >= IDLE_AUTO_MS) {
     mouthIdleStart();
+    mouthApplyIdleTint(); // RD-030 #2: settle into the emotion-tinted resting face
   }
   mouthIdleTick(nowLoop);
 }

@@ -37,6 +37,14 @@ static uint8_t  _currentBLLevel  = 14; // matches init (BL_MAP[14]=210)
 static uint8_t  _currentMouthIdx = 0;
 static uint32_t _sillyShownMs    = 0;  // millis() when idx 9 shown; arms TONGUE_WAG
 
+// ── Emotion-tinted idle (RD-030 #2) ──────────────────────────────────────────
+// The last clearly-coloured mood IRIS expressed, captured in mouthTFTShow().
+// The idle resting face is redrawn in this hue, decaying back to cyan over
+// IDLE_TINT_DECAY_MS, so IRIS idles "warm" after a happy chat, "cool" after a sad one.
+static uint16_t _lastEmotionColor = 0x07FF;       // start neutral cyan
+static uint32_t _lastEmotionMs    = 0;            // 0 = never → no tint
+static constexpr uint32_t IDLE_TINT_DECAY_MS = 240000UL; // 4 min to fade to cyan
+
 static Arduino_DataBus *_bus = nullptr;
 static Arduino_GFX     *_tft = nullptr;
 
@@ -208,6 +216,17 @@ void mouthTFTShow(uint8_t idx) {
         case 8: _draw_sleep();     break;
         case 9: _draw_silly();     break;
     }
+    // RD-030 #2: capture the last clearly-coloured mood for emotion-tinted idle.
+    // Neutral/curious (cyan), surprised (white), sleep are intentionally NOT captured
+    // so they don't wipe the prevailing mood hue at end-of-turn (Pi4 sends MOUTH:0).
+    switch (idx) {
+        case 1: case 9: _lastEmotionColor = MTFT_YELLOW;  _lastEmotionMs = millis(); break;
+        case 3:         _lastEmotionColor = MTFT_RED;     _lastEmotionMs = millis(); break;
+        case 4:         _lastEmotionColor = MTFT_PURPLE;  _lastEmotionMs = millis(); break;
+        case 6:         _lastEmotionColor = MTFT_BLUE;    _lastEmotionMs = millis(); break;
+        case 7:         _lastEmotionColor = MTFT_MAGENTA; _lastEmotionMs = millis(); break;
+        default: break;
+    }
 }
 
 // Intensity / backlight control — BL on pin 5, PWM via BL_MAP lookup
@@ -227,6 +246,36 @@ void mouthSetIntensity(uint8_t level) {
     if (level > 15) level = 15;
     _currentBLLevel = level;
     analogWrite(MOUTH_TFT_BL, BL_MAP[level]);
+}
+
+// ── Emotion-tinted idle resting face (RD-030 #2) ─────────────────────────────
+// Linear blend of two RGB565 colours; t=0 → a, t=255 → b.
+static uint16_t _blend565(uint16_t a, uint16_t b, uint8_t t) {
+    int ar = (a >> 11) & 0x1F, ag = (a >> 5) & 0x3F, ab = a & 0x1F;
+    int br = (b >> 11) & 0x1F, bg = (b >> 5) & 0x3F, bb = b & 0x1F;
+    int rr = ar + ((br - ar) * t) / 255;
+    int rg = ag + ((bg - ag) * t) / 255;
+    int rb = ab + ((bb - ab) * t) / 255;
+    return (uint16_t)((rr << 11) | (rg << 5) | rb);
+}
+
+// Redraw the neutral resting curve tinted toward the last mood, fading to cyan over
+// IDLE_TINT_DECAY_MS. One arc — as cheap as a normal MOUTH: render — so it is safe to
+// call on idle entry and between idle animations. Sets the resting expression to NEUTRAL.
+void mouthApplyIdleTint() {
+    if (!_tft) return;
+    uint8_t t;  // 0 = full mood tint, 255 = full cyan
+    if (_lastEmotionMs == 0) {
+        t = 255;
+    } else {
+        uint32_t since = millis() - _lastEmotionMs;
+        t = (since >= IDLE_TINT_DECAY_MS) ? 255
+                                          : (uint8_t)((uint32_t)since * 255UL / IDLE_TINT_DECAY_MS);
+    }
+    uint16_t col = _blend565(_lastEmotionColor, MTFT_CYAN, t);
+    _tft->fillScreen(MTFT_BLACK);
+    _arc(160, -600, 730, 1.35f, 1.79f, col, 10); // same geometry as _draw_neutral()
+    _currentMouthIdx = 0;
 }
 
 // Sleep animation state — file-scope so mouthSleepReset() can zero it
@@ -402,7 +451,12 @@ static void _idleRestore(uint32_t nowMs) {
     _idleAnim  = 0xFF;
     _idlePhase = 0;
     analogWrite(MOUTH_TFT_BL, BL_MAP[_currentBLLevel]);
-    if (restoreMouth && _tft) mouthTFTShow(_idleSavedMouth);
+    if (restoreMouth && _tft) {
+        // RD-030 #2: return to the emotion-tinted resting face, not flat cyan, when the
+        // saved expression was NEUTRAL (the usual end-of-turn state).
+        if (_idleSavedMouth == 0) mouthApplyIdleTint();
+        else                      mouthTFTShow(_idleSavedMouth);
+    }
     // Gap between animations: 20-60s
     _idleNextMs = nowMs + 20000UL + (uint32_t)random(40000);
 }
@@ -542,3 +596,21 @@ void mouthIdleStop() {
 }
 
 bool mouthIdleIsActive() { return _idleActive; }
+
+// ── "Noticed you" greet on face-acquire (RD-030 #3) ──────────────────────────
+// One-shot recognition pop (surprised oval → settle) when a person enters frame.
+// Fires only while the idle engine owns the mouth (post-inactivity) and no idle
+// animation is mid-flight, so it never interrupts a conversation or another anim.
+// Reuses the tested BOING (anim 7) timing/restore path; the FACE:1 caller is already
+// debounced by FACE_COOLDOWN_MS in main.cpp.
+void mouthGreet() {
+    if (!_idleActive || !_tft) return;  // only when at-rest idle owns the mouth
+    if (_idleAnim != 0xFF) return;      // don't interrupt a running idle animation
+    _idleSavedMouth = _currentMouthIdx;
+    _idleAnim    = 7;                    // BOING: surprised pop → neutral bounce
+    _idlePhase   = 0;
+    _idlePhaseMs = millis();
+    mouthTFTShow(5);                     // surprised oval
+    analogWrite(MOUTH_TFT_BL,
+        BL_MAP[(uint8_t)constrain((int)_currentBLLevel + 3, 0, 15)]);
+}
