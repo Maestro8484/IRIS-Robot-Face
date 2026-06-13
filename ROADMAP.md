@@ -50,6 +50,33 @@ persistence discipline). Not a mechanical one-file edit.
 
 ---
 
+## RD-032 — WebUI resource monitor + trend collector (S130, sibling of RD-031)
+
+**Status:** Collector **DEPLOYED (S130)**; WebUI panel **OPEN**. Build alongside RD-031 (same Opus session).
+
+**Why:** No historical resource logging existed (no sysstat, no cron) — which is why the May space
+runout wasn't caught early. Live snapshot at open was healthy (load ~0.5, 452 MB used / 3.3 GB free,
+44.8 °C, `throttled=0x0`, uptime 3.5 d), confirming the risk is slow disk accumulation, not CPU/RAM.
+
+**Done this session — capped trend collector:**
+- `pi4/scripts/res_trend.sh` (DEPLOYED `/home/pi/res_trend.sh`, SD-persisted) + cron `* * * * *`.
+  Appends one CSV line/min to `/home/pi/logs/res_trend.csv` (load, mem, overlay %, journal size,
+  logs MB, temp, throttle) and **self-trims to 4320 lines (~3 days, <500 KB)** — bounded by design,
+  RAM-resident, never grows the SD. Read: `tail -n 60 /home/pi/logs/res_trend.csv`. This gives the
+  RD-031 session 24–48 h of real trend data to work from.
+
+**Remaining — WebUI panel:**
+- Add `/api/sysstat` to `pi4/iris_web.py` returning live load / CPU% / mem / temp / throttle / uptime
+  **and disk-first numbers**: overlay % used, `journalctl --disk-usage`, `/home/pi/logs` size. Computed
+  on request — **never logged** (don't let the monitor become a writer, per RD-031).
+- WebUI card in `iris_web.html` + poll in `iris_web.js` (every ~5–10 s), with the disk/journal/logs
+  figures prominent (the actual failure mode) and a small sparkline from `res_trend.csv` if cheap.
+
+**Deployment gate:** Pi4 (explicit auth) + md5 RAM=SD. No firmware. **Recommended model: Opus**
+(bundle with RD-031).
+
+---
+
 ## RD-030 — Anthropomorphic Mouth Enhancements (S130)
 
 **Status:** #2 + #3 **IMPLEMENTED REPO-ONLY (S130)** — firmware builds clean, pending user PlatformIO

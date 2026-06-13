@@ -1,4 +1,14 @@
-# Handoff — RD-031: Eliminate log spam / unbounded disk writes  ⚠️ TOP PRIORITY
+# Handoff — RD-031 (log spam / unbounded disk writes) + RD-032 (resource monitor)  ⚠️ TOP PRIORITY
+
+> **Bundled handoff.** RD-031 = remove/cap every spammy or unbounded writer. RD-032 = the early-warning
+> companion (resource trend collector — already deployed — plus a WebUI panel). Do both in one Opus session.
+
+> **Data already waiting for you:** a capped resource-trend collector was deployed S130
+> (`/home/pi/res_trend.sh`, cron `* * * * *` → `/home/pi/logs/res_trend.csv`, self-trimmed to ~3 days).
+> By the time this session runs there should be 24–48 h of load/mem/overlay/journal/logs/temp data —
+> `tail -n 200 /home/pi/logs/res_trend.csv` first; it will show whether anything trends upward over a
+> sleep cycle and pinpoint the worst writer.
+
 
 > **Recommended model: OPUS.** Rationale: this spans three layers (Teensy firmware + systemd/journald
 > config + Pi4 bridge Python), the audit is open-ended ("find ANY other spam/unbounded writer"), and the
@@ -72,6 +82,13 @@ high-rate writer so space exhaustion cannot recur, and cap the ones that must ke
   (daily exports are the prime suspect if `/home/pi/logs` is SD-backed). Sweep for any other append-only or
   high-rate file (`find / -xdev -size +20M`, check `/home/pi/logs`, bench JSONL growth, any service writing
   per-frame/per-loop).
+
+### 7. RD-032 — WebUI resource monitor (Pi4 deploy, no firmware)
+- Collector is **already live** (`pi4/scripts/res_trend.sh`). Remaining: add `/api/sysstat` to
+  `pi4/iris_web.py` (live load/CPU%/mem/temp/throttle/uptime + **disk-first**: overlay % used,
+  `journalctl --disk-usage`, `/home/pi/logs` size) — computed on request, **never logged**. Add a card
+  in `iris_web.html` + poll in `iris_web.js` (~5–10 s); optional sparkline from `res_trend.csv`.
+- Deploy + md5 RAM=SD + restart `iris-web`.
 
 ## Verification (run after the batch)
 - Idle/sleep ~10 min, then `journalctl -u assistant -n 5000 | grep -c '\[SR\] frame'` ≈ 0 and

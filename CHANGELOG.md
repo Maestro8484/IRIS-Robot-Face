@@ -2984,3 +2984,22 @@ additive, and independent:
 
 **Rollback:** revert the RD-030 #2/#3 hunks in `src/mouth_tft.cpp`, `src/mouth_tft.h`, `src/main.cpp`
 and `FIRMWARE_VERSION` to `S101`; re-flash the prior S101 build.
+
+### S130 — RD-032 capped resource-trend collector DEPLOYED (Pi4)
+
+Opened RD-031 (log spam / unbounded writes, TOP PRIORITY) + RD-032 (resource monitor). Audit found
+`[SR] frame` = 52% + `[EYES]` echo = 60% of journal (~90% routine serial traffic), uncapped journald,
+48 MB unbounded `/home/pi/logs` daily exports, ~150 MB stale pip cache, and **no resource logging at all**.
+
+Deployed the data-gathering half of RD-032 so the RD-031 session starts with real trend data:
+- **`pi4/scripts/res_trend.sh`** → `/home/pi/res_trend.sh` (md5 RAM=SD=`0fcd2b19e8a14ab7ebfe4540f213c980`),
+  cron `* * * * *` (crontab spool persisted to `/media/root-ro/var/spool/cron/crontabs/pi`,
+  md5 RAM=SD=`2a0e7290da642a2ee125cd3ae23cf7ec`). Appends one CSV line/min to
+  `/home/pi/logs/res_trend.csv` (load, mem, overlay %, journal size, logs MB, temp, throttle) and
+  **self-trims to 4320 lines (~3 days, <500 KB)** — bounded by design, RAM-resident, never grows the SD.
+  First line verified: `load=0.58, mem 443u/3352a MB, overlay 4%, journal 74.4M, logs 50M, 42.3 °C, throttled=0x0`.
+- Remaining RD-032 work (WebUI `/api/sysstat` panel) + all of RD-031 carried in
+  `docs/handoff_RD031_logspam.md` (model: Opus).
+
+**Rollback:** `crontab -e` remove the `res_trend.sh` line + re-persist the spool; `rm /home/pi/res_trend.sh`
+and its SD copy. (Collector is bounded/RAM-only, so leaving it running is harmless.)
