@@ -6,6 +6,50 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 
 ---
 
+## RD-031 — Eliminate log spam / unbounded disk writes  ⚠️ TOP PRIORITY (S130)
+
+**Status:** OPEN — **first-order priority** (user directive S130). A disk/space runout crippled the
+Pi4 ~3 weeks ago (≈late May 2026); this item exists to remove every unbounded/high-rate writer so it
+can't recur. Dedicated handoff with full detail + model recommendation: `docs/handoff_RD031_logspam.md`.
+
+**Quantified S130 findings (live Pi4):**
+- `[SR] frame=N` (Teensy sleep-renderer debug print, relayed by the bridge) = **52%** of the last 5000
+  `assistant` journal lines; all `[EYES] >>/<<` serial echo = **60%**. Together ~**90%** of journal
+  volume is routine serial traffic — emitted continuously through the ~10 h/night sleep window.
+- **journald has no size cap** (`SystemMaxUse`/`RuntimeMaxUse` unset → defaults) on a 1.9 GB overlay.
+- `/home/pi/logs` = **48 MB** of daily `iris-YYYYMMDD.log` exports (one 19 MB day), unbounded, no
+  retention/rotation (driven by `pi4/scripts/iris_log_export.sh` + `iris-logs.cron`).
+- `/home/pi/.cache/pip` ≈ **150 MB** stale wheels/bodies.
+
+**Fix targets (each its own small batch; verify + SD-persist each):**
+1. **Firmware** — stop/gate the `[SR] frame=N` print (Teensy sleep renderer; grep `[SR] frame` in
+   `src/sleep_renderer*.h` / `src/main.cpp`). Behind a compile-time `DEBUG_SR` flag or removed. REPO-ONLY → flash.
+2. **Pi4 bridge** (`pi4/hardware/teensy_bridge.py`) — gate the per-line `[EYES] >>/<<` serial logging
+   behind a debug flag, or suppress routine frames (`[SR]`, `SLEEP_CFG:`, repetitive `MOUTH:`). This is
+   the systemic fix — even with the firmware print gone, the bridge logging policy is the root spam driver.
+3. **journald** — set conservative `SystemMaxUse=` + `RuntimeMaxUse=` (e.g. 50M) in
+   `/etc/systemd/journald.conf`. **System-path file — must be persisted to
+   `/media/root-ro/etc/systemd/journald.conf` individually** (CLAUDE.md: the `/home/pi` procedure does
+   NOT cover system paths — this exact class of miss caused the S63 8 h outage). Restart `systemd-journald`.
+4. **Daily log export retention** — add age-based pruning (e.g. delete exports >7 days) to
+   `iris_log_export.sh` or a `logrotate` rule; persist the script + cron.
+5. **One-time** — prune `/home/pi/.cache/pip`; consider `pip --no-cache-dir` for future installs.
+6. **Audit** — confirm SD vs RAM (overlay) location of each writer and which path actually filled space
+   before (`/var/log/journal` exists but `du`=0 → journal is effectively in RAM; daily exports may be the
+   real SD vector). Sweep for any other append-only/high-rate file.
+
+**Verification:** after fixes, idle/sleep ~10 min, then `journalctl -u assistant -n 5000 | grep -c '\[SR\] frame'`
+≈ 0; `journalctl --disk-usage` stable; `du -sh /home/pi/logs` bounded; `df -h` flat over a sleep cycle.
+
+**Deployment gate:** firmware (flash) + Pi4 (explicit auth) + system-path persistence. Higher-risk than
+usual — a bad `journald.conf` or a missed SD-persist can brick logging or re-fill space.
+
+**Recommended model: Opus** — cross-layer (firmware + systemd/journald + bridge Python), open-ended audit
+("ANY other spam source"), and high-stakes (prior space-exhaustion crippled the device + system-path
+persistence discipline). Not a mechanical one-file edit.
+
+---
+
 ## RD-030 — Anthropomorphic Mouth Enhancements (S130)
 
 **Status:** #2 + #3 **IMPLEMENTED REPO-ONLY (S130)** — firmware builds clean, pending user PlatformIO
