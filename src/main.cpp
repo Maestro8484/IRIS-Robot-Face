@@ -22,6 +22,20 @@
 #define DEBUG_FACE 0
 #endif
 
+// RD-033 FIX (S133): the "noticed you" greet (RD-030 #3) is DISABLED in the
+// face-acquisition path. mouthGreet() calls mouthTFTShow(5) — a full-screen SWSPI
+// surprised-oval redraw (~300 ms blocking, +BOING phase redraws at ~300/600 ms) —
+// SYNCHRONOUSLY inside reportFaceState(), immediately before setTargetPosition().
+// That starves the eye-tracking loop at the exact moment a face is acquired, which
+// is the operator-observed "eyes lock on, then drop/redirect after ~0.5 s". Gating
+// the greet out of this path removes the stall. Set ENABLE_FACE_GREET=1 to restore
+// the old blocking behavior for A/B testing. To bring the greet back for real,
+// rework mouthGreet() to render non-blocking (incremental SWSPI chunks driven by
+// mouthIdleTick), then re-enable.
+#ifndef ENABLE_FACE_GREET
+#define ENABLE_FACE_GREET 0
+#endif
+
 // ---------------------------------------------------------------------------
 // JARVIS SERIAL BRIDGE CONFIG
 // ---------------------------------------------------------------------------
@@ -358,13 +372,16 @@ static void reportFaceState(bool facePresent) {
     if ((now - lastFace1SentMs) >= FACE_COOLDOWN_MS) {
       Serial.println("FACE:1");
       lastFace1SentMs = now;
-      // RD-030 #3: greet the arriving person (no-op unless the idle engine owns the
-      // mouth, i.e. IRIS has been at rest — so it never interrupts a conversation).
-#if DEBUG_FACE
+      // RD-030 #3 greet — DISABLED in the tracking path by default (RD-033 S133):
+      // mouthGreet()'s synchronous SWSPI redraw blocked the loop here at acquisition,
+      // starving eye tracking (~0.5 s drop). See the ENABLE_FACE_GREET note up top.
+#if ENABLE_FACE_GREET
+  #if DEBUG_FACE
       { uint32_t _t0 = millis(); mouthGreet();
         Serial.print("[DBG-F] greet block_ms="); Serial.println(millis() - _t0); }
-#else
+  #else
       mouthGreet();
+  #endif
 #endif
     }
     faceWasPresent = true;

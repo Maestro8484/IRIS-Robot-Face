@@ -3117,3 +3117,29 @@ instrumentation, bump FIRMWARE_VERSION, build clean, and prepare the bench check
 git checkout -- src/main.cpp src/config.h
 # Then pio run -e eyes; reflash prior S131 build if needed.
 ```
+
+---
+
+## S133 — RD-033 face-tracking fix: gate the blocking face-acquire greet (2026-06-13)
+
+**Status:** Firmware **REPO-ONLY** (built clean), pending operator flash. Diagnosis = high confidence (S132 code review); operator authorized implement-and-deploy on that confidence.
+
+**Problem:** Person Sensor detects and the eyes lock onto a face, but the gaze drops/redirects after ~0.5 s. Recurs after code changes.
+
+**Cause (confirmed S132 code review, root-caused here):** `reportFaceState()` (src/main.cpp) called `mouthGreet()` (RD-030 #3, added S130) on the FACE:1 rising edge — SYNCHRONOUSLY, immediately before `setTargetPosition()`. `mouthGreet()` (src/mouth_tft.cpp:606) runs `mouthTFTShow(5)` = a full-screen `fillScreen` + 314-`fillRect` "surprised oval" over **bit-bang SWSPI (~300 ms)**, plus BOING phase redraws at ~300/600 ms via `mouthIdleTick`. That blocking redraw starves the eye-tracking loop at the exact instant of acquisition → eyes lock, then freeze/redirect ≈0.5 s. The S130 greet addition explains why it "recurs after code changes."
+
+**Fix (src/main.cpp):** Gate the greet out of the face-acquisition path behind a new compile flag `ENABLE_FACE_GREET` (default **0**). The FACE:1 path no longer calls `mouthGreet()`, so acquisition never blocks tracking. `mouthGreet()` itself is left intact (re-enable with `ENABLE_FACE_GREET=1` for A/B testing; bring it back properly only after reworking it to render non-blocking). `FIRMWARE_VERSION` → `S133`. `DEBUG_FACE` instrumentation (S132) retained, default off. **No other files touched; `src/eyes/EyeController.h` not modified (protected).** `pio run -e eyes` = SUCCESS (FLASH code 94616).
+
+**Deploy:** operator runs `.\scripts\flash_t41.ps1` (flash is interactive-password over LAN — operator action). Verify `[VER] IRIS-EYES firmware=S133` in `journalctl -u assistant | grep VER`, then watch a face: eyes should now **hold** the lock instead of dropping at ~0.5 s. Tradeoff: the "noticed you" mouth greet (RD-030 #3) no longer plays on face-acquire — accepted to restore tracking.
+
+**FALLBACK — if tracking STILL drops after flashing S133** (precise next-session starting point, minimal context needed):
+1. Re-confirm the firmware is actually S133 live (`grep VER`). If still S130/S132, it didn't flash.
+2. Rebuild with `DEBUG_FACE=1` (src/main.cpp line ~22) + `pio run -e eyes` + reflash; watch `journalctl -u assistant -f | grep DBG-F` in front of IRIS at the drop moment. Interpret per `docs/handoff_RD033_person_sensor.md §Bench checklist`.
+3. Secondary suspects, in order: (a) **confidence/`is_facing` flicker** — a single frame with `box_confidence ≤ 60` zeros `maxSize` → FACE:0; add hysteresis (require N consecutive misses, or lower the 60 gate) at src/main.cpp:440. (b) **mouth idle-engine blocking during tracking** — the idle breathe/blink/twitch and the rare random BOING (`mouthIdleTick`, anim 7) also do SWSPI redraws that can stall the loop while tracking; consider suspending the mouth idle engine while a face is actively tracked. (c) **`timeSinceFaceDetectedMs()`** not resetting for the qualifying face → premature autoMove (`aM=1` in DBG-F while a face is present). (d) EyeController internal target handling (PROTECTED file — operator OK required; the `ed8fa41` seeding was verified intact S132).
+4. The fix-commit hash for this fallback is recorded in HANDOFF_CURRENT.md and the chat closure notes.
+
+**Rollback:**
+```bash
+git checkout -- src/main.cpp src/config.h
+# pio run -e eyes; reflash. (Restores the S132 state: greet active, tracking-blocked.)
+```
