@@ -44,10 +44,15 @@ GitHub is a secondary mirror. Local state outranks it until explicitly synced.
 
 ## Next Work
 
-- **✅ DONE: S133 FLASHED + VER-confirmed (2026-06-13 14:57)** — `[VER] IRIS-EYES firmware=S133`, assistant
-  active, no errors. RD-033 fix is now on the running firmware. **Remaining: operator observes a face — eyes
-  should HOLD the lock (no ~0.5 s drop).** Tradeoff: the face-acquire "noticed you" mouth greet (RD-030 #3)
-  no longer plays. If tracking still drops, see the RD-033 FALLBACK below.
+- **⚠️ TOP PRIORITY — RD-033 STILL OPEN. S133 FLASHED (VER-confirmed) but tracking got WORSE (operator,
+  2026-06-13).** The `mouthGreet()`-blocking hypothesis is NOT confirmed. **Next session: do NOT make another
+  blind change. (1) Get operator to characterize "worse" exactly (acquire-then-snap? jitter? no-track?
+  wander?). (2) Build `DEBUG_FACE=1` (src/main.cpp ~L22), operator flashes, read `journalctl -u assistant -f
+  | grep "DBG-F\|FACE:"` at the failure moment — MEASURE before changing anything. (3) Consider reverting the
+  S133 fix to baseline: `git checkout 4499c3d~1 -- src/main.cpp src/config.h`. (4) Then the secondary suspects
+  (now elevated): confidence flicker (src/main.cpp:440), mouth idle-engine blocking during tracking, premature
+  autoMove, eye-tracking math / EyeController (PROTECTED).** Full detail: CHANGELOG S133 §FALLBACK +
+  docs/handoff_RD033_person_sensor.md. Fix commit to inspect/revert: `4499c3d`.
 - **RD-033 FIX — fix commit `4499c3d` (S133).** Root cause (confirmed S132 code review, root-caused S133):
   `reportFaceState()` called `mouthGreet()` synchronously on the FACE:1 edge — a full-screen SWSPI
   surprised-oval redraw (~300 ms) + BOING phases — right before `setTargetPosition()`, starving the

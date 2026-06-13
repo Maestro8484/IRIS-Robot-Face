@@ -3122,7 +3122,7 @@ git checkout -- src/main.cpp src/config.h
 
 ## S133 — RD-033 face-tracking fix: gate the blocking face-acquire greet (2026-06-13)
 
-**Status:** Firmware **FLASHED + VER-confirmed (2026-06-13 14:57)** — `[VER] IRIS-EYES firmware=S133 built=Jun 13 2026` live, assistant active, no errors. Tracking-hold behavioral verification pending operator observation in front of IRIS. Diagnosis = high confidence (S132 code review); operator authorized implement-and-deploy on that confidence.
+**Status:** Firmware **FLASHED + VER-confirmed (2026-06-13 14:57)** — `[VER] IRIS-EYES firmware=S133 built=Jun 13 2026` live, assistant active, no errors. Tracking-hold behavioral verification pending operator observation in front of IRIS. Diagnosis = high confidence (S132 code review); operator authorized implement-and-deploy on that confidence. **RESULT (operator-observed 2026-06-13): tracking got WORSE, not better.** The `mouthGreet()`-blocking hypothesis is therefore **NOT confirmed** (gating the greet did not help and degraded behavior). RD-033 remains **OPEN**. Lesson: this was a code-review-only fix flashed WITHOUT the `DEBUG_FACE` confirmation step (skipped on the operator's confidence call) — the next attempt must **instrument first** and should consider reverting this commit to baseline. See §FALLBACK below.
 
 **Problem:** Person Sensor detects and the eyes lock onto a face, but the gaze drops/redirects after ~0.5 s. Recurs after code changes.
 
