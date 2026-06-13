@@ -77,6 +77,48 @@ runout wasn't caught early. Live snapshot at open was healthy (load ~0.5, 452 MB
 
 ---
 
+## RD-033 — Person Sensor probe reliability + face-tracking quality (S130)
+
+**Status:** OPEN — own session (do NOT fold into RD-031; different domain). Recommended model: Opus
+(firmware + hardware reasoning + observe-iterate; tracking debug is delicate).
+
+**Symptom (S130):** After the S130 flash, **two consecutive boots logged `[DBG] No Person Sensor found`**
+(08:24:45 fresh boot included) and **zero `FACE:` events** were emitted with a face in frame — so the
+firmware's loop skips the sensor block entirely (`hasPersonSensor()==false`) and the eyes run autoMove
+(autonomous wander), which reads as "brief lock then redirect." A reflash (MCU reset) did **not** restore
+detection; only a power cycle (Pi4 reboot / USB unplug) was expected to clear a wedged sensor I2C state.
+**S130 power-cycle result: did NOT restore detection.** Pi4 rebooted 08:40 (USB 5V drop → Teensy
+power-cycle). Definitive live test: bridge logs every serial line (`teensy_bridge.py:56`, unfiltered), and
+a forced step-out→step-in produced **zero `FACE:` events** → firmware is not reading the sensor; eyes run
+autoMove. So **reflash (MCU reset) AND power cycle both failed** — rules out a transient probe race;
+implicates a **physical I2C connection / sensor fault** (reseat the Person Sensor connector first) or a
+consistently-losing boot-probe timing. Also note: a clean Pi4 reboot does NOT capture the `[VER]` or
+`Person Sensor` setup() lines (Teensy boots before the assistant opens the port → POST logs
+`firmware version … WARN (no [VER])`) — so on reboots, `FACE:` transitions are the only detection signal.
+NOTE: the Pi4 has no `FACE:` consumer — tracking is firmware-internal; `FACE:1/0` to the Pi4 is informational.
+
+**Root-cause candidates:**
+1. **One-shot boot probe with no retry** — `setup()` probes I2C 5× over ~400 ms once; a flash/glitch or a
+   slow sensor power-up leaves `personSensorFound=false` latched for the whole boot. (Firmware: `src/main.cpp`
+   `setup()` PersonSensor block + `hasPersonSensor()`.)
+2. **I2C wedge** clearable only by a sensor power cycle (USB 5V drop), not an MCU reset.
+3. **Connector/hardware** intermittency (check physically if power cycle doesn't fix).
+4. **Downstream tracking quality** — even with the sensor live, the "brief lock then interrupt" matches a
+   prior EyeController bug (see memory `project_tracking_eyecontroller_fix`, fix ed8fa41 in
+   `setTargetPosition`/`eyeOldX` seeding) + autoMove re-engagement timing (`FACE_LOST_TIMEOUT_MS=5000`).
+
+**Fix targets:**
+- **Firmware probe hardening:** retry/re-probe — e.g. if `!personSensorFound`, periodically re-attempt
+  `personSensor.isPresent()` in `loop()` (rate-limited) so a flash/glitch never leaves tracking dead until
+  a manual power cycle. REPO-ONLY → flash.
+- **Tracking quality:** only assess once the sensor is confirmed `detected` + `FACE:` events flow. Per the
+  standing rule, **add serial debug output BEFORE any tracking reflash** (memory
+  `feedback_dont_push_unverified_tracking`); observe-iterate with the user in frame.
+
+**Deployment gate:** firmware (flash) REPO-ONLY at close; user flashes. Bump `FIRMWARE_VERSION` (live=S130).
+
+---
+
 ## RD-030 — Anthropomorphic Mouth Enhancements (S130)
 
 **Status:** #2 + #3 **IMPLEMENTED REPO-ONLY (S130)** — firmware builds clean, pending user PlatformIO
