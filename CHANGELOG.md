@@ -3143,3 +3143,36 @@ git checkout -- src/main.cpp src/config.h
 git checkout -- src/main.cpp src/config.h
 # pio run -e eyes; reflash. (Restores the S132 state: greet active, tracking-blocked.)
 ```
+
+---
+
+## S134 — 2026-06-13 — Conversational behavior fixes (persona / cutoff / reciprocal latency)
+
+**Status:** Complete — all three DEPLOYED + VERIFIED (Pi4). No firmware, no GandalfAI model rebuild.
+
+Three operator-reported regressions, all root-caused on Pi4 (the modelfile was NOT at fault):
+
+**1. Personality drift — "as an AI assistant…" / apologies under insults & frustration. ROOT CAUSE FOUND + FIXED.**
+- `assistant.py` `_build_messages()` prepended a `{"role":"system"}` date message to every live voice turn. In Ollama `/api/chat` a request system message **OVERRIDES the modelfile SYSTEM**, so every live turn ran with IRIS's entire persona stripped → raw mistral alignment → corporate apologies under insult/frustration.
+- **Proven via live A/B** (same model, same prompt, only the system msg differs): *with* date-only system → "I'm sorry to hear that you're frustrated. I'm here to help…" (no emotion tag, persona gone); *without* → "[EMOTION:ANGRY] Frustration noted. Get it right next time." Single-shot `test_prompt` never hit this path, which is why the model always tested clean.
+- **Fix:** `_build_messages()` no longer sends a system message; the date is folded into a COPY of the latest user turn (the persona is told "Date and time context may be provided"). Verified: persona intact + date still usable ("Sunday." computed correctly from Saturday). **The modelfile was correct and was NOT touched.**
+
+**2. TTS cut off before completion. FIXED.**
+- S117 had slashed `num_predict` tiers; a normal 4-sentence persona reply (~120-160 tok) exceeded the 90-tok MEDIUM ceiling and was hard-truncated mid-sentence.
+- **Fix (`core/config.py`):** SHORT 40→64, MEDIUM 90→160, LONG 180→340, MAX 400→640, default 100→160, `TTS_MAX_CHARS` 1500→2400. (`iris_config.json` does not override these, so the new defaults govern.)
+
+**3. Reciprocal/follow-up response delay too long (purple-LED state). ROOT CAUSE MEASURED + FIXED.**
+- `keep_alive` was set NOWHERE → Ollama's 5-min default unloaded the 15GB model during any conversational pause, so the next reply paid a ~10-20 s cold reload (bench `llm_ttfc` spiked to 20.6 s cold vs ~3 s warm). `ollama ps` confirmed a 5-min expiry.
+- **Fix:** `keep_alive: "8h"` added to `services/llm.py` `stream_ollama()` (every main + follow-up turn) and the `assistant.py` startup warmup. Verified: after restart, warmup fired and `ollama ps` expiry jumped to **+8 h** (03:21). Model now stays resident through the awake day, releasing overnight (one cold hit on first morning use).
+
+**Deployed (md5 RAM=SD verified):**
+- `assistant.py` = `9a892ef4d6fd9ff99fe36a78987a869d` (persona fix + warmup keep_alive)
+- `core/config.py` = `7889703be54a9798f2fed59947994186` (num_predict tiers + TTS_MAX_CHARS)
+- `services/llm.py` = `528efc7298e8062f14a72ea01f61ea88` (turn keep_alive)
+- Backups on Pi4: `*.s133bak`. POST after restart **20/23 PASS, 0 FAIL → AUTHORIZED**, `[LLM] Model warmed`.
+
+**Pending human check (behavioral, needs the mic):** insult/frustrate IRIS by voice → in-character comeback with emotion tag, no apology; a longer reply completes without mid-sentence clipping; after a multi-minute pause the next reply is still fast (no 10-20 s stall).
+
+**Rollback:** Pi4 `cp /home/pi/<file>.s133bak /home/pi/<file>` for each, re-persist to `/media/root-ro`, `systemctl restart assistant`. Repo: `git checkout -- pi4/assistant.py pi4/core/config.py pi4/services/llm.py`.
+
+**Note:** `src/config.h` + `src/main.cpp` remained modified in the working tree from the prior (open) RD-033 firmware thread — untouched this session, NOT included in the S134 commit.

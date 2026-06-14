@@ -116,6 +116,13 @@ def stream_ollama(messages: list, model: str, num_predict: int):
         "stream": True,
         # No "think" key: iris is mistral-small3.2 (S119), which has no thinking mode.
         # (Was think:False for qwen3.5 in S114; Mistral silently ignores it -- removed as dead weight.)
+        # keep_alive 8h (S134): Ollama's default is 5 min, so the 15GB model UNLOADS during
+        # any conversational pause >5 min and the next reply pays a ~10-20 s cold reload --
+        # the "reciprocal response delay" symptom (bench llm_ttfc spiked to 20.6 s cold vs
+        # ~3 s warm). Gandalf is IRIS-dedicated (15GB iris + 2GB Kokoro = 17/24 GB), so pin
+        # it resident through the awake day; it releases after 8 h idle (overnight),
+        # re-warming on first morning use only.
+        "keep_alive": "8h",
         "options": {"num_predict": num_predict},
     }
 

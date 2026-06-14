@@ -340,14 +340,29 @@ def handle_time_command(text: str):
 # ── LLM helpers ───────────────────────────────────────────────────────────────
 
 def _build_messages() -> list:
-    """Build the messages list for Ollama including date inject and person context."""
+    """Build the messages list for Ollama.
+
+    The IRIS persona lives ENTIRELY in the modelfile SYSTEM prompt. Do NOT send a
+    {"role":"system"} message here: in Ollama /api/chat a request system message
+    OVERRIDES the modelfile SYSTEM, which strips the persona and leaves a generic
+    apologetic assistant. Proven S134 -- a date-only system message turned
+    "[EMOTION:ANGRY] Frustration noted. Get it right next time." into
+    "I'm sorry to hear that you're frustrated. I'm here to help...". That was the
+    "as an AI assistant" / apology-under-insult regression.
+
+    Date context is instead folded into the CURRENT (latest) user turn -- which the
+    persona is told to expect ("Date and time context may be provided to you") --
+    on a COPY, so stored conversation_history keeps the raw user text.
+    """
     import datetime
     now = datetime.datetime.now()
-    date_inject = {
-        "role": "system",
-        "content": f"Current date and time: {now.strftime('%A, %B %d %Y, %I:%M %p')} Mountain Time."
-    }
-    return [date_inject] + list(state.conversation_history)
+    msgs = [dict(m) for m in state.conversation_history]
+    stamp = f"(Context, not spoken: it is {now.strftime('%A, %B %d %Y, %I:%M %p')} Mountain Time.) "
+    for m in reversed(msgs):
+        if m.get("role") == "user":
+            m["content"] = stamp + m["content"]
+            break
+    return msgs
 
 
 def _speak_llm_turn(text, num_predict, teensy, leds, pa, mic,
@@ -778,6 +793,7 @@ def main():
             requests.post(
                 f"http://{GANDALF}:{OLLAMA_PORT}/api/generate",
                 json={"model": get_model(), "prompt": ".", "stream": False,
+                      "keep_alive": "8h",  # S134: pin model resident at boot -- kills cold-reload latency
                       "options": {"num_predict": 1}},
                 timeout=30
             )

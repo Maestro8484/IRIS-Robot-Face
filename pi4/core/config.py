@@ -104,11 +104,15 @@ CONTEXT_TIMEOUT_SECS  = 300
 # ROLLBACK (if replies become too clipped/short): restore the prior values
 #   NUM_PREDICT=300 SHORT=120 MEDIUM=350 LONG=700 MAX=1200 TTS_MAX_CHARS=2500
 # and revert the services/llm.py classifier change, then redeploy + restart.
-NUM_PREDICT           = 100   # default (followup loop + warmup) -- conversational
-NUM_PREDICT_SHORT     = 40    # greetings, yes/no, time, simple facts  (~9 s)
-NUM_PREDICT_MEDIUM    = 90    # normal conversational reply            (~21 s)
-NUM_PREDICT_LONG      = 180   # detailed-but-still-chat answers        (~41 s)
-NUM_PREDICT_MAX       = 400   # story tier ONLY -- explicit requests   (~92 s, ~1.5 min)
+# S134: tiers raised -- S117 values (40/90/180/400, default 100) were cutting
+# normal replies off mid-sentence (a 4-sentence persona answer ~120-160 tok > the
+# 90-tok MEDIUM ceiling -> hard truncation = "cutoff before completion"). The terse
+# persona still normally stops well short of these ceilings; they are worst-case caps.
+NUM_PREDICT           = 160   # default (followup loop + warmup) -- conversational (S134: was 100)
+NUM_PREDICT_SHORT     = 64    # greetings, yes/no, time, simple facts  (~15 s)  (S134: was 40)
+NUM_PREDICT_MEDIUM    = 160   # normal conversational reply            (~37 s)  (S134: was 90)
+NUM_PREDICT_LONG      = 340   # detailed-but-still-chat answers        (~78 s)  (S134: was 180)
+NUM_PREDICT_MAX       = 640   # story tier ONLY -- explicit requests   (~147 s) (S134: was 400)
 # ── TTS ───────────────────────────────────────────────────────────────────────
 # Absolute hard backstop: NO reply -- no tier, no runaway generation -- can exceed
 # ~1.5 min of audio. ~15 chars/s measured, so 1500 chars ~= 100 s (~1.67 min).
@@ -121,7 +125,7 @@ NUM_PREDICT_MAX       = 400   # story tier ONLY -- explicit requests   (~92 s, ~
 #      call (follow-up loop, utility replies, quips, vision replies).
 # Lowered S117 from 2500 (~167 s).
 # ROLLBACK: set back to 2500 if legitimate long answers are being cut short.
-TTS_MAX_CHARS         = 1500  # ~100 s (~1.5 min) hard ceiling, all tiers (was 2500, S117)
+TTS_MAX_CHARS         = 2400  # ~160 s hard ceiling, all tiers (S134: was 1500 -- raised so MAX-tier replies finish; S117 was 2500)
 CONVERSATION_LOG      = "/home/pi/logs/conversations.jsonl"
 BENCH_LOG             = "/home/pi/logs/iris_bench.jsonl"
 SD_BENCH_LOG          = "/media/root-ro/home/pi/logs/iris_bench.jsonl"

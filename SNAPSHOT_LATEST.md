@@ -3,7 +3,7 @@
 > **WARNING: DO NOT USE PROJECT-ATTACHED .md FILES.**
 > Read live repo via filesystem MCP only. Claude.ai project knowledge base attachments are stale (last updated S49, May 2026 -- 48 sessions behind as of S97). Any session that reads them instead of this file gets wrong hardware state, wrong serial numbers, wrong firmware version, and wrong deploy status.
 
-**Session:** S133 | **Date:** 2026-06-13 | **Branch:** `main` | **Last commit:** S133 (RD-033 face-tracking fix)
+**Session:** S134 | **Date:** 2026-06-13 | **Branch:** `main` | **Last commit:** S134 (conversational behavior fixes: persona / cutoff / reciprocal latency)
 
 > Architecture, pins, constants, deploy commands: see `IRIS_ARCH.md`.
 
@@ -60,6 +60,16 @@ S94b had these swapped. Corrected S97 by connecting T41 alone and observing whic
 - `src/eyes/EyeController.h`
 
 ---
+
+## Last Session Changes (S134 — 2026-06-13)
+
+- **Three operator-reported conversational regressions fixed — all root-caused on Pi4, DEPLOYED + VERIFIED. The modelfile was NOT at fault and was not touched.**
+- **Persona drift ("as an AI assistant…" / apologies under insults & frustration) — ROOT CAUSE FOUND.** `assistant.py` `_build_messages()` sent a `{"role":"system"}` date message every live turn; in Ollama `/api/chat` a request system message **OVERRIDES the modelfile SYSTEM**, stripping IRIS's entire persona → generic mistral apologies. Proven by live A/B (date-only system → "I'm sorry to hear that you're frustrated…"; no system → "[EMOTION:ANGRY] Frustration noted."). Single-shot `test_prompt` never hit this path. **Fix:** date folded into the latest user turn instead of a system message; persona preserved + date still usable. See [[ollama-system-message-overrides-modelfile]].
+- **TTS cutoff before completion.** S117 `num_predict` tiers were too low (MEDIUM=90 tok truncated 4-sentence replies). Raised in `core/config.py`: SHORT 40→64, MEDIUM 90→160, LONG 180→340, MAX 400→640, default 100→160, `TTS_MAX_CHARS` 1500→2400.
+- **Reciprocal/follow-up delay (purple-LED state) — MEASURED.** No `keep_alive` anywhere → Ollama's 5-min default unloaded the 15GB model on any pause; next reply paid ~10-20 s cold reload (bench `llm_ttfc` 20.6 s cold vs ~3 s warm). **Fix:** `keep_alive:"8h"` in `services/llm.py` `stream_ollama()` + the `assistant.py` warmup. Verified `ollama ps` expiry jumped to +8 h. Model stays resident through the awake day, releases overnight.
+- **Deployed (md5 RAM=SD):** assistant.py=`9a892ef4d6fd9ff99fe36a78987a869d`, core/config.py=`7889703be54a9798f2fed59947994186`, services/llm.py=`528efc7298e8062f14a72ea01f61ea88`. Pi4 backups `*.s133bak`. POST 20/23 PASS, 0 FAIL → AUTHORIZED, `[LLM] Model warmed`.
+- **Pending human check (voice/mic):** insult/frustrate IRIS → in-character comeback + emotion tag, no apology; long reply completes uncut; reply after a multi-minute pause is still fast.
+- **Untouched:** `src/config.h` + `src/main.cpp` stayed modified in the working tree from the open RD-033 firmware thread — NOT in the S134 commit.
 
 ## Last Session Changes (S132 — 2026-06-13, autonomous)
 
