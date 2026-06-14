@@ -3176,3 +3176,31 @@ Three operator-reported regressions, all root-caused on Pi4 (the modelfile was N
 **Rollback:** Pi4 `cp /home/pi/<file>.s133bak /home/pi/<file>` for each, re-persist to `/media/root-ro`, `systemctl restart assistant`. Repo: `git checkout -- pi4/assistant.py pi4/core/config.py pi4/services/llm.py`.
 
 **Note:** `src/config.h` + `src/main.cpp` remained modified in the working tree from the prior (open) RD-033 firmware thread — untouched this session, NOT included in the S134 commit.
+
+---
+
+## S135 — RD-033 root-caused to HARDWARE (Person Sensor not detected); firmware exonerated + self-healing re-probe (2026-06-13, evening)
+
+**Status:** Firmware **S135 built, REPO-ONLY** (operator flashes). RD-033 reclassified from a tracking-software bug to a **hardware/connection fault**: the Teensy 4.1 Person Sensor is **not detected on the I2C bus** (`[DBG] No Person Sensor found`, no ACK at 0x62) — confirmed across four firmware variants, multiple full power cycles, and a dark sensor LED.
+
+**How we got here (instrument-first, no blind changes — S133's greet-gate had made tracking WORSE, disproving that hypothesis):**
+1. Built `DEBUG_FACE=1` (S134-diag) → ZERO `[DBG-F]` output while "awake." Root: IRIS was actually asleep under a WebUI reporting "awake" — a Pi4↔firmware **sleep-state desync** (flagged below). After waking: still no `[DBG-F]`.
+2. Full rollback past S130 (`S134R`, pre-mouth-engine) → still `No Person Sensor found` across multiple cold power cycles.
+3. Self-healing re-probe (`S134R2`) + LED-indicator liveness build (`S134R2L`, `enableLED(true)`) → sensor's onboard LED stayed **dark**, no ACK.
+4. Legacy May-23 firmware (`d6c33c6`, pre-S91 probe, built in an isolated worktree + new `scripts/flash_t41_legacy.ps1`) → also no detect.
+→ Four firmware variants + cold power cycles + dark sensor LED ⇒ **firmware exonerated; the T4.1 Person Sensor is dead or disconnected.** No firmware version (current, rollback, or 20-day-old) sees it.
+
+**Durable firmware change (the one keeper):** `src/main.cpp` `loop()` gains a **self-healing re-probe** — the boot probe gave up after ~2 s with no retry (a cold-boot miss killed tracking for the whole session); it now retries `isPresent()` every 1 s until the sensor ACKs, then runs the known-good init sequence. Logging bounded to the first 30 attempts (RD-031-safe). Consolidated S135 = full S133 feature set (mouth idle/tint, greet gated `ENABLE_FACE_GREET=0`, `[SR]` log gate) + re-probe; diagnostics (`DEBUG_FACE`, LED-on) reverted to production defaults. `pio run -e eyes` SUCCESS (FLASH 94776). **REPO-ONLY.**
+
+**Hardware reality (operator, corrected mid-session):** TWO identical Useful Sensors Person Sensors are mounted side-by-side under the eyes — one wired to the **T4.0** (servo pan, toggle-gated), one to the **T4.1** (eyes; the dead one). The Useful Sensors Person Sensor is **discontinued / no online stock.** On-hand alternatives: the T4.0's (presumably working) sensor, and a **Pixy2** module.
+
+**Forward plan (see ROADMAP RD-033):**
+1. Confirm dead-vs-bus: reseat/jiggle the T4.1 sensor wiring + multimeter 3.3 V at the sensor pins.
+2. **Swap test** — rewire the T4.0's working sensor onto the T4.1 I2C; if the eyes track, the original T4.1 sensor was dead (bus + firmware fine). Best run on the currently-flashed `S134R2L` (re-probe + LED liveness).
+3. If replacement: Pixy2 (on hand) or a Person-Sensor equivalent (HuskyLens / Grove Vision AI V2) — new-driver project.
+
+**Sleep-state desync (separate finding, flagged):** the WebUI SLEEP tab reported "IRIS is awake" while the firmware was actually asleep (mouth Zzz, eyes starfield, tracking block skipped). Clicking WebUI "Awake" resynced it. S128 territory (in-memory sleep state drifting from firmware state). Not chased this session.
+
+**Diagnostic artifacts in tree:** `scripts/flash_t41_legacy.ps1` + worktree `../iris-legacy-S62b` (remove with `git worktree remove ../iris-legacy-S62b` when done). Live firmware right now = diagnostic `S134R2L`, not the S135 keeper.
+
+**Rollback:** `git checkout <S135 commit>~1 -- src/main.cpp src/config.h` restores S133; reflash.

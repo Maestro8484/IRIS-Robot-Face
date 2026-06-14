@@ -6,6 +6,37 @@ All items below are active or queued. Completed work is in `CHANGELOG.md`.
 
 ---
 
+## RD-033 — Person Sensor face-tracking: T4.1 sensor DEAD / not-detected (HARDWARE)  ⚠️ TOP PRIORITY (S135)
+
+**Status (S135):** ROOT-CAUSED TO HARDWARE. The Teensy 4.1 Person Sensor is **not detected on the I2C bus**
+(`[DBG] No Person Sensor found`, no ACK at 0x62) — confirmed firmware-independent across four firmware variants
+(`DEBUG_FACE=1`, `S134R` rollback past S130, `S134R2` re-probe, `S134R2L` LED-on), multiple cold power cycles,
+and a dark sensor LED. Firmware is exonerated; the tracking-software thread (S130–S133 mouthGreet / greet-gate)
+is **closed as a wrong lead.** See CHANGELOG S135.
+
+**Firmware done (S135, REPO-ONLY):** self-healing re-probe in `loop()` — the boot probe gave up after ~2 s
+with no retry (a cold-boot miss killed tracking for the whole session); now retries `isPresent()` every 1 s
+until ACK (bounded 30-line logging), then runs the known-good init. Consolidated keeper `S135` = full S133
+feature set + re-probe; `pio run -e eyes` SUCCESS. **Operator flashes** (`scripts\flash_t41.ps1`). Live
+firmware is currently the diagnostic `S134R2L` (re-probe + LED liveness — ideal for the swap test below).
+
+**Hardware path (operator):**
+1. **Confirm dead-vs-bus** — reseat/jiggle the T4.1 Person Sensor I2C wiring; multimeter 3.3 V between the
+   sensor's VCC/GND pins. No voltage → power/wiring; voltage present + LED dark + no ACK → dead sensor.
+2. **Swap test** — two identical Person Sensors are mounted side-by-side under the eyes (one drives the T4.0
+   servo via a toggle switch, one the T4.1 eyes). Rewire the T4.0's (working) sensor onto the T4.1 I2C: if
+   the eyes then track, the original T4.1 sensor was dead (bus + firmware fine). Run on the live `S134R2L`
+   build (re-probe + LED liveness). The T4.0 servo can sit idle meanwhile.
+3. **Replacement** (Useful Sensors Person Sensor is discontinued / no online stock): on-hand **Pixy2**
+   (CMUcam5 — face/object tracking over I2C/SPI/UART) is the leading candidate; alternatives HuskyLens,
+   Grove Vision AI V2. Each is a new-driver project (different wire protocol + bounding-box mapping into the
+   existing `setTargetPosition()` path). Scope once the swap test settles dead-vs-bus.
+
+**Diagnostic artifacts:** `scripts/flash_t41_legacy.ps1` + isolated worktree `../iris-legacy-S62b` (May-23
+firmware). Remove the worktree (`git worktree remove ../iris-legacy-S62b`) when the detour is no longer needed.
+
+---
+
 ## RD-031 — Eliminate log spam / unbounded disk writes  ⚠️ TOP PRIORITY (S130)
 
 **Status (S131):** ~RESOLVED~ — all Pi4-side fixes **DEPLOYED + VERIFIED**; one firmware piece is

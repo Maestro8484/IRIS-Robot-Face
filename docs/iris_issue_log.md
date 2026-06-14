@@ -463,3 +463,16 @@ Query by component: `grep -A5 "Component.*assistant"` etc.
 **Status:** Pi4 fixes DEPLOYED+VERIFIED (md5 RAM=SD; bridge 0 `>> MOUTH`/25 s; journald `cat-config` 50M/50M; `/api/sysstat` returns valid JSON). Firmware REPO-ONLY (user flashes S131). Pending: confirm `grep -c '\[SR\] frame'`≈0 across the next 21:00 sleep cycle.
 
 ---
+
+## 2026-06-13 | S135 | Firmware / Person Sensor (RD-033)
+
+**Symptom:** Eyes do not track faces — brief lock then random gaze, or no tracking at all. Recurred across many sessions; S133 (gating `mouthGreet`) made it WORSE, disproving that hypothesis.
+**Root cause:** The Teensy 4.1 Person Sensor is **not detected on the I2C bus** — `[DBG] No Person Sensor found`, no ACK at 0x62. Confirmed firmware-independent across four firmware variants (`DEBUG_FACE=1`, `S134R` full rollback past S130, `S134R2` re-probe, `S134R2L` LED-on), multiple cold power cycles, and a **dark onboard sensor LED**. The prior tracking-software hypotheses (mouthGreet SWSPI blocking, confidence flicker) were wrong leads — none of that code runs when the sensor is absent. Sensor is dead or disconnected (hardware).
+**Fix (firmware, partial — REPO-ONLY):** self-healing re-probe in `main.cpp loop()` — the boot probe gave up after ~2 s with no retry; now retries `isPresent()` every 1 s until ACK (bounded 30-line logging), then runs the known-good init. Consolidated keeper `S135` (= S133 features + re-probe). Makes detection robust for whatever working sensor is connected next; does NOT revive a dead sensor.
+**Hardware (pending operator):** two Person Sensors mounted side-by-side under the eyes (one T4.0/servo toggle-gated, one T4.1/eyes = dead). Plan: reseat/multimeter → swap the T4.0's working sensor onto the T4.1 bus (dead-vs-bus test) → else replace (Useful Sensors Person Sensor discontinued; on-hand **Pixy2**; alts HuskyLens / Grove Vision AI V2).
+**Side-finding:** Pi4↔firmware sleep-state desync — WebUI SLEEP tab reported "awake" while firmware was asleep (tracking block skipped). S128 territory. Flagged, not chased.
+**Files:** `src/main.cpp`, `src/config.h`, `scripts/flash_t41_legacy.ps1`
+**Commit:** S135
+**Status:** Open (hardware) — firmware re-probe REPO-ONLY; sensor dead/disconnected, awaiting swap test / replacement.
+
+---

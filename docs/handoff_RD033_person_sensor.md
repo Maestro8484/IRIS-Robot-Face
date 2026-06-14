@@ -1,5 +1,14 @@
 # Handoff — RD-033: Teensy 4.1 Person Sensor face-tracking NOT sustained  ⚠️ TOP PRIORITY
 
+> **⛔ S135 UPDATE — ROOT-CAUSED TO HARDWARE. Everything below is the SOFTWARE-era bench plan and is now
+> largely SUPERSEDED.** The T4.1 Person Sensor is **not detected on the I2C bus** (`[DBG] No Person Sensor
+> found`, no ACK at 0x62) — confirmed firmware-independent across four firmware variants, multiple cold
+> power cycles, and a dark sensor LED. The tracking-software suspects below (mouthGreet blocking, confidence
+> flicker, EyeController) are **closed as wrong leads** — none of that code runs when the sensor is absent.
+> Current plan = HARDWARE: reseat/multimeter → swap the T4.0's working sensor onto the T4.1 bus → else Pixy2
+> replacement. The self-healing re-probe (keeper firmware **S135**) is the only firmware carry-forward.
+> See **CHANGELOG S135 / ROADMAP RD-033 / SNAPSHOT Active Issues**.
+
 > **Deferred out of the S131 session (which closed RD-031/032).** This is the #1 remaining item.
 > **Recommended model: OPUS** — firmware + hardware reasoning + delicate observe-iterate tracking debug
 > with the operator at the bench. Tracking is a regression-prone path; do not rush a blind reflash.

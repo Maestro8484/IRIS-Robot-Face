@@ -448,6 +448,35 @@ void setup() {
 void loop() {
   processSerial();
 
+  // RD-033 self-healing detection: the boot probe (setup) gives up after ~2s. On a
+  // COLD power-up the Person Sensor can need longer than that to answer I2C, leaving
+  // tracking dead for the whole session with no recovery. Keep re-probing here every
+  // 1s until it ACKs at 0x62, then run the same init sequence and enable tracking.
+  // Logging is BOUNDED (first 30 attempts only) so a permanently-absent sensor never
+  // spams the journal (RD-031). If the sensor is truly dead/disconnected, this probes
+  // silently after ~30s and never finds it — which is itself the diagnostic answer.
+  if (!eyesSleeping && !personSensorFound) {
+    static uint32_t lastReprobeMs = 0;
+    static uint16_t reprobeCount  = 0;
+    uint32_t nowProbe = millis();
+    if (nowProbe - lastReprobeMs >= 1000) {
+      lastReprobeMs = nowProbe;
+      if (personSensor.isPresent()) {
+        personSensor.enableID(false);
+        personSensor.setMode(PersonSensor::Mode::Continuous);
+        delay(200); // settle, then disable LED
+        personSensor.enableLED(false);
+        personSensorFound = true;
+        Serial.print("[DBG] Person Sensor detected (late re-probe #");
+        Serial.print(reprobeCount); Serial.println(")");
+      } else if (reprobeCount < 30) {
+        Serial.print("[DBG] Person Sensor search: no ACK at 0x62 (#");
+        Serial.print(reprobeCount); Serial.println(")");
+      }
+      reprobeCount++;
+    }
+  }
+
   // Person sensor: skip during sleep to avoid I2C activity during heavy SPI load.
   if (!eyesSleeping && hasPersonSensor() && personSensor.read()) {
     int maxSize = 0;
